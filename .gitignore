@@ -130,3 +130,4 @@ client/public/__manus__/version.json
 
 _vercel_site/
 _vercel_static/
+.env*
