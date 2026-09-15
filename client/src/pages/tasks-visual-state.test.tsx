@@ -9,15 +9,22 @@ describe("الحالة البصرية للمهام", () => {
     expect(taskVisualClasses("completed")).toContain("f2f8f2");
   });
 
-  it("يعرض الأصفر خلال الأربع والعشرين ساعة السابقة للاستحقاق", () => {
+  it("يعرض الأصفر مع وميض خلال الأربع والعشرين ساعة السابقة للاستحقاق", () => {
     expect(taskVisualState({ status: "in_progress", dueAt: "2026-08-25T20:00:00Z" }, now)).toBe("due_soon");
     expect(taskVisualClasses("due_soon")).toContain("fffaf0");
+    expect(taskVisualClasses("due_soon")).toContain("rakiza-task-due-soon");
   });
 
-  it("يعرض الأحمر عند بدء التأخير أو حالة التأخر الصريحة", () => {
+  it("يعرض الأحمر مع وميض عند بدء التأخير أو حالة التأخر الصريحة", () => {
     expect(taskVisualState({ status: "in_progress", dueAt: "2026-08-25T07:59:00Z" }, now)).toBe("overdue");
     expect(taskVisualState({ status: "overdue", dueAt: "2026-08-30T08:00:00Z" }, now)).toBe("overdue");
     expect(taskVisualClasses("overdue")).toContain("fff3ef");
+    expect(taskVisualClasses("overdue")).toContain("rakiza-task-overdue");
+  });
+
+  it("يومض تنبيهياً للمهمة الجديدة القريبة من بدئها", () => {
+    expect(taskVisualState({ status: "new", dueAt: "2026-08-30T08:00:00Z", scheduledFor: "2026-08-25T08:30:00Z" }, now)).toBe("starting");
+    expect(taskVisualClasses("starting")).toContain("rakiza-task-starting");
   });
 
   it("يقصر المعاينة داخل المتصفح على صور PNG وJPEG", () => {
