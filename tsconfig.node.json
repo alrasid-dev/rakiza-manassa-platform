@@ -13,11 +13,11 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
     "types": ["node"],
     "paths": {
       "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"]
+      "@shared/*": ["./shared/*"],
+      "server/*": ["./server/*"]
     }
   },
   "include": ["server/**/*.ts", "shared/**/*.ts", "api/**/*.ts", "server.ts", "drizzle/**/*.ts"],

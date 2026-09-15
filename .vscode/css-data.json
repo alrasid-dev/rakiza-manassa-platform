@@ -1,0 +1,19 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    { "name": "@tailwind", "description": "Tailwind CSS directive" },
+    { "name": "@apply", "description": "Apply Tailwind utility classes" },
+    { "name": "@layer", "description": "Tailwind CSS layer" },
+    { "name": "@config", "description": "Tailwind CSS config path" },
+    { "name": "@theme", "description": "Tailwind CSS v4 theme variables" },
+    { "name": "@custom-variant", "description": "Tailwind CSS v4 custom variant" },
+    { "name": "@variant", "description": "Tailwind CSS v4 variant" },
+    { "name": "@utility", "description": "Tailwind CSS v4 custom utility" },
+    { "name": "@plugin", "description": "Tailwind CSS v4 plugin" },
+    { "name": "@source", "description": "Tailwind CSS v4 content source" },
+    { "name": "@reference", "description": "Tailwind CSS v4 reference" }
+  ],
+  "properties": [],
+  "pseudoClasses": [],
+  "pseudoElements": []
+}
