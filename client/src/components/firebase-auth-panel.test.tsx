@@ -90,13 +90,14 @@ describe("سياسة كلمة المرور في لوحة الدخول", () => {
     expect(screen.getByRole("status").textContent).not.toContain("أضف");
   });
 
-  it("لا تفرض التعقيد الجديد عند الدخول حتى لا يُحجب حساب قديم", async () => {
+  it("لا تفرض التحقق بالبريد ولا التعقيد الجديد عند الدخول حتى لا يُحجب حساب قديم", async () => {
     signInEmail.mockResolvedValue({ user: { emailVerified: false, getIdToken: async () => "token" } });
+    exchangeMutate.mockResolvedValue({ verified: true, provider: "password", mustChangePassword: true });
     render(<FirebaseAuthPanel officialEmail="user@moj.gov.sa" validOfficialEmail />);
     fireEvent.change(passwordField(), { target: { value: "abcdefgh" } });
     fireEvent.click(screen.getByRole("button", { name: "دخول" }));
     await waitFor(() => expect(signInEmail).toHaveBeenCalledWith("user@moj.gov.sa", "abcdefgh"));
-    expect(screen.getByRole("status").textContent).toContain("أكد بريدك الرسمي");
+    await waitFor(() => expect(exchangeMutate).toHaveBeenCalled());
   });
 
   it("تمنع الدخول بكلمة مرور أقصر من الحد الأدنى", () => {

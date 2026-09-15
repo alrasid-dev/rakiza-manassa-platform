@@ -18,12 +18,12 @@ vi.mock("@/lib/trpc", () => ({
   },
 }));
 
-vi.mock("@/components/FirebaseAuthPanel", () => ({
-  FirebaseAuthPanel: ({ officialEmail, validOfficialEmail }: { officialEmail: string; validOfficialEmail: boolean }) => (
-    <div data-testid="password-panel">
+vi.mock("@/components/PasscodeAuthPanel", () => ({
+  PasscodeAuthPanel: ({ officialEmail, validOfficialEmail }: { officialEmail: string; validOfficialEmail: boolean }) => (
+    <div data-testid="passcode-panel">
       <span data-testid="panel-email">{officialEmail}</span>
       <span data-testid="panel-valid">{validOfficialEmail ? "valid" : "invalid"}</span>
-      <label>كلمة المرور<input aria-label="كلمة المرور" type="password" /></label>
+      <label>رمز المرور<input aria-label="رمز المرور" type="password" /></label>
       <button type="button">دخول</button>
     </div>
   ),
@@ -42,11 +42,11 @@ beforeEach(() => { window.localStorage.clear(); });
 afterEach(() => { cleanup(); passkeyMutate.mockReset(); });
 
 describe("شاشة تسجيل الدخول المبسطة", () => {
-  it("تعرض الحقلين المطلوبين فقط: البريد الرسمي وكلمة المرور", () => {
+  it("تعرض الحقلين المطلوبين فقط: البريد الرسمي ورمز المرور", () => {
     render(<AuthExperimentPage />);
     expect(screen.getByLabelText("البريد الإلكتروني الرسمي")).toBeTruthy();
-    expect(screen.getByLabelText("كلمة المرور")).toBeTruthy();
-    expect(screen.getByTestId("password-panel")).toBeTruthy();
+    expect(screen.getByLabelText("رمز المرور")).toBeTruthy();
+    expect(screen.getByTestId("passcode-panel")).toBeTruthy();
   });
 
   it("لا تعرض أي خيار لرمز OTP أو مفتاح المرور داخل نموذج الدخول", () => {
@@ -57,14 +57,14 @@ describe("شاشة تسجيل الدخول المبسطة", () => {
     expect(screen.queryByText(/إرسال رمز تحقق/)).toBeNull();
   });
 
-  it("ترفض أي بريد خارج نطاق moj.gov.sa ولا تمرره للوحة كلمة المرور", () => {
+  it("ترفض أي بريد خارج نطاق moj.gov.sa ولا تمرره للوحة رمز المرور", () => {
     render(<AuthExperimentPage />);
     fireEvent.change(screen.getByLabelText("البريد الإلكتروني الرسمي"), { target: { value: "user@example.com" } });
     expect(screen.getByRole("alert").textContent).toContain("moj.gov.sa");
     expect(screen.getByTestId("panel-valid").textContent).toBe("invalid");
   });
 
-  it("تقبل البريد الرسمي وتمرره للوحة كلمة المرور", () => {
+  it("تقبل البريد الرسمي وتمرره للوحة رمز المرور", () => {
     render(<AuthExperimentPage />);
     fireEvent.change(screen.getByLabelText("البريد الإلكتروني الرسمي"), { target: { value: "employee@moj.gov.sa" } });
     expect(screen.getByTestId("panel-valid").textContent).toBe("valid");
@@ -96,7 +96,7 @@ describe("شاشة تسجيل الدخول المبسطة", () => {
     fireEvent.click(screen.getByRole("button", { name: "دخول المالك" }));
     expect(screen.getByTestId("owner-google")).toBeTruthy();
     expect(screen.getByRole("button", { name: "الدخول عبر Google بحساب مالك المنصة" })).toBeTruthy();
-    expect(screen.queryByTestId("password-panel")).toBeNull();
+    expect(screen.queryByTestId("passcode-panel")).toBeNull();
     expect(screen.queryByLabelText("البريد الإلكتروني الرسمي")).toBeNull();
   });
 

@@ -18,6 +18,7 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   firebaseUid: varchar("firebaseUid", { length: 128 }),
   firebaseLinkedAt: timestamp("firebaseLinkedAt"),
+  passcodeHash: varchar("passcodeHash", { length: 255 }),
   activeDepartmentAccountId: int("activeDepartmentAccountId"),
   backupEmail: varchar("backupEmail", { length: 320 }),
   backupEmailVerifiedAt: timestamp("backupEmailVerifiedAt"),

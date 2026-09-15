@@ -27,6 +27,8 @@ export function OwnerGoogleLogin({ onNotice }: { onNotice?: (message: string) =>
     if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") return "سيُفتح Google في الصفحة نفسها لإكمال الدخول.";
     if (code === "auth/network-request-failed") return "تعذر الاتصال بخدمة الدخول من هذا الجهاز. تحقق من الإنترنت ثم أعد المحاولة.";
     if (code === "auth/internal-error" || code === "auth/operation-not-allowed") return "دخول Google غير مهيأ حالياً في إعدادات المنصة.";
+    if (code === "auth/configuration-not-found" || code === "auth/invalid-api-key" || code === "auth/app-not-authorized") return "إعداد Firebase غير مكتمل: فعّل Authentication وGoogle Sign-In في Firebase Console، وتأكد من تطابق إعدادات المشروع في متغيرات البيئة.";
+    if (code === "auth/unauthorized-domain") return "نطاق الموقع غير مصرّح به في إعدادات Firebase Authentication.";
     return error instanceof Error ? error.message : "تعذر إكمال الدخول عبر Google.";
   };
 

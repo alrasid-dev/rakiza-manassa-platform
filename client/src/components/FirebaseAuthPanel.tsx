@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { platformBasePath } from "@/lib/pwa";
 import { trpc } from "@/lib/trpc";
-import { authCreateUserWithEmailAndPassword, authSendEmailVerification, authSignInWithEmailAndPassword, authSignOut, authUpdatePassword } from "@/lib/firebase";
+import { authCreateUserWithEmailAndPassword, authSignInWithEmailAndPassword, authUpdatePassword } from "@/lib/firebase";
 import { PASSWORD_POLICY_HINT, validateLoginPassword, validateNewPassword } from "@shared/password-policy";
 import { Button } from "./ui/button";
 
@@ -28,6 +28,9 @@ export function FirebaseAuthPanel({ officialEmail, validOfficialEmail, activatio
     if (code === "auth/internal-error") return "تعذر إكمال الاتصال بخدمة Firebase. تأكد من تفعيل Email/Password في Firebase Authentication، ثم أعد المحاولة.";
     if (code === "auth/network-request-failed") return "تعذر الاتصال بخدمة Firebase من هذا الجهاز. تحقق من الإنترنت أو جرّب شبكة جوال/نافذة خفية، ثم أعد المحاولة.";
     if (code === "auth/operation-not-allowed") return "طريقة الدخول هذه غير مفعلة في Firebase Authentication حتى الآن.";
+    if (code === "auth/configuration-not-found") return "إعداد Firebase غير مكتمل: المشروع المرتبط بالمفتاح غير مهيأ للمصادقة. فعّل Authentication وEmail/Password في Firebase Console، وتأكد أن apiKey وprojectId وauthDomain جميعها من مشروع Firebase نفسه في متغيرات بيئة النشر.";
+    if (code === "auth/invalid-api-key" || code === "auth/app-not-authorized") return "مفتاح Firebase غير صالح أو غير مفوّض لهذا المشروع. راجع VITE_FIREBASE_API_KEY وVITE_FIREBASE_PROJECT_ID في متغيرات البيئة.";
+    if (code === "auth/unauthorized-domain") return "نطاق الموقع غير مصرّح به في إعدادات Firebase Authentication. أضف نطاق رَكيزة إلى Authorized domains.";
     if (code === "auth/invalid-credential" || code === "auth/invalid-login-credentials") return "البريد أو كلمة المرور غير صحيحة، أو لم يتم إنشاء كلمة مرور لهذا البريد بعد.";
     if (code === "auth/email-already-in-use") return "يوجد حساب بكلمة مرور لهذا البريد. استخدم «دخول بالبريد» أو عيّن كلمة مرور جديدة عبر OTP ثم التفعيل.";
     if (code === "auth/popup-blocked") return "المتصفح منع النافذة المنبثقة؛ أعد المحاولة وسيُفتح تسجيل Google في الصفحة نفسها.";
@@ -53,7 +56,6 @@ export function FirebaseAuthPanel({ officialEmail, validOfficialEmail, activatio
     setBusy("signin"); setNotice("");
     try {
       const result = await authSignInWithEmailAndPassword(officialEmail.trim().toLowerCase(), password);
-      if (!result.user.emailVerified && !activationMode) { await authSignOut(); setNotice("أكد بريدك الرسمي من الرسالة المرسلة إليه قبل الدخول."); return; }
       await bridgeSession(result.user);
     } catch (error) { setNotice(firebaseErrorMessage(error, "تعذر الدخول بالبريد وكلمة المرور.")); }
     finally { setBusy(null); }
@@ -67,24 +69,21 @@ export function FirebaseAuthPanel({ officialEmail, validOfficialEmail, activatio
     setBusy("register"); setNotice("");
     try {
       const result = await authCreateUserWithEmailAndPassword(officialEmail.trim().toLowerCase(), password);
-      if (activationMode) {
-        await bridgeSession(result.user, { completePasswordSetup: true });
-      } else {
-        await authSendEmailVerification(result.user);
-        await authSignOut();
-        setNotice("تم إنشاء الحساب. افتح رسالة التأكيد في بريدك الرسمي ثم عد للدخول بكلمة المرور.");
-      }
+      // بدون رسالة تحقق بالبريد: كلمة المرور التي أنشأها المستخدم هي رمزه للدخول.
+      await bridgeSession(result.user, { completePasswordSetup: true });
     } catch (error) {
       const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
-      if (code === "auth/email-already-in-use" && activationMode) {
+      if (code === "auth/email-already-in-use") {
         try {
           const signed = await authSignInWithEmailAndPassword(officialEmail.trim().toLowerCase(), password);
-          await authUpdatePassword(signed.user, password);
-          await completePasswordSetup.mutateAsync();
+          if (activationMode) {
+            await authUpdatePassword(signed.user, password);
+            await completePasswordSetup.mutateAsync();
+          }
           await bridgeSession(signed.user, { completePasswordSetup: true });
           return;
         } catch (inner) {
-          setNotice(firebaseErrorMessage(inner, "الحساب موجود. استخدم كلمة المرور الحالية أو أعد التعيين عبر OTP."));
+          setNotice(firebaseErrorMessage(inner, "الحساب موجود. استخدم كلمة المرور الحالية للدخول."));
           return;
         }
       }

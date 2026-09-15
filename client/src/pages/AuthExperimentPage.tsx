@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { Fingerprint, Headset, ShieldCheck, UserPlus, UserRoundCog } from "lucide-react";
-import { FirebaseAuthPanel } from "@/components/FirebaseAuthPanel";
 import { OwnerGoogleLogin, PLATFORM_OWNER_EMAIL } from "@/components/OwnerGoogleLogin";
+import { PasscodeAuthPanel } from "@/components/PasscodeAuthPanel";
 import { PwaInstallHint } from "@/components/PwaInstallHint";
 import { platformBasePath, platformHref } from "@/lib/pwa";
 import { STATIC_HOST_LOGIN_MESSAGE, isPublicStaticHost, operationalLoginHref } from "@/lib/runtime";
@@ -16,8 +16,6 @@ export function AuthExperimentPage() {
   const [email, setEmail] = useState("");
   const [notice, setNotice] = useState("");
   const [passkeyNotice, setPasskeyNotice] = useState("");
-  const [activationToken] = useState<string | null>(null);
-  const [forcePasswordSetup] = useState(false);
   const validLoginEmail = useMemo(() => MOJ_EMAIL_PATTERN.test(email.trim()), [email]);
   const passkeySupported = typeof window !== "undefined" && "PublicKeyCredential" in window && window.isSecureContext;
 
@@ -43,9 +41,9 @@ export function AuthExperimentPage() {
     if (name === "SecurityError") return "رفض المتصفح العملية لأن الرابط غير آمن. افتح رابط رَكيزة الرسمي عبر HTTPS.";
     if (name === "ConstraintError") return "يوجد تعارض في بصمة هذا الحساب على الجهاز. جرّب متصفحاً أو جهازاً آخر.";
     const message = error instanceof Error ? error.message : "";
-    if (/UNAUTHORIZED|غير مصرح/i.test(message)) return "تفعيل البصمة يتم بعد أول دخول بكلمة المرور: سجّل دخولك ثم اضغط الزر مرة أخرى.";
-    if (/ملف موظف|بريد رسمي/i.test(message)) return "لا يوجد حساب مسجَّل بهذا البريد بعد. أكمل أول دخول بكلمة المرور ثم فعّل البصمة.";
-    return message || (action === "register" ? "تعذر تفعيل البصمة على هذا الجهاز." : "لا توجد بصمة مسجّلة لهذا الحساب على هذا الجهاز. فعّلها بعد الدخول بكلمة المرور.");
+    if (/UNAUTHORIZED|غير مصرح/i.test(message)) return "تفعيل البصمة يتم بعد أول دخول برمز المرور: سجّل دخولك ثم اضغط الزر مرة أخرى.";
+    if (/ملف موظف|بريد رسمي/i.test(message)) return "لا يوجد حساب مسجَّل بهذا البريد بعد. أكمل أول دخول برمز المرور ثم فعّل البصمة.";
+    return message || (action === "register" ? "تعذر تفعيل البصمة على هذا الجهاز." : "لا توجد بصمة مسجّلة لهذا الحساب على هذا الجهاز. فعّلها بعد الدخول برمز المرور.");
   };
 
   const enrollPasskey = async () => {
@@ -89,7 +87,7 @@ export function AuthExperimentPage() {
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[#6c7b73]">
             {mode === "owner"
               ? "مسار مخصص لبريد مالك المنصة الاستثنائي، عبر حساب Google فقط ودون كلمة مرور تقليدية."
-              : "الدخول بالبريد الرسمي المنتهي بـ @moj.gov.sa وكلمة المرور فقط. أول دخول: أنشئ كلمة مرورك من أحرف وأرقام وتُعتمد بعد ذلك دائماً."}
+              : "الدخول بالبريد الرسمي المنتهي بـ @moj.gov.sa ورمز المرور فقط. أول دخول: أنشئ رمزاً من 6 أرقام ويُعتمد للدخول بعد ذلك."}
           </p>
         </div>
         <ShieldCheck aria-hidden="true" className="h-11 w-11 shrink-0 text-[#006c35]" />
@@ -107,7 +105,7 @@ export function AuthExperimentPage() {
               <input id="rakiza-login-email" aria-label="البريد الإلكتروني الرسمي" value={email} onChange={event => setEmail(event.target.value)} type="email" dir="ltr" inputMode="email" autoComplete="username" placeholder="name@moj.gov.sa" className="mt-2 h-11 w-full rounded-xl border border-input px-3 text-sm" />
               {email.trim().length > 0 && !validLoginEmail && <p role="alert" className="mt-2 text-xs font-bold text-[#9a4634]">لا يُقبل إلا بريد رسمي من نطاق moj.gov.sa.</p>}
             </div>
-            <FirebaseAuthPanel officialEmail={email.trim()} validOfficialEmail={validLoginEmail} activationToken={activationToken} forcePasswordSetup={forcePasswordSetup} />
+            <PasscodeAuthPanel officialEmail={email.trim()} validOfficialEmail={validLoginEmail} />
           </>}
 
         {notice && <p role="status" className="mt-4 rounded-xl bg-[#f3f6f1] p-3 text-xs leading-6 text-[#426253]">{notice}</p>}
@@ -120,7 +118,7 @@ export function AuthExperimentPage() {
           <Fingerprint aria-hidden="true" className="h-5 w-5 text-[#006c35]" />
           <h2 className="text-sm font-black text-[#29463b]">تسجيل الدخول بالبصمة</h2>
         </div>
-        <p className="mt-2 text-xs leading-6 text-[#718078]">بصمة جهازك تبقى داخل جهازك ولا تُرسل إلى المنصة. فعّل البصمة بعد أول دخول بكلمة المرور، ثم ادخل بها مباشرة.</p>
+        <p className="mt-2 text-xs leading-6 text-[#718078]">بصمة جهازك تبقى داخل جهازك ولا تُرسل إلى المنصة. فعّل البصمة بعد أول دخول برمز المرور، ثم ادخل بها مباشرة.</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={() => void enrollPasskey()} aria-label="تفعيل الدخول بالبصمة على هذا الجهاز" className="rounded-xl bg-[#006c35] px-4 py-3 text-xs font-black text-white shadow-sm transition hover:bg-[#00552b]">تفعيل البصمة على هذا الجهاز</button>
           <button type="button" onClick={() => void signInWithPasskey()} aria-label="الدخول بالبصمة المسجلة على هذا الجهاز" className="rounded-xl border border-[#bfd3c2] bg-white px-4 py-3 text-xs font-black text-[#246047] transition hover:bg-[#edf6ee]">الدخول بالبصمة</button>

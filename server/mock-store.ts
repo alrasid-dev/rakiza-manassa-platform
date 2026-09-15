@@ -57,6 +57,7 @@ function makeUser(partial: Partial<User> & { openId: string }): User {
     email: partial.email ?? null,
     firebaseUid: partial.firebaseUid ?? null,
     firebaseLinkedAt: partial.firebaseLinkedAt ?? now,
+    passcodeHash: partial.passcodeHash ?? null,
     activeDepartmentAccountId: null,
     backupEmail: null,
     backupEmailVerifiedAt: null,
@@ -151,6 +152,37 @@ export function mockLinkFirebaseIdentity(identity: {
     );
   }
   return { user, profileId: null as number | null };
+}
+
+/** ربط هوية رمز المرور وهمياً: ينشئ المستخدم أو يعيده بالبريد دون Firebase. */
+export function mockLinkPasscodeIdentity(email: string) {
+  const normalized = email.trim().toLowerCase();
+  const existing = mockGetUserByEmail(normalized);
+  if (existing) {
+    existing.loginMethod = "passcode";
+    existing.lastSignedIn = new Date();
+    existing.updatedAt = new Date();
+    return { user: existing, profileId: null as number | null };
+  }
+  const user = mockUpsertUser(
+    makeUser({
+      openId: mockOpenIdForEmail(normalized),
+      email: normalized,
+      name: normalized,
+      loginMethod: "passcode",
+      role: normalized === ENV.platformOwnerEmail ? "admin" : "user",
+      mustChangePassword: false,
+    })
+  );
+  return { user, profileId: null as number | null };
+}
+
+export function mockSetUserPasscode(email: string, passcodeHash: string) {
+  const user = mockGetUserByEmail(email.trim().toLowerCase());
+  if (!user) return undefined;
+  user.passcodeHash = passcodeHash;
+  user.updatedAt = new Date();
+  return user;
 }
 
 /* ------------------------- البصمة (WebAuthn) ------------------------- */

@@ -14,7 +14,13 @@ function makeMockToken(email: string, provider: "google.com" | "password") {
 }
 
 describe("وضع التشغيل المستقل (Mock Mode)", () => {
-  beforeEach(() => resetMockStore());
+  beforeEach(() => {
+    resetMockStore();
+    // ضمان مسار الوضع الوهمي بغضّ النظر عن بيئة التشغيل.
+    delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    delete process.env.DATABASE_URL;
+    delete process.env.VITE_DATABASE_URL;
+  });
 
   it("يتحقق من رمز Firebase وهمياً ويقبل البريد الرسمي @moj.gov.sa", async () => {
     const identity = await verifyFirebaseIdToken(makeMockToken("employee@moj.gov.sa", "password"));

@@ -190,6 +190,7 @@ import { sendPushForNotification } from "../push-service";
 import { deleteInternalMailRule, deleteInternalMailTemplate, getInternalMailFolderCounts, getInternalMailMessage, getInternalMailPreferences, listInternalMail, listInternalMailRecurringSchedules, saveInternalMailDraft, saveInternalMailRule, saveInternalMailTemplate, scheduleInternalMail, scheduleRecurringInternalMail, sendInternalMail, suggestInternalMailAssistant, summarizeInternalMailMessage, updateInternalMailAssistantPreferences, updateInternalMailContact, updateInternalMailEntry, updateInternalMailPreferences, updateInternalMailRecurringSchedule, uploadInternalMailSignatureImage } from "../internal-mail-service";
 import { removeFcmToken, sendFcmToProfile, upsertFcmToken } from "../fcm-service";
 import { clearMustChangePassword, linkFirebaseIdentity, verifyFirebaseIdToken } from "../firebase-auth-service";
+import { loginWithPasscode, passcodeConfigured, setupPasscode } from "../passcode-service";
 import { getDb } from "../db";
 import {
   cancelPermissionDelegation,
@@ -514,6 +515,30 @@ export const courtRouter = router({
       const sessionToken = await sdk.createSessionToken(result.user.openId, { name: result.user.name ?? "", expiresInMs: ONE_YEAR_MS });
       ctx.res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
       return { verified: true as const, mustChangePassword: Boolean((result.user as { mustChangePassword?: boolean }).mustChangePassword) };
+    }),
+  }),
+
+  passcode: router({
+    isConfigured: publicProcedure.input(z.object({ officialEmail: z.string().trim().email().max(320) })).query(({ input }) => passcodeConfigured({ officialEmail: input.officialEmail })),
+    setup: publicProcedure.input(z.object({ officialEmail: z.string().trim().email().max(320), passcode: z.string().regex(/^\d{6}$/, "يجب إدخال ستة أرقام.") })).mutation(async ({ ctx, input }) => {
+      try {
+        const user = await setupPasscode({ officialEmail: input.officialEmail, passcode: input.passcode });
+        const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name ?? "", expiresInMs: ONE_YEAR_MS });
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
+        return { verified: true as const, configured: true as const };
+      } catch (error) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "تعذر إنشاء رمز المرور." });
+      }
+    }),
+    login: publicProcedure.input(z.object({ officialEmail: z.string().trim().email().max(320), passcode: z.string().regex(/^\d{6}$/, "يجب إدخال ستة أرقام.") })).mutation(async ({ ctx, input }) => {
+      try {
+        const user = await loginWithPasscode({ officialEmail: input.officialEmail, passcode: input.passcode });
+        const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name ?? "", expiresInMs: ONE_YEAR_MS });
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(ctx.req), maxAge: ONE_YEAR_MS });
+        return { verified: true as const };
+      } catch (error) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: error instanceof Error ? error.message : "تعذر الدخول برمز المرور." });
+      }
     }),
   }),
 

@@ -63,10 +63,11 @@ export async function verifyFirebaseIdToken(idToken: string, options?: { allowUn
   const uid = typeof payload.sub === "string" ? payload.sub : "";
   const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
   const name = typeof payload.name === "string" ? payload.name : email;
-  const verified = payload.email_verified === true;
   const signInProvider = (payload.firebase as { sign_in_provider?: string } | undefined)?.sign_in_provider;
   const provider = signInProvider === "google.com" ? "google.com" : signInProvider === "password" ? "password" : "unknown";
-  if (!uid || !email || (!verified && !options?.allowUnverifiedEmail) || !isAllowedLoginEmail(email)) throw new Error("يلزم بريد رسمي موثق ومسموح به للدخول إلى رَكيزة، أو رمز تفعيل لمرة واحدة بعد إثبات الهوية.");
+  // لا نعتمد على رسالة تحقق Firebase بالبريد (بريد @moj.gov.sa الحكومي لا يستقبلها):
+  // تُعتمد كلمة المرور التي أنشأها المستخدم بنفسه رمزاً للدخول، ويُقبل البريد المسموح فقط.
+  if (!uid || !email || !isAllowedLoginEmail(email)) throw new Error("يلزم بريد رسمي مسموح به للدخول إلى رَكيزة.");
   return { uid, email, name, provider };
 }
 
