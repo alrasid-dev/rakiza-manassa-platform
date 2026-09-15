@@ -7,15 +7,12 @@ const signOutMock = vi.fn(async () => undefined);
 const signInWithPopupMock = vi.fn();
 const exchangeMutate = vi.fn();
 
-vi.mock("firebase/auth", () => ({
-  GoogleAuthProvider: class GoogleAuthProvider {},
-  getRedirectResult: async () => null,
-  signInWithPopup: (auth: unknown, provider: unknown) => signInWithPopupMock(auth, provider),
-  signInWithRedirect: async () => undefined,
-  signOut: (auth: unknown) => signOutMock(auth),
+vi.mock("@/lib/firebase", () => ({
+  authSignInWithPopup: () => signInWithPopupMock(),
+  authSignInWithRedirect: async () => undefined,
+  authGetRedirectResult: async () => null,
+  authSignOut: () => signOutMock(),
 }));
-
-vi.mock("@/lib/firebase", () => ({ firebaseWebConfigReady: true, getFirebaseAuth: () => ({}) }));
 vi.mock("@/lib/pwa", () => ({ platformBasePath: () => "/" }));
 vi.mock("@/lib/trpc", () => ({ trpc: { court: { firebaseAuth: { exchange: { useMutation: () => ({ mutateAsync: exchangeMutate, isPending: false }) } } } } }));
 vi.mock("./ui/button", () => ({ Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => <button {...props}>{children}</button> }));

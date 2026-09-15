@@ -512,7 +512,7 @@ export const notifications = mysqlTable("notifications", {
 export const pushSubscriptions = mysqlTable("push_subscriptions", {
   id: int("id").autoincrement().primaryKey(),
   profileId: int("profileId").notNull(),
-  endpoint: varchar("endpoint", { length: 2048 }).notNull(),
+  endpoint: varchar("endpoint", { length: 512 }).notNull(),
   p256dh: varchar("p256dh", { length: 512 }).notNull(),
   auth: varchar("auth", { length: 512 }).notNull(),
   userAgent: varchar("userAgent", { length: 512 }),
@@ -526,7 +526,7 @@ export const pushSubscriptions = mysqlTable("push_subscriptions", {
 export const fcmTokens = mysqlTable("fcm_tokens", {
   id: int("id").autoincrement().primaryKey(),
   profileId: int("profileId").notNull(),
-  token: varchar("token", { length: 1024 }).notNull(),
+  token: varchar("token", { length: 512 }).notNull(),
   platform: varchar("platform", { length: 32 }).default("web").notNull(),
   userAgent: varchar("userAgent", { length: 512 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

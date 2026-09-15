@@ -5,7 +5,7 @@ import path from "node:path";
 const outfile = "api/handler.js";
 
 await esbuild.build({
-  entryPoints: ["api/handler.ts"],
+  entryPoints: ["server/vercel-handler.ts"],
   bundle: true,
   platform: "node",
   format: "esm",

@@ -6,7 +6,7 @@ describe("مسار تشغيل Vercel", () => {
   it("لا يستخدم مدخل TypeScript يُترجم إلى استيراد بدون امتداد", () => {
     expect(existsSync(join(process.cwd(), "api/index.ts"))).toBe(true);
     expect(readFileSync(join(process.cwd(), "api/index.ts"), "utf8").trim()).toBe('export { default } from "./handler.js";');
-    expect(existsSync(join(process.cwd(), "api/handler.ts"))).toBe(true);
+    expect(existsSync(join(process.cwd(), "server/vercel-handler.ts"))).toBe(true);
     const vercelConfig = JSON.parse(readFileSync(join(process.cwd(), "vercel.json"), "utf8")) as { functions: Record<string, { includeFiles?: string }>; rewrites: Array<{ destination: string }> };
     expect(Object.keys(vercelConfig.functions)).toContain("api/index.ts");
     for (const pattern of Object.keys(vercelConfig.functions)) {
@@ -15,7 +15,7 @@ describe("مسار تشغيل Vercel", () => {
     expect(vercelConfig.functions["api/index.ts"]?.includeFiles).toContain("api/handler.js");
     expect(vercelConfig.rewrites[0]?.destination).toBe("/api");
     expect(readFileSync(join(process.cwd(), "scripts/bundle-vercel-api.mjs"), "utf8")).toContain('const outfile = "api/handler.js"');
-    const handlerEntry = readFileSync(join(process.cwd(), "api/handler.ts"), "utf8");
+    const handlerEntry = readFileSync(join(process.cwd(), "server/vercel-handler.ts"), "utf8");
     const serverEntry = readFileSync(join(process.cwd(), "server.ts"), "utf8");
     const appEntry = readFileSync(join(process.cwd(), "server/_core/app.ts"), "utf8");
     const staticEntry = readFileSync(join(process.cwd(), "server/_core/static.ts"), "utf8");

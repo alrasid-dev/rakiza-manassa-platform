@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { mockGetUserByOpenId, mockUpsertUser } from "./mock-store";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -26,7 +27,17 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
+    // وضع التشغيل المستقل: تحديث المستخدم في المخزن الوهمي.
+    const existing = mockGetUserByOpenId(user.openId);
+    if (existing) {
+      if (user.name !== undefined) existing.name = user.name ?? null;
+      if (user.email !== undefined) existing.email = user.email ?? null;
+      if (user.loginMethod !== undefined) existing.loginMethod = user.loginMethod ?? null;
+      if (user.role !== undefined) existing.role = user.role;
+      if (user.lastSignedIn !== undefined) existing.lastSignedIn = user.lastSignedIn;
+      existing.updatedAt = new Date();
+      mockUpsertUser(existing);
+    }
     return;
   }
 
@@ -81,8 +92,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
+    // وضع التشغيل المستقل: القراءة من المخزن الوهمي.
+    return mockGetUserByOpenId(openId);
   }
 
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);

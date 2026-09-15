@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { KeyRound, ShieldCheck } from "lucide-react";
-import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, signOut, updatePassword } from "firebase/auth";
 import { platformBasePath } from "@/lib/pwa";
 import { trpc } from "@/lib/trpc";
-import { firebaseWebConfigReady, getFirebaseAuth } from "@/lib/firebase";
+import { authCreateUserWithEmailAndPassword, authSendEmailVerification, authSignInWithEmailAndPassword, authSignOut, authUpdatePassword } from "@/lib/firebase";
 import { PASSWORD_POLICY_HINT, validateLoginPassword, validateNewPassword } from "@shared/password-policy";
 import { Button } from "./ui/button";
 
@@ -48,41 +47,39 @@ export function FirebaseAuthPanel({ officialEmail, validOfficialEmail, activatio
   };
 
   const signInEmail = async () => {
-    const auth = getFirebaseAuth();
-    if (!auth || !validOfficialEmail) { setNotice("أدخل البريد الرسمي أولاً."); return; }
+    if (!validOfficialEmail) { setNotice("أدخل البريد الرسمي أولاً."); return; }
     const loginPolicy = validateLoginPassword(password);
     if (!loginPolicy.ok) { setNotice(loginPolicy.message); return; }
     setBusy("signin"); setNotice("");
     try {
-      const result = await signInWithEmailAndPassword(auth, officialEmail.trim().toLowerCase(), password);
-      if (!result.user.emailVerified && !activationMode) { await signOut(auth); setNotice("أكد بريدك الرسمي من الرسالة المرسلة إليه قبل الدخول."); return; }
+      const result = await authSignInWithEmailAndPassword(officialEmail.trim().toLowerCase(), password);
+      if (!result.user.emailVerified && !activationMode) { await authSignOut(); setNotice("أكد بريدك الرسمي من الرسالة المرسلة إليه قبل الدخول."); return; }
       await bridgeSession(result.user);
     } catch (error) { setNotice(firebaseErrorMessage(error, "تعذر الدخول بالبريد وكلمة المرور.")); }
     finally { setBusy(null); }
   };
 
   const registerEmail = async () => {
-    const auth = getFirebaseAuth();
-    if (!auth || !validOfficialEmail) { setNotice("أدخل البريد الرسمي أولاً."); return; }
+    if (!validOfficialEmail) { setNotice("أدخل البريد الرسمي أولاً."); return; }
     const newPasswordPolicy = validateNewPassword(password);
     if (!newPasswordPolicy.ok) { setNotice(newPasswordPolicy.message); return; }
     if (activationMode && password !== confirmPassword) { setNotice("تأكيد كلمة المرور غير مطابق."); return; }
     setBusy("register"); setNotice("");
     try {
-      const result = await createUserWithEmailAndPassword(auth, officialEmail.trim().toLowerCase(), password);
+      const result = await authCreateUserWithEmailAndPassword(officialEmail.trim().toLowerCase(), password);
       if (activationMode) {
         await bridgeSession(result.user, { completePasswordSetup: true });
       } else {
-        await sendEmailVerification(result.user);
-        await signOut(auth);
+        await authSendEmailVerification(result.user);
+        await authSignOut();
         setNotice("تم إنشاء الحساب. افتح رسالة التأكيد في بريدك الرسمي ثم عد للدخول بكلمة المرور.");
       }
     } catch (error) {
       const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
       if (code === "auth/email-already-in-use" && activationMode) {
         try {
-          const signed = await signInWithEmailAndPassword(auth, officialEmail.trim().toLowerCase(), password);
-          await updatePassword(signed.user, password);
+          const signed = await authSignInWithEmailAndPassword(officialEmail.trim().toLowerCase(), password);
+          await authUpdatePassword(signed.user, password);
           await completePasswordSetup.mutateAsync();
           await bridgeSession(signed.user, { completePasswordSetup: true });
           return;
@@ -114,10 +111,10 @@ export function FirebaseAuthPanel({ officialEmail, validOfficialEmail, activatio
       <label className="block text-xs font-bold text-[#52665a]" htmlFor="rakiza-login-confirm">تأكيد كلمة المرور</label>
       <input id="rakiza-login-confirm" aria-label="تأكيد كلمة المرور" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} type="password" autoComplete="new-password" placeholder="أعد كتابة كلمة المرور" className="mt-2 h-11 w-full rounded-xl border border-input bg-white px-3 text-sm" />
     </div>}
-    <Button type="button" className="w-full bg-[#006c35] hover:bg-[#00552b]" disabled={!firebaseWebConfigReady || busy !== null || exchange.isPending} onClick={() => void (activationMode ? registerEmail() : signInEmail())}>
+    <Button type="button" className="w-full bg-[#006c35] hover:bg-[#00552b]" disabled={busy !== null || exchange.isPending} onClick={() => void (activationMode ? registerEmail() : signInEmail())}>
       <KeyRound aria-hidden="true" className="ml-2 h-4 w-4" />{busy === "signin" || busy === "register" ? "جارٍ التحقق…" : activationMode ? "حفظ كلمة المرور ومتابعة الدخول" : "دخول"}
     </Button>
-    {!activationMode && <button type="button" onClick={() => void registerEmail()} disabled={!firebaseWebConfigReady || busy !== null || exchange.isPending} aria-label="أول دخول؟ إنشاء كلمة مرور جديدة" className="w-full text-center text-xs font-bold text-[#006c35] underline disabled:opacity-50">أول دخول؟ أنشئ كلمة مرورك الآن</button>}
+    {!activationMode && <button type="button" onClick={() => void registerEmail()} disabled={busy !== null || exchange.isPending} aria-label="أول دخول؟ إنشاء كلمة مرور جديدة" className="w-full text-center text-xs font-bold text-[#006c35] underline disabled:opacity-50">أول دخول؟ أنشئ كلمة مرورك الآن</button>}
     {notice && <p role="status" className="rounded-xl bg-white p-3 text-xs leading-6 text-[#426253]">{notice}</p>}
   </div>;
 };

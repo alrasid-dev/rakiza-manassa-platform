@@ -8,3 +8,8 @@ temp
 .env.*
 !.env.example
 .project-config.json
+
+# مخرجات البناء تُعاد توليدها أثناء vercel-build، فلا تُرفع كمصدر
+# لتفادي تعارض نفس الاسم بين .js و .ts داخل مجلد api/.
+api/handler.js
+api/index.js

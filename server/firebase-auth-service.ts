@@ -4,6 +4,7 @@ import { decodeProtectedHeader, importPKCS8, importX509, jwtVerify, SignJWT } fr
 import { accessGrants, personProfiles, users } from "../drizzle/schema";
 import { findDepartmentAccountByLoginEmail, isAllowedLoginEmail } from "./court-service";
 import { getDb } from "./db";
+import { mockClearMustChangePassword, mockLinkFirebaseIdentity } from "./mock-store";
 
 type FirebaseServiceAccount = {
   project_id: string;
@@ -46,7 +47,10 @@ async function firebasePublicKeys() {
 
 export async function verifyFirebaseIdToken(idToken: string, options?: { allowUnverifiedEmail?: boolean }): Promise<FirebaseIdentity> {
   const account = serviceAccount();
-  if (!account) throw new Error("إعدادات اعتماد Firebase غير مكتملة.");
+  if (!account) {
+    // وضع التشغيل المستقل: تحقق وهمي دون اعتماد Firebase خارجي.
+    return verifyMockFirebaseIdToken(idToken, options);
+  }
   const header = decodeProtectedHeader(idToken);
   if (!header.kid) throw new Error("رمز Firebase غير صالح.");
   const certificate = (await firebasePublicKeys())[header.kid];
@@ -63,6 +67,31 @@ export async function verifyFirebaseIdToken(idToken: string, options?: { allowUn
   const signInProvider = (payload.firebase as { sign_in_provider?: string } | undefined)?.sign_in_provider;
   const provider = signInProvider === "google.com" ? "google.com" : signInProvider === "password" ? "password" : "unknown";
   if (!uid || !email || (!verified && !options?.allowUnverifiedEmail) || !isAllowedLoginEmail(email)) throw new Error("يلزم بريد رسمي موثق ومسموح به للدخول إلى رَكيزة، أو رمز تفعيل لمرة واحدة بعد إثبات الهوية.");
+  return { uid, email, name, provider };
+}
+
+/**
+ * تحقق وهمي من رمز Firebase في وضع التشغيل المستقل: يفك ترميز حمولة JWT
+ * محلياً (دون تحقق توقيعي) ويطبّق سياسة البريد الرسمي نفسها.
+ */
+function verifyMockFirebaseIdToken(idToken: string, _options?: { allowUnverifiedEmail?: boolean }): FirebaseIdentity {
+  let payload: Record<string, unknown> = {};
+  try {
+    const parts = idToken.split(".");
+    const body = parts.length >= 2 ? parts[1] : parts[0];
+    const normalized = body.replace(/-/g, "+").replace(/_/g, "/");
+    payload = JSON.parse(Buffer.from(normalized, "base64").toString("utf8"));
+  } catch {
+    payload = {};
+  }
+  const uid = typeof payload.sub === "string" ? payload.sub : "";
+  const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
+  const name = typeof payload.name === "string" ? payload.name : email;
+  const signInProvider = (payload.firebase as { sign_in_provider?: string } | undefined)?.sign_in_provider;
+  const provider = signInProvider === "google.com" ? "google.com" : signInProvider === "password" ? "password" : "unknown";
+  if (!uid || !email || !isAllowedLoginEmail(email)) {
+    throw new Error("يلزم بريد رسمي موثق ومسموح به للدخول إلى رَكيزة.");
+  }
   return { uid, email, name, provider };
 }
 
@@ -89,26 +118,37 @@ async function firebaseAccessToken(account: FirebaseServiceAccount) {
 async function syncIdentityToFirestore(identity: FirebaseIdentity, user: { id: number; email: string | null; name: string | null }, profileId: number | null) {
   const account = serviceAccount();
   if (!account) return;
-  const token = await firebaseAccessToken(account);
-  const now = new Date().toISOString();
-  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${account.project_id}/databases/(default)/documents/rakizaUsers/${encodeURIComponent(identity.uid)}`, {
-    method: "PATCH",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ fields: {
-      officialEmail: { stringValue: user.email ?? identity.email },
-      displayName: { stringValue: user.name ?? identity.name },
-      rakizaUserId: { integerValue: String(user.id) },
-      profileId: profileId == null ? { nullValue: null } : { integerValue: String(profileId) },
-      provider: { stringValue: identity.provider },
-      updatedAt: { timestampValue: now },
-    } }),
-  });
-  if (!response.ok) throw new Error("تم الدخول لكن تعذرت مزامنة الهوية مع Firestore.");
+  try {
+    const token = await firebaseAccessToken(account);
+    const now = new Date().toISOString();
+    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${account.project_id}/databases/(default)/documents/rakizaUsers/${encodeURIComponent(identity.uid)}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ fields: {
+        officialEmail: { stringValue: user.email ?? identity.email },
+        displayName: { stringValue: user.name ?? identity.name },
+        rakizaUserId: { integerValue: String(user.id) },
+        profileId: profileId == null ? { nullValue: null } : { integerValue: String(profileId) },
+        provider: { stringValue: identity.provider },
+        updatedAt: { timestampValue: now },
+      } }),
+    });
+    if (!response.ok) {
+      console.warn(`[Firebase] Firestore identity sync skipped (HTTP ${response.status})`);
+      return;
+    }
+  } catch (error) {
+    // مزامنة الهوية مع Firestore غير حرجة — لا تمنع إتمام الدخول.
+    console.warn("[Firebase] Firestore identity sync unavailable:", error);
+  }
 }
 
 export async function linkFirebaseIdentity(identity: FirebaseIdentity) {
   const db = await getDb();
-  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  if (!db) {
+    // وضع التشغيل المستقل: ربط الهوية عبر المخزن الوهمي.
+    return mockLinkFirebaseIdentity(identity);
+  }
   const [existingByUid] = await db.select().from(users).where(eq(users.firebaseUid, identity.uid)).limit(1);
   const [existingByEmail] = await db.select().from(users).where(sql`LOWER(${users.email}) = ${identity.email}`).limit(1);
   if (existingByUid && existingByEmail && existingByUid.id !== existingByEmail.id) throw new Error("هذا البريد مرتبط بحساب رَكيزة آخر.");
@@ -138,7 +178,11 @@ export async function linkFirebaseIdentity(identity: FirebaseIdentity) {
 
 export async function clearMustChangePassword(userId: number) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) {
+    // وضع التشغيل المستقل: مسح علامة تغيير كلمة المرور في المخزن الوهمي.
+    mockClearMustChangePassword(userId);
+    return;
+  }
   await db.update(users).set({ mustChangePassword: false, updatedAt: new Date() }).where(eq(users.id, userId));
 }
 

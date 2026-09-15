@@ -6,9 +6,13 @@ function readEnv(...names: string[]) {
   return "";
 }
 
+/** قيم احتياطية لوضع التشغيل المستقل (Mock Mode) عند غياب الأسرار الخارجية. */
+const MOCK_APP_ID = "rakiza-mock-app";
+const MOCK_COOKIE_SECRET = "rakiza-mock-session-secret-v1-do-not-use-in-prod";
+
 export const ENV = {
-  appId: readEnv("VITE_APP_ID"),
-  cookieSecret: readEnv("JWT_SECRET", "VITE_JWT_SECRET"),
+  appId: readEnv("VITE_APP_ID") || MOCK_APP_ID,
+  cookieSecret: readEnv("JWT_SECRET", "VITE_JWT_SECRET") || MOCK_COOKIE_SECRET,
   databaseUrl: readEnv("DATABASE_URL", "VITE_DATABASE_URL"),
   oAuthServerUrl: readEnv("OAUTH_SERVER_URL"),
   ownerOpenId: readEnv("OWNER_OPEN_ID"),
@@ -36,4 +40,12 @@ export function isSupabaseProjectUrl(url = ENV.supabaseUrl) {
 
 export function databaseReady() {
   return Boolean(ENV.databaseUrl);
+}
+
+/**
+ * وضع التشغيل المستقل (Mock Mode): فعّال عند غياب قاعدة البيانات الخارجية.
+ * فيه يعمل النظام بالكامل داخل الذاكرة (مستخدمون + بصمة) دون أي أسرار خارجية.
+ */
+export function isMockMode() {
+  return !databaseReady();
 }

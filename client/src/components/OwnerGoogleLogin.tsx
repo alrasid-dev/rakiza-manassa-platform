@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Chrome } from "lucide-react";
-import { GoogleAuthProvider, getRedirectResult, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import { platformBasePath } from "@/lib/pwa";
 import { trpc } from "@/lib/trpc";
-import { firebaseWebConfigReady, getFirebaseAuth } from "@/lib/firebase";
+import { authGetRedirectResult, authSignInWithPopup, authSignInWithRedirect, authSignOut } from "@/lib/firebase";
 import { Button } from "./ui/button";
 
 /** البريد الاستثنائي الوحيد المسموح خارج نطاق @moj.gov.sa. */
@@ -32,10 +31,9 @@ export function OwnerGoogleLogin({ onNotice }: { onNotice?: (message: string) =>
   };
 
   const completeOwnerSignIn = async (user: { email?: string | null; getIdToken: () => Promise<string> }) => {
-    const auth = getFirebaseAuth();
     const email = (user.email ?? "").trim().toLowerCase();
     if (email !== PLATFORM_OWNER_EMAIL) {
-      if (auth) await signOut(auth);
+      await authSignOut();
       report("هذا المسار مخصص لبريد مالك المنصة فقط. سجّل الدخول بحسابك الرسمي من شاشة الدخول.");
       return;
     }
@@ -53,9 +51,7 @@ export function OwnerGoogleLogin({ onNotice }: { onNotice?: (message: string) =>
   };
 
   useEffect(() => {
-    const auth = getFirebaseAuth();
-    if (!auth) return;
-    void getRedirectResult(auth)
+    void authGetRedirectResult()
       .then(result => (result ? completeOwnerSignIn(result.user) : undefined))
       .catch(error => report(firebaseErrorMessage(error)));
     // يُنفَّذ مرة واحدة عند التحميل لإكمال الدخول العائد من Google.
@@ -63,19 +59,17 @@ export function OwnerGoogleLogin({ onNotice }: { onNotice?: (message: string) =>
   }, []);
 
   const signInOwner = async () => {
-    const auth = getFirebaseAuth();
-    if (!auth) { report("إعداد الدخول غير مكتمل حالياً. تواصل مع مالك المنصة."); return; }
     setBusy(true);
     setNotice("");
     try {
-      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const result = await authSignInWithPopup();
       await completeOwnerSignIn(result.user);
     } catch (error) {
       const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
       if (["auth/popup-blocked", "auth/popup-closed-by-user", "auth/internal-error"].includes(code)) {
         report("سيُفتح Google في الصفحة نفسها لإكمال الدخول.");
         try {
-          await signInWithRedirect(auth, new GoogleAuthProvider());
+          await authSignInWithRedirect();
           return;
         } catch (redirectError) {
           report(firebaseErrorMessage(redirectError));
@@ -91,7 +85,7 @@ export function OwnerGoogleLogin({ onNotice }: { onNotice?: (message: string) =>
   return <div className="mt-6 rounded-2xl border border-[#d9e5d9] bg-[#f7faf5] p-5">
     <p className="text-sm font-bold text-[#29463b]">الدخول عبر حساب Google الخاص بالمالك</p>
     <p className="mt-2 text-xs leading-6 text-[#718078]">هذا المسار لبريد مالك المنصة <span dir="ltr" className="font-bold">{PLATFORM_OWNER_EMAIL}</span> وحده، دون كلمة مرور تقليدية. أي حساب آخر يُرفض ويُغلق فوراً.</p>
-    <Button type="button" onClick={() => void signInOwner()} disabled={!firebaseWebConfigReady || busy} aria-label="الدخول عبر Google بحساب مالك المنصة" className="mt-4 w-full bg-white text-[#29463b] shadow-sm hover:bg-[#f3f6f0]" variant="outline">
+    <Button type="button" onClick={() => void signInOwner()} disabled={busy} aria-label="الدخول عبر Google بحساب مالك المنصة" className="mt-4 w-full bg-white text-[#29463b] shadow-sm hover:bg-[#f3f6f0]" variant="outline">
       <Chrome aria-hidden="true" className="ml-2 h-4 w-4" />{busy ? "جارٍ فتح Google…" : "الدخول عبر Google"}
     </Button>
     {notice && <p role="status" className="mt-3 rounded-xl bg-white p-3 text-xs leading-6 text-[#426253]">{notice}</p>}

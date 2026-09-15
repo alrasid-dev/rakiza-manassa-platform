@@ -13,6 +13,7 @@ import { trpcMutationOriginGuard } from "./originGuard";
 import { securityHeaders } from "./securityHeaders";
 import { dataConnectionsStatus } from "./data-connections";
 import { registerEmployeeAuthRoutes } from "../employee-auth/routes";
+import { loginFallbackErrorHandler, registerLoginConfigRoutes } from "./login-fallback";
 
 export function createExpressApp() {
   const app = express();
@@ -22,6 +23,7 @@ export function createExpressApp() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   registerEmployeeAuthRoutes(app);
+  registerLoginConfigRoutes(app);
   app.post("/api/scheduled/trainee-due-soon", handleTraineeDueSoonSchedule);
   app.post("/api/scheduled/daily-task-reminder", handleDailyTaskReminderSchedule);
   app.post("/api/scheduled/task-escalation", handleTaskEscalationSchedule);
@@ -41,6 +43,8 @@ export function createExpressApp() {
   app.get("/health", (_req, res) => {
     res.json({ ok: true, name: "rakiza", brand: "رَكيزة", ...dataConnectionsStatus() });
   });
+  // معالج الأخطاء البديل: يُسجَّل أخيراً ليحوّل أي خطأ غير مُعالج إلى رد منظم بدل 500 خام.
+  app.use(loginFallbackErrorHandler);
   return app;
 }
 

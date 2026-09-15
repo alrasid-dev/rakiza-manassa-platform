@@ -1,5 +1,5 @@
-import { app } from "../server/_core/app";
-import { serveStatic } from "../server/_core/static";
+import { app } from "./_core/app";
+import { serveStatic } from "./_core/static";
 
 try {
   serveStatic(app);

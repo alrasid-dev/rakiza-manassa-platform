@@ -8,19 +8,13 @@ const signInEmail = vi.fn();
 const exchangeMutate = vi.fn();
 const completeSetupMutate = vi.fn();
 
-vi.mock("firebase/auth", () => ({
-  GoogleAuthProvider: class GoogleAuthProvider {},
-  getRedirectResult: async () => null,
-  sendEmailVerification: async () => undefined,
-  signInWithPopup: async () => ({ user: { getIdToken: async () => "token" } }),
-  signInWithRedirect: async () => undefined,
-  signOut: async () => undefined,
-  updatePassword: async () => undefined,
-  createUserWithEmailAndPassword: (auth: unknown, email: string, password: string) => createUser(auth, email, password),
-  signInWithEmailAndPassword: (auth: unknown, email: string, password: string) => signInEmail(auth, email, password),
+vi.mock("@/lib/firebase", () => ({
+  authCreateUserWithEmailAndPassword: (email: string, password: string) => createUser(email, password),
+  authSignInWithEmailAndPassword: (email: string, password: string) => signInEmail(email, password),
+  authSendEmailVerification: async () => undefined,
+  authSignOut: async () => undefined,
+  authUpdatePassword: async () => undefined,
 }));
-
-vi.mock("@/lib/firebase", () => ({ firebaseWebConfigReady: true, getFirebaseAuth: () => ({ currentUser: null }) }));
 vi.mock("@/lib/pwa", () => ({ platformBasePath: () => "/" }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
@@ -89,7 +83,7 @@ describe("سياسة كلمة المرور في لوحة الدخول", () => {
     fireEvent.change(passwordField(), { target: { value: "rakiza2026" } });
     fireEvent.change(confirmField(), { target: { value: "rakiza2026" } });
     fireEvent.click(screen.getByRole("button", { name: /حفظ كلمة المرور ومتابعة الدخول/ }));
-    await waitFor(() => expect(createUser).toHaveBeenCalledWith(expect.anything(), "user@moj.gov.sa", "rakiza2026"));
+    await waitFor(() => expect(createUser).toHaveBeenCalledWith("user@moj.gov.sa", "rakiza2026"));
     await waitFor(() => expect(exchangeMutate).toHaveBeenCalledWith({ idToken: "id-token", activationToken: "a".repeat(24), completePasswordSetup: true }));
     await waitFor(() => expect(onPasswordSetupComplete).toHaveBeenCalled());
     expect(screen.getByRole("status").textContent).toContain("يلزم تعيين كلمة مرور جديدة");
@@ -101,7 +95,7 @@ describe("سياسة كلمة المرور في لوحة الدخول", () => {
     render(<FirebaseAuthPanel officialEmail="user@moj.gov.sa" validOfficialEmail />);
     fireEvent.change(passwordField(), { target: { value: "abcdefgh" } });
     fireEvent.click(screen.getByRole("button", { name: "دخول" }));
-    await waitFor(() => expect(signInEmail).toHaveBeenCalledWith(expect.anything(), "user@moj.gov.sa", "abcdefgh"));
+    await waitFor(() => expect(signInEmail).toHaveBeenCalledWith("user@moj.gov.sa", "abcdefgh"));
     expect(screen.getByRole("status").textContent).toContain("أكد بريدك الرسمي");
   });
 
