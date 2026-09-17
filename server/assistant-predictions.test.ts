@@ -23,7 +23,7 @@ describe("تنبؤات مساعد المدير", () => {
   });
 
   it("يمرر أنماط المديرين إلى الاستدعاء دون كشفها للموظف", async () => {
-    mocks.listManagerDecisionPatterns.mockResolvedValueOnce([{ metadata: '{"assistant":"leadership","decision":"accepted"}' }]);
+    mocks.listManagerDecisionPatterns.mockResolvedValueOnce([{ metadata: '{"assistant":"leadership","decision":"accepted"}' }] as any);
     await predictForManager({ assistant: "leadership", taskSnapshot: "ملخص", actionType: "priority" });
     expect(mocks.listManagerDecisionPatterns).toHaveBeenCalledWith({ assistant: "leadership", limit: 20 });
     expect(mocks.invokeLLM.mock.calls[0]?.[0].response_format.json_schema.strict).toBe(true);

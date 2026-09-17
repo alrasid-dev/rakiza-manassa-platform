@@ -30,7 +30,7 @@ describe("خدمة فحص مصدر Excel المرتبط", () => {
 
   it("تتوقف قبل إنشاء import batch أو مهمة عندما لا يحتوي الملف على صف ملازم قضائي", async () => {
     const content = nonTraineeWorkbook();
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(content, { status: 200 })));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(content as any, { status: 200 })));
 
     const result = await scanLinkedTraineeExcelSource();
 

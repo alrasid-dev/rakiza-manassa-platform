@@ -34,7 +34,7 @@ describe("court.attendance.record", () => {
   });
 
   it("يرفض تسجيل الحضور الذاتي خارج نافذة حضور الوردية", async () => {
-    mocks.getAttendanceWindowForProfile.mockResolvedValueOnce({ kind: "none", shiftName: "الوردية الأساسية", workingDay: false });
+    mocks.getAttendanceWindowForProfile.mockResolvedValueOnce({ kind: "none", shiftName: "الوردية الأساسية", workingDay: false } as any);
     await expect(caller().attendance.record({ profileId: 9, recordDate: new Date("2026-08-14T07:00:00Z"), status: "present" })).rejects.toMatchObject({ code: "CONFLICT" });
   });
 });
@@ -42,7 +42,7 @@ describe("court.attendance.record", () => {
 
 describe("court.attendance.checkout", () => {
   it("يسجل انصراف العامل عن بعد لملفه المرتبط فقط", async () => {
-    mocks.getAttendanceWindowForProfile.mockResolvedValueOnce({ kind: "check_out", shiftName: "الوردية الأساسية" });
+    mocks.getAttendanceWindowForProfile.mockResolvedValueOnce({ kind: "check_out", shiftName: "الوردية الأساسية" } as any);
     await expect(caller().attendance.checkout()).resolves.toEqual({ success: true, attendanceId: 91 });
     expect(mocks.recordAttendanceCheckout).toHaveBeenCalledWith(expect.objectContaining({ profileId: 9, actorUserId: 7 }));
   });

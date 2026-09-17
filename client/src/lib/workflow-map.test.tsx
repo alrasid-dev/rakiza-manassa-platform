@@ -21,7 +21,7 @@ describe("معاينة التوزيع الآلي لمخطط سير العمل", 
       { order: 2, assigneeProfileId: 2, matchReason: "unit" },
       { order: 3, assigneeProfileId: 2, matchReason: "balanced" },
     ]);
-    expect(autoAssignWorkflowSteps({ steps: [{ order: 1, title: "خطوة" }], staff: [] })).toEqual([]);
+    expect(autoAssignWorkflowSteps({ steps: [{ order: 1, title: "خطوة", ownerUnitHint: "" }], staff: [] })).toEqual([]);
     expect(autoAssignWorkflowSteps({ steps: [], staff })).toEqual([]);
   });
 

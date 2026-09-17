@@ -61,7 +61,7 @@ describe("إدارة تكليف المدراء (court.management)", () => {
 
   it("يحجب مدير القسم العادي عن إدارة تكليف المدراء", async () => {
     mocks.getEffectiveRoles.mockResolvedValue(["department_manager"]);
-    mocks.getAccessPermission.mockResolvedValue("employee");
+    mocks.getAccessPermission.mockResolvedValue("employee" as any);
     const manager = callerFor(6, "amhumaidi@moj.gov.sa");
 
     await expect(manager.management.assign({ userId: 5, unitId: 2 })).rejects.toMatchObject({ code: "FORBIDDEN" });

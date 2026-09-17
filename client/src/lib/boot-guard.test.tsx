@@ -88,7 +88,7 @@ describe("حارس الإقلاع: يمنع الشاشة البيضاء الصا
         deleted.push(key);
         return true;
       },
-    };
+    } as any;
     installGuard();
     const failure = new Error("Failed to load module script: Expected a JavaScript module script but the server responded with a MIME type of \"text/html\".");
     window.dispatchEvent(new ErrorEvent("error", { error: failure, message: failure.message }));
