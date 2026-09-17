@@ -15,6 +15,7 @@ import {
   CirclePlus,
   Download,
   FileText,
+  Flame,
   Inbox,
   MailOpen,
   Paperclip,
@@ -721,9 +722,15 @@ export default function RakizaMailPage() {
                             >
                               {row.senderName}
                             </span>
-                            {row.message.importance === "high" && (
-                              <span className="shrink-0 rounded-full bg-[#fff0ed] px-1.5 py-0.5 text-[9px] font-black text-[#ae4438]">
+                            {row.message.importance === "high" ? (
+                              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[#fff0ed] px-1.5 py-0.5 text-[9px] font-black text-[#ae4438]">
+                                <Flame className="h-3 w-3" aria-hidden="true" />
                                 عاجل
+                              </span>
+                            ) : (
+                              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[#f0f4f0] px-1.5 py-0.5 text-[9px] font-bold text-[#5a6f62]">
+                                <MailOpen className="h-3 w-3" aria-hidden="true" />
+                                عادي
                               </span>
                             )}
                             {row.entry.category && (
