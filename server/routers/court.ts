@@ -32,6 +32,8 @@ import {
   createDelay,
   createSupportTicket,
   createAnnouncement,
+  deleteAnnouncement,
+  updateAnnouncement,
   createDueSoonNotifications,
   createProfile,
   createTask,
@@ -739,6 +741,14 @@ export const courtRouter = router({
     create: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), body: z.string().trim().min(3).max(10_000), visibility: z.enum(["all", "unit_only"]), unitId: z.number().int().positive().optional(), expiresAt: z.date().optional() }).refine(input => input.visibility !== "unit_only" || Boolean(input.unitId), { message: "يلزم اختيار وحدة للإعلان المقيد بالوحدة." })).mutation(async ({ ctx, input }) => {
       await requirePlatformOwner(ctx.user);
       return { id: await createAnnouncement({ ...input, createdByUserId: ctx.user.id }) };
+    }),
+    update: protectedProcedure.input(z.object({ id: z.number().int().positive(), title: z.string().trim().min(3).max(255).optional(), body: z.string().trim().min(3).max(10_000).optional(), visibility: z.enum(["all", "unit_only"]).optional(), unitId: z.number().int().positive().nullable().optional(), expiresAt: z.date().nullable().optional() })).mutation(async ({ ctx, input }) => {
+      await requirePlatformOwner(ctx.user);
+      return { id: await updateAnnouncement({ ...input, actorUserId: ctx.user.id }) };
+    }),
+    delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requirePlatformOwner(ctx.user);
+      return deleteAnnouncement({ id: input.id, actorUserId: ctx.user.id });
     }),
   }),
   myRoles: protectedProcedure.query(({ ctx }) => rolesForUser(ctx.user)),

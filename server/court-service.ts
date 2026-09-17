@@ -1043,6 +1043,31 @@ export async function createAnnouncement(input: { title: string; body: string; v
   return id;
 }
 
+export async function updateAnnouncement(input: { id: number; title?: string; body?: string; visibility?: "all" | "unit_only"; unitId?: number | null; expiresAt?: Date | null; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [existing] = await db.select().from(announcements).where(eq(announcements.id, input.id)).limit(1);
+  if (!existing) throw new Error("الإعلان المطلوب غير موجود.");
+  const visibility = input.visibility ?? existing.visibility;
+  await db.update(announcements).set({
+    title: input.title ?? existing.title,
+    body: input.body ?? existing.body,
+    visibility,
+    unitId: input.unitId !== undefined ? input.unitId : existing.unitId,
+    expiresAt: input.expiresAt !== undefined ? input.expiresAt : existing.expiresAt,
+  }).where(eq(announcements.id, input.id));
+  await logAudit({ actorUserId: input.actorUserId, action: "announcement.updated", entityType: "announcement", entityId: input.id });
+  return input.id;
+}
+
+export async function deleteAnnouncement(input: { id: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  await db.delete(announcements).where(eq(announcements.id, input.id));
+  await logAudit({ actorUserId: input.actorUserId, action: "announcement.deleted", entityType: "announcement", entityId: input.id });
+  return { deleted: true };
+}
+
 export async function listProfiles(personType?: "administrative" | "trainee" | "judge") {
   const db = await getDb();
   if (!db) return [];
