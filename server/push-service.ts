@@ -4,6 +4,7 @@ import { pushSubscriptions } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { getDb } from "./db";
 import { sendFcmToProfile } from "./fcm-service";
+import { WEB_PUSH_VAPID_PUBLIC_KEY, resolveVapidPublicKey } from "../shared/push";
 
 export type StoredPushSubscription = {
   endpoint: string;
@@ -24,6 +25,34 @@ function configureWebPush() {
 
 export function getWebPushPublicKey() {
   return ENV.vapidPublicKey;
+}
+
+/** مسار الإشعارات المتصفحية يعمل فقط عند اكتمال ثلاثية VAPID (العام والخاص والموضوع). */
+export function isWebPushConfigured() {
+  return Boolean(ENV.vapidSubject && ENV.vapidPublicKey && ENV.vapidPrivateKey);
+}
+
+/** مسار Firebase Cloud Messaging يعمل عند وجود حساب الخدمة على الخادم ومفتاح عام صالح للجهاز. */
+export function isFcmConfigured() {
+  const serviceAccount = String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON ?? "").trim();
+  return Boolean(serviceAccount) && Boolean(resolveVapidPublicKey(process.env.VITE_FIREBASE_VAPID_KEY, WEB_PUSH_VAPID_PUBLIC_KEY));
+}
+
+/**
+ * حالة جاهزية الإشعارات كما تعرضها الواجهة: المفتاح العام الذي يسجّله الجهاز،
+ * ومسارا التسليم (Firebase أو Web Push أصلي)، دون كشف أي سر من أسرار الخادم.
+ */
+export function pushReadiness() {
+  const serviceAccount = Boolean(String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON ?? "").trim());
+  const vapidPublicKey = resolveVapidPublicKey(process.env.VITE_FIREBASE_VAPID_KEY, WEB_PUSH_VAPID_PUBLIC_KEY);
+  return {
+    publicKey: getWebPushPublicKey(),
+    vapidPublicKey,
+    vapidKeyConfigured: Boolean(vapidPublicKey),
+    webPushEnabled: isWebPushConfigured(),
+    serviceAccountConfigured: serviceAccount,
+    fcmEnabled: serviceAccount && Boolean(vapidPublicKey),
+  };
 }
 
 export async function upsertPushSubscription(input: {

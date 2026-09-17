@@ -13,3 +13,6 @@ temp
 # لتفادي تعارض نفس الاسم بين .js و .ts داخل مجلد api/.
 api/handler.js
 api/index.js
+
+# مخلفات البناء المحلي (dist/index.js من سكربت build) لا تُرفع إلى Vercel.
+dist/

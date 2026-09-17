@@ -13,6 +13,7 @@ import {
   type Auth,
 } from "firebase/auth";
 import { getMessaging, isSupported, type Messaging } from "firebase/messaging";
+import { WEB_PUSH_VAPID_PUBLIC_KEY, resolveVapidPublicKey } from "@shared/push";
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
@@ -47,7 +48,7 @@ export function getFirebaseMessaging() {
   return messagingPromise;
 }
 
-export const firebaseVapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined;
+export const firebaseVapidKey = resolveVapidPublicKey(import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined, WEB_PUSH_VAPID_PUBLIC_KEY) || undefined;
 
 /* ------------------------------------------------------------------ */
 /* وضع التشغيل المستقل (Mock Mode): مصادقة وهمية بلا Firebase خارجي.    */

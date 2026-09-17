@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { decodeProtectedHeader, importPKCS8, importX509, jwtVerify, SignJWT } from "jose";
 import { accessGrants, personProfiles, users } from "../drizzle/schema";
-import { findDepartmentAccountByLoginEmail, isAllowedLoginEmail } from "./court-service";
+import { evaluateLoginAllowance, findDepartmentAccountByLoginEmail, isAllowedLoginEmail } from "./court-service";
 import { getDb } from "./db";
 import { mockClearMustChangePassword, mockLinkFirebaseIdentity } from "./mock-store";
 
@@ -67,7 +67,7 @@ export async function verifyFirebaseIdToken(idToken: string, options?: { allowUn
   const provider = signInProvider === "google.com" ? "google.com" : signInProvider === "password" ? "password" : "unknown";
   // لا نعتمد على رسالة تحقق Firebase بالبريد (بريد @moj.gov.sa الحكومي لا يستقبلها):
   // تُعتمد كلمة المرور التي أنشأها المستخدم بنفسه رمزاً للدخول، ويُقبل البريد المسموح فقط.
-  if (!uid || !email || !isAllowedLoginEmail(email)) throw new Error("يلزم بريد رسمي مسموح به للدخول إلى رَكيزة.");
+  if (!uid || !email || !(await evaluateLoginAllowance({ email })).allowed) throw new Error("يلزم بريد رسمي مسموح به للدخول إلى رَكيزة، أو حساب مالك معتمد.");
   return { uid, email, name, provider };
 }
 

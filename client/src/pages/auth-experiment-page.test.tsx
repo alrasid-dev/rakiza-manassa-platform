@@ -14,6 +14,9 @@ vi.mock("@/lib/trpc", () => ({
         beginAuthentication: { useMutation: () => ({ mutateAsync: passkeyMutate, isPending: false }) },
         finishAuthentication: { useMutation: () => ({ mutateAsync: passkeyMutate, isPending: false }) },
       },
+      loginPolicy: {
+        check: { useQuery: () => ({ data: undefined as { allowed: boolean; isOwner: boolean } | undefined }) },
+      },
     },
   },
 }));
@@ -69,6 +72,14 @@ describe("شاشة تسجيل الدخول المبسطة", () => {
     fireEvent.change(screen.getByLabelText("البريد الإلكتروني الرسمي"), { target: { value: "employee@moj.gov.sa" } });
     expect(screen.getByTestId("panel-valid").textContent).toBe("valid");
     expect(screen.getByTestId("panel-email").textContent).toBe("employee@moj.gov.sa");
+  });
+
+  it("تقبل بريد مالك رَكيزة في مسار الموظف بلا شرط النطاق الرسمي", () => {
+    render(<AuthExperimentPage />);
+    fireEvent.change(screen.getByLabelText("البريد الإلكتروني الرسمي"), { target: { value: "RakizaPlatform@Gmail.com" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByTestId("panel-valid").textContent).toBe("valid");
+    expect(screen.getByRole("status").textContent).toContain("حساب مالك معتمد");
   });
 
   it("تعرض زراً مستقلاً لتفعيل البصمة والدخول بها", () => {

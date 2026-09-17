@@ -37,40 +37,37 @@ import Home from "./Home";
 beforeEach(() => { state.permission = "full_control"; state.roles = ["court_president"]; state.dashboard = { templates: 7, openDelays: 2, overdueDelays: 1, profiles: 16, dueTasks: 4 }; state.taskStatus = "new"; });
 afterEach(() => cleanup());
 
-describe("لوحة القيادة حسب الدور", () => {
-  it("تعرض مؤشرات القيادة الحية وتسلسل الأقسام للقيادة", () => {
+describe("لوحة القيادة المدمجة حسب الدور", () => {
+  it("تعرض الشبكة الرئيسية الملوّنة للقيادة بعدّاداتها الحية", () => {
     render(<Home />);
-    expect(screen.getByRole("region", { name: "ملخص حالات المهام والتنبيهات" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "مهامي اليوم" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "التنبيهات المختصرة" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "دردشة القسم" })).toBeTruthy();
-    expect(screen.getByText("فتح دردشة القسم")).toBeTruthy();
-    expect(screen.getByText("بدء التنفيذ")).toBeTruthy();
-    expect(screen.getByText("إضافة تعليق")).toBeTruthy();
-    expect(screen.getByText("طلب سحب المهمة")).toBeTruthy();
-    expect(screen.getByLabelText("يوجد عائق")).toBeTruthy();
-    expect(screen.queryByLabelText("نمط الواجهة")).toBeNull();
-    expect(screen.queryByText("لوحة متابعة عملية")).toBeNull();
-    expect(screen.getByText("ترتيب الأقسام وإنجازها")).toBeTruthy();
+    expect(screen.getByText("لوحة القيادة المدمجة")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "الشبكة الرئيسية" })).toBeTruthy();
+    for (const label of ["مهام قيد التنفيذ", "قرب موعدها", "متأخرة", "تمت المعالجة", "الإشعارات", "الدردشات", "بريد ركيزة", "رفع تقرير", "هيكل المحكمة", "المداورة", "المتعثرات", "AI ركيزة", "الإعلانات"]) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    }
+    expect(screen.getByText(/قيد التنفيذ/)).toBeTruthy();
+    expect(screen.getByText(/قرب موعدها/)).toBeTruthy();
+    expect(screen.getByText(/متأخرة/)).toBeTruthy();
   });
 
-  it("يعرض تمت المعالجة والتعليق وطلب السحب مباشرة للمهمة قيد التنفيذ", () => {
-    state.taskStatus = "in_progress";
-    render(<Home />);
-    expect(screen.getByText("تمت المعالجة")).toBeTruthy();
-    expect(screen.getByText("إضافة تعليق")).toBeTruthy();
-    expect(screen.getByText("طلب سحب المهمة")).toBeTruthy();
-  });
-
-  it("تعرض مؤشرات مساحة العمل الشخصية فقط وتحجب تسلسل الأقسام", () => {
+  it("يحجب الشبكة عن الموظف ويعرض مهامه الشخصية وعدّاداتها", () => {
     state.permission = "employee";
     state.roles = [];
     state.dashboard = { openTasks: 3, overdueTasks: 1, openDelays: 2, unreadNotifications: 4 };
     render(<Home />);
-    expect(screen.getByRole("region", { name: "ملخص حالات المهام والتنبيهات" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "مهامي اليوم" })).toBeTruthy();
-    expect(screen.getByRole("region", { name: "التنبيهات المختصرة" })).toBeTruthy();
-    expect(screen.queryByText("ترتيب الأقسام وإنجازها")).toBeNull();
-    expect(screen.getAllByText("مهام متأخرة").length).toBeGreaterThan(0);
+    expect(screen.getByText("مساحتي اليومية")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "الشبكة الرئيسية" })).toBeTruthy();
+    expect(screen.getByText("4 مهمة مفتوحة")).toBeTruthy();
+    expect(screen.getByText("1 متأخر")).toBeTruthy();
+    expect(screen.getByText("4 تنبيه جديد")).toBeTruthy();
+    expect(screen.getAllByText("مهام قيد التنفيذ").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("قرب موعدها").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("متأخرة").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("تمت المعالجة").length).toBeGreaterThan(0);
+    expect(screen.getByText("رفع تقرير")).toBeTruthy();
+    // بطاقات القيادة محجوبة تماماً عن الموظف
+    expect(screen.queryByText("المداورة")).toBeNull();
+    expect(screen.queryByText("هيكل المحكمة")).toBeNull();
+    expect(screen.queryByText("إعدادات المنصة")).toBeNull();
   });
 });

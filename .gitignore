@@ -131,3 +131,23 @@ client/public/__manus__/version.json
 _vercel_site/
 _vercel_static/
 .env*
+
+# Diagnostic and scratch artifacts (local debugging — not part of source)
+browser-diag*.txt
+cdp-*.txt
+cdp-*.mjs
+compose-block.txt
+console-live.txt
+diag*.txt
+dom-*.txt
+extract-assets.mjs
+live-bundle.mjs
+new-deploy-html.txt
+referenced-assets.txt
+server.err
+shot-*.png
+shot-*.txt
+t.mjs
+t-out.txt
+verify-*.txt
+vitest-*.json

@@ -1,4 +1,6 @@
 // عامل خدمة خفيف: لا يخزن بيانات تشغيلية، ويعالج إشعارات Web Push فقط.
+// ملاحظة مهمة: التنظيف الصريح لكل الكاش في `activate` يمنع بقاء نسخة HTML/أصول قديمة
+// على أجهزة المستخدمين بعد أي نشر جديد (وهو السبب الشائع للشاشة البيضاء).
 function scopedAsset(path) {
   try {
     return new URL(String(path).replace(/^\//, ""), self.registration.scope).href;
@@ -8,7 +10,17 @@ function scopedAsset(path) {
 }
 
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", event => event.waitUntil(self.clients.claim()));
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(key => caches.delete(key)));
+    } catch {
+      // لا كاش متاح في هذا المتصفح
+    }
+    await self.clients.claim();
+  })());
+});
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   event.respondWith(fetch(event.request));

@@ -232,8 +232,11 @@ export function accessibleName(element: HTMLElement): string {
 function isAriaHidden(element: HTMLElement) {
   let current: HTMLElement | null = element;
   while (current) {
-    if (current.getAttribute("aria-hidden") === "true") return true;
+    // «hidden» أو الإخفاء البصري الفعلي يُستبعد؛ أما aria-hidden المؤقت (مثل إخفاء
+    // خلفية نافذة Radix المنبثقة أثناء الفحص) فلا يُستبعد حتى لا يفقد الفحص أزرار الصفحة.
     if (current.hasAttribute("hidden")) return true;
+    const style = current.ownerDocument.defaultView?.getComputedStyle(current);
+    if (style && (style.display === "none" || style.visibility === "hidden")) return true;
     current = current.parentElement;
   }
   return false;

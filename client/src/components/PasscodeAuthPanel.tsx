@@ -34,7 +34,7 @@ export function PasscodeAuthPanel({ officialEmail, validOfficialEmail }: Props) 
   const digitsOnly = (value: string) => value.replace(/\D/g, "").slice(0, 6);
 
   const signIn = async () => {
-    if (!validOfficialEmail) { setNotice("أدخل البريد الرسمي أولاً."); return; }
+    if (!validOfficialEmail) { setNotice("أدخل بريد الدخول المعتمد: الرسمي أو بريد مالك رَكيزة."); return; }
     if (passcode.length !== 6) { setNotice("أدخل رمز المرور المكوّن من 6 أرقام."); return; }
     setBusy("signin"); setNotice("");
     try {
@@ -47,7 +47,7 @@ export function PasscodeAuthPanel({ officialEmail, validOfficialEmail }: Props) 
   };
 
   const createPasscode = async () => {
-    if (!validOfficialEmail) { setNotice("أدخل البريد الرسمي أولاً."); return; }
+    if (!validOfficialEmail) { setNotice("أدخل بريد الدخول المعتمد: الرسمي أو بريد مالك رَكيزة."); return; }
     if (passcode.length !== 6) { setNotice("أدخل رمز المرور المكوّن من 6 أرقام."); return; }
     if (passcode !== confirmPasscode) { setNotice("تأكيد رمز المرور غير مطابق."); return; }
     setBusy("setup"); setNotice("");

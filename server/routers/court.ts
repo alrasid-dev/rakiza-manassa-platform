@@ -3,18 +3,23 @@ import { z } from "zod";
 import { previousReportRange, reportStart } from "../reporting";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { validateSupportAttachments } from "../support-attachment-policy";
-import { getWebPushPublicKey, removePushSubscription, upsertPushSubscription } from "../push-service";
+import { removePushSubscription, pushReadiness, upsertPushSubscription } from "../push-service";
 import {
   acknowledgeTask,
   addCorrespondenceAttachment,
   addTaskAttachment,
   addTaskCommentAndEscalate,
+  addTaskComment,
+  markTaskAsProcessed,
+  reportTaskObstacle,
   addTaskProgressNote,
   extractTaskAttachmentText,
   summarizeTaskAttachmentText,
   translateTaskAttachmentText,
   activateScheduledLeaveStatuses,
   assignCourtRole,
+  approveAllPendingApprovals,
+  listMyApprovalRequests,
   createManagerAssignmentApproval,
   applyManagerAssignmentApproval,
   createCorrespondence,
@@ -53,6 +58,7 @@ import {
   sendPerformanceRecommendation,
   getManagedUnitDashboard,
   getEffectiveRoles,
+  evaluateLoginAllowance,
   getOperationalReport,
   getJudicialFormationReport,
   getPersonalDashboard,
@@ -73,6 +79,7 @@ import {
   isAllowedRegistrationEmail,
   getSupportTicketDetail,
   getTaskById,
+  getTaskDetails,
   listDelays,
   listDelaysForProfile,
   listDelaysForUnits,
@@ -82,6 +89,7 @@ import {
   logAudit,
   listVisibleAnnouncements,
   listAdministrativeSubstitutes,
+  listPlatformSubstitutes,
   listAdministrativeLevels,
   listCourtRoleAssignments,
   listCorrespondences,
@@ -142,6 +150,14 @@ import {
   renewTraineeAssignment,
   resolveSupportTicket,
   revokeCourtRole,
+  listDepartmentManagerAssignments,
+  assignDepartmentManager,
+  endDepartmentManagerAssignment,
+  listDepartmentTaskTemplates,
+  getTaskTemplateUnitId,
+  setDepartmentTaskTemplateActive,
+  listDepartmentDocuments,
+  createDepartmentDocument,
   endDepartmentAccountDelegation,
   reviewRegistrationRequest,
   reviewLeaveRequest,
@@ -164,6 +180,8 @@ import {
   consumeAuthActivationToken,
   DASHBOARD_NAVIGATION_LABELS,
   DASHBOARD_WIDGET_IDS,
+  DASHBOARD_QUICK_ACTION_IDS,
+  DASHBOARD_HOME_CARD_IDS,
 } from "../court-service";
 import { beginPasskeyRegistration, finishPasskeyRegistration, beginPasskeyAuthentication, finishPasskeyAuthentication } from "../webauthn-service";
 import { ensureAttendanceConfirmationHeartbeatJob, ensureCoreHeartbeatJobs } from "../scheduled/core-jobs";
@@ -206,6 +224,7 @@ import {
   updateWorkPreferences,
 } from "../platform-completion-service";
 import { summarizeAttendanceRecords } from "../platform-completion";
+import { analyzeWorkflowDocument, distributeWorkflowSteps, listWorkflowStaff } from "../workflow-map-service";
 
 function requestOrigin(req: { protocol: string; get(name: string): string | undefined }) {
   const protocol = req.get("x-forwarded-proto")?.split(",")[0]?.trim() || req.protocol;
@@ -248,10 +267,40 @@ async function requirePlatformOwner(user: { id: number; role: "user" | "admin"; 
   if (!isTruePlatformOwner(user)) throw new TRPCError({ code: "FORBIDDEN", message: "هذا الإجراء متاح لمالك المنصة فقط." });
 }
 
+/** صلاحية إدارة تكليف المدراء: متاحة للمالك ورئيس المحكمة والأمين العام (الأمين العام = court_secretary). */
+async function requireManagerDelegationAuthority(user: { id: number; role: "user" | "admin"; email: string | null }) {
+  const permission = await permissionForUser(user);
+  const roles = await rolesForUser(user);
+  const allowed = permission === "full_control" || roles.some(role => role === "court_president" || role === "court_secretary");
+  if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "إدارة تكليف المدراء متاحة للمالك ورئيس المحكمة والأمين العام فقط." });
+}
+
+/** وحدات قوالب المهام التي يحق للمستخدم إدارتها (القيادة: كل الوحدات، المدير: وحدته). */
+async function manageableTemplateUnitIds(user: { id: number; role: "user" | "admin"; email: string | null }) {
+  const permission = await permissionForUser(user);
+  const roles = await rolesForUser(user);
+  const isLeadership = permission === "full_control" || roles.some(role => role === "court_president" || role === "court_secretary");
+  if (isLeadership) return (await listOrganizationUnits()).map(unit => unit.id);
+  const managedUnits = await managedUnitIdsForUser(user);
+  if (!managedUnits.length) throw new TRPCError({ code: "FORBIDDEN", message: "قوالب مهام الأقسام متاحة للقيادة ومديري الأقسام فقط." });
+  return managedUnits;
+}
+
 async function permissionForUser(user: { id: number; role: "user" | "admin"; email: string | null }): Promise<AppPermission> {
   if (user.role === "admin") return "full_control";
   if (user.email?.trim().toLowerCase() === ENV.platformOwnerEmail) return "full_control";
   return getAccessPermission(user.email);
+}
+
+/** نطاق وحدات مخطط سير العمل: القيادة كل الوحدات، ومدير القسم وحداته فقط. */
+async function workflowMapUnitIds(user: { id: number; role: "user" | "admin"; email: string | null }) {
+  const permission = await permissionForUser(user);
+  const roles = await rolesForUser(user);
+  const isLeadership = permission === "full_control" || roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
+  if (isLeadership) return (await listOrganizationUnits()).map(unit => unit.id);
+  const managedUnits = await managedUnitIdsForUser(user);
+  if (!managedUnits.length) throw new TRPCError({ code: "FORBIDDEN", message: "مخطط سير العمل متاح للقيادة ومديري الأقسام فقط." });
+  return managedUnits;
 }
 
 async function requirePermission(user: { id: number; role: "user" | "admin"; email: string | null }, action: ProtectedAction) {
@@ -617,8 +666,12 @@ export const courtRouter = router({
     update: protectedProcedure.input(z.object({
       widgetOrder: z.array(z.enum(DASHBOARD_WIDGET_IDS)).max(DASHBOARD_WIDGET_IDS.length),
       hiddenWidgetIds: z.array(z.enum(DASHBOARD_WIDGET_IDS)).max(DASHBOARD_WIDGET_IDS.length),
+      quickActionOrder: z.array(z.enum(DASHBOARD_QUICK_ACTION_IDS)).max(DASHBOARD_QUICK_ACTION_IDS.length),
+      hiddenQuickActionIds: z.array(z.enum(DASHBOARD_QUICK_ACTION_IDS)).max(DASHBOARD_QUICK_ACTION_IDS.length),
       navigationOrder: z.array(z.enum(DASHBOARD_NAVIGATION_LABELS)).max(DASHBOARD_NAVIGATION_LABELS.length),
       hiddenNavigationLabels: z.array(z.enum(DASHBOARD_NAVIGATION_LABELS)).max(DASHBOARD_NAVIGATION_LABELS.length),
+      homeCardOrder: z.array(z.enum(DASHBOARD_HOME_CARD_IDS)).max(DASHBOARD_HOME_CARD_IDS.length),
+      hiddenHomeCardIds: z.array(z.enum(DASHBOARD_HOME_CARD_IDS)).max(DASHBOARD_HOME_CARD_IDS.length),
     })).mutation(async ({ ctx, input }) => {
       try {
         return await updateDashboardPreferences({ userId: ctx.user.id, preferences: input });
@@ -710,6 +763,98 @@ export const courtRouter = router({
       await revokeCourtRole(input.assignmentId, ctx.user.id);
       return { success: true };
     }),
+  }),
+
+  management: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      await requireManagerDelegationAuthority(ctx.user);
+      return listDepartmentManagerAssignments();
+    }),
+    assign: protectedProcedure.input(z.object({ userId: z.number().int().positive(), unitId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requireManagerDelegationAuthority(ctx.user);
+      return assignDepartmentManager({ userId: input.userId, unitId: input.unitId, delegatedByUserId: ctx.user.id });
+    }),
+    end: protectedProcedure.input(z.object({ assignmentId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requireManagerDelegationAuthority(ctx.user);
+      return endDepartmentManagerAssignment({ assignmentId: input.assignmentId, actorUserId: ctx.user.id });
+    }),
+    templates: protectedProcedure.query(async ({ ctx }) => {
+      const unitIds = await manageableTemplateUnitIds(ctx.user);
+      return listDepartmentTaskTemplates(unitIds);
+    }),
+    setTemplateActive: protectedProcedure.input(z.object({ templateId: z.number().int().positive(), isActive: z.boolean() })).mutation(async ({ ctx, input }) => {
+      const unitIds = await manageableTemplateUnitIds(ctx.user);
+      const unitId = await getTaskTemplateUnitId(input.templateId);
+      if (unitId === null) throw new TRPCError({ code: "NOT_FOUND", message: "قالب المهمة غير موجود." });
+      if (unitId !== null && !unitIds.includes(unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تفعيل قالب مهمة خارج نطاق قسمك." });
+      return setDepartmentTaskTemplateActive({ templateId: input.templateId, isActive: input.isActive, actorUserId: ctx.user.id });
+    }),
+  }),
+
+  departmentDocs: router({
+    overview: protectedProcedure.query(async ({ ctx }) => {
+      const unitIds = await manageableTemplateUnitIds(ctx.user);
+      const [templates, tasks, documents, units, people] = await Promise.all([
+        listDepartmentTaskTemplates(unitIds),
+        listTasksForUnits(unitIds),
+        listDepartmentDocuments(unitIds),
+        listOrganizationUnits().then(all => all.filter(unit => unitIds.includes(unit.id))),
+        listProfiles().then(all => all.filter(profile => profile.unitId && unitIds.includes(profile.unitId))),
+      ]);
+      return { unitIds, units, templates, tasks, documents, people };
+    }),
+    createTask: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), title: z.string().trim().min(3).max(500), assigneeProfileId: z.number().int().positive().optional(), dueAt: z.date().optional() })).mutation(async ({ ctx, input }) => {
+      const unitIds = await manageableTemplateUnitIds(ctx.user);
+      if (!unitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إنشاء مهمة خارج نطاق قسمك." });
+      const scheduledFor = new Date();
+      const dueAt = input.dueAt ?? new Date(Date.now() + 6 * 60 * 60 * 1000);
+      return { id: await createTask({ title: input.title, unitId: input.unitId, assigneeProfileId: input.assigneeProfileId, priority: "normal", scheduledFor, dueAt, assignedByUserId: ctx.user.id }) };
+    }),
+    uploadDocument: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), title: z.string().trim().min(2).max(240), originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(120), contentBase64: z.string().min(1).max(12_000_000) })).mutation(async ({ ctx, input }) => {
+      const unitIds = await manageableTemplateUnitIds(ctx.user);
+      if (!unitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك رفع مستند خارج نطاق قسمك." });
+      const profile = await getProfileForUser(ctx.user.id);
+      return createDepartmentDocument({ ...input, actorUserId: ctx.user.id, profileId: profile?.id });
+    }),
+  }),
+
+  workflowMap: router({
+    /** تحليل مستند الإجراءات (Word/Excel/PDF/صورة) وإرجاع خطوات المخطط ومخططه المرئي. */
+    analyze: protectedProcedure
+      .input(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(160).optional(), contentBase64: z.string().min(4).max(14_000_000) }))
+      .mutation(async ({ ctx, input }) => {
+        await requireOperationsManager(ctx.user);
+        return analyzeWorkflowDocument({ userId: ctx.user.id, originalName: input.originalName, mimeType: input.mimeType ?? "", contentBase64: input.contentBase64 });
+      }),
+    /** الموظفون المتاحون للإسناد في نطاق المستخدم مع حملهم الحالي. */
+    staff: protectedProcedure.query(async ({ ctx }) => {
+      const unitIds = await workflowMapUnitIds(ctx.user);
+      return listWorkflowStaff({ unitIds });
+    }),
+    /** توزيع خطوات المخطط آلياً أو يدوياً وإنشاء مهام فعلية بإشعارات. */
+    distribute: protectedProcedure
+      .input(z.object({
+        sourceName: z.string().trim().min(1).max(255),
+        title: z.string().trim().min(2).max(200),
+        mode: z.enum(["auto", "manual"]),
+        unitId: z.number().int().positive().nullable().optional(),
+        steps: z.array(z.object({
+          order: z.number().int().positive().max(200),
+          title: z.string().trim().min(3).max(220),
+          description: z.string().trim().max(600).optional(),
+          assigneeProfileId: z.number().int().positive().nullable().optional(),
+          priority: z.enum(["normal", "high", "critical"]).optional(),
+          slaDays: z.number().int().min(1).max(120).optional(),
+          dueAt: z.date().optional(),
+        })).min(1).max(40),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await requireOperationsManager(ctx.user);
+        const unitIds = await workflowMapUnitIds(ctx.user);
+        const unitId = input.unitId ?? null;
+        if (unitId !== null && !unitIds.includes(unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك توزيع مخطط خارج نطاق وحداتك." });
+        return distributeWorkflowSteps({ actorUserId: ctx.user.id, unitIds, unitId, sourceName: input.sourceName, title: input.title, mode: input.mode, steps: input.steps.map(step => ({ ...step, dueAt: step.dueAt ?? null })) });
+      }),
   }),
 
   modules: router({
@@ -1010,6 +1155,48 @@ export const courtRouter = router({
       if (task.assigneeProfileId !== profile?.id && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تأكيد مهمة غير مسندة إليك." });
       return acknowledgeTask({ taskId: input.taskId, actorUserId: ctx.user.id, profileId: profile?.id, scheduledFor: task.scheduledFor });
     }),
+    markAsProcessed: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+      const profile = await getProfileForUser(ctx.user.id);
+      const roles = await rolesForUser(ctx.user);
+      if (task.assigneeProfileId !== profile?.id && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إتمام مهمة غير مسندة إليك." });
+      return markTaskAsProcessed({ taskId: input.taskId, actorUserId: ctx.user.id, note: input.note });
+    }),
+    addComment: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), comment: z.string().trim().min(2).max(4000) })).mutation(async ({ ctx, input }) => {
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+      const profile = await getProfileForUser(ctx.user.id);
+      const roles = await rolesForUser(ctx.user);
+      const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
+      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك التعليق على هذه المهمة." });
+      return { id: await addTaskComment({ taskId: input.taskId, profileId: profile.id, authorUserId: ctx.user.id, comment: input.comment }) };
+    }),
+    reportObstacle: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), detail: z.string().trim().min(3).max(4000) })).mutation(async ({ ctx, input }) => {
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+      const profile = await getProfileForUser(ctx.user.id);
+      const roles = await rolesForUser(ctx.user);
+      const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
+      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تسجيل عائق على هذه المهمة." });
+      return reportTaskObstacle({ taskId: input.taskId, actorUserId: ctx.user.id, detail: input.detail });
+    }),
+    requestReassignment: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), reason: z.string().trim().min(3).max(4000) })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "edit");
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف موظف لتقديم طلب إعادة الإسناد." });
+      return createTaskExceptionRequest({ taskId: input.taskId, kind: "reassignment", requesterProfileId: profile.id, actorUserId: ctx.user.id, reason: input.reason });
+    }),
+    details: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+      const profile = await getProfileForUser(ctx.user.id);
+      const roles = await rolesForUser(ctx.user);
+      const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
+      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض تفاصيل هذه المهمة." });
+      return getTaskDetails(input.taskId);
+    }),
     exceptions: router({
       request: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), kind: z.enum(["reassignment", "obstacle"]), reason: z.string().trim().min(3).max(4000) })).mutation(async ({ ctx, input }) => {
         await requirePermission(ctx.user, "edit");
@@ -1156,6 +1343,13 @@ export const courtRouter = router({
     pending: protectedProcedure.query(async ({ ctx }) => {
       await requireOperationsManager(ctx.user);
       return listPendingApprovals();
+    }),
+    myRequests: protectedProcedure.query(async ({ ctx }) => {
+      return listMyApprovalRequests(ctx.user.id);
+    }),
+    approveAll: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional() })).mutation(async ({ ctx, input }) => {
+      const roles = await requireOperationsManager(ctx.user);
+      return approveAllPendingApprovals({ actorUserId: ctx.user.id, roles, unitId: input.unitId });
     }),
     decide: protectedProcedure.input(z.object({ approvalId: z.number().int().positive(), decision: z.enum(["approved", "returned", "rejected"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const roles = await requireOperationsManager(ctx.user);
@@ -1394,8 +1588,20 @@ export const courtRouter = router({
     }),
   }),
 
+  loginPolicy: router({
+    /**
+     * فحص عام قبل الدخول: هل يُقبل هذا البريد؟
+     * يقبل النطاق الرسمي أو بريد مالك رَكيزة، وكذلك أي بريد يملك في قاعدة البيانات
+     * دور مالك أو منحة تحكم كامل — ولا يكشف أي بيانات أخرى عن الحساب.
+     */
+    check: publicProcedure.input(z.object({ email: z.string().trim().max(320) })).query(async ({ input }) => {
+      const allowance = await evaluateLoginAllowance({ email: input.email });
+      return { allowed: allowance.allowed, isOwner: allowance.isOwner, reason: allowance.reason };
+    }),
+  }),
+
   notifications: router({
-    pushConfig: protectedProcedure.query(() => ({ publicKey: getWebPushPublicKey(), fcmEnabled: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON && process.env.VITE_FIREBASE_VAPID_KEY) })),
+    pushConfig: protectedProcedure.query(() => pushReadiness()),
     fcmSubscribe: protectedProcedure.input(z.object({ token: z.string().min(40).max(1024), platform: z.string().max(32).optional(), userAgent: z.string().max(512).optional() })).mutation(async ({ ctx, input }) => {
       const profile = await getProfileForUser(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "لا يوجد ملف شخصي مرتبط بالحساب الحالي." });
@@ -1544,10 +1750,14 @@ export const courtRouter = router({
     }),
     substitutes: protectedProcedure.query(async ({ ctx }) => {
       const permission = await requirePermission(ctx.user, "edit");
+      const profile = await getProfileForUser(ctx.user.id);
+      if (await hasLeadershipPlatformScope(ctx.user, permission)) {
+        return listPlatformSubstitutes(profile?.id);
+      }
       if (permission !== "employee") return [];
-      const { profile } = await requirePersonalWorkspace(ctx.user);
-      if (profile.personType !== "administrative") return [];
-      return listAdministrativeSubstitutes(profile.unitId, profile.id);
+      const workspace = await requirePersonalWorkspace(ctx.user);
+      if (workspace.profile.personType !== "administrative") return [];
+      return listAdministrativeSubstitutes(workspace.profile.unitId, workspace.profile.id);
     }),
     submit: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), requestType: z.enum(["leave", "permission"]), startAt: z.date(), endAt: z.date(), substituteProfileId: z.number().int().positive().optional(), note: z.string().trim().max(3000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
@@ -1587,7 +1797,16 @@ export const courtRouter = router({
       setPinnedMessage: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), messageId: z.number().int().positive().nullable() })).mutation(({ ctx, input }) => setInternalConversationPinnedMessage({ userId: ctx.user.id, ...input })),
       toggleReaction: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), messageId: z.number().int().positive(), reaction: z.enum(["👍", "✅", "👀", "🙏", "⚠️"]) })).mutation(({ ctx, input }) => toggleInternalConversationMessageReaction({ userId: ctx.user.id, ...input })),
       createCustomGroup: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(255), participantProfileIds: z.array(z.number().int().positive()).min(1).max(100), body: z.string().trim().max(20_000).optional() })).mutation(({ ctx, input }) => createCustomConversation({ userId: ctx.user.id, ...input })),
-      create: protectedProcedure.input(z.object({ participantProfileIds: z.array(z.number().int().positive()).min(1).max(50), subject: z.string().trim().max(255).optional(), body: z.string().trim().min(1).max(20_000), conversationType: z.enum(["direct", "department", "custom", "general", "task"]).optional(), taskId: z.number().int().positive().optional(), unitId: z.number().int().positive().nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(12_000_000) })).max(5).optional() })).mutation(({ ctx, input }) => createInternalConversation({ userId: ctx.user.id, ...input })),
+      create: protectedProcedure.input(z.object({ participantProfileIds: z.array(z.number().int().positive()).min(1).max(50), subject: z.string().trim().max(255).optional(), body: z.string().trim().min(1).max(20_000), conversationType: z.enum(["direct", "department", "custom", "general", "task"]).optional(), taskId: z.number().int().positive().optional(), unitId: z.number().int().positive().nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(12_000_000) })).max(5).optional() })).mutation(async ({ ctx, input }) => {
+        // RBAC الدردشات: الموظف العادي ينشئ محادثات فردية فقط؛ المجموعات ومحادثات القسم للمدراء والقيادة.
+        if (input.conversationType && ["custom", "department", "general"].includes(input.conversationType)) {
+          const permission = await permissionForUser(ctx.user);
+          const roles = await rolesForUser(ctx.user);
+          const canCreateGroup = permission === "full_control" || roles.some(role => ["court_president", "assistant_president", "court_secretary", "department_manager"].includes(role));
+          if (!canCreateGroup) throw new TRPCError({ code: "FORBIDDEN", message: "إنشاء المجموعات أو محادثات القسم متاح لرئيس القسم أو قادة المنصة فقط." });
+        }
+        return createInternalConversation({ userId: ctx.user.id, ...input });
+      }),
       setTyping: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), isTyping: z.boolean() })).mutation(({ ctx, input }) => setInternalConversationTyping({ userId: ctx.user.id, ...input })),
       send: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), body: z.string().trim().max(20_000), replyToMessageId: z.number().int().positive().nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(12_000_000) })).max(5).optional(), zipAttachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(12_000_000) })).min(6).max(25).optional() }).refine(input => Boolean(input.body) || Boolean(input.attachments?.length) || Boolean(input.zipAttachments?.length), { message: "اكتب رسالة أو أرفق ملفاً واحداً على الأقل." }).refine(input => !(input.attachments?.length && input.zipAttachments?.length), { message: "اختر مرفقات عادية أو حزمة ZIP تلقائية في الرسالة نفسها، وليس كليهما." })).mutation(({ ctx, input }) => sendInternalMessage({ userId: ctx.user.id, ...input })),
       forward: protectedProcedure.input(z.object({ sourceMessageId: z.number().int().positive(), targetConversationId: z.number().int().positive(), note: z.string().trim().max(1_000).optional() })).mutation(({ ctx, input }) => forwardInternalConversationMessage({ userId: ctx.user.id, ...input })),
@@ -1600,7 +1819,7 @@ export const courtRouter = router({
   }),
   internalMail: router({
     folderCounts: protectedProcedure.query(({ ctx }) => getInternalMailFolderCounts(ctx.user.id)),
-    list: protectedProcedure.input(z.object({ folder: z.enum(["inbox", "sent", "drafts", "starred", "archive", "trash"]), search: z.string().trim().max(120).optional(), sender: z.string().trim().max(120).optional(), subject: z.string().trim().max(120).optional(), category: z.string().trim().max(80).optional(), fromDate: z.date().optional(), toDate: z.date().optional() }).refine(input => !input.fromDate || !input.toDate || input.fromDate <= input.toDate, { message: "يجب أن يكون تاريخ البداية قبل تاريخ النهاية." })).query(({ ctx, input }) => listInternalMail({ userId: ctx.user.id, ...input })),
+    list: protectedProcedure.input(z.object({ folder: z.enum(["inbox", "sent", "drafts", "starred", "archive", "trash"]), search: z.string().trim().max(120).optional(), sender: z.string().trim().max(120).optional(), subject: z.string().trim().max(120).optional(), category: z.string().trim().max(80).optional(), fromDate: z.date().optional(), toDate: z.date().optional(), sortBy: z.enum(["date", "sender", "subject", "importance"]).optional(), sortDir: z.enum(["asc", "desc"]).optional() }).refine(input => !input.fromDate || !input.toDate || input.fromDate <= input.toDate, { message: "يجب أن يكون تاريخ البداية قبل تاريخ النهاية." })).query(({ ctx, input }) => listInternalMail({ userId: ctx.user.id, ...input })),
     get: protectedProcedure.input(z.object({ messageId: z.number().int().positive() })).query(({ ctx, input }) => getInternalMailMessage({ userId: ctx.user.id, ...input })),
     summarize: protectedProcedure.input(z.object({ messageId: z.number().int().positive() })).mutation(({ ctx, input }) => summarizeInternalMailMessage({ userId: ctx.user.id, ...input })),
     assistant: protectedProcedure.input(z.object({ messageId: z.number().int().positive(), mode: z.enum(["reply", "proofread"]), tone: z.enum(["formal", "concise"]).optional() })).mutation(({ ctx, input }) => suggestInternalMailAssistant({ userId: ctx.user.id, ...input })),

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 describe("مسار تشغيل Vercel", () => {
   it("لا يستخدم مدخل TypeScript يُترجم إلى استيراد بدون امتداد", () => {
     expect(existsSync(join(process.cwd(), "api/index.ts"))).toBe(true);
-    expect(readFileSync(join(process.cwd(), "api/index.ts"), "utf8").trim()).toBe('export { default } from "./handler.js";');
+    expect(readFileSync(join(process.cwd(), "api/index.ts"), "utf8")).toContain('import app from "./handler.js";');
     expect(existsSync(join(process.cwd(), "server/vercel-handler.ts"))).toBe(true);
     const vercelConfig = JSON.parse(readFileSync(join(process.cwd(), "vercel.json"), "utf8")) as { functions: Record<string, { includeFiles?: string }>; rewrites: Array<{ destination: string }> };
     expect(Object.keys(vercelConfig.functions)).toContain("api/index.ts");

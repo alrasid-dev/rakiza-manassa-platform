@@ -2,6 +2,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, LayoutDashboard, ListChecks, MessageCircle, RotateCcw, Settings2 } from "lucide-react";
 import React, { useState } from "react";
 
+export const DASHBOARD_QUICK_ACTIONS = [
+  { id: "my-tasks", label: "مهامي", description: "المهام المفتوحة والمتأخرة المسندة إليك" },
+  { id: "notifications", label: "الإشعارات", description: "تنبيهات المنصة غير المقروءة" },
+  { id: "chats", label: "الدردشات", description: "محادثات القسم والمهام" },
+  { id: "mail", label: "البريد", description: "رسائل بريد ركيزة" },
+  { id: "report-upload", label: "رفع تقرير", description: "رفع تقرير إنجاز أو مراقبة أداء" },
+] as const;
+
+/** بطاقات لوحة القيادة القديمة: أُلغيت من الشاشة، ويُحفظ ترتيبها للتوافق مع التفضيلات المحفوظة. */
 export const DASHBOARD_WIDGETS = [
   { id: "overview", label: "ملخص اليوم", description: "المؤشرات والتنبيهات السريعة", icon: LayoutDashboard },
   { id: "tasks", label: "مهامي اليوم", description: "المهام وإجراءاتها المباشرة", icon: ListChecks },
@@ -11,21 +20,32 @@ export const DASHBOARD_WIDGETS = [
 
 export const DASHBOARD_NAVIGATION_ITEMS = ["الرئيسية", "مهامي", "الإشعارات", "الدردشات", "بريد ركيزة", "AI ركيزة", "الإعلانات الداخلية", "المتعثرات", "رفع التقارير", "دليل المستخدم", "إعدادات الموظف", "إعدادات المنصة"] as const;
 export type DashboardWidgetId = typeof DASHBOARD_WIDGETS[number]["id"];
+export type DashboardQuickActionId = typeof DASHBOARD_QUICK_ACTIONS[number]["id"];
 export type DashboardNavigationLabel = typeof DASHBOARD_NAVIGATION_ITEMS[number];
-export type DashboardPreferenceState = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[] };
+export const DASHBOARD_HOME_CARD_IDS = ["home", "tasks-active", "tasks-due-soon", "tasks-overdue", "tasks-completed", "notifications", "chats", "mail", "report-upload", "guide", "personal-settings", "rotation", "hierarchy", "delays", "assistants", "announcements", "platform-settings"] as const;
+export type DashboardHomeCardId = typeof DASHBOARD_HOME_CARD_IDS[number];
+export type DashboardPreferenceState = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; quickActionOrder: DashboardQuickActionId[]; hiddenQuickActionIds: DashboardQuickActionId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[]; homeCardOrder: DashboardHomeCardId[]; hiddenHomeCardIds: DashboardHomeCardId[] };
 
-export const defaultDashboardPreferences = (): DashboardPreferenceState => ({ widgetOrder: DASHBOARD_WIDGETS.map(item => item.id), hiddenWidgetIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_ITEMS], hiddenNavigationLabels: [] });
+export const defaultDashboardPreferences = (): DashboardPreferenceState => ({ widgetOrder: DASHBOARD_WIDGETS.map(item => item.id), hiddenWidgetIds: [], quickActionOrder: DASHBOARD_QUICK_ACTIONS.map(item => item.id), hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_ITEMS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [] });
 
-export function normalizeDashboardPreferences(preferences?: Partial<DashboardPreferenceState> | { widgetOrder?: string[]; hiddenWidgetIds?: string[]; navigationOrder?: string[]; hiddenNavigationLabels?: string[] } | null): DashboardPreferenceState {
+export function normalizeDashboardPreferences(preferences?: Partial<DashboardPreferenceState> | { widgetOrder?: string[]; hiddenWidgetIds?: string[]; quickActionOrder?: string[]; hiddenQuickActionIds?: string[]; navigationOrder?: string[]; hiddenNavigationLabels?: string[]; homeCardOrder?: string[]; hiddenHomeCardIds?: string[] } | null): DashboardPreferenceState {
   const widgetIds = DASHBOARD_WIDGETS.map(item => item.id);
+  const quickActionIds = DASHBOARD_QUICK_ACTIONS.map(item => item.id);
   const navigationLabels = DASHBOARD_NAVIGATION_ITEMS as readonly string[];
+  const homeCardIds = DASHBOARD_HOME_CARD_IDS as readonly string[];
   const savedWidgetOrder = (preferences?.widgetOrder ?? []).filter((id): id is DashboardWidgetId => widgetIds.includes(id as DashboardWidgetId));
+  const savedQuickActionOrder = (preferences?.quickActionOrder ?? []).filter((id): id is DashboardQuickActionId => quickActionIds.includes(id as DashboardQuickActionId));
   const savedNavigationOrder = (preferences?.navigationOrder ?? []).filter((label): label is DashboardNavigationLabel => navigationLabels.includes(label));
+  const savedHomeCardOrder = (preferences?.homeCardOrder ?? []).filter((id): id is DashboardHomeCardId => homeCardIds.includes(id as DashboardHomeCardId));
   return {
     widgetOrder: Array.from(new Set([...savedWidgetOrder, ...widgetIds])) as DashboardWidgetId[],
     hiddenWidgetIds: (preferences?.hiddenWidgetIds ?? []).filter((id): id is DashboardWidgetId => widgetIds.includes(id as DashboardWidgetId)),
+    quickActionOrder: Array.from(new Set([...savedQuickActionOrder, ...quickActionIds])) as DashboardQuickActionId[],
+    hiddenQuickActionIds: (preferences?.hiddenQuickActionIds ?? []).filter((id): id is DashboardQuickActionId => quickActionIds.includes(id as DashboardQuickActionId)),
     navigationOrder: Array.from(new Set([...savedNavigationOrder, ...navigationLabels])) as DashboardNavigationLabel[],
     hiddenNavigationLabels: (preferences?.hiddenNavigationLabels ?? []).filter((label): label is DashboardNavigationLabel => navigationLabels.includes(label)),
+    homeCardOrder: Array.from(new Set([...savedHomeCardOrder, ...homeCardIds])) as DashboardHomeCardId[],
+    hiddenHomeCardIds: (preferences?.hiddenHomeCardIds ?? []).filter((id): id is DashboardHomeCardId => homeCardIds.includes(id as DashboardHomeCardId)),
   };
 }
 
@@ -43,11 +63,11 @@ function ToggleList<T extends string>({ label, order, hidden, onMove, onToggle, 
 }
 
 export function DashboardCustomizationDialog({ open, onOpenChange, preferences, onChange, onSave, onResetNavigation, isSaving }: { open: boolean; onOpenChange: (open: boolean) => void; preferences: DashboardPreferenceState; onChange: (preferences: DashboardPreferenceState) => void; onSave: () => void; onResetNavigation?: () => void; isSaving: boolean }) {
-  const moveWidget = (from: number, to: number) => onChange({ ...preferences, widgetOrder: moveItem(preferences.widgetOrder, from, to) });
-  const toggleWidget = (id: DashboardWidgetId) => onChange({ ...preferences, hiddenWidgetIds: preferences.hiddenWidgetIds.includes(id) ? preferences.hiddenWidgetIds.filter(item => item !== id) : [...preferences.hiddenWidgetIds, id] });
+  const moveQuickAction = (from: number, to: number) => onChange({ ...preferences, quickActionOrder: moveItem(preferences.quickActionOrder, from, to) });
+  const toggleQuickAction = (id: DashboardQuickActionId) => onChange({ ...preferences, hiddenQuickActionIds: preferences.hiddenQuickActionIds.includes(id) ? preferences.hiddenQuickActionIds.filter(item => item !== id) : [...preferences.hiddenQuickActionIds, id] });
   const moveNavigation = (from: number, to: number) => onChange({ ...preferences, navigationOrder: moveItem(preferences.navigationOrder, from, to) });
   const toggleNavigation = (id: DashboardNavigationLabel) => onChange({ ...preferences, hiddenNavigationLabels: preferences.hiddenNavigationLabels.includes(id) ? preferences.hiddenNavigationLabels.filter(item => item !== id) : [...preferences.hiddenNavigationLabels, id] });
-  const widgetDescriptions = Object.fromEntries(DASHBOARD_WIDGETS.map(item => [item.id, item.description])) as Record<DashboardWidgetId, string>;
+  const quickActionDescriptions = Object.fromEntries(DASHBOARD_QUICK_ACTIONS.map(item => [item.id, item.description])) as Record<DashboardQuickActionId, string>;
   const navigationDescriptions = Object.fromEntries(DASHBOARD_NAVIGATION_ITEMS.map(item => [item, "اختصار من القائمة اليمنى"])) as Record<DashboardNavigationLabel, string>;
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent dir="rtl" className="max-h-[88vh] max-w-2xl overflow-y-auto border-[#cfd7ca] bg-[#f2f3ed]"><DialogHeader><DialogTitle>لوحة تخصيص القيادة</DialogTitle><DialogDescription>اسحب الوحدات أو الاختصارات لإعادة ترتيبها، ثم أظهر أو أخفِ ما لا تحتاجه. الاختصارات مربوطة بصفحات حقيقية مثل رفع التقارير ودليل المستخدم. تعمل الأسهم كبديل مناسب للجوال ولوحة المفاتيح.</DialogDescription></DialogHeader><div className="grid gap-6 md:grid-cols-2"><ToggleList label="وحدات لوحة القيادة" order={preferences.widgetOrder} hidden={preferences.hiddenWidgetIds} onMove={moveWidget} onToggle={toggleWidget} descriptions={widgetDescriptions} /><ToggleList label="اختصارات القائمة اليمنى" order={preferences.navigationOrder} hidden={preferences.hiddenNavigationLabels} onMove={moveNavigation} onToggle={toggleNavigation} descriptions={navigationDescriptions} /></div><DialogFooter className="gap-2 sm:justify-between"><div className="flex flex-wrap gap-2"><button type="button" disabled={isSaving} onClick={() => onChange(defaultDashboardPreferences())} className="inline-flex items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-black text-[#355d4b] disabled:opacity-60"><RotateCcw className="h-3.5 w-3.5" />استعادة كل الإعدادات</button><button type="button" disabled={isSaving} onClick={() => onResetNavigation ? onResetNavigation() : onChange({ ...preferences, navigationOrder: [...DASHBOARD_NAVIGATION_ITEMS], hiddenNavigationLabels: [] })} className="inline-flex items-center gap-1.5 rounded-lg border border-[#b9d0be] bg-[#e8f0e7] px-3 py-2 text-xs font-black text-[#2d684a] disabled:opacity-60"><RotateCcw className="h-3.5 w-3.5" />استعادة اختصارات القائمة</button></div><div className="flex gap-2"><button type="button" onClick={() => onOpenChange(false)} className="rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-black text-[#355d4b]">إلغاء</button><button type="button" disabled={isSaving} onClick={onSave} className="rounded-lg bg-[#2d6b4f] px-3 py-2 text-xs font-black text-white disabled:opacity-60">{isSaving ? "جارٍ الحفظ…" : "حفظ التخصيص"}</button></div></DialogFooter></DialogContent></Dialog>;
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent dir="rtl" className="max-h-[88vh] max-w-2xl overflow-y-auto border-[#cfd7ca] bg-[#f2f3ed]"><DialogHeader><DialogTitle>تخصيص شريط العمل السريع والقائمة</DialogTitle><DialogDescription>رتّب أيقونات العمل السريع في الأعلى، وما تخفيه ينتقل تلقائياً إلى القائمة الجانبية فلا تفقد الوصول إليه. الاختصارات مربوطة بصفحات حقيقية مثل رفع التقارير ودليل المستخدم. تعمل الأسهم كبديل مناسب للجوال ولوحة المفاتيح.</DialogDescription></DialogHeader><div className="grid gap-6 md:grid-cols-2"><ToggleList label="شريط العمل السريع" order={preferences.quickActionOrder} hidden={preferences.hiddenQuickActionIds} onMove={moveQuickAction} onToggle={toggleQuickAction} descriptions={quickActionDescriptions} /><ToggleList label="اختصارات القائمة اليمنى" order={preferences.navigationOrder} hidden={preferences.hiddenNavigationLabels} onMove={moveNavigation} onToggle={toggleNavigation} descriptions={navigationDescriptions} /></div><DialogFooter className="gap-2 sm:justify-between"><div className="flex flex-wrap gap-2"><button type="button" disabled={isSaving} onClick={() => onChange(defaultDashboardPreferences())} className="inline-flex items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-black text-[#355d4b] disabled:opacity-60"><RotateCcw className="h-3.5 w-3.5" />استعادة كل الإعدادات</button><button type="button" disabled={isSaving} onClick={() => onResetNavigation ? onResetNavigation() : onChange({ ...preferences, navigationOrder: [...DASHBOARD_NAVIGATION_ITEMS], hiddenNavigationLabels: [] })} className="inline-flex items-center gap-1.5 rounded-lg border border-[#b9d0be] bg-[#e8f0e7] px-3 py-2 text-xs font-black text-[#2d684a] disabled:opacity-60"><RotateCcw className="h-3.5 w-3.5" />استعادة اختصارات القائمة</button></div><div className="flex gap-2"><button type="button" onClick={() => onOpenChange(false)} className="rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-black text-[#355d4b]">إلغاء</button><button type="button" disabled={isSaving} onClick={onSave} className="rounded-lg bg-[#2d6b4f] px-3 py-2 text-xs font-black text-white disabled:opacity-60">{isSaving ? "جارٍ الحفظ…" : "حفظ التخصيص"}</button></div></DialogFooter></DialogContent></Dialog>;
 }

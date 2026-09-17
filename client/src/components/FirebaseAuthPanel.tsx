@@ -50,7 +50,7 @@ export function FirebaseAuthPanel({ officialEmail, validOfficialEmail, activatio
   };
 
   const signInEmail = async () => {
-    if (!validOfficialEmail) { setNotice("أدخل البريد الرسمي أولاً."); return; }
+    if (!validOfficialEmail) { setNotice("أدخل بريد الدخول المعتمد: الرسمي أو بريد مالك رَكيزة."); return; }
     const loginPolicy = validateLoginPassword(password);
     if (!loginPolicy.ok) { setNotice(loginPolicy.message); return; }
     setBusy("signin"); setNotice("");
@@ -62,7 +62,7 @@ export function FirebaseAuthPanel({ officialEmail, validOfficialEmail, activatio
   };
 
   const registerEmail = async () => {
-    if (!validOfficialEmail) { setNotice("أدخل البريد الرسمي أولاً."); return; }
+    if (!validOfficialEmail) { setNotice("أدخل بريد الدخول المعتمد: الرسمي أو بريد مالك رَكيزة."); return; }
     const newPasswordPolicy = validateNewPassword(password);
     if (!newPasswordPolicy.ok) { setNotice(newPasswordPolicy.message); return; }
     if (activationMode && password !== confirmPassword) { setNotice("تأكيد كلمة المرور غير مطابق."); return; }

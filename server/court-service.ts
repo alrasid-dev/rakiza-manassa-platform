@@ -16,17 +16,11 @@ export async function sendBrevoTransactionalEmail(input: { to: string; recipient
   return { accepted: true, messageId: payload.messageId ?? null };
 }
 
-export const OFFICIAL_MOJ_EMAIL = /^[^@\s]+@moj\.gov\.sa$/i;
+export const OFFICIAL_MOJ_EMAIL = OFFICIAL_MOJ_EMAIL_PATTERN;
 /** الوحيد المسموح خارج @moj.gov.sa هو بريد مالك المنصة المهيأ عبر PLATFORM_OWNER_EMAIL. */
-export const isOfficialMojEmail = (value: string | null | undefined) => Boolean(value && OFFICIAL_MOJ_EMAIL.test(value.trim()));
-export const isPlatformOwnerEmail = (value: string | null | undefined) => {
-  const normalized = value?.trim().toLowerCase();
-  return Boolean(normalized && normalized === ENV.platformOwnerEmail);
-};
-export const isAllowedLoginEmail = (value: string | null | undefined) => {
-  const normalized = value?.trim().toLowerCase();
-  return Boolean(normalized && (isOfficialMojEmail(normalized) || isPlatformOwnerEmail(normalized)));
-};
+export const isOfficialMojEmail = (value: string | null | undefined) => sharedIsOfficialMojEmail(value);
+export const isPlatformOwnerEmail = (value: string | null | undefined) => sharedIsPlatformOwnerEmail(value, ENV.platformOwnerEmail);
+export const isAllowedLoginEmail = (value: string | null | undefined) => sharedIsAllowedLoginEmail(value, ENV.platformOwnerEmail);
 export const isAllowedRegistrationEmail = isAllowedLoginEmail;
 import {
   accessGrants,
@@ -83,7 +77,7 @@ import {
   type CourtRole,
 } from "../drizzle/schema";
 import { getDb } from "./db";
-import type { ApprovalRole } from "./court-workflow";
+import { canActOnApproval, canActOnManagerAssignmentApproval, nextApprovalRole, nextManagerAssignmentApprovalRole, type ApprovalRole, type ManagerAssignmentApprovalRole } from "./court-workflow";
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "crypto";
 import { storageGetSignedUrl, storagePut } from "./storage";
 import { invokeLLM } from "./_core/llm";
@@ -104,6 +98,7 @@ import type { AppPermission } from "./access-control";
 import { leastLoadedSupportProfile, supportTicketDeadlines } from "./support-ticket-policy";
 import { governanceParticipantNames } from "./governance-archive-policy";
 import { extractRawText } from "mammoth";
+import { OFFICIAL_MOJ_EMAIL_PATTERN, isAllowedLoginEmail as sharedIsAllowedLoginEmail, isOfficialMojEmail as sharedIsOfficialMojEmail, isPlatformOwnerEmail as sharedIsPlatformOwnerEmail, normalizeLoginEmail, type LoginAllowance } from "../shared/login-policy";
 import { distributeAcrossAvailableStaff, extractPerformanceTasksFromExcel, extractPerformanceTasksFromWordText, type PerformanceReportTaskCandidate } from "./performance-report-task-extractor";
 import { assignmentBlockReason, assignPerformanceTasksByNameOrEvenly, deadlineNudgeKind, evaluatePerformanceReportIntegrity } from "./platform-completion";
 import { buildReportEvaluationProposal, type ReportAnalysisStatus } from "./performance-report-evaluation-policy";
@@ -130,6 +125,29 @@ export async function findDepartmentAccountByLoginEmail(email: string) {
     console.warn("[login] تعذر قراءة حسابات الأقسام؛ يُتابع الدخول كحساب شخصي", error);
     return undefined;
   }
+}
+
+/**
+ * فحص حقيقي لصلاحية بريد الدخول قبل إنشاء الجلسة:
+ * يقبل النطاق الرسمي، وبريد المالك المعتمد، وأي بريد يملك في قاعدة البيانات
+ * حساباً بدور مالك (admin) أو منحة وصول سارية بصلاحية تحكم كامل.
+ */
+export async function evaluateLoginAllowance(input: { email: string | null | undefined }): Promise<LoginAllowance> {
+  const email = normalizeLoginEmail(input.email);
+  if (!email) return { email, allowed: false, isOwner: false, reason: "empty" };
+  if (sharedIsOfficialMojEmail(email)) return { email, allowed: true, isOwner: false, reason: "official" };
+  if (sharedIsPlatformOwnerEmail(email, ENV.platformOwnerEmail)) return { email, allowed: true, isOwner: true, reason: "owner" };
+  const db = await getDb();
+  if (!db) return { email, allowed: false, isOwner: false, reason: "domain" };
+  try {
+    const account = (await db.select({ role: users.role }).from(users).where(eq(users.email, email)).limit(1))[0];
+    if (account?.role === "admin") return { email, allowed: true, isOwner: true, reason: "owner_grant" };
+    const grant = (await db.select({ permission: accessGrants.permission }).from(accessGrants).where(and(eq(accessGrants.officialEmail, email), eq(accessGrants.isActive, true))).limit(1))[0];
+    if (grant?.permission === "full_control") return { email, allowed: true, isOwner: true, reason: "owner_grant" };
+  } catch (error) {
+    console.warn("[login] تعذر فحص منحة البريد؛ يُطبَّق شرط النطاق الرسمي فقط", error);
+  }
+  return { email, allowed: false, isOwner: false, reason: "domain" };
 }
 
 export async function requestOtpCode(input: { officialEmail: string; requestIp?: string | null }) {
@@ -556,6 +574,18 @@ export async function listAdministrativeSubstitutes(unitId: number | null, exclu
     .orderBy(personProfiles.fullName);
 }
 
+/** بدلاء على مستوى المنصة كاملة للقيادة (المالك/الأمين/الرئيس) لإسناد أعمال أي موظف. */
+export async function listPlatformSubstitutes(excludeProfileId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(personProfiles.personType, "administrative"), eq(personProfiles.status, "active")];
+  if (excludeProfileId != null) conditions.push(notInArray(personProfiles.id, [excludeProfileId]));
+  return db.select({ id: personProfiles.id, fullName: personProfiles.fullName })
+    .from(personProfiles)
+    .where(and(...conditions))
+    .orderBy(personProfiles.fullName);
+}
+
 export async function assignCourtRole(input: { userId: number; role: CourtRole; unitId?: number; delegatedByUserId: number; endsAt?: Date }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
@@ -572,6 +602,137 @@ export async function revokeCourtRole(assignmentId: number, actorUserId: number)
   await db.update(courtRoleAssignments).set({ isActive: false, endsAt: new Date() }).where(eq(courtRoleAssignments.id, assignmentId));
   await logAudit({ actorUserId, action: "court_role.revoked", entityType: "court_role_assignment", entityId: assignmentId });
   await notifyPlatformOwnerSecurityAlert({ actorUserId, action: "court_role.revoked", entityType: "court_role_assignment", entityId: assignmentId });
+}
+
+/** قائمة تكليفات إدارة الأقسام النشطة (دور مدير قسم) لاستخدامها في واجهة «تكليف بإدارة إدارة». */
+export async function listDepartmentManagerAssignments() {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  return db.select({
+    assignment: courtRoleAssignments,
+    userName: users.name,
+    userEmail: users.email,
+    unitName: organizationUnits.name,
+  })
+    .from(courtRoleAssignments)
+    .leftJoin(users, eq(users.id, courtRoleAssignments.userId))
+    .leftJoin(organizationUnits, eq(organizationUnits.id, courtRoleAssignments.unitId))
+    .where(and(
+      eq(courtRoleAssignments.role, "department_manager"),
+      eq(courtRoleAssignments.isActive, true),
+      lte(courtRoleAssignments.startsAt, now),
+      or(isNull(courtRoleAssignments.endsAt), gt(courtRoleAssignments.endsAt, now)),
+    ))
+    .orderBy(asc(organizationUnits.name));
+}
+
+/** تكليف حساب بإدارة قسم (مدير قسم) مع إنهاء أي تكليف نشط سابق على نفس القسم تلقائياً. */
+export async function assignDepartmentManager(input: { userId: number; unitId: number; delegatedByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [unit] = await db.select().from(organizationUnits).where(eq(organizationUnits.id, input.unitId)).limit(1);
+  if (!unit) throw new Error("القسم المحدد غير موجود.");
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.id, input.userId)).limit(1);
+  if (!user) throw new Error("الحساب المحدد غير موجود.");
+  await db.update(courtRoleAssignments).set({ isActive: false, endsAt: new Date() }).where(and(
+    eq(courtRoleAssignments.role, "department_manager"),
+    eq(courtRoleAssignments.unitId, input.unitId),
+    eq(courtRoleAssignments.isActive, true),
+  ));
+  const assignmentId = await assignCourtRole({ userId: input.userId, role: "department_manager", unitId: input.unitId, delegatedByUserId: input.delegatedByUserId });
+  await logAudit({ actorUserId: input.delegatedByUserId, action: "department_manager.assigned", entityType: "court_role_assignment", entityId: assignmentId, metadata: { userId: input.userId, unitId: input.unitId } });
+  return { assignmentId };
+}
+
+/** إنهاء تكليف بإدارة قسم (إقالة مدير قسم) مع التحقق من نوع الدور. */
+export async function endDepartmentManagerAssignment(input: { assignmentId: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [assignment] = await db.select().from(courtRoleAssignments).where(eq(courtRoleAssignments.id, input.assignmentId)).limit(1);
+  if (!assignment || assignment.role !== "department_manager") throw new Error("التكليف المحدد ليس تكليفاً بإدارة قسم.");
+  if (!assignment.isActive) throw new Error("التكليف المحدد منتهٍ بالفعل.");
+  await revokeCourtRole(input.assignmentId, input.actorUserId);
+  return { success: true as const };
+}
+
+/** قوالب مهام الأقسام (فعّالة وغير فعّالة) ضمن الوحدات المحددة، لتسهيل تفعيلها لاحقاً من مدير القسم. */
+export async function listDepartmentTaskTemplates(unitIds: number[]) {
+  const db = await getDb();
+  if (!db || !unitIds.length) return [];
+  return db.select({ template: taskTemplates, unitName: organizationUnits.name })
+    .from(taskTemplates)
+    .leftJoin(organizationUnits, eq(organizationUnits.id, taskTemplates.unitId))
+    .where(inArray(taskTemplates.unitId, unitIds))
+    .orderBy(asc(organizationUnits.name), asc(taskTemplates.id));
+}
+
+export async function getTaskTemplateUnitId(templateId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select({ unitId: taskTemplates.unitId }).from(taskTemplates).where(eq(taskTemplates.id, templateId)).limit(1);
+  return row?.unitId ?? null;
+}
+
+/** تفعيل أو تعطيل قالب مهمة قسم (تفعيل مهام الأقسام لاحقاً من مدير القسم). */
+export async function setDepartmentTaskTemplateActive(input: { templateId: number; isActive: boolean; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  await db.update(taskTemplates).set({ isActive: input.isActive, updatedAt: new Date() }).where(eq(taskTemplates.id, input.templateId));
+  await logAudit({ actorUserId: input.actorUserId, action: input.isActive ? "task_template.activated" : "task_template.deactivated", entityType: "task_template", entityId: input.templateId });
+  return { success: true as const };
+}
+
+/** مستندات الأقسام ضمن الوحدات المحددة (لشاشة «مستندات القسم»). */
+export async function listDepartmentDocuments(unitIds: number[]) {
+  const db = await getDb();
+  if (!db || !unitIds.length) return [];
+  const records = await db.select({
+    id: documentRecords.id,
+    title: documentRecords.title,
+    documentType: documentRecords.documentType,
+    originalName: documentRecords.originalName,
+    mimeType: documentRecords.mimeType,
+    summary: documentRecords.summary,
+    storageKey: documentRecords.storageKey,
+    unitId: documentRecords.unitId,
+    profileId: documentRecords.profileId,
+    createdAt: documentRecords.createdAt,
+    unitName: organizationUnits.name,
+    ownerName: personProfiles.fullName,
+  })
+    .from(documentRecords)
+    .leftJoin(organizationUnits, eq(organizationUnits.id, documentRecords.unitId))
+    .leftJoin(personProfiles, eq(personProfiles.id, documentRecords.profileId))
+    .where(inArray(documentRecords.unitId, unitIds))
+    .orderBy(desc(documentRecords.createdAt))
+    .limit(200);
+  return Promise.all(records.map(async record => ({ ...record, url: record.storageKey ? await storageGetSignedUrl(record.storageKey) : null })));
+}
+
+/** رفع مستند قسم (مرفق) ضمن نطاق الوحدة. */
+export async function createDepartmentDocument(input: { unitId: number; title: string; originalName: string; mimeType: string; contentBase64: string; actorUserId: number; profileId?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const content = Buffer.from(input.contentBase64, "base64");
+  const safeName = input.originalName.replace(/[^a-zA-Z0-9\u0600-\u06FF._-]+/g, "_").slice(0, 160) || "document";
+  const key = `department-documents/${input.unitId}/${Date.now()}-${safeName}`;
+  const stored = await storagePut(key, content, input.mimeType);
+  const result = await db.insert(documentRecords).values({
+    documentType: "other",
+    title: input.title.trim(),
+    storageKey: stored.key,
+    storageUrl: stored.url,
+    originalName: input.originalName.slice(0, 255),
+    mimeType: input.mimeType,
+    unitId: input.unitId,
+    profileId: input.profileId ?? null,
+    reviewStatus: "submitted",
+    createdByUserId: input.actorUserId,
+  });
+  const id = Number(result[0].insertId);
+  await logAudit({ actorUserId: input.actorUserId, action: "department_document.uploaded", entityType: "document_record", entityId: id, metadata: { unitId: input.unitId, originalName: input.originalName } });
+  return { id };
 }
 
 export async function logAudit(input: { actorUserId?: number; action: string; entityType: string; entityId?: number; metadata?: Record<string, unknown> }) {
@@ -1232,23 +1393,37 @@ export async function getUserEmailSettings(userId: number) {
 
 export const DASHBOARD_WIDGET_IDS = ["overview", "tasks", "chat", "performance"] as const;
 export const DASHBOARD_NAVIGATION_LABELS = ["الرئيسية", "مهامي", "الإشعارات", "الدردشات", "بريد ركيزة", "AI ركيزة", "الإعلانات الداخلية", "المتعثرات", "رفع التقارير", "دليل المستخدم", "إعدادات الموظف", "إعدادات المنصة"] as const;
+/** إجراءات شريط العمل السريع العلوي: يبقى في الشريط ما اختاره المستخدم، وينتقل الباقي إلى القائمة الجانبية. */
+export const DASHBOARD_QUICK_ACTION_IDS = ["my-tasks", "notifications", "chats", "mail", "report-upload"] as const;
+/** بطاقات الشاشة الرئيسية: تُرتب وتُخفى عبر السحب والإفلات وتُحفظ في تفضيلات اللوحة. */
+export const DASHBOARD_HOME_CARD_IDS = ["home", "tasks-active", "tasks-due-soon", "tasks-overdue", "tasks-completed", "notifications", "chats", "mail", "report-upload", "guide", "personal-settings", "rotation", "hierarchy", "delays", "assistants", "announcements", "platform-settings"] as const;
+export type DashboardHomeCardId = typeof DASHBOARD_HOME_CARD_IDS[number];
 export type DashboardWidgetId = typeof DASHBOARD_WIDGET_IDS[number];
+export type DashboardQuickActionId = typeof DASHBOARD_QUICK_ACTION_IDS[number];
 export type DashboardNavigationLabel = typeof DASHBOARD_NAVIGATION_LABELS[number];
-export type DashboardPreferences = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[] };
+export type DashboardPreferences = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; quickActionOrder: DashboardQuickActionId[]; hiddenQuickActionIds: DashboardQuickActionId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[]; homeCardOrder: DashboardHomeCardId[]; hiddenHomeCardIds: DashboardHomeCardId[] };
 
-const defaultDashboardPreferences = (): DashboardPreferences => ({ widgetOrder: [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_LABELS], hiddenNavigationLabels: [] });
+const defaultDashboardPreferences = (): DashboardPreferences => ({ widgetOrder: [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds: [], quickActionOrder: [...DASHBOARD_QUICK_ACTION_IDS], hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_LABELS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [] });
 const allowedDashboardWidgets = new Set<string>(DASHBOARD_WIDGET_IDS);
+const allowedDashboardQuickActions = new Set<string>(DASHBOARD_QUICK_ACTION_IDS);
 const allowedDashboardNavigationLabels = new Set<string>(DASHBOARD_NAVIGATION_LABELS);
+const allowedDashboardHomeCards = new Set<string>(DASHBOARD_HOME_CARD_IDS);
 const normalizeDashboardPreferenceList = <T extends string>(values: unknown, allowed: Set<string>, fallback: readonly T[]) => Array.isArray(values) ? Array.from(new Set(values.filter((value): value is T => typeof value === "string" && allowed.has(value)))) : [...fallback];
 
 export function normalizeDashboardPreferences(value: unknown): DashboardPreferences {
   const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const widgetOrder = normalizeDashboardPreferenceList<DashboardWidgetId>(source.widgetOrder, allowedDashboardWidgets, DASHBOARD_WIDGET_IDS);
   const hiddenWidgetIds = normalizeDashboardPreferenceList<DashboardWidgetId>(source.hiddenWidgetIds, allowedDashboardWidgets, []);
+  const savedQuickActionOrder = normalizeDashboardPreferenceList<DashboardQuickActionId>(source.quickActionOrder, allowedDashboardQuickActions, []);
+  const quickActionOrder = Array.from(new Set([...savedQuickActionOrder, ...DASHBOARD_QUICK_ACTION_IDS]));
+  const hiddenQuickActionIds = normalizeDashboardPreferenceList<DashboardQuickActionId>(source.hiddenQuickActionIds, allowedDashboardQuickActions, []);
   const savedNavigationOrder = normalizeDashboardPreferenceList<DashboardNavigationLabel>(source.navigationOrder, allowedDashboardNavigationLabels, []);
   const navigationOrder = Array.from(new Set([...savedNavigationOrder, ...DASHBOARD_NAVIGATION_LABELS]));
   const hiddenNavigationLabels = normalizeDashboardPreferenceList<DashboardNavigationLabel>(source.hiddenNavigationLabels, allowedDashboardNavigationLabels, []);
-  return { widgetOrder: widgetOrder.length ? widgetOrder : [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds, navigationOrder, hiddenNavigationLabels };
+  const savedHomeCardOrder = normalizeDashboardPreferenceList<DashboardHomeCardId>(source.homeCardOrder, allowedDashboardHomeCards, []);
+  const homeCardOrder = Array.from(new Set([...savedHomeCardOrder, ...DASHBOARD_HOME_CARD_IDS]));
+  const hiddenHomeCardIds = normalizeDashboardPreferenceList<DashboardHomeCardId>(source.hiddenHomeCardIds, allowedDashboardHomeCards, []);
+  return { widgetOrder: widgetOrder.length ? widgetOrder : [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds, quickActionOrder, hiddenQuickActionIds, navigationOrder, hiddenNavigationLabels, homeCardOrder, hiddenHomeCardIds };
 }
 
 export async function getDashboardPreferences(userId: number) {
@@ -1269,7 +1444,7 @@ export async function updateDashboardPreferences(input: { userId: number; prefer
   const preferences = normalizeDashboardPreferences(input.preferences);
   const result = await db.update(users).set({ dashboardPreferences: JSON.stringify(preferences), updatedAt: new Date() }).where(eq(users.id, input.userId));
   if (!Number(result[0].affectedRows)) throw new Error("الحساب غير موجود");
-  await logAudit({ actorUserId: input.userId, action: "user.dashboard_preferences.updated", entityType: "user", entityId: input.userId, metadata: { widgetOrder: preferences.widgetOrder, hiddenWidgetIds: preferences.hiddenWidgetIds, navigationOrder: preferences.navigationOrder, hiddenNavigationLabels: preferences.hiddenNavigationLabels } });
+  await logAudit({ actorUserId: input.userId, action: "user.dashboard_preferences.updated", entityType: "user", entityId: input.userId, metadata: { widgetOrder: preferences.widgetOrder, hiddenWidgetIds: preferences.hiddenWidgetIds, quickActionOrder: preferences.quickActionOrder, hiddenQuickActionIds: preferences.hiddenQuickActionIds, navigationOrder: preferences.navigationOrder, hiddenNavigationLabels: preferences.hiddenNavigationLabels, homeCardOrder: preferences.homeCardOrder, hiddenHomeCardIds: preferences.hiddenHomeCardIds } });
   return preferences;
 }
 
@@ -1490,6 +1665,53 @@ export async function listPendingApprovals() {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(approvalRequests).where(eq(approvalRequests.status, "pending")).orderBy(desc(approvalRequests.createdAt));
+}
+
+/**
+ * اعتماد جميع الطلبات المعلقة التي يحق للمستخدم اتخاذ القرار عليها دفعة واحدة،
+ * مع تطبيق منطق التصعيد نفسه (الانتقال إلى الدور التالي أو التطبيق النهائي).
+ */
+export async function approveAllPendingApprovals(input: { actorUserId: number; roles: string[]; unitId?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const approvals = await listPendingApprovals();
+  let approved = 0;
+  let skipped = 0;
+  for (const approval of approvals) {
+    if (input.unitId && approval.entityType !== "department_manager_assignment") {
+      // تصفية اختيارية بقسم تسليم الأحكام عند الحاجة: تُطبَّق على طلبات تسكين مدير القسم فقط.
+      const payload = safeParseJson(approval.requestNote ?? null);
+      if (payload && typeof payload === "object" && "unitId" in payload && Number(payload.unitId) !== input.unitId) { skipped += 1; continue; }
+    }
+    const isManagerAssignment = approval.entityType === "department_manager_assignment";
+    const currentRole = approval.currentRole as ApprovalRole;
+    let canAct = false;
+    if (isManagerAssignment) {
+      const actorRole = (input.roles.find(role => ["human_resources_manager", "court_secretary", "court_president"].includes(role)) ?? "court_president") as ManagerAssignmentApprovalRole;
+      canAct = canActOnManagerAssignmentApproval(actorRole, currentRole as ManagerAssignmentApprovalRole);
+    } else {
+      canAct = input.roles.some(role => canActOnApproval(role as CourtRole, currentRole));
+    }
+    if (!canAct) { skipped += 1; continue; }
+    const nextRole = isManagerAssignment ? nextManagerAssignmentApprovalRole(currentRole as ManagerAssignmentApprovalRole) : nextApprovalRole(currentRole);
+    await decideApproval({ approvalId: approval.id, actorUserId: input.actorUserId, decision: "approved", nextRole });
+    if (isManagerAssignment && !nextRole) await applyManagerAssignmentApproval(approval.id, input.actorUserId);
+    approved += 1;
+  }
+  await logAudit({ actorUserId: input.actorUserId, action: "approval.bulk_approved", entityType: "approval", metadata: { approved, skipped } });
+  return { approved, skipped };
+}
+
+function safeParseJson(value: string | null): unknown {
+  if (!value) return null;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+/** طلبات الاعتماد التي قدّمها المستخدم نفسه (لشاشة الاعتمادات الموحدة للموظفين). */
+export async function listMyApprovalRequests(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(approvalRequests).where(eq(approvalRequests.requestedByUserId, userId)).orderBy(desc(approvalRequests.createdAt)).limit(200);
 }
 
 export async function listGovernanceArchive(filters?: { entityType?: "task" | "delay" | "decision" | "disciplinary_action" | "score_adjustment"; status?: "returned" | "approved" | "rejected" | "cancelled"; limit?: number }) {
@@ -1747,6 +1969,83 @@ export async function updateTaskStatus(input: { taskId: number; status: "new" | 
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: input.note ?? `تم تغيير الحالة إلى ${input.status}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.status_updated_by_leadership", entityType: "task", entityId: input.taskId, metadata: { status: input.status } });
   return { success: true, status: input.status };
+}
+
+export async function listTaskComments(taskId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({ comment: taskComments, authorName: users.name, authorProfileName: personProfiles.fullName })
+    .from(taskComments)
+    .leftJoin(users, eq(users.id, taskComments.authorUserId))
+    .leftJoin(personProfiles, eq(personProfiles.id, taskComments.profileId))
+    .where(eq(taskComments.taskId, taskId))
+    .orderBy(desc(taskComments.createdAt));
+  return rows.map(row => ({ ...row.comment, authorName: row.authorProfileName ?? row.authorName ?? "مستخدم المنصة" }));
+}
+
+export async function markTaskAsProcessed(input: { taskId: number; actorUserId: number; note?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new Error("المهمة المطلوبة غير موجودة.");
+  if (task.status === "cancelled") throw new Error("لا يمكن إتمام مهمة ملغاة.");
+  if (task.status === "completed") throw new Error("المهمة مكتملة مسبقاً.");
+  const completedAt = new Date();
+  await db.update(tasks).set({ status: "completed", completedAt, completionNote: input.note ?? null }).where(eq(tasks.id, input.taskId));
+  await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "approved", note: input.note?.trim() || "تمت معالجة المهمة وإتمامها." });
+  await awardTaskCompletionPoints(input.taskId, input.actorUserId);
+  await logAudit({ actorUserId: input.actorUserId, action: "task.marked_processed", entityType: "task", entityId: input.taskId, metadata: { completedAt: completedAt.toISOString() } });
+  return { success: true, status: "completed" as const, completedAt };
+}
+
+export async function addTaskComment(input: { taskId: number; profileId?: number; authorUserId: number; comment: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new Error("المهمة غير موجودة.");
+  const result = await db.insert(taskComments).values({ taskId: input.taskId, profileId: input.profileId ?? null, authorUserId: input.authorUserId, comment: input.comment.trim() });
+  await logAudit({ actorUserId: input.authorUserId, action: "task.comment_added", entityType: "task_comment", entityId: Number(result[0].insertId), metadata: { taskId: input.taskId } });
+  return Number(result[0].insertId);
+}
+
+export async function reportTaskObstacle(input: { taskId: number; actorUserId: number; detail: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new Error("المهمة غير موجودة.");
+  if (task.status === "completed" || task.status === "cancelled") throw new Error("لا يمكن تسجيل عائق على مهمة مكتملة أو ملغاة.");
+  await db.update(tasks).set({ hasObstacle: true, obstacleDetail: input.detail.trim() }).where(eq(tasks.id, input.taskId));
+  await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "obstacle_reported", note: `بلاغ عائق: ${input.detail.trim()}` });
+  const leadership = (await listTaskRouteTargets()).filter(target => target.role !== "department_manager");
+  const notifiedProfileIds: number[] = [];
+  const reportStamp = Date.now();
+  for (const target of leadership) {
+    if (!target.profileId || notifiedProfileIds.includes(target.profileId)) continue;
+    notifiedProfileIds.push(target.profileId);
+    const notification = { profileId: target.profileId, category: "task_due" as const, title: "بلاغ عائق على مهمة", body: `سُجّل عائق على المهمة: ${task.title}. ${input.detail.trim()}`, dedupeKey: `task-obstacle-${task.id}-${target.profileId}-${reportStamp}` };
+    await db.insert(notifications).values(notification);
+    try {
+      await sendPushForNotification(target.profileId, { title: notification.title, body: notification.body, url: `/tasks?taskId=${task.id}`, tag: notification.dedupeKey });
+    } catch (error) {
+      console.warn("[WebPush] فشل إرسال تنبيه العائق للقيادة", { taskId: task.id, profileId: target.profileId, error });
+    }
+  }
+  await logAudit({ actorUserId: input.actorUserId, action: "task.obstacle_reported", entityType: "task", entityId: input.taskId, metadata: { leadershipProfileIds: notifiedProfileIds } });
+  return { success: true, notifiedProfileIds };
+}
+
+export async function getTaskDetails(taskId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(taskId);
+  if (!task) throw new Error("المهمة غير موجودة.");
+  const [comments, timeline, attachments] = await Promise.all([
+    listTaskComments(taskId),
+    listTaskTimeline(taskId),
+    listTaskAttachments(taskId),
+  ]);
+  return { task, comments, timeline, attachments };
 }
 
 export async function decideApproval(input: { approvalId: number; actorUserId: number; decision: "approved" | "returned" | "rejected"; note?: string; nextRole?: ApprovalRole | null }) {

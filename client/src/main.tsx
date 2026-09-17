@@ -91,4 +91,8 @@ createRoot(document.getElementById("root")!).render(
   </trpc.Provider>
 );
 
+// إشارة إقلاع ناجح لحارس الإقلاع في /boot-guard.js: تمنع إنذاراً كاذباً على الأجهزة البطيئة،
+// وتساعد على التمييز بين «الصفحة لم تُرسم» و«الصفحة لم تُحمَّل بعد».
+(window as Window & { __RAKIZA_APP_MOUNTED__?: boolean }).__RAKIZA_APP_MOUNTED__ = true;
+
 void registerPlatformServiceWorker();

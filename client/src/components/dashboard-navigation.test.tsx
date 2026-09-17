@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { isNavigationPathActive, isNavigationSectionAllowed, navigationBadgeForItem, navigationIconTone, navigationSections, oliveIconMotionClass, resolveNavigationPermission } from "./DashboardLayout";
+import { quickActionCatalog } from "./DynamicQuickActions";
+import { isNavigationPathActive, isNavigationSectionAllowed, navigationBadgeForItem, navigationIconTone, navigationSections, normalizeQuickActionIds, oliveIconMotionClass, resolveDepartmentConversationId, resolveNavigationPermission } from "./DashboardLayout";
+
+describe("تحصين لوحة القيادة ضد ردود الخادم غير المتوقعة", () => {
+  it("يستخرج محادثة القسم من الرد الصحيح ويتجاهل أي شكل آخر", () => {
+    expect(resolveDepartmentConversationId([{ conversation: { id: 42, conversationType: "department" } }])).toBe(42);
+    expect(resolveDepartmentConversationId([
+      { conversation: { id: 7, conversationType: "task" } },
+      { conversation: { id: 51, conversationType: "department" } },
+    ])).toBe(51);
+    expect(resolveDepartmentConversationId([{ conversation: { id: 7, conversationType: "task" } }])).toBeNull();
+    expect(resolveDepartmentConversationId({ rows: [{ conversation: { id: 1, conversationType: "department" } }] })).toBeNull();
+    expect(resolveDepartmentConversationId(null)).toBeNull();
+    expect(resolveDepartmentConversationId([{ conversation: {} }, {}])).toBeNull();
+  });
+
+  it("ينقّي تفضيلات شريط العمل السريع من أي قيم غير معروفة", () => {
+    expect(normalizeQuickActionIds(["mail", "notifications"])).toEqual(["mail", "notifications"]);
+    expect(normalizeQuickActionIds(["mail", "unknown-action", 5, null])).toEqual(["mail"]);
+    expect(normalizeQuickActionIds("mail")).toEqual([]);
+    expect(normalizeQuickActionIds(undefined)).toEqual([]);
+  });
+});
+
 
 describe("navigation sections", () => {
   it("يستخدم فئة حركة مقيدة للأيقونات الزيتية دون تغيير تعريفات التنقل", () => {
@@ -44,7 +67,7 @@ describe("navigation sections", () => {
   it("يعرض شارات المهام والاعتمادات كعدادات موجزة لا تكشف محتوى الحدث", () => {
     expect(navigationBadgeForItem("مهامي", { mail: 1, chat: 2, taskAttention: 4, pendingApprovals: 3 })).toEqual({ count: 4, accessibleLabel: "4 مهام تتطلب متابعة" });
     expect(navigationBadgeForItem("طلبات الاعتماد", { mail: 1, chat: 2, taskAttention: 4, pendingApprovals: 3 })).toEqual({ count: 3, accessibleLabel: "3 طلبات اعتماد معلقة" });
-    expect(navigationSections.flatMap(section => section.items).find(item => item.label === "طلبات الاعتماد")).toMatchObject({ path: "/approvals", operationsOnly: true });
+    expect(navigationSections.flatMap(section => section.items).find(item => item.label === "طلبات الاعتماد")).toMatchObject({ path: "/approvals", audiences: expect.arrayContaining(["employee"]) });
   });
 
   it("يميز أيقونات الإعدادات والتفويض والتسجيل حتى لا تتشابه على المستخدم", () => {
@@ -54,11 +77,18 @@ describe("navigation sections", () => {
     expect(items.find(item => item.label === "مؤشرات القيادة")?.icon).not.toBe(items.find(item => item.label === "شؤون القضاة")?.icon);
   });
 
-  it("يضع الرئيسية ورفع التقارير ودليل المستخدم ضمن لوحة القيادة بروابط حقيقية", () => {
+  it("يضع الرئيسية ودليل المستخدم ضمن لوحة القيادة بروابط حقيقية", () => {
     const board = navigationSections.find(section => section.heading === "لوحة القيادة");
     expect(board?.items.find(item => item.label === "الرئيسية")).toMatchObject({ path: "/" });
-    expect(board?.items.find(item => item.label === "رفع التقارير")).toMatchObject({ path: "/report-upload" });
     expect(board?.items.find(item => item.label === "دليل المستخدم")).toMatchObject({ path: "/guide" });
+  });
+
+  it("يمنع تكرار أيقونات الميزات: مصدر واحد لكل ميزة في نفس الشاشة", () => {
+    // شريط العمل السريع (أعلى الشاشة) هو المصدر الوحيد لهذه الميزات، فلا تُكرَّر في القائمة الجانبية.
+    const duplicatedLabels = ["مهامي", "الإشعارات", "الدردشات", "بريد ركيزة", "رفع التقارير"];
+    const sidebarLabels = navigationSections.flatMap(section => section.items.map(item => item.label));
+    for (const label of duplicatedLabels) expect(sidebarLabels).not.toContain(label);
+    expect(quickActionCatalog.map(action => action.label)).toEqual(["مهامي", "الإشعارات", "الدردشات", "البريد", "رفع تقرير"]);
   });
 
   it("يلوّن آبار الأيقونات حسب العمل والرئاسة والتنبيه ويملأ الصفحة النشطة", () => {

@@ -3,7 +3,7 @@
  * فحص حي للنسخة المنشورة: يتأكد أن الموقع يعمل فعلاً وأن مزايا المنصة منشورة.
  * يُستخدم بعد النشر مع إعادة محاولة تلقائية، ويعيد رمز فشل عند أي خلل.
  */
-const BASE = (process.env.RAKIZA_BASE_URL || "https://rakiza-manassa.vercel.app").replace(/\/$/, "");
+const BASE = (process.env.RAKIZA_BASE_URL || "https://rakiza-manassa-platform.vercel.app").replace(/\/$/, "");
 const ATTEMPTS = Number(process.env.RAKIZA_ATTEMPTS || 5);
 const DELAY_MS = Number(process.env.RAKIZA_RETRY_DELAY_MS || 20000);
 

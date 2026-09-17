@@ -661,6 +661,8 @@ export const tasks = mysqlTable("tasks", {
   dueAt: timestamp("dueAt").notNull(),
   completedAt: timestamp("completedAt"),
   completionNote: text("completionNote"),
+  hasObstacle: boolean("hasObstacle").default(false).notNull(),
+  obstacleDetail: text("obstacleDetail"),
   archivedAt: timestamp("archivedAt"),
   archivedByUserId: int("archivedByUserId"),
   recurrence: mysqlEnum("recurrence", ["none", "daily", "weekly", "monthly", "custom"]).default("none").notNull(),

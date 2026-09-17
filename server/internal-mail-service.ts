@@ -556,7 +556,7 @@ function folderConditions(profileId: number, folder: InternalMailFolder) {
   return [...base, sql`${internalMailEntries.trashedAt} IS NOT NULL`];
 }
 
-export async function listInternalMail(input: { userId: number; folder: InternalMailFolder; search?: string; sender?: string; subject?: string; category?: string; fromDate?: Date; toDate?: Date }) {
+export async function listInternalMail(input: { userId: number; folder: InternalMailFolder; search?: string; sender?: string; subject?: string; category?: string; fromDate?: Date; toDate?: Date; sortBy?: "date" | "sender" | "subject" | "importance"; sortDir?: "asc" | "desc" }) {
   const { db, profile } = await getMailActor(input.userId);
   const search = input.search?.trim().slice(0, 120);
   const sender = input.sender?.trim().slice(0, 120);
@@ -568,11 +568,19 @@ export async function listInternalMail(input: { userId: number; folder: Internal
   if (subject) conditions.push(like(internalMailMessages.subject, `%${subject}%`));
   if (input.fromDate) conditions.push(gte(internalMailMessages.updatedAt, input.fromDate));
   if (input.toDate) conditions.push(lte(internalMailMessages.updatedAt, input.toDate));
+  const dir = input.sortDir === "asc" ? asc : desc;
+  const orderByColumns = input.sortBy === "sender"
+    ? [dir(personProfiles.fullName), desc(internalMailMessages.sentAt), desc(internalMailMessages.id)]
+    : input.sortBy === "subject"
+      ? [dir(internalMailMessages.subject), desc(internalMailMessages.sentAt), desc(internalMailMessages.id)]
+      : input.sortBy === "importance"
+        ? [desc(internalMailMessages.importance), desc(internalMailMessages.sentAt), desc(internalMailMessages.id)]
+        : [dir(internalMailMessages.sentAt), dir(internalMailMessages.updatedAt), dir(internalMailMessages.id)];
   const rows = await db.select({ entry: internalMailEntries, message: internalMailMessages, senderName: personProfiles.fullName, senderJobTitle: personProfiles.jobTitle, attachmentCount: sql<number>`(SELECT COUNT(*) FROM internal_mail_attachments a WHERE a.messageId = ${internalMailMessages.id})` })
     .from(internalMailEntries)
     .innerJoin(internalMailMessages, eq(internalMailMessages.id, internalMailEntries.messageId))
     .innerJoin(personProfiles, eq(personProfiles.id, internalMailMessages.senderProfileId))
-    .where(and(...conditions)).orderBy(desc(internalMailMessages.sentAt), desc(internalMailMessages.updatedAt), desc(internalMailMessages.id)).limit(120);
+    .where(and(...conditions)).orderBy(...orderByColumns).limit(120);
   return rows;
 }
 

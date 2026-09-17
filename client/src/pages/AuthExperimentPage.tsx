@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { Fingerprint, Headset, ShieldCheck, UserPlus, UserRoundCog } from "lucide-react";
 import { OwnerGoogleLogin, PLATFORM_OWNER_EMAIL } from "@/components/OwnerGoogleLogin";
@@ -7,16 +7,24 @@ import { PwaInstallHint } from "@/components/PwaInstallHint";
 import { platformBasePath, platformHref } from "@/lib/pwa";
 import { STATIC_HOST_LOGIN_MESSAGE, isPublicStaticHost, operationalLoginHref } from "@/lib/runtime";
 import { trpc } from "@/lib/trpc";
+import { isAllowedLoginEmail, isPlatformOwnerEmail, normalizeLoginEmail } from "@shared/login-policy";
 
 const LAST_EMAIL_KEY = "rakiza:last-official-email";
-const MOJ_EMAIL_PATTERN = /^[^@\s]+@moj\.gov\.sa$/i;
 
 export function AuthExperimentPage() {
   const [mode, setMode] = useState<"employee" | "owner">("employee");
   const [email, setEmail] = useState("");
   const [notice, setNotice] = useState("");
   const [passkeyNotice, setPasskeyNotice] = useState("");
-  const validLoginEmail = useMemo(() => MOJ_EMAIL_PATTERN.test(email.trim()), [email]);
+  const normalizedEmail = normalizeLoginEmail(email);
+  const looksLikeEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail);
+  const loginPolicyApi = (trpc.court as any).loginPolicy?.check;
+  const serverPolicy = loginPolicyApi?.useQuery
+    ? loginPolicyApi.useQuery({ email: normalizedEmail }, { enabled: looksLikeEmail })
+    : { data: undefined as { allowed: boolean; isOwner: boolean } | undefined };
+  const allowlistedEmail = isAllowedLoginEmail(normalizedEmail, PLATFORM_OWNER_EMAIL);
+  const validLoginEmail = allowlistedEmail || Boolean(looksLikeEmail && serverPolicy.data?.allowed);
+  const isOwnerAccount = isPlatformOwnerEmail(normalizedEmail, PLATFORM_OWNER_EMAIL) || Boolean(serverPolicy.data?.isOwner);
   const passkeySupported = typeof window !== "undefined" && "PublicKeyCredential" in window && window.isSecureContext;
 
   const beginRegistrationMutation = trpc.court.passkey.beginRegistration.useMutation();
@@ -31,7 +39,7 @@ export function AuthExperimentPage() {
 
   useEffect(() => {
     const trimmed = email.trim().toLowerCase();
-    if (MOJ_EMAIL_PATTERN.test(trimmed) || trimmed === PLATFORM_OWNER_EMAIL) window.localStorage.setItem(LAST_EMAIL_KEY, trimmed);
+    if (isAllowedLoginEmail(trimmed, PLATFORM_OWNER_EMAIL)) window.localStorage.setItem(LAST_EMAIL_KEY, trimmed);
   }, [email]);
 
   const passkeyErrorMessage = (error: unknown, action: "register" | "authenticate") => {
@@ -48,7 +56,12 @@ export function AuthExperimentPage() {
 
   const enrollPasskey = async () => {
     setPasskeyNotice("");
-    if (!validLoginEmail) { setPasskeyNotice("أدخل بريدك الرسمي المنتهي بـ @moj.gov.sa أولاً، ثم اضغط الزر مرة أخرى."); return; }
+    if (!validLoginEmail) {
+      setPasskeyNotice(email.trim().length === 0
+        ? "أدخل بريدك الرسمي المنتهي بـ @moj.gov.sa أولاً، ثم اضغط الزر مرة أخرى."
+        : "هذا البريد غير مصرح له بتفعيل البصمة. استخدم بريدك الرسمي أو بريد مالك رَكيزة المعتمد.");
+      return;
+    }
     if (!passkeySupported) { setPasskeyNotice("هذا المتصفح أو الرابط لا يدعم البصمة. افتح رابط رَكيزة الرسمي عبر HTTPS."); return; }
     try {
       const options = await beginRegistrationMutation.mutateAsync({ officialEmail: email.trim() });
@@ -62,7 +75,12 @@ export function AuthExperimentPage() {
 
   const signInWithPasskey = async () => {
     setPasskeyNotice("");
-    if (!validLoginEmail) { setPasskeyNotice("أدخل بريدك الرسمي المنتهي بـ @moj.gov.sa أولاً، ثم اضغط الزر مرة أخرى."); return; }
+    if (!validLoginEmail) {
+      setPasskeyNotice(email.trim().length === 0
+        ? "أدخل بريدك الرسمي المنتهي بـ @moj.gov.sa أولاً، ثم اضغط الزر مرة أخرى."
+        : "هذا البريد غير مصرح له بالدخول بالبصمة. استخدم بريدك الرسمي أو بريد مالك رَكيزة المعتمد.");
+      return;
+    }
     if (!passkeySupported) { setPasskeyNotice("هذا المتصفح أو الرابط لا يدعم البصمة. افتح رابط رَكيزة الرسمي عبر HTTPS."); return; }
     try {
       const options = await beginAuthenticationMutation.mutateAsync({ officialEmail: email.trim() });
@@ -103,7 +121,8 @@ export function AuthExperimentPage() {
             <div>
               <label className="block text-xs font-bold text-[#52665a]" htmlFor="rakiza-login-email">البريد الإلكتروني الرسمي</label>
               <input id="rakiza-login-email" aria-label="البريد الإلكتروني الرسمي" value={email} onChange={event => setEmail(event.target.value)} type="email" dir="ltr" inputMode="email" autoComplete="username" placeholder="name@moj.gov.sa" className="mt-2 h-11 w-full rounded-xl border border-input px-3 text-sm" />
-              {email.trim().length > 0 && !validLoginEmail && <p role="alert" className="mt-2 text-xs font-bold text-[#9a4634]">لا يُقبل إلا بريد رسمي من نطاق moj.gov.sa.</p>}
+              {email.trim().length > 0 && !validLoginEmail && <p role="alert" className="mt-2 text-xs font-bold text-[#9a4634]">لا يُقبل إلا بريد رسمي من نطاق moj.gov.sa أو بريد مالك رَكيزة المعتمد.</p>}
+              {email.trim().length > 0 && validLoginEmail && isOwnerAccount && <p role="status" className="mt-2 text-xs font-bold text-[#246047]">حساب مالك معتمد: يُسمح بالدخول دون شرط النطاق الرسمي.</p>}
             </div>
             <PasscodeAuthPanel officialEmail={email.trim()} validOfficialEmail={validLoginEmail} />
           </>}

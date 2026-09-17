@@ -17,6 +17,7 @@ vi.mock("@/lib/trpc", () => ({
     court: {
       registration: { myPermission: { useQuery: () => query("full_control") } },
       myRoles: { useQuery: () => query(["court_president"]) },
+      management: { list: { useQuery: () => query([]) }, assign: { useMutation: () => mutation }, end: { useMutation: () => mutation } },
       dashboard: { useQuery: () => query({ profiles: 12, openTasks: 4, overdueTasks: 1, openDelays: 2, overdueDelays: 0, dueTasks: 1, unreadNotifications: 0 }) },
       notifications: { listMine: { useQuery: () => query([]) }, markRead: { useMutation: () => mutation } },
       attendance: { remoteReport: { useQuery: () => query([]) } },
@@ -63,13 +64,16 @@ describe("الصفحات التشغيلية داخل جلسة قيادية", () 
     expect(screen.queryByText(/جارٍ احتساب التقرير/)).toBeNull();
   });
 
-  it("يعرض ترتيب الأقسام والفلاتر وأزرار التصدير في لوحة القيادة", () => {
+  it("يعرض لوحة القيادة المدمجة بشبكة بطاقاتها الملوّنة", () => {
     render(<Home />);
-    expect(screen.getByText("ترتيب الأقسام وإنجازها")).toBeTruthy();
-    expect(screen.getByLabelText("نوع المهمة")).toBeTruthy();
-    expect(screen.getByLabelText("المسمى الوظيفي")).toBeTruthy();
-    expect(screen.getByText("PDF")).toBeTruthy();
-    expect(screen.getByText("صورة")).toBeTruthy();
+    expect(screen.getByText("لوحة القيادة المدمجة")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "الشبكة الرئيسية" })).toBeTruthy();
+    expect(screen.getAllByText("المداورة").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("هيكل المحكمة").length).toBeGreaterThan(0);
+    expect(screen.getByText(/قيد التنفيذ/)).toBeTruthy();
+    expect(screen.queryByLabelText("نوع المهمة")).toBeNull();
+    expect(screen.queryByText("PDF")).toBeNull();
+    expect(screen.queryByText("صورة")).toBeNull();
   });
 
   it("يحتوي مساحة المحتوى على الجوال ولا يترك امتداداً أفقياً في التخطيط", () => {

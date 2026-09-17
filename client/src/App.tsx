@@ -34,6 +34,7 @@ import { AssetsPage } from "./pages/AssetsPage";
 import ManagerAssignmentRequestPage from "./pages/ManagerAssignmentRequestPage";
 import RakizaMailPage from "./pages/RakizaMailPage";
 import DepartmentTemplatesPage from "./pages/DepartmentTemplatesPage";
+import WorkflowMapPage from "./pages/WorkflowMapPage";
 import MessagesPage from "./pages/MessagesPage";
 import DataExportsPage from "./pages/DataExportsPage";
 import DashboardOptionsPage from "./pages/DashboardOptionsPage";
@@ -47,6 +48,7 @@ import PerformanceReportEvaluationsPage from "./pages/PerformanceReportEvaluatio
 import CorrespondenceWorkspaceContent from "./pages/CorrespondenceWorkspaceContent";
 import InstallAppsPage from "./pages/InstallAppsPage";
 import EmployeeStaffAuthPage from "./pages/EmployeeStaffAuthPage";
+import DepartmentDocumentsPage from "./pages/DepartmentDocumentsPage";
 
 const routerBase = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -97,6 +99,7 @@ function Router() {
       <Route path="/access-management" component={AccessManagementPage} />
       <Route path="/owner-control" component={AccessManagementPage} />
       <Route path="/platform-modules" component={PlatformModulesPage} />
+      <Route path="/department-documents" component={DepartmentDocumentsPage} />
       <Route path="/email-settings" component={EmailSettingsPage} />
       <Route path="/auth-experiment" component={AuthExperimentPage} />
       <Route path="/trainee-correspondence-templates" component={TraineeCorrespondenceTemplatesPage} />
@@ -104,6 +107,7 @@ function Router() {
       <Route path="/manager-assignment-request" component={ManagerAssignmentRequestPage} />
       <Route path="/internal-mail" component={() => <Redirect to="/rakiza-mail" />} />
       <Route path="/department-templates" component={DepartmentTemplatesPage} />
+                            <Route path="/workflow-map" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : WorkflowMapPage} />
       <Route path="/messages" component={MessagesPage} />
       <Route path="/data-exports" component={DataExportsPage} />
       <Route path="/activity-log" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="archive" /> : ActivityLogPage} />

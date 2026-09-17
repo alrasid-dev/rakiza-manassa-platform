@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import React, { type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { saveDraftMutate, updateAssistantPreferencesMutate, saveTemplateMutate, toastError } = vi.hoisted(() => ({ saveDraftMutate: vi.fn(), updateAssistantPreferencesMutate: vi.fn(), saveTemplateMutate: vi.fn(), toastError: vi.fn() }));
+const { saveDraftMutate, updateAssistantPreferencesMutate, saveTemplateMutate, updateEntryMutate, toastError } = vi.hoisted(() => ({ saveDraftMutate: vi.fn(), updateAssistantPreferencesMutate: vi.fn(), saveTemplateMutate: vi.fn(), updateEntryMutate: vi.fn(), toastError: vi.fn() }));
 
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 vi.mock("@/components/RichTextMailEditor", () => ({ default: ({ value = "", onChange }: { value?: string; onChange: (html: string, text: string) => void }) => <textarea aria-label="محتوى الرسالة المنسق" value={value} onChange={event => onChange(`<p>${event.target.value}</p>`, event.target.value)} /> }));
@@ -32,7 +32,7 @@ vi.mock("@/lib/trpc", () => ({
         updateRecurringSchedule: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
         saveDraft: { useMutation: () => ({ mutateAsync: vi.fn().mockResolvedValue({ messageId: 91 }), mutate: saveDraftMutate, isPending: false }) },
         send: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
-        updateEntry: { useMutation: () => ({ mutate: vi.fn() }) },
+        updateEntry: { useMutation: () => ({ mutate: updateEntryMutate }) },
       },
       communications: { peopleSearch: { useQuery: () => ({ data: [{ profile: { id: 33, fullName: "موظف الاختبار" }, unitName: "وحدة الاختبار" }], isFetching: false }) } },
       people: { self: { useQuery: () => ({ data: { id: 7 } }) } },
@@ -42,7 +42,7 @@ vi.mock("@/lib/trpc", () => ({
 
 import RakizaMailPage from "./RakizaMailPage";
 
-afterEach(() => { cleanup(); saveDraftMutate.mockReset(); updateAssistantPreferencesMutate.mockReset(); saveTemplateMutate.mockReset(); toastError.mockReset(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); saveDraftMutate.mockReset(); updateAssistantPreferencesMutate.mockReset(); saveTemplateMutate.mockReset(); updateEntryMutate.mockReset(); toastError.mockReset(); vi.useRealTimers(); });
 
 describe("بريد ركيزة", () => {
   it("يعرض البريد الوارد ويفتح محرر رسالة داخلية جديدة", () => {
@@ -123,5 +123,42 @@ describe("بريد ركيزة", () => {
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(saveButton);
     expect(updateAssistantPreferencesMutate).toHaveBeenCalledWith(expect.objectContaining({ mode: "auto_reply", replyTone: "concise", authorizationConfirmed: true }));
+  });
+
+
+  it("يعرض نقطة غير المقروء ومعاينة الرسالة وإجراءات الصف السريعة", () => {
+    render(<RakizaMailPage />);
+    expect(screen.getByTestId("mail-unread-dot-81")).toBeTruthy();
+    expect(screen.getAllByText("عاجل").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "أرشفة رسالة متابعة خطاب" }));
+    expect(updateEntryMutate).toHaveBeenCalledWith({ messageId: 81, action: "archive" });
+    fireEvent.click(screen.getByRole("button", { name: "حذف رسالة متابعة خطاب" }));
+    expect(updateEntryMutate).toHaveBeenCalledWith({ messageId: 81, action: "trash" });
+    fireEvent.click(screen.getByRole("button", { name: "إضافة رسالة متابعة خطاب إلى المفضلة" }));
+    expect(updateEntryMutate).toHaveBeenCalledWith({ messageId: 81, action: "star" });
+    expect(updateEntryMutate).toHaveBeenCalledTimes(3);
+  });
+
+  it("يفتح نافذة كتابة مرنة قابلة للتحجيم بدل الحوار الثابت", () => {
+    render(<RakizaMailPage />);
+    fireEvent.click(screen.getAllByText("رسالة جديدة")[0]);
+    const frame = screen.getByTestId("mail-compose-window");
+    expect(frame.getAttribute("data-resizable")).toBe("true");
+    expect(frame.className).toContain("max-w-5xl");
+    expect(screen.getByLabelText("تحجيم نافذة الكتابة")).toBeTruthy();
+    expect(screen.getByLabelText("تكبير نافذة الكتابة")).toBeTruthy();
+    expect(screen.getByLabelText("تصغير نافذة الكتابة")).toBeTruthy();
+    expect(screen.getByLabelText("إغلاق نافذة الكتابة")).toBeTruthy();
+  });
+
+  it("يعطّل الإرسال حتى يُضاف مستلم وموضوع ثم يسمح به", () => {
+    render(<RakizaMailPage />);
+    fireEvent.click(screen.getAllByText("رسالة جديدة")[0]);
+    expect((screen.getByRole("button", { name: "إرسال" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByPlaceholderText("ابحث بالاسم أو البريد"), { target: { value: "موظ" } });
+    fireEvent.click(screen.getByText("موظف الاختبار"));
+    expect((screen.getByRole("button", { name: "إرسال" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getAllByPlaceholderText("الموضوع").at(-1)!, { target: { value: "طلب متابعة" } });
+    expect((screen.getByRole("button", { name: "إرسال" }) as HTMLButtonElement).disabled).toBe(false);
   });
 });

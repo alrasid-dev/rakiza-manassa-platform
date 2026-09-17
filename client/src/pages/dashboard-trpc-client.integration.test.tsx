@@ -40,7 +40,9 @@ afterEach(() => cleanup());
 describe("تدفق الجلسة والصفحات التشغيلية عبر عميل tRPC", () => {
   it("ينفذ auth.me ثم يظهر صفحة الأفراد بعد استعلاماتها الحقيقية", async () => {
     const { fetchMock } = renderWithRealTrpc(<PeoplePage />);
-    await waitFor(() => expect(screen.getByText("موظف من خدمة tRPC")).toBeTruthy());
+    // مهلة صريحة: هذا الاختبار يركّب تخطيط التطبيق الحقيقي مع عميل tRPC فعلي،
+    // ويشتد الحمل عليه عند تشغيله مع بقية الحزمة بالتوازي فيتأخر ظهور الجدول.
+    await waitFor(() => expect(screen.getByText("موظف من خدمة tRPC")).toBeTruthy(), { timeout: 15_000 });
     expect(screen.getByText("رئيس المحكمة")).toBeTruthy();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("auth.me"))).toBe(true);
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("court.people.list"))).toBe(true);
@@ -48,12 +50,12 @@ describe("تدفق الجلسة والصفحات التشغيلية عبر عم�
 
   it("يظهر صفحة الملازمين ومؤشرات التقرير بعد اكتمال استعلامات العميل", async () => {
     const trainees = renderWithRealTrpc(<TraineeManagementPage />);
-    await waitFor(() => expect(screen.getByText("ملازم من خدمة tRPC")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("ملازم من خدمة tRPC")).toBeTruthy(), { timeout: 15_000 });
     expect(trainees.fetchMock.mock.calls.some(([input]) => String(input).includes("court.trainees.overview"))).toBe(true);
     cleanup();
 
     const reports = renderWithRealTrpc(<ReportsDashboardPage />);
-    await waitFor(() => expect(screen.getAllByText("2").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText("2").length).toBeGreaterThan(0), { timeout: 15_000 });
     expect(reports.fetchMock.mock.calls.some(([input]) => String(input).includes("court.reports.operational"))).toBe(true);
     expect(screen.queryByText(/جارٍ احتساب التقرير/)).toBeNull();
   });
