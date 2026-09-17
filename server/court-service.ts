@@ -1774,7 +1774,7 @@ async function createTaskConversation(input: { db: any; taskId: number; title: s
   return conversationId;
 }
 
-export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date }) {
+export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent" }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   if (input.assigneeProfileId) {
@@ -1796,6 +1796,37 @@ export async function createTask(input: { title: string; unitId?: number; assign
   }
   await logAudit({ actorUserId: input.assignedByUserId, action: "task.created", entityType: "task", entityId: id, metadata: { traineeCopyProfileId: traineeCopyProfileId ?? null } });
   return id;
+}
+
+export async function setTaskPinned(input: { taskId: number; actorUserId: number; isPinned: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new Error("المهمة غير موجودة.");
+  await db.update(tasks).set({ isPinned: input.isPinned }).where(eq(tasks.id, input.taskId));
+  await logAudit({ actorUserId: input.actorUserId, action: input.isPinned ? "task.pinned" : "task.unpinned", entityType: "task", entityId: input.taskId });
+  return { success: true, isPinned: input.isPinned };
+}
+
+export async function setTaskNotes(input: { taskId: number; actorUserId: number; notes: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new Error("المهمة غير موجودة.");
+  const notes = input.notes.trim();
+  await db.update(tasks).set({ taskNotes: notes || null }).where(eq(tasks.id, input.taskId));
+  await logAudit({ actorUserId: input.actorUserId, action: "task.notes_updated", entityType: "task", entityId: input.taskId });
+  return { success: true, taskNotes: notes || null };
+}
+
+export async function createDepartmentTasks(input: { title: string; unitId: number; assigneeProfileIds: number[]; taskType: "permanent" | "urgent"; scheduledFor: Date; dueAt: Date; priority: "normal" | "high" | "critical"; assignedByUserId: number; watcherProfileId?: number }) {
+  const assignees = Array.from(new Set((input.assigneeProfileIds || []).filter(id => Number.isInteger(id) && id > 0)));
+  if (!assignees.length) throw new Error("يلزم تحديد موظف واحد على الأقل لإسناد المهمة.");
+  const ids: number[] = [];
+  for (const assigneeProfileId of assignees) {
+    ids.push(await createTask({ title: input.title, unitId: input.unitId, assigneeProfileId, priority: input.priority, scheduledFor: input.scheduledFor, dueAt: input.dueAt, assignedByUserId: input.assignedByUserId, taskType: input.taskType, watcherProfileId: input.watcherProfileId }));
+  }
+  return { ids, count: ids.length };
 }
 
 export async function createSelfTask(input: { title: string; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; profileId: number; actorUserId: number }) {

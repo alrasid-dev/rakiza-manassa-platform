@@ -70,6 +70,7 @@ import CourtEmblem from "./CourtEmblem";
 import BackButton from "./BackButton";
 import CourtStructureMenu from "./CourtStructureMenu";
 import DepartmentManagementActions from "./DepartmentManagementActions";
+import DepartmentManagerMenu from "./DepartmentManagerMenu";
 import DynamicQuickActions, { quickActionCatalog, type QuickActionId } from "./DynamicQuickActions";
 
 type WorkspacePermission = "full_control" | "general_view" | "employee" | "trainee" | null | undefined;
@@ -459,6 +460,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
             </div>
             <div className="mt-6"><NavigationMenu variant="dark" permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} leadershipRoles={roles.data ?? []} workMode={workMode} /></div>
             <DepartmentManagementActions variant="dark" />
+            <DepartmentManagerMenu variant="dark" />
             <div className="mt-auto border-t border-white/10 pt-4">
               <div className="flex items-center gap-2 text-xs font-bold text-white/80"><ShieldCheck className={`h-4 w-4 text-[#a8c98f] ${oliveIconMotionClass}`} /> جلسة محمية</div>
               <p className="mt-2 text-xs leading-5 text-white/55">{IS_PREVIEW_MODE ? "وضع معاينة مؤقت." : "سجل التدقيق مفعّل."}</p>

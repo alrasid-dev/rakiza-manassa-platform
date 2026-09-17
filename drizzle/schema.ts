@@ -670,6 +670,9 @@ export const tasks = mysqlTable("tasks", {
   watcherProfileId: int("watcherProfileId"),
   isConfidential: boolean("isConfidential").default(false).notNull(),
   confidentialityExpiresAt: timestamp("confidentialityExpiresAt"),
+  taskType: mysqlEnum("taskType", ["permanent", "urgent"]).default("permanent").notNull(),
+  isPinned: boolean("isPinned").default(false).notNull(),
+  taskNotes: text("taskNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => [

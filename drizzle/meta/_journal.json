@@ -561,6 +561,13 @@
       "when": 1789622172269,
       "tag": "0079_task_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "5",
+      "when": 1789640407258,
+      "tag": "0080_task_pins_notes",
+      "breakpoints": true
     }
   ]
 }
