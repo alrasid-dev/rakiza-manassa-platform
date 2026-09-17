@@ -220,6 +220,21 @@
   }
 }
 
+/* تحسين أهداف اللمس على الشاشات الذكية: حقول الإدخال لا تقل عن 44px */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 44px;
+  }
+}
+
+/* فئة مساعدة لتوحيد أهداف اللمس في العناصر التفاعلية الحرجة */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 @layer components {
   .rakiza-ai-presence {
     will-change: box-shadow;

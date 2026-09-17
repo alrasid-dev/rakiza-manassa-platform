@@ -13,6 +13,7 @@ import {
   BookTemplate,
   CalendarDays,
   CirclePlus,
+  Download,
   FileText,
   Inbox,
   MailOpen,
@@ -451,6 +452,14 @@ export default function RakizaMailPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setLocation("/data-exports")}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#d9e4d8] bg-white px-3 py-2.5 text-xs font-black text-[#315c4a]"
+            >
+              <Download className="h-4 w-4" />
+              تصدير البيانات
+            </button>
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
