@@ -11,7 +11,7 @@ vi.mock("@/lib/trpc", () => ({
     useUtils: () => ({ court: { announcements: { list: { invalidate: vi.fn() } } } }),
     court: {
       registration: { myPermission: { useQuery: () => ({ data: state.permission }) } },
-      announcements: { list: { useQuery: () => ({ data: [], isLoading: false, error: null }) }, create: { useMutation: () => ({ isPending: false, error: null, mutate: (input: Record<string, unknown>) => state.createCalls.push(input) }) } },
+      announcements: { list: { useQuery: () => ({ data: [], isLoading: false, error: null }) }, create: { useMutation: () => ({ isPending: false, error: null, mutate: (input: Record<string, unknown>) => state.createCalls.push(input) }) }, update: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) }, delete: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) } },
       units: { list: { useQuery: () => ({ data: [{ id: 4, name: "شؤون الملازمين" }] }) } },
     },
   },
