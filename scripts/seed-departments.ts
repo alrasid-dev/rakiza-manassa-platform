@@ -55,7 +55,7 @@ const PEOPLE: Person[] = [
   { fullName: "رائد عايش عوض العصيمي", unitName: "وحدة إدارة القضايا", jobTitle: "رئيس وحدة إدارة القضايا", role: "department_manager", personType: "administrative", email: "rosaimi@moj.gov.sa" },
   { fullName: "عبدالاله عبدالله علي النويبت", unitName: "محضرو الخصوم", jobTitle: "رئيس محضري الخصوم", role: "department_manager", personType: "administrative", email: "aanwebt@moj.gov.sa" },
   { fullName: "نواف عبدالله بن محمد السلمان", unitName: "الباحثون", jobTitle: "رئيس الباحثين", role: "department_manager", personType: "administrative", email: "naalsalman@moj.gov.sa" },
-  { fullName: "معاذ العبيد", unitName: "إدارة الجلسات", jobTitle: "رئيس إدارة الجلسات", role: "department_manager", personType: "administrative" },
+  { fullName: "معاذ ابراهيم حمد بن عبيد", unitName: "إدارة الجلسات", jobTitle: "رئيس إدارة الجلسات", role: "department_manager", personType: "administrative", email: "mihamad@moj.gov.sa" },
   { fullName: "ماجد الصبيحي", unitName: "إدارة الدعاوى والأحكام", jobTitle: "مدير إدارة الدعاوى والأحكام", role: "department_manager", personType: "administrative", email: "msabihi@moj.gov.sa" },
   { fullName: "فهد سعد محمد الفوزاني", unitName: "الوثائق والمحفوظات", jobTitle: "رئيس الوثائق والمحفوظات", role: "department_manager", personType: "administrative", email: "fsmfowzani@moj.gov.sa" },
   { fullName: "خالد عبد العزيز بن سليمان المشوح", unitName: "قسم الدعاوى", jobTitle: "رئيس قسم الدعاوى", role: "department_manager", personType: "administrative", email: "kmashouh@moj.gov.sa" },
@@ -151,7 +151,7 @@ async function main() {
       }
     }
     const [removedDupes] = await connection.execute(
-      "DELETE FROM person_profiles WHERE sourceReference = 'seed-departments-2026' AND email IS NULL AND fullName IN ('عبدالله الشايع', 'عبدالمحسن السقياني', 'فيصل بن حميد', 'رائد العصيمي', 'النويبت', 'نواف السلمان', 'فهد الفوزاني', 'خالد المشوح', 'سعيد باعباد')",
+      "DELETE FROM person_profiles WHERE sourceReference = 'seed-departments-2026' AND email IS NULL AND fullName IN ('عبدالله الشايع', 'عبدالمحسن السقياني', 'فيصل بن حميد', 'رائد العصيمي', 'النويبت', 'نواف السلمان', 'فهد الفوزاني', 'خالد المشوح', 'سعيد باعباد', 'معاذ العبيد')",
     );
     report.removedDuplicateProfiles = removedDupes.affectedRows ?? 0;
     console.log(JSON.stringify({ ok: true, ...report }, null, 2));
