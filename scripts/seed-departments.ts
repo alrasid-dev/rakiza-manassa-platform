@@ -47,19 +47,19 @@ const PEOPLE: Person[] = [
   { fullName: "مبارك الودمان", unitName: "شؤون القضاة", jobTitle: "مسؤول شؤون القضاة", role: "department_manager", personType: "administrative", email: "mwadaman@moj.gov.sa" },
   { fullName: "فهد سلطان ناصر الراجح", unitName: "شؤون الملازمين", jobTitle: "مدير شؤون الملازمين", role: "trainee_affairs_manager", personType: "administrative", email: "fsurajeh@moj.gov.sa" },
   { fullName: "عادل الحسن", unitName: "إدارة الخدمات المشتركة", jobTitle: "مدير إدارة الخدمات المشتركة", role: "department_manager", personType: "administrative", email: "ahhasan@moj.gov.sa" },
-  { fullName: "عبدالله الشايع", unitName: "الموارد البشرية", jobTitle: "رئيس الموارد البشرية", role: "human_resources_manager", personType: "administrative" },
-  { fullName: "عبدالمحسن السقياني", unitName: "الاتصالات الإدارية", jobTitle: "رئيس الاتصالات الإدارية", role: "administrative_staff", personType: "administrative" },
-  { fullName: "فيصل بن حميد", unitName: "الخدمات والصيانة", jobTitle: "رئيس الخدمات والصيانة", role: "administrative_staff", personType: "administrative" },
+  { fullName: "عبدالله حسن محمد الشايع", unitName: "الموارد البشرية", jobTitle: "رئيس الموارد البشرية", role: "department_manager", personType: "administrative", email: "ahalshaya@moj.gov.sa" },
+  { fullName: "عبدالمحسن عبدالله بن عبدالمحسن السقياني", unitName: "الاتصالات الإدارية", jobTitle: "رئيس الاتصالات الإدارية", role: "department_manager", personType: "administrative", email: "aalsqayani@moj.gov.sa" },
+  { fullName: "فيصل محمد سليمان بن حميد", unitName: "الخدمات والصيانة", jobTitle: "رئيس الخدمات والصيانة", role: "department_manager", personType: "administrative", email: "fhamid@moj.gov.sa" },
   { fullName: "اماني احمد بن صالح العثمان", unitName: "القسم النسائي", jobTitle: "رئيسة القسم النسائي", role: "department_manager", personType: "administrative", email: "alothman@moj.gov.sa" },
   { fullName: "فهد العنزي", unitName: "إدارة الإسناد القضائي", jobTitle: "مدير إدارة الإسناد القضائي", role: "department_manager", personType: "administrative", email: "ftenezi@moj.gov.sa" },
-  { fullName: "رائد العصيمي", unitName: "وحدة إدارة القضايا", jobTitle: "رئيس وحدة إدارة القضايا", role: "administrative_staff", personType: "administrative" },
-  { fullName: "النويبت", unitName: "محضرو الخصوم", jobTitle: "رئيس محضري الخصوم", role: "administrative_staff", personType: "administrative" },
-  { fullName: "نواف السلمان", unitName: "الباحثون", jobTitle: "رئيس الباحثين", role: "administrative_staff", personType: "administrative" },
-  { fullName: "معاذ العبيد", unitName: "إدارة الجلسات", jobTitle: "رئيس إدارة الجلسات", role: "administrative_staff", personType: "administrative" },
+  { fullName: "رائد عايش عوض العصيمي", unitName: "وحدة إدارة القضايا", jobTitle: "رئيس وحدة إدارة القضايا", role: "department_manager", personType: "administrative", email: "rosaimi@moj.gov.sa" },
+  { fullName: "عبدالاله عبدالله علي النويبت", unitName: "محضرو الخصوم", jobTitle: "رئيس محضري الخصوم", role: "department_manager", personType: "administrative", email: "aanwebt@moj.gov.sa" },
+  { fullName: "نواف عبدالله بن محمد السلمان", unitName: "الباحثون", jobTitle: "رئيس الباحثين", role: "department_manager", personType: "administrative", email: "naalsalman@moj.gov.sa" },
+  { fullName: "معاذ العبيد", unitName: "إدارة الجلسات", jobTitle: "رئيس إدارة الجلسات", role: "department_manager", personType: "administrative" },
   { fullName: "ماجد الصبيحي", unitName: "إدارة الدعاوى والأحكام", jobTitle: "مدير إدارة الدعاوى والأحكام", role: "department_manager", personType: "administrative", email: "msabihi@moj.gov.sa" },
-  { fullName: "فهد الفوزاني", unitName: "الوثائق والمحفوظات", jobTitle: "رئيس الوثائق والمحفوظات", role: "administrative_staff", personType: "administrative" },
-  { fullName: "خالد المشوح", unitName: "قسم الدعاوى", jobTitle: "رئيس قسم الدعاوى", role: "administrative_staff", personType: "administrative" },
-  { fullName: "سعيد باعباد", unitName: "خدمات المستفيدين", jobTitle: "رئيس خدمات المستفيدين", role: "administrative_staff", personType: "administrative" },
+  { fullName: "فهد سعد محمد الفوزاني", unitName: "الوثائق والمحفوظات", jobTitle: "رئيس الوثائق والمحفوظات", role: "department_manager", personType: "administrative", email: "fsmfowzani@moj.gov.sa" },
+  { fullName: "خالد عبد العزيز بن سليمان المشوح", unitName: "قسم الدعاوى", jobTitle: "رئيس قسم الدعاوى", role: "department_manager", personType: "administrative", email: "kmashouh@moj.gov.sa" },
+  { fullName: "سعيد عمر ابوبكر باعباد", unitName: "خدمات المستفيدين", jobTitle: "رئيس خدمات المستفيدين", role: "department_manager", personType: "administrative", email: "sbaabbad@moj.gov.sa" },
   { fullName: "عبدالعزيز محمد بن عبدالعزيز الحميدي", unitName: "تسليم الأحكام", jobTitle: "رئيس تسليم الأحكام", role: "department_manager", personType: "administrative", email: "amhumaidi@moj.gov.sa" },
 ];
 
@@ -117,7 +117,7 @@ async function main() {
     process.exit(0);
   }
   const connection = await mysql.createConnection(process.env.DATABASE_URL);
-  const report = { units: 0, profiles: 0, roles: 0, needEmail: [] as string[] };
+  const report = { units: 0, profiles: 0, roles: 0, needEmail: [] as string[], removedDuplicateProfiles: 0 };
   try {
     for (const unit of UNITS) {
       await unitIdFor(connection, unit.name);
@@ -150,6 +150,10 @@ async function main() {
         report.needEmail.push(person.fullName);
       }
     }
+    const [removedDupes] = await connection.execute(
+      "DELETE FROM person_profiles WHERE sourceReference = 'seed-departments-2026' AND email IS NULL AND fullName IN ('عبدالله الشايع', 'عبدالمحسن السقياني', 'فيصل بن حميد', 'رائد العصيمي', 'النويبت', 'نواف السلمان', 'فهد الفوزاني', 'خالد المشوح', 'سعيد باعباد')",
+    );
+    report.removedDuplicateProfiles = removedDupes.affectedRows ?? 0;
     console.log(JSON.stringify({ ok: true, ...report }, null, 2));
   } finally {
     await connection.end();
