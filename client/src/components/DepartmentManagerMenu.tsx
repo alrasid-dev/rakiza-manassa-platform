@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { LayoutDashboard, PlusCircle, UsersRound } from "lucide-react";
+import { LayoutDashboard, PlusCircle, UsersRound, Wallet } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -15,6 +15,7 @@ export default function DepartmentManagerMenu({ variant = "dark" }: { variant?: 
   const permission = trpc.court.registration.myPermission.useQuery();
   const roles = trpc.court.myRoles.useQuery();
   const allowed = canOpenDepartmentMenu(permission.data, roles.data);
+  const isSecretary = permission.data === "full_control" || Boolean(roles.data?.includes("court_secretary"));
   const units = trpc.court.units.list.useQuery(undefined, { enabled: allowed });
   const people = trpc.court.people.list.useQuery({ personType: "administrative" }, { enabled: allowed });
   const [open, setOpen] = useState(false);
@@ -43,6 +44,7 @@ export default function DepartmentManagerMenu({ variant = "dark" }: { variant?: 
         <button type="button" onClick={() => setLocation("/")} title="لوحة تحكم القسم" aria-label="لوحة تحكم القسم" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><LayoutDashboard className="h-4 w-4" />لوحة تحكم القسم</button>
         <button type="button" onClick={() => setOpen(true)} title="إضافة مهام القسم" aria-label="إضافة مهام القسم" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><PlusCircle className="h-4 w-4" />إضافة مهام القسم</button>
         <button type="button" onClick={() => setLocation("/tasks")} title="إسناد وسحب المهام" aria-label="إسناد وسحب المهام" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><UsersRound className="h-4 w-4" />إسناد وسحب المهام</button>
+        {isSecretary && <button type="button" onClick={() => toast.info("إدارة التكاليف قيد التطوير.")} title="إدارة التكاليف" aria-label="إدارة التكاليف" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><Wallet className="h-4 w-4" />إدارة التكاليف</button>}
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent dir="rtl" className="max-w-lg border-[#cfd7ca] bg-[#fbfaf6]">
