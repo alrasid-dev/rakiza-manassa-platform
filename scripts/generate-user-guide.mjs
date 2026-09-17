@@ -31,6 +31,10 @@ const html = (qrDataUrl) => `<!DOCTYPE html>
   .num { width: 10mm; height: 10mm; border-radius: 50%; background: #c8a24b; color: #12352f; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 14pt; flex-shrink: 0; }
   .step h3 { color: #f3efe4; font-size: 12.5pt; }
   .step p { color: #c9d4c7; font-size: 10.5pt; line-height: 1.7; margin-top: 2mm; }
+   .step ul { margin-top: 2mm; padding-right: 5mm; }
+   .step li { color: #c9d4c7; font-size: 10pt; line-height: 1.7; margin-top: 1.5mm; }
+   .step li b { color: #c8a24b; }
+
   .qr-wrap { text-align: center; margin-top: 14mm; }
   .qr { background: #fff; padding: 4mm; border-radius: 5mm; display: inline-block; }
   .qr img { width: 44mm; height: 44mm; display: block; }
@@ -49,7 +53,7 @@ const html = (qrDataUrl) => `<!DOCTYPE html>
       <p class="summary muted" style="margin-top: 4mm;"><b>الهدف:</b> أتمتة تدفق العمليات، حوكمة تسلسل الصلاحيات والهيكل التنظيمي، وتسريع إنجاز المهام مع رفع الشفافية ومراقبة الأداء.</p>
     </div>
     <h2>دليل الاستخدام لأول مرة</h2>
-    <div class="step"><div class="num">١</div><div><h3>تسجيل الدخول</h3><p>عبر البريد المؤسسي الرسمي (@moj.gov.sa) للوصول التلقائي للوحدة التنظيمية التابعة لك.</p></div></div>
+    <div class="step"><div class="num">١</div><div><h3>تسجيل الدخول — الرمز الموحد</h3><p>عبر البريد المؤسسي الرسمي (@moj.gov.sa) للوصول التلقائي للوحدة التنظيمية التابعة لك.</p><ul><li><b>الدخول الأول:</b> بعد إدخال بريدك الرسمي، يُطلب منك إنشاء «رمز المرور» — وهو <b>الرقم الموحد</b> من 6 أرقام الذي ستدخل به يومياً. أدخله ثم أكّده، واضغط «حفظ الرمز ومتابعة الدخول».</li><li><b>الدخول اليومي:</b> أدخل بريدك الرسمي ثم رمز المرور الموحد (6 أرقام) واضغط «دخول».</li><li><b>تغيير الرمز:</b> اطلب من مالك المنصة إعادة تعيين رمزك، ثم أنشئ رمزاً جديداً في الدخول التالي عبر «أول دخول».</li></ul></div></div>
     <div class="step"><div class="num">٢</div><div><h3>استكشاف لوحة التحكم والهيكل</h3><p>الاطلاع على مساحة العمل، المهام المسندة، والوحدة التنظيمية الخاصة بك.</p></div></div>
     <div class="step"><div class="num">٣</div><div><h3>إدارة المهام والتكاليف</h3><p>إسناد التكاليف بين الموظفين، متابعة حالات الإنجاز، وتحديث التنبيهات.</p></div></div>
     <div class="step"><div class="num">٤</div><div><h3>قائمة إدارة القسم</h3><p>للمدراء ورؤساء الأقسام: متابعة أداء الموظفين، إدارة الصلاحيات، واستعراض التقارير الدورية.</p></div></div>
