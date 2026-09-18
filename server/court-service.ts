@@ -1810,7 +1810,7 @@ async function createTaskConversation(input: { db: any; taskId: number; title: s
   return conversationId;
 }
 
-export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent" }) {
+export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   if (input.assigneeProfileId) {
@@ -1865,12 +1865,12 @@ export async function createDepartmentTasks(input: { title: string; unitId: numb
   return { ids, count: ids.length };
 }
 
-export async function createSelfTask(input: { title: string; priority: "normal" | "high" | "critical"; taskType?: "permanent" | "urgent"; scheduledFor: Date; dueAt: Date; profileId: number; actorUserId: number }) {
+export async function createSelfTask(input: { title: string; priority: "normal" | "high" | "critical"; taskType?: "permanent" | "urgent"; taskNotes?: string; scheduledFor: Date; dueAt: Date; profileId: number; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const profile = (await db.select({ id: personProfiles.id, unitId: personProfiles.unitId, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
   if (!profile) throw new Error("ملف الموظف غير موجود.");
-  const taskId = await createTask({ title: input.title, unitId: profile.unitId ?? undefined, assigneeProfileId: profile.id, priority: input.priority, taskType: input.taskType, scheduledFor: input.scheduledFor, dueAt: input.dueAt, assignedByUserId: input.actorUserId });
+  const taskId = await createTask({ title: input.title, unitId: profile.unitId ?? undefined, assigneeProfileId: profile.id, priority: input.priority, taskType: input.taskType, taskNotes: input.taskNotes, scheduledFor: input.scheduledFor, dueAt: input.dueAt, assignedByUserId: input.actorUserId });
   if (profile.directManagerProfileId) {
     await db.insert(notifications).values({ profileId: profile.directManagerProfileId, category: "task_due", title: "مهمة ذاتية بانتظار المراجعة", body: `أنشأ موظف من قسمك مهمة ذاتية: ${input.title}. راجعها أو ارفعها للمسار التالي.`, dedupeKey: `self-task-review-${taskId}-${profile.directManagerProfileId}` });
   }
