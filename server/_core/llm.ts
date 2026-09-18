@@ -232,7 +232,7 @@ const assertApiKey = () => {
 
 // نماذج الخدمة السابقة (Manus Forge) تُعاد توجيهها إلى النموذج الافتراضي المجاني.
 const LEGACY_FORGE_MODELS = new Set(["gpt-5-mini", "gemini-3-flash-preview", "gemini-3-flash"]);
-const DEFAULT_FORGE_MODEL = "gemini-2.5-flash";
+const DEFAULT_FORGE_MODEL = "gemini-3.5-flash";
 
 function resolveModel(requested?: string): string {
   if (requested && !LEGACY_FORGE_MODELS.has(requested)) return requested;
