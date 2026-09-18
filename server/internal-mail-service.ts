@@ -1,3 +1,5 @@
+import { TRPCError } from "@trpc/server";
+
 import { and, asc, desc, eq, gte, inArray, isNull, like, lte, ne, or, sql } from "drizzle-orm";
 import { internalMailAssistantActions, internalMailAttachments, internalMailContacts, internalMailEntries, internalMailMessages, internalMailPreferences, internalMailRecurringScheduleRuns, internalMailRecurringSchedules, internalMailRules, internalMailTemplates, personProfiles } from "../drizzle/schema";
 import { getDb } from "./db";
@@ -21,7 +23,7 @@ async function getMailActor(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const profile = await getProfileForUser(userId);
-  if (!profile || profile.status !== "active") throw new Error("يلزم ملف موظف نشط لاستخدام بريد ركيزة.");
+  if (!profile || profile.status !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ملف موظف نشط لاستخدام بريد ركيزة." });
   return { db, profile };
 }
 
@@ -149,9 +151,9 @@ export async function saveInternalMailDraft(input: { userId: number; messageId?:
 export async function sendInternalMail(input: { userId: number; messageId: number }) {
   const { db, profile } = await getMailActor(input.userId);
   const message = (await db.select().from(internalMailMessages).where(eq(internalMailMessages.id, input.messageId)).limit(1))[0];
-  if (!message || message.senderProfileId !== profile.id || message.status !== "draft") throw new Error("هذه المسودة غير متاحة للإرسال.");
+  if (!message || message.senderProfileId !== profile.id || message.status !== "draft") throw new TRPCError({ code: "BAD_REQUEST", message: "هذه المسودة غير متاحة للإرسال. تأكد من أنها ملكك وما زالت في وضع المسودة." });
   const recipients = await db.select({ id: internalMailEntries.id }).from(internalMailEntries).where(and(eq(internalMailEntries.messageId, message.id), ne(internalMailEntries.recipientType, "sender"))).limit(1);
-  if (!recipients.length) throw new Error("أضف مستلماً واحداً على الأقل قبل الإرسال.");
+  if (!recipients.length) throw new TRPCError({ code: "BAD_REQUEST", message: "أضف مستلماً واحداً على الأقل قبل الإرسال." });
   const sentAt = new Date();
   await db.update(internalMailMessages).set({ status: "sent", sentAt, scheduledAt: null, threadId: message.threadId ?? message.id, updatedAt: sentAt }).where(eq(internalMailMessages.id, message.id));
   await applyInternalMailRules({ db, messageId: message.id, senderProfileId: profile.id, subject: message.subject });

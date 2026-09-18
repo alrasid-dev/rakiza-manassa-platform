@@ -3,11 +3,22 @@ import { ENV } from "./_core/env";
 
 export async function sendBrevoTransactionalEmail(input: { to: string; recipientName?: string; subject: string; textContent: string; htmlContent?: string }) {
   if (!ENV.brevoApiKey || !ENV.brevoSenderEmail) throw new Error("إعدادات Brevo غير مكتملة.");
-  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: { accept: "application/json", "api-key": ENV.brevoApiKey, "content-type": "application/json" },
-    body: JSON.stringify({ sender: { email: ENV.brevoSenderEmail, name: "رَكيزة" }, to: [{ email: input.to, name: input.recipientName }], subject: input.subject, textContent: input.textContent, ...(input.htmlContent ? { htmlContent: input.htmlContent } : {}) }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  let response: Response;
+  try {
+    response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      signal: controller.signal,
+      headers: { accept: "application/json", "api-key": ENV.brevoApiKey, "content-type": "application/json" },
+      body: JSON.stringify({ sender: { email: ENV.brevoSenderEmail, name: "رَكيزة" }, to: [{ email: input.to, name: input.recipientName }], subject: input.subject, textContent: input.textContent, ...(input.htmlContent ? { htmlContent: input.htmlContent } : {}) }),
+    });
+  } catch (error) {
+    clearTimeout(timeout);
+    if (controller.signal.aborted) throw new Error("انتهت مهلة الاتصال بخدمة البريد Brevo. حاول مرة أخرى بعد قليل.");
+    throw error;
+  }
+  clearTimeout(timeout);
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     throw new Error(`تعذر إرسال البريد عبر Brevo (HTTP ${response.status})${body ? ": " + body.slice(0, 160) : ""}`);
@@ -1854,12 +1865,12 @@ export async function createDepartmentTasks(input: { title: string; unitId: numb
   return { ids, count: ids.length };
 }
 
-export async function createSelfTask(input: { title: string; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; profileId: number; actorUserId: number }) {
+export async function createSelfTask(input: { title: string; priority: "normal" | "high" | "critical"; taskType?: "permanent" | "urgent"; scheduledFor: Date; dueAt: Date; profileId: number; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const profile = (await db.select({ id: personProfiles.id, unitId: personProfiles.unitId, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
   if (!profile) throw new Error("ملف الموظف غير موجود.");
-  const taskId = await createTask({ title: input.title, unitId: profile.unitId ?? undefined, assigneeProfileId: profile.id, priority: input.priority, scheduledFor: input.scheduledFor, dueAt: input.dueAt, assignedByUserId: input.actorUserId });
+  const taskId = await createTask({ title: input.title, unitId: profile.unitId ?? undefined, assigneeProfileId: profile.id, priority: input.priority, taskType: input.taskType, scheduledFor: input.scheduledFor, dueAt: input.dueAt, assignedByUserId: input.actorUserId });
   if (profile.directManagerProfileId) {
     await db.insert(notifications).values({ profileId: profile.directManagerProfileId, category: "task_due", title: "مهمة ذاتية بانتظار المراجعة", body: `أنشأ موظف من قسمك مهمة ذاتية: ${input.title}. راجعها أو ارفعها للمسار التالي.`, dedupeKey: `self-task-review-${taskId}-${profile.directManagerProfileId}` });
   }

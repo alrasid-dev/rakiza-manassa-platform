@@ -49,6 +49,7 @@ import {
   Moon,
   Sparkles,
   Sun,
+  Bell,
   GitBranch,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -285,6 +286,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   const pendingApprovalsProcedure = (trpc.court as any).approvals?.pending;
   const pendingApprovals = pendingApprovalsProcedure?.useQuery ? pendingApprovalsProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 30_000 }) : { data: [] };
   const taskAttentionCount = (assignedTasks.data || []).filter((task: { status?: string }) => ["new", "in_progress", "under_review", "overdue"].includes(task.status || "")).length;
+  const overdueTaskCount = (assignedTasks.data || []).filter((task: { status?: string; dueAt?: Date | string | number }) => task.status === "overdue" || Boolean(task.dueAt && new Date(task.dueAt).getTime() < Date.now())).length;
   const acknowledgeTaskProcedure = (trpc.court as any).tasks?.acknowledge;
   const acknowledgeTask = acknowledgeTaskProcedure?.useMutation ? acknowledgeTaskProcedure.useMutation({ onSuccess: () => { void assignedTasks.refetch?.(); toast.success("تم تسجيل بدء المهمة."); } }) : { mutate: () => undefined, isPending: false };
   const announcementsProcedure = trpc.court.announcements?.list;
@@ -352,11 +354,16 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
     const currentIds = new Set(current.map(notification => notification.id));
     seenNotificationIds.current = currentIds;
     if (!previous) return;
-    const newRecommendation = current.find(notification => notification.category === "performance_recommendation" && !previous.has(notification.id));
-    if (!newRecommendation) return;
-    toast.info("وصلتك توصية جديدة لتحسين الإنجاز", { description: newRecommendation.body, duration: 7000 });
+    const newNotification = current.find(notification => !previous.has(notification.id));
+    if (!newNotification) return;
+    toast.info(newNotification.category === "performance_recommendation" ? "وصلتك توصية جديدة لتحسين الإنجاز" : "وصل إشعار جديد", { description: newNotification.body, duration: 7000 });
     if (recommendationSoundEnabled) playRecommendationTone();
   }, [notifications.data, recommendationSoundEnabled]);
+  const previousOverdueTaskCount = useRef<number | null>(null);
+  useEffect(() => {
+    if (previousOverdueTaskCount.current !== null && overdueTaskCount > previousOverdueTaskCount.current && recommendationSoundEnabled) playRecommendationTone();
+    previousOverdueTaskCount.current = overdueTaskCount;
+  }, [overdueTaskCount, recommendationSoundEnabled]);
 
   if (loading) {
     return (
@@ -417,6 +424,11 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
               <ArrowLeft className="h-4 w-4 shrink-0 text-[#698075]" aria-hidden="true" />
             </button>
             <div dir="ltr" className="rakiza-toolbar relative flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:gap-3">
+              <button type="button" aria-label="الإشعارات" title="الإشعارات" onClick={() => setNotificationsOpen(!notificationsOpen)} className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886] ${overdueTaskCount > 0 ? "border-[#e3b3a8] bg-[#fff3ef] text-[#b5443a]" : "border-[#cfd7ca] bg-[#f1f3ed] text-[#2d6b4f] hover:bg-[#e0ecdf]"}`}>
+                <Bell className={`h-4 w-4 ${overdueTaskCount > 0 ? "animate-pulse" : ""}`} aria-hidden="true" />
+                {overdueTaskCount > 0 && <span aria-hidden="true" className="absolute -left-0.5 -top-0.5 flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e0473e] opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-[#e0473e]" /></span>}
+                {unreadNotifications.length > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#b18448] px-1 text-[9px] font-bold text-[#1c2b23]">{unreadNotifications.length > 9 ? "9+" : unreadNotifications.length}</span>}
+              </button>
               {toggleTheme && <button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? "التبديل إلى النمط الفاتح" : "التبديل إلى النمط الداكن"} title={theme === "dark" ? "النمط الفاتح" : "النمط الداكن"} aria-pressed={theme === "dark"} data-testid="theme-toggle" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-[#cfd7ca] bg-[#f1f3ed] text-[#2d6b4f] transition-colors hover:bg-[#e0ecdf] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]">{theme === "dark" ? <Sun className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" /> : <Moon className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" />}</button>}
               <div dir="rtl" className="flex min-w-0 items-center gap-2">
                 <div className="min-w-0 text-right">
