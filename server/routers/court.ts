@@ -1216,7 +1216,7 @@ export const courtRouter = router({
       const profile = await getProfileForUser(ctx.user.id);
       const roles = await rolesForUser(ctx.user);
       const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض تفاصيل هذه المهمة." });
+      if (!participates && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض تفاصيل هذه المهمة." });
       return getTaskDetails(input.taskId);
     }),
     setPinned: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), isPinned: z.boolean() })).mutation(async ({ ctx, input }) => {
