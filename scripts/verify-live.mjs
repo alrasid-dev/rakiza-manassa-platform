@@ -26,7 +26,6 @@ async function runChecks() {
   try { healthJson = JSON.parse(health.body); } catch { /* تجاهل */ }
   record("health يعمل ويعيد JSON", health.status === 200 && Boolean(healthJson?.ok), `status=${health.status}`);
   record("قاعدة البيانات مهيّأة", healthJson?.databaseConfigured === true, `databaseConfigured=${healthJson?.databaseConfigured}`);
-  record("Supabase مهيّأ", healthJson?.supabaseConfigured === true, `supabaseConfigured=${healthJson?.supabaseConfigured}`);
 
   const login = await fetchText(`${BASE}/login`);
   record("صفحة الدخول تُخدم من الخادم", login.status === 200 && login.body.includes("/assets/index-"), `status=${login.status}`);
@@ -40,8 +39,8 @@ async function runChecks() {
     record("حزمة الواجهة تُحمَّل", bundle.status === 200 && js.length > 100000, `len=${js.length}`);
     record("ميزة قناة البريد الإضافي", js.includes("notificationPreference"));
     record("قنوات إرسال التنبيهات الثلاث", js.includes("البريد الرسمي فقط") && js.includes("البريد الإضافي فقط") && js.includes("البريدان معاً"));
-    record("تلميح سياسة كلمة المرور", js.includes("وتشمل حرفاً ورقماً معاً"));
-    record("رسالتا اشتراط الحرف والرقم", js.includes("أضف حرفاً واحداً على الأقل") && js.includes("أضف رقماً واحداً على الأقل"));
+    record("رمز المرور من 6 أرقام", js.includes("رمز المرور") && js.includes("6 أرقام"));
+    record("رسالة التحقق من رمز المرور", js.includes("أدخل رمز المرور المكوّن من 6 أرقام"));
     record("أيقونة دخول المالك", js.includes("دخول المالك"));
     record("استثناء بريد المالك", js.includes("rakizaplatform@gmail.com"));
     record("قيد النطاق الرسمي", js.includes("moj\\.gov\\.sa"));

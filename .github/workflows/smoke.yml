@@ -29,7 +29,7 @@ jobs:
           node-version: 22
       - name: انتظار اكتمال النشر ثم الفحص الحي (مع إعادة محاولة تلقائية)
         env:
-          RAKIZA_BASE_URL: https://rakiza-manassa.vercel.app
+          RAKIZA_BASE_URL: https://rakiza-manassa-platform.vercel.app
           RAKIZA_ATTEMPTS: "12"
           RAKIZA_RETRY_DELAY_MS: "20000"
         run: node scripts/verify-live.mjs
