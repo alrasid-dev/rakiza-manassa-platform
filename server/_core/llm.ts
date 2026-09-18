@@ -212,16 +212,32 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+const resolveApiUrl = () => {
+  const configured = ENV.forgeApiUrl && ENV.forgeApiUrl.trim();
+  if (configured) {
+    const base = configured.replace(/\/$/, "");
+    if (/\/chat\/completions$/.test(base)) return base;
+    if (/\/openai$/.test(base)) return `${base}/chat/completions`;
+    return `${base}/v1/chat/completions`;
+  }
+  // الواجهة الافتراضية: Gemini المجاني المتوافق مع صيغة OpenAI
+  return "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+};
 
 const assertApiKey = () => {
   if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    throw new Error("مفتاح الذكاء الاصطناعي غير مضبوط (BUILT_IN_FORGE_API_KEY)");
   }
 };
+
+// نماذج الخدمة السابقة (Manus Forge) تُعاد توجيهها إلى النموذج الافتراضي المجاني.
+const LEGACY_FORGE_MODELS = new Set(["gpt-5-mini", "gemini-3-flash-preview", "gemini-3-flash"]);
+const DEFAULT_FORGE_MODEL = "gemini-2.5-flash";
+
+function resolveModel(requested?: string): string {
+  if (requested && !LEGACY_FORGE_MODELS.has(requested)) return requested;
+  return ENV.forgeDefaultModel || DEFAULT_FORGE_MODEL;
+}
 
 const normalizeResponseFormat = ({
   responseFormat,
@@ -352,8 +368,6 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     responseFormat,
     response_format,
     model,
-    thinking,
-    reasoning,
     maxTokens,
     max_tokens,
   } = params;
@@ -362,8 +376,9 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     messages: messages.map(normalizeMessage),
   };
 
-  if (model) {
-    payload.model = model;
+  const resolvedModel = resolveModel(model);
+  if (resolvedModel) {
+    payload.model = resolvedModel;
   }
 
   if (tools && tools.length > 0) {
@@ -381,13 +396,6 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   const resolvedMaxTokens = max_tokens ?? maxTokens;
   if (typeof resolvedMaxTokens === "number") {
     payload.max_tokens = resolvedMaxTokens;
-  }
-
-  if (thinking) {
-    payload.thinking = thinking;
-  }
-  if (reasoning) {
-    payload.reasoning = reasoning;
   }
 
   const normalizedResponseFormat = normalizeResponseFormat({

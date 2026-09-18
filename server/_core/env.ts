@@ -20,6 +20,7 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: readEnv("BUILT_IN_FORGE_API_URL"),
   forgeApiKey: readEnv("BUILT_IN_FORGE_API_KEY"),
+  forgeDefaultModel: readEnv("BUILT_IN_FORGE_MODEL"),
   brevoApiKey: readEnv("BREVO_API_KEY"),
   brevoSenderEmail: readEnv("BREVO_SENDER_EMAIL"),
   vapidSubject: readEnv("VAPID_SUBJECT") || "mailto:rakizaplatform@gmail.com",
