@@ -63,7 +63,10 @@ describe("مسار إسناد المهمة ثم تقديمها للمراجعة"
       expect.objectContaining({ action: "task.created", entityType: "task", entityId: taskId }),
       expect.objectContaining({ action: "task.submitted_for_review", entityType: "task", entityId: taskId, metadata: JSON.stringify({ approvalId }) }),
     ]));
-    expect(state.updates).toEqual([expect.objectContaining({ status: "under_review", completionNote: "اكتملت المعالجة الأولية", completedAt: expect.any(Date) })]);
+    expect(state.updates).toEqual([
+      expect.objectContaining({ status: "under_review", completionNote: "اكتملت المعالجة الأولية", completedAt: expect.any(Date) }),
+      expect.objectContaining({ isRead: true }),
+    ]);
     expect(approvalId).toBeGreaterThan(0);
   });
 });

@@ -34,7 +34,10 @@ vi.mock("@/lib/trpc", () => ({
         send: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
         updateEntry: { useMutation: () => ({ mutate: updateEntryMutate }) },
       },
-      communications: { peopleSearch: { useQuery: () => ({ data: [{ profile: { id: 33, fullName: "موظف الاختبار" }, unitName: "وحدة الاختبار" }], isFetching: false }) } },
+      communications: {
+        units: { useQuery: () => ({ data: [{ id: 1, name: "وحدة الاختبار" }], isFetching: false }) },
+        peopleSearch: { useQuery: () => ({ data: [{ profile: { id: 33, fullName: "موظف الاختبار" }, unitName: "وحدة الاختبار" }], isFetching: false }) },
+      },
       people: { self: { useQuery: () => ({ data: { id: 7 } }) } },
     },
   },
@@ -103,11 +106,11 @@ describe("بريد ركيزة", () => {
     fireEvent.click(screen.getAllByText("رسالة جديدة")[0]);
     fireEvent.change(screen.getByPlaceholderText("ابحث بالاسم أو البريد"), { target: { value: "موظ" } });
     fireEvent.click(screen.getByText("موظف الاختبار"));
-    expect(screen.getByText("مستلم 33")).toBeTruthy();
+    expect(screen.getByTestId("mail-recipient-chip-33")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("اختيار قالب رسالة"), { target: { value: "51" } });
     expect((screen.getAllByPlaceholderText("الموضوع").at(-1) as HTMLInputElement).value).toBe("محضر متابعة");
     expect((screen.getByRole("textbox", { name: "محتوى الرسالة المنسق" }) as HTMLTextAreaElement).value).toContain("يرجى مراجعة البنود المرفقة.");
-    expect(screen.getByText("مستلم 33")).toBeTruthy();
+    expect(screen.getByTestId("mail-recipient-chip-33")).toBeTruthy();
   });
 
   it("لا يحفظ الرد التلقائي قبل التأكيد الصريح من صاحب البريد", () => {

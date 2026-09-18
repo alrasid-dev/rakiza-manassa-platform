@@ -35,7 +35,6 @@ import { toast } from "sonner";
 import { useLocation } from "wouter";
 
 type Folder = "inbox" | "sent" | "drafts" | "starred" | "archive" | "trash";
-type RecipientType = "to" | "cc" | "bcc";
 type AttachmentDraft = {
   originalName: string;
   mimeType: string;
@@ -120,6 +119,81 @@ async function readAttachments(files: FileList | null) {
   );
 }
 
+function MailRecipientPicker(props: {
+  label: string;
+  placeholder: string;
+  unitId: number | "";
+  onUnitChange: (value: number | "") => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+  people: Array<{ profile: { id: number; fullName: string }; unitName: string | null }> | undefined;
+  isLoading: boolean;
+  selectedIds: number[];
+  names: Record<number, string>;
+  onToggle: (item: any) => void;
+  onRemove: (id: number) => void;
+  units: Array<{ id: number; name: string }> | undefined;
+}) {
+  const { label, placeholder, unitId, onUnitChange, search, onSearchChange, people, isLoading, selectedIds, names, onToggle, onRemove, units } = props;
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-black text-[#476358]">{label}</span>
+        <select
+          aria-label={`قسم ${label}`}
+          value={unitId}
+          onChange={event => onUnitChange(event.target.value ? Number(event.target.value) : "")}
+          className="rounded-lg border border-[#d9e5da] bg-white px-2 py-2 text-xs"
+        >
+          <option value="">كل الأقسام</option>
+          {(units ?? []).map(unit => (
+            <option key={unit.id} value={unit.id}>{unit.name}</option>
+          ))}
+        </select>
+        <input
+          value={search}
+          onChange={event => onSearchChange(event.target.value)}
+          placeholder={placeholder}
+          className="min-w-[12rem] flex-1 rounded-lg border border-[#d9e5da] px-3 py-2 text-xs"
+        />
+      </div>
+      {Boolean(unitId || search.trim().length >= 2) && (
+        <div className="max-h-36 overflow-y-auto rounded-xl border border-[#e0e9e1] bg-[#fbfdfb] p-1">
+          {isLoading ? (
+            <p className="px-3 py-2 text-xs text-[#7b8c83]">جارٍ البحث…</p>
+          ) : (people ?? []).map((item: any) => (
+            <button
+              type="button"
+              key={item.profile.id}
+              onClick={() => onToggle(item)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-xs hover:bg-[#eef6ef]"
+            >
+              <UsersRound className="h-3.5 w-3.5" />
+              {item.profile.fullName}
+              <span className="mr-auto text-[10px] text-[#7b8c83]">{item.unitName || ""}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedIds.map(id => (
+            <button
+              key={id}
+              type="button"
+              data-testid={`mail-recipient-chip-${id}`}
+              onClick={() => onRemove(id)}
+              className="rounded-full bg-[#e2f0e4] px-2 py-1 text-[10px] font-bold text-[#246444]"
+            >
+              {names[id] ?? `مستلم ${id}`} <X className="inline h-3 w-3" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RakizaMailPage() {
   const [location, setLocation] = useLocation();
   const utils = trpc.useUtils();
@@ -140,8 +214,11 @@ export default function RakizaMailPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [composeOpen, setComposeOpen] = useState(false);
   const [compose, setCompose] = useState<ComposeState>(emptyCompose);
-  const [recipientMode, setRecipientMode] = useState<RecipientType>("to");
-  const [recipientSearch, setRecipientSearch] = useState("");
+  const [toUnitId, setToUnitId] = useState<number | "">("");
+  const [ccUnitId, setCcUnitId] = useState<number | "">("");
+  const [toSearch, setToSearch] = useState("");
+  const [ccSearch, setCcSearch] = useState("");
+  const [recipientNames, setRecipientNames] = useState<Record<number, string>>({});
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<Folder | null>(null);
   const [summary, setSummary] = useState("");
@@ -190,9 +267,14 @@ export default function RakizaMailPage() {
     { messageId: selectedId || 1 },
     { enabled: Boolean(selectedId) }
   );
-  const people = trpc.court.communications.peopleSearch.useQuery(
-    { query: recipientSearch || undefined },
-    { enabled: composeOpen && recipientSearch.trim().length >= 2 }
+  const units = trpc.court.communications.units.useQuery(undefined, { enabled: composeOpen });
+  const toPeople = trpc.court.communications.peopleSearch.useQuery(
+    { query: toSearch.trim() || undefined, unitId: toUnitId || undefined },
+    { enabled: composeOpen && Boolean(toUnitId || toSearch.trim().length >= 2) }
+  );
+  const ccPeople = trpc.court.communications.peopleSearch.useQuery(
+    { query: ccSearch.trim() || undefined, unitId: ccUnitId || undefined },
+    { enabled: composeOpen && Boolean(ccUnitId || ccSearch.trim().length >= 2) }
   );
   const self = trpc.court.people.self.useQuery();
   const preferences = trpc.court.internalMail.preferences.useQuery();
@@ -320,25 +402,39 @@ export default function RakizaMailPage() {
     }, 900);
     return () => window.clearTimeout(timer);
   }, [composeOpen, compose, fingerprint, saveDraft]);
-  const toggleRecipient = (id: number) => {
-    const key =
-      recipientMode === "to"
-        ? "toProfileIds"
-        : recipientMode === "cc"
-          ? "ccProfileIds"
-          : "bccProfileIds";
-    setCompose(value => ({
-      ...value,
-      [key]: value[key].includes(id)
-        ? value[key].filter(item => item !== id)
-        : [...value[key], id],
+  const rememberRecipient = (item: any) => {
+    setRecipientNames(current => ({
+      ...current,
+      [item.profile.id]: item.profile.fullName,
     }));
   };
-  const recipients = [
-    ...compose.toProfileIds,
-    ...compose.ccProfileIds,
-    ...compose.bccProfileIds,
-  ];
+  const toggleTo = (item: any) => {
+    rememberRecipient(item);
+    const id = item.profile.id;
+    setCompose(value => ({
+      ...value,
+      toProfileIds: value.toProfileIds.includes(id)
+        ? value.toProfileIds.filter(i => i !== id)
+        : [...value.toProfileIds, id],
+    }));
+  };
+  const toggleCc = (item: any) => {
+    rememberRecipient(item);
+    const id = item.profile.id;
+    setCompose(value => ({
+      ...value,
+      ccProfileIds: value.ccProfileIds.includes(id)
+        ? value.ccProfileIds.filter(i => i !== id)
+        : [...value.ccProfileIds, id],
+    }));
+  };
+  const removeRecipient = (id: number) =>
+    setCompose(value => ({
+      ...value,
+      toProfileIds: value.toProfileIds.filter(item => item !== id),
+      ccProfileIds: value.ccProfileIds.filter(item => item !== id),
+      bccProfileIds: value.bccProfileIds.filter(item => item !== id),
+    }));
   const signatureForCompose = () => {
     const text = preferences.data?.signature?.trim() || "";
     const imageUrl = preferences.data?.signatureImageUrl?.startsWith(
@@ -373,8 +469,18 @@ export default function RakizaMailPage() {
         bodyHtml: `${signed.bodyHtml}<blockquote>${message.bodyHtml || escapeMailHtml(message.body)}</blockquote>`,
       });
     else setCompose({ ...emptyCompose(), ...signed });
-    setRecipientSearch("");
-    setRecipientMode("to");
+    setToUnitId("");
+    setCcUnitId("");
+    setToSearch("");
+    setCcSearch("");
+    setRecipientNames(
+      kind === "reply" && message?.senderProfileId != null
+        ? {
+            [message.senderProfileId]:
+              selected.data?.senderName || `مستلم ${message.senderProfileId}`,
+          }
+        : {}
+    );
     setComposeOpen(true);
   };
   const useSuggestedReply = (reply: string) => {
@@ -992,69 +1098,36 @@ export default function RakizaMailPage() {
                 className="min-w-44 flex-1 rounded-lg border border-[#d9e5da] px-2 py-2 text-xs"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-black text-[#476358]">إلى</span>
-              <input
-                value={recipientSearch}
-                onChange={event => setRecipientSearch(event.target.value)}
-                placeholder="ابحث بالاسم أو البريد"
-                className="min-w-[12rem] flex-1 rounded-lg border border-[#d9e5da] px-3 py-2 text-xs"
-              />
-              <select
-                value={recipientMode}
-                onChange={event =>
-                  setRecipientMode(event.target.value as RecipientType)
-                }
-                className="rounded-lg border border-[#d9e5da] bg-white px-2 py-2 text-xs"
-              >
-                <option value="to">إلى</option>
-                <option value="cc">نسخة</option>
-                <option value="bcc">نسخة مخفية</option>
-              </select>
-            </div>
-            {recipientSearch.trim().length >= 2 && (
-              <div className="max-h-36 overflow-y-auto rounded-xl border border-[#e0e9e1] bg-[#fbfdfb] p-1">
-                {people.data?.map((item: any) => (
-                  <button
-                    type="button"
-                    key={item.profile.id}
-                    onClick={() => toggleRecipient(item.profile.id)}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-xs hover:bg-[#eef6ef]"
-                  >
-                    <UsersRound className="h-3.5 w-3.5" />
-                    {item.profile.fullName}
-                    <span className="mr-auto text-[10px] text-[#7b8c83]">
-                      {item.unitName || ""}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex flex-wrap gap-1">
-              {recipients.map(id => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() =>
-                    setCompose(value => ({
-                      ...value,
-                      toProfileIds: value.toProfileIds.filter(
-                        item => item !== id
-                      ),
-                      ccProfileIds: value.ccProfileIds.filter(
-                        item => item !== id
-                      ),
-                      bccProfileIds: value.bccProfileIds.filter(
-                        item => item !== id
-                      ),
-                    }))
-                  }
-                  className="rounded-full bg-[#e2f0e4] px-2 py-1 text-[10px] font-bold text-[#246444]"
-                >
-                  مستلم {id} <X className="inline h-3 w-3" />
-                </button>
-              ))}
-            </div>
+            <MailRecipientPicker
+              label="إلى"
+              placeholder="ابحث بالاسم أو البريد"
+              unitId={toUnitId}
+              onUnitChange={setToUnitId}
+              search={toSearch}
+              onSearchChange={setToSearch}
+              people={toPeople.data}
+              isLoading={toPeople.isFetching}
+              selectedIds={compose.toProfileIds}
+              names={recipientNames}
+              onToggle={toggleTo}
+              onRemove={removeRecipient}
+              units={units.data}
+            />
+            <MailRecipientPicker
+              label="نسخة إلى"
+              placeholder="ابحث بالاسم أو البريد للنسخة"
+              unitId={ccUnitId}
+              onUnitChange={setCcUnitId}
+              search={ccSearch}
+              onSearchChange={setCcSearch}
+              people={ccPeople.data}
+              isLoading={ccPeople.isFetching}
+              selectedIds={compose.ccProfileIds}
+              names={recipientNames}
+              onToggle={toggleCc}
+              onRemove={removeRecipient}
+              units={units.data}
+            />
             <input
               value={compose.subject}
               onChange={event =>

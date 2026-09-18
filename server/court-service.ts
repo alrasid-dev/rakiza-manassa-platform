@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, inArray, isNull, isNotNull, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, isNotNull, like, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
 export async function sendBrevoTransactionalEmail(input: { to: string; recipientName?: string; subject: string; textContent: string; htmlContent?: string }) {
@@ -2014,6 +2014,7 @@ export async function submitTaskForReview(taskId: number, actorUserId: number, n
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   await db.update(tasks).set({ status: "under_review", completionNote: note ?? null, completedAt: new Date() }).where(eq(tasks.id, taskId));
+  await markTaskNotificationsRead(taskId);
   await db.insert(taskUpdates).values({ taskId, actorUserId, updateType: "submitted", note: note ?? null });
   const result = await db.insert(approvalRequests).values({
     entityType: "task",
@@ -2033,9 +2034,19 @@ export async function updateTaskStatus(input: { taskId: number; status: "new" | 
   const task = await getTaskById(input.taskId);
   if (!task) throw new Error("المهمة المطلوبة غير موجودة.");
   await db.update(tasks).set({ status: input.status, completedAt: input.status === "completed" ? new Date() : null, completionNote: input.note ?? null }).where(eq(tasks.id, input.taskId));
+  if (input.status === "completed" || input.status === "cancelled") await markTaskNotificationsRead(input.taskId);
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: input.note ?? `تم تغيير الحالة إلى ${input.status}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.status_updated_by_leadership", entityType: "task", entityId: input.taskId, metadata: { status: input.status } });
   return { success: true, status: input.status };
+}
+
+/** عند إغلاق المهمة (اكتمال أو إلغاء) تُقرأ تلقائياً إشعاراتها المرتبطة حتى لا يظل مؤشر التنبيهات يومض. */
+async function markTaskNotificationsRead(taskId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(notifications)
+    .set({ isRead: true })
+    .where(and(eq(notifications.isRead, false), or(like(notifications.dedupeKey, `%-${taskId}`), like(notifications.dedupeKey, `%-${taskId}-%`))));
 }
 
 export async function listTaskComments(taskId: number) {
@@ -2060,6 +2071,7 @@ export async function markTaskAsProcessed(input: { taskId: number; actorUserId: 
   if (task.status === "completed") throw new Error("المهمة مكتملة مسبقاً.");
   const completedAt = new Date();
   await db.update(tasks).set({ status: "completed", completedAt, completionNote: input.note ?? null }).where(eq(tasks.id, input.taskId));
+  await markTaskNotificationsRead(input.taskId);
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "approved", note: input.note?.trim() || "تمت معالجة المهمة وإتمامها." });
   await awardTaskCompletionPoints(input.taskId, input.actorUserId);
   await logAudit({ actorUserId: input.actorUserId, action: "task.marked_processed", entityType: "task", entityId: input.taskId, metadata: { completedAt: completedAt.toISOString() } });

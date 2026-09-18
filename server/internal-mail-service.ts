@@ -109,6 +109,16 @@ function llmText(content: unknown) {
   return (typeof content === "string" ? content : Array.isArray(content) ? content.filter((part: any) => part?.type === "text").map((part: any) => part.text).join("\n") : "").trim();
 }
 
+function parseLlmJson(content: unknown) {
+  let text = llmText(content);
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) text = fence[1];
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end > start) text = text.slice(start, end + 1);
+  return JSON.parse(text);
+}
+
 export function buildInternalMailSummaryMessages(subject: string, body: string) {
   return [
     { role: "system" as const, content: "لخّص رسالة بريد داخلية بدقة وبالعربية. اذكر الوقائع والتعليمات والقرارات والمواعيد الظاهرة فقط، ولا تخترع معلومات أو تفسيرات. اكتب عنواناً قصيراً ثم من 3 إلى 7 نقاط موجزة. إذا لم توجد معلومات كافية فاذكر ذلك صراحة." },
@@ -119,8 +129,11 @@ export function buildInternalMailSummaryMessages(subject: string, body: string) 
 export function buildInternalMailAssistantMessages(input: { subject: string; body: string; mode: "reply" | "proofread"; tone?: "formal" | "concise" }) {
   const tone = input.tone === "concise" ? "اجعل كل رد مباشراً ومختصراً جداً، في جملة أو جملتين عند الإمكان، مع المحافظة على الاحترام." : "استخدم نبرة رسمية مهذبة ملائمة للمراسلات الداخلية للمحكمة، بعبارات واضحة وغير مطولة.";
   const task = input.mode === "reply" ? `اقترح ثلاثة ردود داخلية عربية مهنية متفاوتة في الصياغة. ${tone} لا تضف وقائع أو التزامات غير موجودة في الرسالة.` : "صحح الصياغة العربية فقط مع الحفاظ التام على المعنى، ثم اذكر حتى ثلاث ملاحظات لغوية موجزة. لا تضف معلومات جديدة.";
+  const jsonShape = input.mode === "reply"
+    ? `أعد JSON صالحاً فقط وبالضبط بالشكل: {"replies": ["الرد الأول", "الرد الثاني", "الرد الثالث"], "correctedText": "", "notes": []}`
+    : `أعد JSON صالحاً فقط وبالضبط بالشكل: {"replies": [], "correctedText": "النص المصحح", "notes": ["ملاحظة لغوية"]}`;
   return [
-    { role: "system" as const, content: `أنت مساعد بريد داخلي للمحكمة. ${task} لا تنفذ أي إجراء ولا تذكر أنها استشارة قانونية. أعد JSON مطابقاً للمخطط فقط.` },
+    { role: "system" as const, content: `أنت مساعد بريد داخلي للمحكمة. ${task} لا تنفذ أي إجراء ولا تذكر أنها استشارة قانونية. ${jsonShape}` },
     { role: "user" as const, content: `الموضوع: ${input.subject}\n\nالنص:\n${input.body.slice(0, 12_000)}` },
   ];
 }
@@ -210,10 +223,10 @@ async function generateInternalMailAutoReply(input: { subject: string; body: str
     model: "gpt-5-mini",
     maxTokens: 1_400,
     messages: buildInternalMailAssistantMessages({ ...input, mode: "reply" }),
-    response_format: { type: "json_schema", json_schema: { name: "internal_mail_auto_reply", strict: true, schema: { type: "object", properties: { replies: { type: "array", items: { type: "string" }, maxItems: 3 }, correctedText: { type: "string" }, notes: { type: "array", items: { type: "string" }, maxItems: 3 } }, required: ["replies", "correctedText", "notes"], additionalProperties: false } } },
+    response_format: { type: "json_object" },
   });
   let output: { replies?: string[] };
-  try { output = JSON.parse(llmText(result.choices[0]?.message.content)); } catch { throw new Error("تعذر إنشاء الرد الذكي المنظم."); }
+  try { output = parseLlmJson(result.choices[0]?.message.content); } catch { throw new Error("تعذر إنشاء الرد الذكي المنظم."); }
   const reply = cleanText(output.replies?.[0] || "", 4_000);
   if (!reply) throw new Error("لم ينتج المساعد رداً صالحاً.");
   return { reply, model: result.model };
@@ -625,9 +638,9 @@ export async function suggestInternalMailAssistant(input: { userId: number; mess
   const { db, profile } = await getMailActor(input.userId);
   const preferences = (await db.select({ replyTone: internalMailPreferences.assistantReplyTone }).from(internalMailPreferences).where(eq(internalMailPreferences.profileId, profile.id)).limit(1))[0];
   const tone = input.tone ?? preferences?.replyTone ?? "formal";
-  const result = await invokeLLM({ model: "gpt-5-mini", maxTokens: 1_400, messages: buildInternalMailAssistantMessages({ subject: detail.message.subject, body: source, mode: input.mode, tone }), response_format: { type: "json_schema", json_schema: { name: "internal_mail_assistant", strict: true, schema: { type: "object", properties: { replies: { type: "array", items: { type: "string" }, maxItems: 3 }, correctedText: { type: "string" }, notes: { type: "array", items: { type: "string" }, maxItems: 3 } }, required: ["replies", "correctedText", "notes"], additionalProperties: false } } } });
+  const result = await invokeLLM({ model: "gpt-5-mini", maxTokens: 1_400, messages: buildInternalMailAssistantMessages({ subject: detail.message.subject, body: source, mode: input.mode, tone }), response_format: { type: "json_object" } });
   let output: { replies: string[]; correctedText: string; notes: string[] };
-  try { output = JSON.parse(llmText(result.choices[0]?.message.content)); } catch { throw new Error("تعذر إنشاء اقتراحات منظمة حالياً."); }
+  try { output = parseLlmJson(result.choices[0]?.message.content); } catch { throw new Error("تعذر إنشاء اقتراحات منظمة حالياً."); }
   const safe = { replies: output.replies.map(item => cleanText(item, 4_000)).filter(Boolean).slice(0, 3), correctedText: cleanText(output.correctedText, 15_000), notes: output.notes.map(item => cleanText(item, 500)).filter(Boolean).slice(0, 3) };
   await logAudit({ actorUserId: input.userId, action: `internal_mail.ai_${input.mode}`, entityType: "internal_mail_message", entityId: input.messageId, metadata: { sourceCharacters: source.length, tone: input.mode === "reply" ? tone : undefined, model: result.model } });
   return safe;
