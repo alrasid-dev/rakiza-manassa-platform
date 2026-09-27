@@ -22,7 +22,7 @@ export const DASHBOARD_NAVIGATION_ITEMS = ["الرئيسية", "مهامي", "ا
 export type DashboardWidgetId = typeof DASHBOARD_WIDGETS[number]["id"];
 export type DashboardQuickActionId = typeof DASHBOARD_QUICK_ACTIONS[number]["id"];
 export type DashboardNavigationLabel = typeof DASHBOARD_NAVIGATION_ITEMS[number];
-export const DASHBOARD_HOME_CARD_IDS = ["home", "tasks-active", "tasks-due-soon", "tasks-overdue", "tasks-completed", "notifications", "chats", "mail", "report-upload", "guide", "personal-settings", "rotation", "hierarchy", "delays", "assistants", "announcements", "platform-settings"] as const;
+export const DASHBOARD_HOME_CARD_IDS = ["home", "tasks-active", "tasks-due-soon", "tasks-overdue", "tasks-completed", "tasks-open", "notifications", "chats", "mail", "report-upload", "guide", "personal-settings", "rotation", "hierarchy", "delays", "assistants", "announcements", "platform-settings"] as const;
 export type DashboardHomeCardId = typeof DASHBOARD_HOME_CARD_IDS[number];
 export type DashboardPreferenceState = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; quickActionOrder: DashboardQuickActionId[]; hiddenQuickActionIds: DashboardQuickActionId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[]; homeCardOrder: DashboardHomeCardId[]; hiddenHomeCardIds: DashboardHomeCardId[] };
 

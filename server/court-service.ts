@@ -1432,7 +1432,7 @@ export const DASHBOARD_NAVIGATION_LABELS = ["الرئيسية", "مهامي", "�
 /** إجراءات شريط العمل السريع العلوي: يبقى في الشريط ما اختاره المستخدم، وينتقل الباقي إلى القائمة الجانبية. */
 export const DASHBOARD_QUICK_ACTION_IDS = ["my-tasks", "notifications", "chats", "mail", "report-upload"] as const;
 /** بطاقات الشاشة الرئيسية: تُرتب وتُخفى عبر السحب والإفلات وتُحفظ في تفضيلات اللوحة. */
-export const DASHBOARD_HOME_CARD_IDS = ["home", "tasks-active", "tasks-due-soon", "tasks-overdue", "tasks-completed", "notifications", "chats", "mail", "report-upload", "guide", "personal-settings", "rotation", "hierarchy", "delays", "assistants", "announcements", "platform-settings"] as const;
+export const DASHBOARD_HOME_CARD_IDS = ["home", "tasks-active", "tasks-due-soon", "tasks-overdue", "tasks-completed", "tasks-open", "notifications", "chats", "mail", "report-upload", "guide", "personal-settings", "rotation", "hierarchy", "delays", "assistants", "announcements", "platform-settings"] as const;
 export type DashboardHomeCardId = typeof DASHBOARD_HOME_CARD_IDS[number];
 export type DashboardWidgetId = typeof DASHBOARD_WIDGET_IDS[number];
 export type DashboardQuickActionId = typeof DASHBOARD_QUICK_ACTION_IDS[number];

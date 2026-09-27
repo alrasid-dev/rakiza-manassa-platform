@@ -3,7 +3,7 @@ import { DASHBOARD_HOME_CARD_IDS, DashboardCustomizationDialog, defaultDashboard
 import GlobalSearchBar from "@/components/GlobalSearchBar";
 import { trpc } from "@/lib/trpc";
 import { readDashboardPreferencesLocal, writeDashboardPreferencesLocal } from "@/lib/dashboard-preferences-storage";
-import { AlertTriangle, BadgeHelp, BellRing, Bot, CheckCircle2, Clock3, Eye, EyeOff, FileUp, GripVertical, LayoutDashboard, ListChecks, Mail, Megaphone, MessageSquare, Network, Repeat, RotateCcw, Settings2, TrendingUp, UserCog } from "lucide-react";
+import { AlertTriangle, BadgeHelp, BellRing, Bot, CheckCircle2, Circle, Clock3, Eye, EyeOff, FileUp, GripVertical, LayoutDashboard, ListChecks, Mail, Megaphone, MessageSquare, Network, Repeat, RotateCcw, Settings2, TrendingUp, UserCog } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -54,7 +54,7 @@ export function teamStatusLabel(status?: TeamMember["status"]) {
 /** شريط مؤشر مدمج: عنصر صغير لا بطاقة، يعرض الرقم والوصف ويعيد التوجيه عند النقر. */
 function WidgetCard({ label, icon: Icon, tone, count, sub, pulse = false, onClick }: { label: string; icon: typeof ListChecks; tone: string; count?: number; sub?: string; pulse?: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br p-4 text-right text-white shadow-[0_14px_32px_rgba(20,40,32,0.16)] transition hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_20px_44px_rgba(20,40,32,0.26)] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${tone} ${pulse ? "animate-pulse" : ""}`}>
+    <button type="button" onClick={onClick} className={`group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br p-4 text-right text-white shadow-[0_14px_32px_rgba(20,40,32,0.16)] transition hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_20px_44px_rgba(20,40,32,0.26)] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${tone} ${pulse ? "animate-pulse" : ""}`}>
       {pulse && <span aria-hidden="true" className="absolute left-3 top-3 flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-white" /></span>}
       <span className="flex w-full items-center justify-between gap-2">
         <span className="grid h-11 w-11 place-items-center rounded-full bg-white/20 ring-1 ring-white/30 backdrop-blur-sm"><Icon className="h-5 w-5" strokeWidth={2.1} aria-hidden="true" /></span>
@@ -70,7 +70,7 @@ type HomeCardEntry = { id: DashboardHomeCardId; label: string; icon: typeof List
 
 function DraggableHomeCard({ card, isDragging, isDragOver, onActivate, onDragStart, onDragEnd, onDragOver, onDrop, onHide }: { card: HomeCardEntry; isDragging: boolean; isDragOver: boolean; onActivate: () => void; onDragStart: (event: React.DragEvent<HTMLDivElement>) => void; onDragEnd: () => void; onDragOver: (event: React.DragEvent<HTMLDivElement>) => void; onDrop: (event: React.DragEvent<HTMLDivElement>) => void; onHide: () => void }) {
   return (
-    <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop} className={`group relative cursor-grab transition ${isDragging ? "opacity-40" : ""} ${isDragOver ? "rounded-2xl ring-2 ring-[#78a886] ring-offset-2" : ""}`}>
+    <div draggable onDragStart={onDragStart} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop} className={`group relative cursor-pointer transition ${isDragging ? "opacity-40" : ""} ${isDragOver ? "rounded-2xl ring-2 ring-[#78a886] ring-offset-2" : ""}`}>
       <WidgetCard label={card.label} icon={card.icon} tone={card.tone} count={card.count} sub={card.sub} pulse={card.pulse} onClick={onActivate} />
       <button type="button" onClick={onHide} aria-label={`إخفاء ${card.label}`} title="إخفاء البطاقة" className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-lg bg-black/15 text-white/85 transition hover:bg-black/35 hover:text-white focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"><EyeOff className="h-3.5 w-3.5" /></button>
     </div>
@@ -113,6 +113,8 @@ export default function Home() {
   const profiles = Number(metrics.profiles ?? 0);
   const templates = Number(metrics.templates ?? 0);
   const dueTasks = Number(metrics.dueTasks ?? 0);
+  const tasksList = trpc.court.tasks.list.useQuery(undefined, { enabled: Boolean(permission.data) });
+  const openFlaggedTasks = (tasksList.data ?? []).filter(task => task.isOpen).length;
   const activeCount = openTasks + overdueTasks;
   const lateCount = overdueTasks + overdueDelays;
 
@@ -122,6 +124,7 @@ export default function Home() {
     { id: "tasks-due-soon", label: "قرب موعدها", icon: Clock3, tone: "from-[#b9871f] to-[#d9a437]", count: dueTasks, sub: "استحقاق خلال 24 ساعة", path: "/tasks?filter=due_soon", allowed: true },
     { id: "tasks-overdue", label: "متأخرة", icon: AlertTriangle, tone: "from-[#c22b2b] to-[#e0473e]", count: overdueTasks, sub: "تتطلب تدخلاً فورياً", pulse: overdueTasks > 0, path: "/tasks?filter=overdue", allowed: true },
     { id: "tasks-completed", label: "تمت المعالجة", icon: TrendingUp, tone: "from-[#2c8f4f] to-[#3fae63]", sub: "إنجازاتك المكتملة", path: "/tasks?filter=completed", allowed: true },
+    { id: "tasks-open", label: "مفتوحة", icon: Circle, tone: "from-[#2c5d77] to-[#3f7a99]", count: openFlaggedTasks, sub: "بدون تاريخ انتهاء", path: "/tasks?filter=open", allowed: true },
     { id: "notifications", label: "الإشعارات", icon: BellRing, tone: "from-[#1d6fa5] to-[#2c88c4]", count: unreadNotifications, sub: "مركز التنبيهات", path: "/notifications", allowed: true },
     { id: "chats", label: "الدردشات", icon: MessageSquare, tone: "from-[#0e7f8a] to-[#16a1ad]", count: chatUnreadCount, sub: "محادثات القسم والمهام", path: "/messages", allowed: true },
     { id: "mail", label: "بريد ركيزة", icon: Mail, tone: "from-[#4757a8] to-[#5d6fd6]", count: mailUnreadCount, sub: "المراسلات الداخلية", path: "/rakiza-mail", allowed: true },
@@ -169,9 +172,9 @@ export default function Home() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <GlobalSearchBar />
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6efe4] px-3 py-1.5 text-[11px] font-bold text-[#2d6b4f]"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />{activeCount > 0 ? `${activeCount} مهمة مفتوحة` : "لا مهام مفتوحة"}</span>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold ${lateCount > 0 ? "bg-[#f8e6e1] text-[#963e33]" : "bg-[#e6efe4] text-[#2d6b4f]"}`}><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />{lateCount > 0 ? `${lateCount} متأخر` : "لا متأخرات"}</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eaf4ff] px-3 py-1.5 text-[11px] font-bold text-[#26628d]"><BellRing className="h-3.5 w-3.5" aria-hidden="true" />{unreadNotifications > 0 ? `${formatUnreadBadgeCount(unreadNotifications)} تنبيه جديد` : "لا تنبيهات جديدة"}</span>
+          <button type="button" onClick={() => setLocation("/tasks?filter=active")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#e6efe4] px-3 py-1.5 text-[11px] font-bold text-[#2d6b4f] transition hover:opacity-80"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />{activeCount > 0 ? `${activeCount} مهمة نشطة` : "لا مهام نشطة"}</button>
+          <button type="button" onClick={() => setLocation("/tasks?filter=overdue")} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold transition hover:opacity-80 ${lateCount > 0 ? "bg-[#f8e6e1] text-[#963e33]" : "bg-[#e6efe4] text-[#2d6b4f]"}`}><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />{lateCount > 0 ? `${lateCount} متأخر` : "لا متأخرات"}</button>
+          <button type="button" onClick={() => setLocation("/notifications")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#eaf4ff] px-3 py-1.5 text-[11px] font-bold text-[#26628d] transition hover:opacity-80"><BellRing className="h-3.5 w-3.5" aria-hidden="true" />{unreadNotifications > 0 ? `${formatUnreadBadgeCount(unreadNotifications)} تنبيه جديد` : "لا تنبيهات جديدة"}</button>
         </div>
       </header>
 

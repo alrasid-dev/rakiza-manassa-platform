@@ -414,7 +414,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
                 <CourtEmblem className={`h-6 w-6 ${oliveIconMotionClass}`} />
               </div>
               <div className="min-w-0 leading-tight">
-                <p className="truncate text-sm font-black text-[#244637]">رَكيزة <span className="font-semibold text-[#527064]">· {currentProfile.data?.unitName || "المحكمة العمالية بالرياض"}</span></p>
+                <p className="truncate text-sm font-black text-[#244637]">رَكيزة <span className="font-semibold text-[#527064]">· {permission.data === "full_control" ? "مالك المنصة" : (currentProfile.data?.unitName || "المحكمة العمالية بالرياض")}</span></p>
                 <p className="mt-1 truncate text-xs font-semibold text-[#748078]">مساحة العمل الآمنة</p>
               </div>
             </div>
@@ -432,7 +432,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
               {toggleTheme && <button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? "التبديل إلى النمط الفاتح" : "التبديل إلى النمط الداكن"} title={theme === "dark" ? "النمط الفاتح" : "النمط الداكن"} aria-pressed={theme === "dark"} data-testid="theme-toggle" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-[#cfd7ca] bg-[#f1f3ed] text-[#2d6b4f] transition-colors hover:bg-[#e0ecdf] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]">{theme === "dark" ? <Sun className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" /> : <Moon className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" />}</button>}
               <div dir="rtl" className="flex min-w-0 items-center gap-2">
                 <div className="min-w-0 text-right">
-                  <p className="max-w-44 truncate text-xs font-bold text-[#284239]">{user?.name || "وضع المعاينة"}</p>
+                  <p className="max-w-44 truncate text-xs font-bold text-[#284239]">{permission.data === "full_control" ? "مالك المنصة" : (user?.name || "وضع المعاينة")}</p>
                   <p className="mt-0.5 max-w-44 truncate text-[11px] text-[#77867d]">{user?.email || "بيانات مصدر مستوردة · معاينة"}</p>
                   <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-[#718078]" title={formatLastSeen(currentProfile.data?.lastActiveAt)}>
                     <span className={`h-2 w-2 rounded-full ${displayedActivityState === "active" ? "bg-[#16834b]" : displayedActivityState === "chatting" ? "bg-[#b18448]" : "bg-[#b64d3d]"}`} aria-hidden="true" />
@@ -457,7 +457,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
             <div className="border-b border-white/10 pb-6 text-center">
               <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eff4ec] text-[#2d6b4f] shadow-[0_10px_30px_rgba(0,0,0,0.16)]"><CourtEmblem className={`h-9 w-9 ${oliveIconMotionClass}`} /></div>
               <p className="mt-3 text-xl font-black">لوحة القيادة</p>
-              <p className="mt-1 text-sm text-white/70">{currentProfile.data?.unitName || "وحدة شؤون الملازمين"}</p>
+              <p className="mt-1 text-sm text-white/70">{permission.data === "full_control" ? "مالك المنصة" : (currentProfile.data?.unitName || "وحدة شؤون الملازمين")}</p>
             </div>
             {dashboardCustomization && <div className="mt-5">{dashboardCustomization}</div>}
             <div className="mt-4 flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
