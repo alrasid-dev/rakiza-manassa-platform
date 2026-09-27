@@ -1810,7 +1810,7 @@ async function createTaskConversation(input: { db: any; taskId: number; title: s
   return conversationId;
 }
 
-export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string }) {
+export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; isOpen?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   if (input.assigneeProfileId) {
@@ -1819,7 +1819,11 @@ export async function createTask(input: { title: string; unitId?: number; assign
     if (blocked) throw new Error(blocked);
   }
   const { traineeCopyProfileId, ...taskInput } = input;
-  const result = await db.insert(tasks).values(taskInput);
+  const result = await db.insert(tasks).values({
+    ...taskInput,
+    isOpen: input.isOpen ?? false,
+    dueAt: input.isOpen ? new Date("2099-12-31T23:59:59Z") : input.dueAt,
+  });
   const id = Number(result[0].insertId);
   await createTaskConversation({ db, taskId: id, title: input.title, creatorUserId: input.assignedByUserId, assigneeProfileId: input.assigneeProfileId, watcherProfileId: input.watcherProfileId });
   for (const notification of taskAssignmentNotifications({ taskId: id, title: input.title, assigneeProfileId: input.assigneeProfileId, traineeCopyProfileId })) {
@@ -1865,12 +1869,12 @@ export async function createDepartmentTasks(input: { title: string; unitId: numb
   return { ids, count: ids.length };
 }
 
-export async function createSelfTask(input: { title: string; priority: "normal" | "high" | "critical"; taskType?: "permanent" | "urgent"; taskNotes?: string; scheduledFor: Date; dueAt: Date; profileId: number; actorUserId: number }) {
+export async function createSelfTask(input: { title: string; priority: "normal" | "high" | "critical"; taskType?: "permanent" | "urgent"; taskNotes?: string; scheduledFor: Date; dueAt: Date; profileId: number; actorUserId: number; isOpen?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const profile = (await db.select({ id: personProfiles.id, unitId: personProfiles.unitId, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
   if (!profile) throw new Error("ملف الموظف غير موجود.");
-  const taskId = await createTask({ title: input.title, unitId: profile.unitId ?? undefined, assigneeProfileId: profile.id, priority: input.priority, taskType: input.taskType, taskNotes: input.taskNotes, scheduledFor: input.scheduledFor, dueAt: input.dueAt, assignedByUserId: input.actorUserId });
+  const taskId = await createTask({ title: input.title, unitId: profile.unitId ?? undefined, assigneeProfileId: profile.id, priority: input.priority, taskType: input.taskType, taskNotes: input.taskNotes, scheduledFor: input.scheduledFor, dueAt: input.dueAt, assignedByUserId: input.actorUserId, isOpen: input.isOpen });
   if (profile.directManagerProfileId) {
     await db.insert(notifications).values({ profileId: profile.directManagerProfileId, category: "task_due", title: "مهمة ذاتية بانتظار المراجعة", body: `أنشأ موظف من قسمك مهمة ذاتية: ${input.title}. راجعها أو ارفعها للمسار التالي.`, dedupeKey: `self-task-review-${taskId}-${profile.directManagerProfileId}` });
   }
@@ -2038,6 +2042,76 @@ export async function updateTaskStatus(input: { taskId: number; status: "new" | 
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: input.note ?? `تم تغيير الحالة إلى ${input.status}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.status_updated_by_leadership", entityType: "task", entityId: input.taskId, metadata: { status: input.status } });
   return { success: true, status: input.status };
+}
+
+/**
+ * تعديل بيانات مهمة موجودة (الحقول المقدمة فقط دون لمس الباقي).
+ * يُنفَّذ التحقق من الصلاحيات في طبقة الراوتر (court.ts) قبل استدعاء هذه الدالة.
+ */
+export async function updateTask(input: {
+  taskId: number;
+  actorUserId: number;
+  title?: string;
+  taskNotes?: string | null;
+  priority?: "normal" | "high" | "critical";
+  taskType?: "permanent" | "urgent";
+  scheduledFor?: Date;
+  dueAt?: Date;
+  isOpen?: boolean;
+  assigneeProfileId?: number | null;
+  watcherProfileId?: number | null;
+  recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom";
+  recurrenceEndAt?: Date | null;
+  isConfidential?: boolean;
+  confidentialityExpiresAt?: Date | null;
+  unitId?: number | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new Error("المهمة المطلوبة غير موجودة.");
+
+  const patch: Partial<typeof tasks.$inferInsert> = {};
+  if (input.title !== undefined) patch.title = input.title.trim();
+  if (input.taskNotes !== undefined) patch.taskNotes = input.taskNotes?.trim() || null;
+  if (input.priority !== undefined) patch.priority = input.priority;
+  if (input.taskType !== undefined) patch.taskType = input.taskType;
+  if (input.scheduledFor !== undefined) patch.scheduledFor = input.scheduledFor;
+  if (input.dueAt !== undefined) patch.dueAt = input.dueAt;
+  if (input.isOpen !== undefined) patch.isOpen = input.isOpen;
+  if (input.assigneeProfileId !== undefined) patch.assigneeProfileId = input.assigneeProfileId;
+  if (input.watcherProfileId !== undefined) patch.watcherProfileId = input.watcherProfileId;
+  if (input.recurrence !== undefined) patch.recurrence = input.recurrence;
+  if (input.recurrenceEndAt !== undefined) patch.recurrenceEndAt = input.recurrenceEndAt;
+  if (input.isConfidential !== undefined) patch.isConfidential = input.isConfidential;
+  if (input.confidentialityExpiresAt !== undefined) patch.confidentialityExpiresAt = input.confidentialityExpiresAt;
+  if (input.unitId !== undefined) patch.unitId = input.unitId;
+
+  if (Object.keys(patch).length === 0) return task;
+
+  await db.update(tasks).set(patch).where(eq(tasks.id, input.taskId));
+  await logAudit({ actorUserId: input.actorUserId, action: "task.updated", entityType: "task", entityId: input.taskId, metadata: { fields: Object.keys(patch) } });
+
+  return getTaskById(input.taskId);
+}
+
+/**
+ * إلغاء مهمة مع حفظ سبب الإلغاء في عمود cancellationReason.
+ */
+export async function cancelTask(input: { taskId: number; actorUserId: number; cancellationReason: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new Error("المهمة المطلوبة غير موجودة.");
+  const reason = input.cancellationReason.trim();
+  if (!reason) throw new Error("يجب كتابة سبب إلغاء المهمة.");
+
+  await db.update(tasks).set({ status: "cancelled", cancellationReason: reason, completedAt: null }).where(eq(tasks.id, input.taskId));
+  await markTaskNotificationsRead(input.taskId);
+  await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: `تم إلغاء المهمة. السبب: ${reason}` });
+  await logAudit({ actorUserId: input.actorUserId, action: "task.cancelled", entityType: "task", entityId: input.taskId, metadata: { cancellationReason: reason } });
+
+  return getTaskById(input.taskId);
 }
 
 /** عند إغلاق المهمة (اكتمال أو إلغاء) تُقرأ تلقائياً إشعاراتها المرتبطة حتى لا يظل مؤشر التنبيهات يومض. */

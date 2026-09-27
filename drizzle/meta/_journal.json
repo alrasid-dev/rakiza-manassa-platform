@@ -568,6 +568,13 @@
       "when": 1789640407258,
       "tag": "0080_task_pins_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "5",
+      "when": 1790531973644,
+      "tag": "0081_colossal_steel_serpent",
+      "breakpoints": true
     }
   ]
 }

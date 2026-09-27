@@ -179,6 +179,8 @@ import {
   updateOperationalProfile,
   updateDashboardPreferences,
   updateTaskStatus,
+  updateTask,
+  cancelTask,
   requestOtpCode,
   verifyOtpCode,
   issueAuthActivationToken,
@@ -1124,13 +1126,13 @@ export const courtRouter = router({
       if (!allowed.some(target => target.profileId === input.targetProfileId)) throw new TRPCError({ code: "FORBIDDEN", message: "المستلم المحدد ليس ضمن تسلسل الإحالة المصرح." });
       return routeTaskToProfile({ ...input, actorUserId: ctx.user.id });
     }),
-    createSelf: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), taskNotes: z.string().trim().max(4000).optional(), scheduledFor: z.date(), dueAt: z.date() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
+    createSelf: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), taskNotes: z.string().trim().max(4000).optional(), scheduledFor: z.date(), dueAt: z.date(), isOpen: z.boolean().default(false) }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");
       const profile = await getProfileForUser(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف موظف لإنشاء مهمة ذاتية." });
       return createSelfTask({ ...input, profileId: profile.id, actorUserId: ctx.user.id });
     }),
-    create: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), traineeCopyProfileId: z.number().int().positive().optional(), watcherProfileId: z.number().int().positive().optional(), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), scheduledFor: z.date(), dueAt: z.date(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "custom"]).default("none"), recurrenceEndAt: z.date().optional(), isConfidential: z.boolean().default(false), confidentialityExpiresAt: z.date().optional(), taskNotes: z.string().trim().max(4000).optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(12_000_000) })).max(5).optional() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
+    create: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), traineeCopyProfileId: z.number().int().positive().optional(), watcherProfileId: z.number().int().positive().optional(), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), scheduledFor: z.date(), dueAt: z.date(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "custom"]).default("none"), recurrenceEndAt: z.date().optional(), isConfidential: z.boolean().default(false), confidentialityExpiresAt: z.date().optional(), taskNotes: z.string().trim().max(4000).optional(), isOpen: z.boolean().default(false), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(12_000_000) })).max(5).optional() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
       const roles = await requireOperationsManager(ctx.user);
       const isLeadership = roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
       let taskId: number;
@@ -1168,6 +1170,28 @@ export const courtRouter = router({
       const managedUnits = await managedUnitIdsForUser(ctx.user);
       if (!leadership && (!task.unitId || !managedUnits.includes(task.unitId))) throw new TRPCError({ code: "FORBIDDEN", message: "تعديل حالة المهمة محصور بالقيادة أو مدير القسم المسؤول." });
       return updateTaskStatus({ ...input, actorUserId: ctx.user.id });
+    }),
+    update: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), title: z.string().trim().min(3).max(2000).optional(), taskNotes: z.string().trim().max(4000).nullable().optional(), priority: z.enum(["normal", "high", "critical"]).optional(), taskType: z.enum(["permanent", "urgent"]).optional(), scheduledFor: z.date().optional(), dueAt: z.date().optional(), isOpen: z.boolean().optional(), assigneeProfileId: z.number().int().positive().nullable().optional(), watcherProfileId: z.number().int().positive().nullable().optional(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "custom"]).optional(), recurrenceEndAt: z.date().nullable().optional(), isConfidential: z.boolean().optional(), confidentialityExpiresAt: z.date().nullable().optional(), unitId: z.number().int().positive().nullable().optional() })).mutation(async ({ ctx, input }) => {
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
+      const permission = await permissionForUser(ctx.user);
+      const roles = await rolesForUser(ctx.user);
+      const profile = await getProfileForUser(ctx.user.id);
+      const canManage = permission === "full_control" || canManageOperations(roles);
+      const ownsTask = Boolean(profile && task.assigneeProfileId === profile.id) || task.assignedByUserId === ctx.user.id;
+      if (!canManage && !ownsTask) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بتعديل هذه المهمة." });
+      return updateTask({ ...input, actorUserId: ctx.user.id });
+    }),
+    cancel: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), cancellationReason: z.string().trim().min(3).max(2000) })).mutation(async ({ ctx, input }) => {
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
+      const permission = await permissionForUser(ctx.user);
+      const roles = await rolesForUser(ctx.user);
+      const profile = await getProfileForUser(ctx.user.id);
+      const canManage = permission === "full_control" || canManageOperations(roles);
+      const ownsTask = Boolean(profile && task.assigneeProfileId === profile.id) || task.assignedByUserId === ctx.user.id;
+      if (!canManage && !ownsTask) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بإلغاء هذه المهمة." });
+      return cancelTask({ taskId: input.taskId, actorUserId: ctx.user.id, cancellationReason: input.cancellationReason });
     }),
     acknowledge: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);

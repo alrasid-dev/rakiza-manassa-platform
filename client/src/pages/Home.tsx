@@ -10,11 +10,12 @@ import { useLocation } from "wouter";
 
 type Metrics = { scope?: "unit"; profiles?: number; templates?: number; openDelays?: number; overdueDelays?: number; dueTasks?: number; openTasks?: number; overdueTasks?: number; unreadNotifications?: number };
 type DashboardTaskFilter = "all" | "overdue" | "due_soon" | "completed";
-type DashboardTask = { id: number; title: string; status: string; priority?: "normal" | "high" | "critical"; dueAt: Date | string | number; scheduledAt?: Date | string | number | null; scheduledFor?: Date | string | number | null; assigneeProfileId?: number | null; unitName?: string | null; description?: string | null };
+type DashboardTask = { id: number; title: string; status: string; priority?: "normal" | "high" | "critical"; dueAt: Date | string | number; scheduledAt?: Date | string | number | null; scheduledFor?: Date | string | number | null; assigneeProfileId?: number | null; unitName?: string | null; isOpen?: boolean; description?: string | null };
 type TeamMember = { id: number; fullName: string; jobTitle?: string | null; unitName?: string | null; status?: "active" | "on_leave" | "inactive" | "pending_review" };
 
-export function dashboardTaskVisualState(task: DashboardTask, now = Date.now()): "completed" | "overdue" | "due_soon" | "normal" {
+export function dashboardTaskVisualState(task: DashboardTask, now = Date.now()): "completed" | "overdue" | "due_soon" | "normal" | "open" {
   if (task.status === "completed") return "completed";
+  if (task.isOpen) return "open";
   const dueAt = new Date(task.dueAt).getTime();
   if (task.status === "overdue" || dueAt <= now) return "overdue";
   if (dueAt - now <= 24 * 60 * 60 * 1000) return "due_soon";
@@ -29,7 +30,7 @@ export function dashboardPriorityBadge(priority: DashboardTask["priority"] = "no
 }
 export function dashboardDeadlineBadge(task: DashboardTask, now = Date.now()) {
   const visual = dashboardTaskVisualState(task, now);
-  return visual === "overdue" ? { label: "متأخرة", className: "bg-[#f8e6e1] text-[#a8493b]" } : visual === "due_soon" ? { label: "قريبة الموعد", className: "bg-[#f5edd8] text-[#80642b]" } : visual === "completed" ? { label: "مكتملة", className: "bg-[#e4f0e4] text-[#2d684a]" } : { label: "ضمن المسار", className: "bg-[#e4eee5] text-[#35634c]" };
+  return visual === "overdue" ? { label: "متأخرة", className: "bg-[#f8e6e1] text-[#a8493b]" } : visual === "due_soon" ? { label: "قريبة الموعد", className: "bg-[#f5edd8] text-[#80642b]" } : visual === "completed" ? { label: "مكتملة", className: "bg-[#e4f0e4] text-[#2d684a]" } : visual === "open" ? { label: "مفتوحة", className: "bg-[#e3eef5] text-[#2c5d77]" } : { label: "ضمن المسار", className: "bg-[#e4eee5] text-[#35634c]" };
 }
 export function newlyCompletedDashboardTaskIds(tasks: DashboardTask[], previousStatuses: Map<number, string>) {
   return tasks.filter(task => task.status === "completed" && previousStatuses.has(task.id) && previousStatuses.get(task.id) !== "completed").map(task => task.id);

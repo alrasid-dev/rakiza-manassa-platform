@@ -151,3 +151,6 @@ t.mjs
 t-out.txt
 verify-*.txt
 vitest-*.json
+
+# Backup files - تحتوي على بيانات حساسة
+backups/
