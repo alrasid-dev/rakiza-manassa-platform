@@ -1122,7 +1122,9 @@ export const courtRouter = router({
       if (permission !== "full_control" && !roles.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager"].includes(role))) {
         throw new TRPCError({ code: "FORBIDDEN", message: "اقتراح المكلفين متاح للمدير والقيادة فقط." });
       }
-      return suggestTaskAssignees(input.unitId, { dueAt: input.dueAt });
+      const isLeadership = permission === "full_control" || roles.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+      const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+      return suggestTaskAssignees(input.unitId, { dueAt: input.dueAt, actorPermission: permission, actorManagedUnitIds: managedUnitIds });
     }),
     autoAssign: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
@@ -1130,7 +1132,9 @@ export const courtRouter = router({
       if (permission !== "full_control" && !roles.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager"].includes(role))) {
         throw new TRPCError({ code: "FORBIDDEN", message: "التوزيع التلقائي متاح للمدير والقيادة فقط." });
       }
-      return autoAssignTasks({ unitId: input.unitId, actorUserId: ctx.user.id });
+      const isLeadership = permission === "full_control" || roles.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+      const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+      return autoAssignTasks({ unitId: input.unitId, actorUserId: ctx.user.id, actorPermission: permission, actorManagedUnitIds: managedUnitIds });
     }),
     route: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), targetProfileId: z.number().int().positive(), note: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");

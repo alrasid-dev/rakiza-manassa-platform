@@ -1855,8 +1855,16 @@ export function taskWorkloadWeight(status: string, startedAt?: Date | string | n
   }
 }
 
+/** يتحقق أن القسم المطلوب ضمن نطاق توزيع المستخدم (المالك/القيادة بلا قيد، والمدير ضمن أقسامه فقط). */
+function assertUnitDistributionScope(unitId: number, actorPermission?: AppPermission | null, actorManagedUnitIds?: number[] | null) {
+  if (actorPermission === "full_control") return;
+  if (actorManagedUnitIds == null) return;
+  if (!actorManagedUnitIds.includes(unitId)) throw new Error("هذا القسم خارج نطاق صلاحيتك للتوزيع.");
+}
+
 /** يقترح مرشحي قسم معيّن لإسناد مهمة، مرتبين من الأقل عبئًا فالأعلى نقاطًا فالأقدم توظيفًا. */
-export async function suggestTaskAssignees(unitId: number, options?: { dueAt?: Date }) {
+export async function suggestTaskAssignees(unitId: number, options?: { dueAt?: Date; actorPermission?: AppPermission; actorManagedUnitIds?: number[] | null }) {
+  assertUnitDistributionScope(unitId, options?.actorPermission, options?.actorManagedUnitIds);
   const db = await getDb();
   if (!db) return [];
   const now = new Date();
@@ -1924,12 +1932,22 @@ export async function suggestTaskAssignees(unitId: number, options?: { dueAt?: D
     }));
 }
 
-/** يوزّع المهام غير المسندة تلقائيًا على أنسب مرشح في كل قسم. */
-export async function autoAssignTasks(input: { unitId?: number; actorUserId: number }) {
+/** يوزّع المهام غير المسندة تلقائيًا على أنسب مرشح في كل قسم، ضمن نطاق صلاحية الفاعل. */
+export async function autoAssignTasks(input: { unitId?: number; actorUserId: number; actorPermission?: AppPermission; actorManagedUnitIds?: number[] | null }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
+
+  if (input.unitId) assertUnitDistributionScope(input.unitId, input.actorPermission, input.actorManagedUnitIds);
+
+  const restricted = input.actorPermission != null && input.actorPermission !== "full_control" && input.actorManagedUnitIds != null;
   const conditions = [isNull(tasks.assigneeProfileId), isNull(tasks.archivedAt)];
-  if (input.unitId) conditions.push(eq(tasks.unitId, input.unitId));
+  if (input.unitId) {
+    conditions.push(eq(tasks.unitId, input.unitId));
+  } else if (restricted) {
+    const managed = input.actorManagedUnitIds!;
+    if (!managed.length) return { assigned: 0, skipped: 0, details: [] };
+    conditions.push(inArray(tasks.unitId, managed));
+  }
   const unassigned = await db.select().from(tasks).where(and(...conditions));
 
   const details: Array<{ taskId: number; title: string; assigneeProfileId: number | null }> = [];
