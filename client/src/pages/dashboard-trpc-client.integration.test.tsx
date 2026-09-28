@@ -43,7 +43,7 @@ describe("تدفق الجلسة والصفحات التشغيلية عبر عم�
     // مهلة صريحة: هذا الاختبار يركّب تخطيط التطبيق الحقيقي مع عميل tRPC فعلي،
     // ويشتد الحمل عليه عند تشغيله مع بقية الحزمة بالتوازي فيتأخر ظهور الجدول.
     await waitFor(() => expect(screen.getByText("موظف من خدمة tRPC")).toBeTruthy(), { timeout: 15_000 });
-    expect(screen.getByText("رئيس المحكمة")).toBeTruthy();
+    expect(screen.getAllByText("مالك المنصة").length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("auth.me"))).toBe(true);
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes("court.people.list"))).toBe(true);
   });
