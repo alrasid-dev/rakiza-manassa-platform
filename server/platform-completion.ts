@@ -198,6 +198,7 @@ export function buildOwnerKpis(input: {
   pressure: Array<{ unitName: string; pressureScore: number; pressureLevel: string }>;
   accountabilityCount: number;
   averageCompletionHours: number | null;
+  employees?: Array<{ profileId: number; fullName: string; points: number; complianceRate: number | null }>;
 }) {
   const completion = input.units.length ? Math.round(input.units.reduce((sum, unit) => sum + unit.completionRate, 0) / input.units.length) : 0;
   const highPressure = input.pressure.filter(unit => unit.pressureLevel === "high").map(unit => unit.unitName);
@@ -207,12 +208,16 @@ export function buildOwnerKpis(input: {
     to: lowPressure[index] || "قسم أقل ضغطاً",
     reason: `ضغط مرتفع في ${from} مع سعة ظاهرة في الجهة المقترحة. أي تدوير يحتاج اعتماد الرئيس أو الأمين.`,
   }));
+  const ranking = [...(input.employees ?? [])].sort((a, b) => b.points - a.points || a.profileId - b.profileId);
   return {
     departmentCompletionRate: completion,
     highPressureDepartments: highPressure,
     accountabilityCount: input.accountabilityCount,
     averageCompletionHours: input.averageCompletionHours,
     rotationSuggestions,
+    employeeRanking: ranking,
+    topPerformers: ranking.slice(0, 5),
+    lowPerformers: ranking.slice(-5).reverse(),
   };
 }
 

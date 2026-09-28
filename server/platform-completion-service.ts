@@ -14,6 +14,8 @@ import {
   tasks,
   users,
   userWorkPreferences,
+  attendanceRecords,
+  scoreEvents,
   type CourtRole,
 } from "../drizzle/schema";
 import { getDb } from "./db";
@@ -31,6 +33,7 @@ import {
   type WorkMode,
 } from "./platform-completion";
 import { reportStart } from "./reporting";
+import { calculateComplianceRate } from "./attendance-confirmation-policy";
 import { deadlineNudgeKind } from "./platform-completion";
 import { webauthnCredentials } from "../drizzle/schema";
 
@@ -194,21 +197,39 @@ export async function globalSearch(input: { query: string; userId: number; limit
 export async function getOwnerLeadershipKpis() {
   const db = await getDb();
   const period = { startAt: reportStart("monthly", new Date()), endAt: new Date() };
-  const [units, observatory, delays, completed] = await Promise.all([
+  const [units, observatory, delays, completed, profiles, scores, attendance] = await Promise.all([
     getDepartmentPerformance({ startAt: period.startAt, endAt: period.endAt }),
     getLeadershipWorkloadObservatory(),
     db ? db.select({ id: delayRecords.id }).from(delayRecords).where(inArray(delayRecords.status, ["overdue", "under_follow_up"])) : Promise.resolve([]),
     db ? db.select({ createdAt: tasks.createdAt, dueAt: tasks.dueAt, updatedAt: tasks.updatedAt }).from(tasks).where(eq(tasks.status, "completed")).limit(400) : Promise.resolve([]),
+    db ? db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(and(eq(personProfiles.personType, "administrative"), eq(personProfiles.status, "active"))) : Promise.resolve([]),
+    db ? db.select({ profileId: scoreEvents.profileId, points: scoreEvents.points }).from(scoreEvents) : Promise.resolve([]),
+    db ? db.select({ profileId: attendanceRecords.profileId, status: attendanceRecords.status }).from(attendanceRecords).where(gte(attendanceRecords.recordDate, period.startAt)) : Promise.resolve([]),
   ]);
   const completionHours = completed
     .map(task => (new Date(task.updatedAt).getTime() - new Date(task.createdAt).getTime()) / 36e5)
     .filter(hours => hours > 0 && hours < 24 * 30);
   const averageCompletionHours = completionHours.length ? Math.round((completionHours.reduce((sum, hours) => sum + hours, 0) / completionHours.length) * 10) / 10 : null;
+
+  const pointsByProfile = new Map<number, number>();
+  for (const score of scores) pointsByProfile.set(score.profileId, (pointsByProfile.get(score.profileId) ?? 0) + score.points);
+  const confirmedByProfile = new Map<number, number>();
+  for (const record of attendance) {
+    if (record.status === "present" || record.status === "late") confirmedByProfile.set(record.profileId, (confirmedByProfile.get(record.profileId) ?? 0) + 1);
+  }
+  const employees = profiles.map(profile => ({
+    profileId: profile.id,
+    fullName: profile.fullName,
+    points: pointsByProfile.get(profile.id) ?? 0,
+    complianceRate: calculateComplianceRate(confirmedByProfile.get(profile.id) ?? 0, 30),
+  }));
+
   return buildOwnerKpis({
     units,
     pressure: observatory.units.map(unit => ({ unitName: unit.unitName, pressureScore: unit.pressureScore, pressureLevel: unit.pressureLevel })),
     accountabilityCount: delays.length,
     averageCompletionHours,
+    employees,
   });
 }
 
