@@ -21,9 +21,9 @@ export default function StatusWorkspaceContent() {
   const attendance = trpc.court.attendance.list.useQuery();
   const canManageAttendancePolicy = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "court_secretary" || role === "human_resources_manager"));
   const attendancePolicy = trpc.court.attendance.confirmationConfig.useQuery(undefined, { enabled: canManageAttendancePolicy });
-  const selfAttendanceProfile = trpc.court.attendance.self.useQuery();
+  const selfAttendanceProfile = trpc.court.attendance.self.useQuery(undefined, { enabled: permission.data === "employee" || permission.data === "trainee" });
   const selfAttendanceWindowProcedure = (trpc.court.attendance as any).currentWindow;
-  const selfAttendanceWindow = selfAttendanceWindowProcedure?.useQuery ? selfAttendanceWindowProcedure.useQuery() : { data: { kind: "none" as const, shiftName: null } };
+  const selfAttendanceWindow = selfAttendanceWindowProcedure?.useQuery ? selfAttendanceWindowProcedure.useQuery(undefined, { enabled: permission.data === "employee" || permission.data === "trainee" }) : { data: { kind: "none" as const, shiftName: null } };
   const serverClock = trpc.court.attendance.serverClock.useQuery(undefined, { refetchOnWindowFocus: true, staleTime: 30_000 });
   const achievements = trpc.court.achievements.mine.useQuery(undefined, { enabled: permission.data === "employee" || permission.data === "trainee" });
   const disciplinary = trpc.court.disciplinary.mine.useQuery(undefined, { enabled: permission.data === "employee" || permission.data === "trainee" });
