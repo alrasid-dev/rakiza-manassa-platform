@@ -1087,6 +1087,17 @@ export const courtRouter = router({
     }),
   }),
 
+  formations: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      await requirePlatformView(ctx.user);
+      return listJudgesWithTraineeCounts();
+    }),
+    trainees: protectedProcedure.input(z.object({ judgeProfileId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      await requirePlatformView(ctx.user);
+      return listTraineesForJudge(input.judgeProfileId);
+    }),
+  }),
+
   tasks: router({
     archiveOperational: protectedProcedure.mutation(async ({ ctx }) => {
       await requireOperationsManager(ctx.user);

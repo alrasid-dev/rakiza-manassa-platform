@@ -17,7 +17,7 @@ import { MeetingsPage } from "./pages/MeetingsPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { GovernanceArchivePage } from "./pages/GovernanceArchivePage";
 import { ReportUploadPage } from "./pages/ReportUploadPage";
-import { ActivityLogPage, ApprovalsPage, DelaysPage, HierarchyAdminPage, ImportsPage, PersonnelAdminPage, ReportsDashboardPage, StatusAndLeavePage, TasksPage, TraineeManagementPage } from "./pages/FunctionalPages";
+import { ActivityLogPage, ApprovalsPage, DelaysPage, FormationsPage, HierarchyAdminPage, ImportsPage, PersonnelAdminPage, ReportsDashboardPage, StatusAndLeavePage, TasksPage, TraineeManagementPage } from "./pages/FunctionalPages";
 import DelegationPage from "./pages/DelegationPage";
 import OwnerKpiPage from "./pages/OwnerKpiPage";
 import RotationPage from "./pages/RotationPage";
@@ -86,6 +86,7 @@ function Router() {
       <Route path="/personnel" component={() => <Redirect to="/people" />} />
       <Route path="/trainees" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : TraineeManagementPage} />
       <Route path="/judges" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : JudgesPage} />
+      <Route path="/formations" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : FormationsPage} />
       <Route path="/delays" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="delays" /> : DelaysPage} />
       <Route path="/decisions" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="decisions" /> : DecisionsPage} />
       <Route path="/meetings" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="meetings" /> : MeetingsPage} />
