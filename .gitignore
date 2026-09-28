@@ -154,3 +154,6 @@ vitest-*.json
 
 # Backup files - تحتوي على بيانات حساسة
 backups/
+
+# Excel imports - تحتوي بيانات حساسة
+excel_imports/
