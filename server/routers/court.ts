@@ -1584,18 +1584,21 @@ export const courtRouter = router({
       return reviewPerformanceReportEvaluation({ ...input, reviewerUserId: ctx.user.id });
     }),
     upload: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), originalName: z.string().trim().min(5).max(255), mimeType: z.enum(["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/zip"]), contentBase64: z.string().min(20).max(11_200_000), reportPeriod: z.enum(["daily", "weekly", "monthly"]).default("monthly"), unitId: z.number().int().positive().optional(), profileId: z.number().int().positive().optional(), linkedTaskId: z.number().int().positive().optional(), createTasksForTargetUnit: z.boolean().optional() })).mutation(async ({ ctx, input }) => {
-      await requirePermission(ctx.user, "edit");
+      const permission = await requirePermission(ctx.user, "edit");
       const ownProfile = await getProfileForUser(ctx.user.id);
       if (!ownProfile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف شخصي لرفع تقرير إنجاز." });
       const roles = await rolesForUser(ctx.user);
       const isPerformanceMonitor = roles.includes("performance_monitor");
+      // المالك والأمين ومساعد الرئيس ورئيس المحكمة يرفعون لأي قسم، وكذلك مراقبة الأداء.
+      const hasLeadershipScope = await hasLeadershipPlatformScope(ctx.user, permission);
+      const canUploadAnywhere = hasLeadershipScope || isPerformanceMonitor;
       const managedUnitIds = await managedUnitIdsForUser(ctx.user);
       const targetProfile = input.profileId ? await getProfileById(input.profileId) : ownProfile;
       if (!targetProfile) throw new TRPCError({ code: "NOT_FOUND", message: "ملف الموظف المحدد غير موجود." });
       const targetUnitId = input.unitId ?? targetProfile.unitId ?? ownProfile.unitId ?? undefined;
-      if (!isPerformanceMonitor && targetProfile.id !== ownProfile.id && !managedUnitIds.includes(targetProfile.unitId ?? -1)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك رفع تقرير باسم ملف خارج نطاقك." });
-      if (!isPerformanceMonitor && managedUnitIds.length && (!targetUnitId || !managedUnitIds.includes(targetUnitId))) throw new TRPCError({ code: "FORBIDDEN", message: "يجب أن يرتبط تقرير مدير القسم بوحدة مفوضة له." });
-      if (!isPerformanceMonitor && !managedUnitIds.length && targetUnitId !== ownProfile.unitId) throw new TRPCError({ code: "FORBIDDEN", message: "يمكنك رفع تقرير مرتبط بوحدتك فقط." });
+      if (!canUploadAnywhere && targetProfile.id !== ownProfile.id && !managedUnitIds.includes(targetProfile.unitId ?? -1)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك رفع تقرير باسم ملف خارج نطاقك." });
+      if (!canUploadAnywhere && managedUnitIds.length && (!targetUnitId || !managedUnitIds.includes(targetUnitId))) throw new TRPCError({ code: "FORBIDDEN", message: "يجب أن يرتبط تقرير مدير القسم بوحدة مفوضة له." });
+      if (!canUploadAnywhere && !managedUnitIds.length && targetUnitId !== ownProfile.unitId) throw new TRPCError({ code: "FORBIDDEN", message: "يمكنك رفع تقرير مرتبط بوحدتك فقط." });
       if (input.createTasksForTargetUnit && !isPerformanceMonitor) throw new TRPCError({ code: "FORBIDDEN", message: "تحويل التقرير إلى مهام موزعة محصور بصلاحية مراقبة الأداء." });
       if (input.createTasksForTargetUnit && !targetUnitId) throw new TRPCError({ code: "BAD_REQUEST", message: "اختر القسم المستهدف قبل إنشاء المهام من تقرير مراقبة الأداء." });
       return createOperationalReport({ ...input, profileId: targetProfile.id, unitId: targetUnitId, actorUserId: ctx.user.id });

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   roles: ["performance_monitor"] as string[],
+  permission: "employee" as string,
   createOperationalReport: vi.fn(async () => ({ documentId: 21, taskId: 22, summary: "ملخص", distribution: { candidateCount: 2, createdTasks: 2, unassignedTasks: 0, availableStaffCount: 2, excludedOnLeaveCount: 1 } })),
 }));
 
@@ -9,7 +10,7 @@ vi.mock("./court-service", async importOriginal => {
   const actual = await importOriginal<typeof import("./court-service")>();
   return {
     ...actual,
-    getAccessPermission: vi.fn(async () => "employee"),
+    getAccessPermission: vi.fn(async () => mocks.permission),
     getEffectiveRoles: vi.fn(async () => mocks.roles),
     getActiveCourtRoleAssignments: vi.fn(async () => []),
     getProfileForUser: vi.fn(async () => ({ id: 9, fullName: "مراقب الأداء", unitId: 90023, personType: "administrative" })),
@@ -38,5 +39,12 @@ describe("court.reports.upload لمراقبة الأداء", () => {
     mocks.roles = ["performance_monitor"];
     await expect(caller().reports.upload({ ...input, originalName: "مرفقات-الأسبوع.zip", mimeType: "application/zip", createTasksForTargetUnit: false })).resolves.toMatchObject({ documentId: 21 });
     expect(mocks.createOperationalReport).toHaveBeenCalledWith(expect.objectContaining({ mimeType: "application/zip", createTasksForTargetUnit: false }));
+  });
+
+  it("يسمح للمالك (full_control) برفع تقرير لأي قسم خارج وحدته", async () => {
+    mocks.permission = "full_control";
+    mocks.roles = [];
+    await expect(caller().reports.upload({ ...input, createTasksForTargetUnit: false })).resolves.toMatchObject({ documentId: 21 });
+    expect(mocks.createOperationalReport).toHaveBeenCalledWith(expect.objectContaining({ profileId: 9, unitId: 90028, actorUserId: 7 }));
   });
 });
