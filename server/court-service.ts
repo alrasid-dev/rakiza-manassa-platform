@@ -3051,14 +3051,38 @@ export async function reviewRegistrationRequest(input: { requestId: number; deci
   if (input.decision === "approved" && !input.permission) throw new Error("تحديد الصلاحية مطلوب عند قبول الطلب.");
   await db.update(registrationRequests).set({ status: input.decision, reviewNote: input.note ?? null, reviewedByUserId: input.reviewedByUserId, reviewedAt: new Date() }).where(eq(registrationRequests.id, input.requestId));
   if (input.decision === "approved" && input.permission) {
+    const email = request.officialEmail;
+    const openId = `seed:${email}`;
+
+    let userId = (await db.select({ id: users.id }).from(users).where(eq(users.openId, openId)).limit(1))[0]?.id;
+    if (!userId) {
+      const userResult = await db.insert(users).values({ openId, email, name: request.fullName, loginMethod: "seed", role: "user" });
+      userId = Number(userResult[0].insertId);
+    }
+
+    let profileId = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.email, email)).limit(1))[0]?.id;
+    if (!profileId) {
+      const profileResult = await db.insert(personProfiles).values({ userId, fullName: request.fullName, email, personType: "administrative", status: "active", activityState: "active", sourceReference: `registration:${request.id}` });
+      profileId = Number(profileResult[0].insertId);
+    }
+
     await db.insert(accessGrants).values({
       registrationRequestId: request.id,
+      userId,
       fullName: request.fullName,
       officialEmail: request.officialEmail,
       notificationEmail: request.notificationEmail,
       permission: input.permission,
       grantedByUserId: input.reviewedByUserId,
     }).onDuplicateKeyUpdate({ set: { permission: input.permission, isActive: true, grantedByUserId: input.reviewedByUserId, updatedAt: new Date() } });
+
+    await db.insert(notifications).values({ profileId, category: "access_request", title: "مرحباً بك في منصة ركيزة", body: "تم تفعيل حسابك، ويمكنك تسجيل الدخول ببريدك الرسمي.", dedupeKey: `welcome-${request.id}` }).onDuplicateKeyUpdate({ set: { title: "مرحباً بك في منصة ركيزة" } });
+
+    try {
+      await sendBrevoTransactionalEmail({ to: request.notificationEmail, recipientName: request.fullName, subject: "مرحباً بك في منصة ركيزة", textContent: "مرحباً بك في منصة ركيزة. تم تفعيل حسابك ويمكنك تسجيل الدخول ببريدك الرسمي." });
+    } catch (error) {
+      console.warn("[Email] فشل إرسال بريد الترحيب دون تعطيل الاعتماد", { error });
+    }
   }
   await logAudit({ actorUserId: input.reviewedByUserId, action: `registration.${input.decision}`, entityType: "registration_request", entityId: input.requestId, metadata: { permission: input.permission ?? null } });
 }
