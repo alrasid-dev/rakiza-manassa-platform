@@ -133,6 +133,8 @@ import {
   restoreArchivedOperationalWork,
   listTasksForProfile,
   listTasksForUnits,
+  suggestTaskAssignees,
+  autoAssignTasks,
   listTaskTemplatesForUnit,
   listTraineeAttendance,
   listTraineeDelays,
@@ -1113,6 +1115,22 @@ export const courtRouter = router({
       const managedUnits = await managedUnitIdsForUser(ctx.user);
       const leadership = await hasLeadershipPlatformScope(ctx.user, permission);
       return leadership ? targets : targets.filter(target => target.role !== "department_manager" || (target.unitId !== null && managedUnits.includes(target.unitId)));
+    }),
+    suggestAssignees: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), dueAt: z.date().optional() })).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      const roles = await rolesForUser(ctx.user);
+      if (permission !== "full_control" && !roles.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager"].includes(role))) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "اقتراح المكلفين متاح للمدير والقيادة فقط." });
+      }
+      return suggestTaskAssignees(input.unitId, { dueAt: input.dueAt });
+    }),
+    autoAssign: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional() })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      const roles = await rolesForUser(ctx.user);
+      if (permission !== "full_control" && !roles.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager"].includes(role))) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "التوزيع التلقائي متاح للمدير والقيادة فقط." });
+      }
+      return autoAssignTasks({ unitId: input.unitId, actorUserId: ctx.user.id });
     }),
     route: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), targetProfileId: z.number().int().positive(), note: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");

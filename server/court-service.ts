@@ -1844,6 +1844,128 @@ export async function createTask(input: { title: string; unitId?: number; assign
   return id;
 }
 
+/** وزن عبء مهمة واحدة عند حساب توزيع العمل؛ المتأخرة أعلى وزنًا. */
+export function taskWorkloadWeight(status: string, startedAt?: Date | string | number | null): number {
+  switch (status) {
+    case "completed":
+    case "cancelled": return 0;
+    case "under_review": return 0.5;
+    case "overdue": return 1.5;
+    default: return 1; // new + in_progress
+  }
+}
+
+/** يقترح مرشحي قسم معيّن لإسناد مهمة، مرتبين من الأقل عبئًا فالأعلى نقاطًا فالأقدم توظيفًا. */
+export async function suggestTaskAssignees(unitId: number, options?: { dueAt?: Date }) {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  const dayRange = dateRangeForSaudiDay(now);
+
+  const profiles = await db.select({ id: personProfiles.id, fullName: personProfiles.fullName, createdAt: personProfiles.createdAt })
+    .from(personProfiles)
+    .where(and(eq(personProfiles.unitId, unitId), eq(personProfiles.personType, "administrative"), eq(personProfiles.status, "active")));
+  if (!profiles.length) return [];
+  const ids = profiles.map(p => p.id);
+
+  const absentRows = await db.select({ profileId: attendanceRecords.profileId })
+    .from(attendanceRecords)
+    .where(and(inArray(attendanceRecords.profileId, ids), eq(attendanceRecords.status, "absent"), gte(attendanceRecords.recordDate, dayRange.start), lt(attendanceRecords.recordDate, dayRange.end)));
+  const absentIds = new Set(absentRows.map(r => r.profileId));
+
+  const checkAt = options?.dueAt ?? now;
+  const leaveRows = await db.select({ profileId: leaveRequests.profileId })
+    .from(leaveRequests)
+    .where(and(inArray(leaveRequests.profileId, ids), inArray(leaveRequests.status, ["approved", "active"]), lte(leaveRequests.startAt, checkAt), gte(leaveRequests.endAt, checkAt)));
+  const leaveIds = new Set(leaveRows.map(r => r.profileId));
+
+  const available = profiles.filter(p => !absentIds.has(p.id) && !leaveIds.has(p.id));
+  if (!available.length) return [];
+  const availableIds = available.map(p => p.id);
+
+  const taskRows = await db.select({ assigneeProfileId: tasks.assigneeProfileId, status: tasks.status, startedAt: tasks.startedAt })
+    .from(tasks)
+    .where(and(inArray(tasks.assigneeProfileId, availableIds), isNull(tasks.archivedAt)));
+
+  const scoreRows = await db.select({ profileId: scoreEvents.profileId, points: scoreEvents.points })
+    .from(scoreEvents)
+    .where(inArray(scoreEvents.profileId, availableIds));
+
+  const workload = new Map<number, number>();
+  const activeCount = new Map<number, number>();
+  const reviewCount = new Map<number, number>();
+  const points = new Map<number, number>();
+  for (const t of taskRows) {
+    if (t.assigneeProfileId == null) continue;
+    const id = t.assigneeProfileId;
+    workload.set(id, (workload.get(id) ?? 0) + taskWorkloadWeight(t.status, t.startedAt));
+    if (t.status === "under_review") reviewCount.set(id, (reviewCount.get(id) ?? 0) + 1);
+    else if (t.status !== "completed" && t.status !== "cancelled") activeCount.set(id, (activeCount.get(id) ?? 0) + 1);
+  }
+  for (const s of scoreRows) points.set(s.profileId, (points.get(s.profileId) ?? 0) + s.points);
+
+  return available
+    .map(p => ({
+      p,
+      workload: workload.get(p.id) ?? 0,
+      activeTaskCount: activeCount.get(p.id) ?? 0,
+      underReviewCount: reviewCount.get(p.id) ?? 0,
+      totalPoints: points.get(p.id) ?? 0,
+    }))
+    .sort((a, b) => a.workload - b.workload || b.totalPoints - a.totalPoints || new Date(a.p.createdAt).getTime() - new Date(b.p.createdAt).getTime())
+    .map(({ p, workload: w, activeTaskCount: atc, underReviewCount: urc, totalPoints: tp }) => ({
+      profileId: p.id,
+      fullName: p.fullName,
+      workload: w,
+      activeTaskCount: atc,
+      underReviewCount: urc,
+      totalPoints: tp,
+      isAvailable: true as const,
+    }));
+}
+
+/** يوزّع المهام غير المسندة تلقائيًا على أنسب مرشح في كل قسم. */
+export async function autoAssignTasks(input: { unitId?: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const conditions = [isNull(tasks.assigneeProfileId), isNull(tasks.archivedAt)];
+  if (input.unitId) conditions.push(eq(tasks.unitId, input.unitId));
+  const unassigned = await db.select().from(tasks).where(and(...conditions));
+
+  const details: Array<{ taskId: number; title: string; assigneeProfileId: number | null }> = [];
+  let assigned = 0;
+  let skipped = 0;
+
+  for (const task of unassigned) {
+    if (!task.unitId) {
+      skipped += 1;
+      details.push({ taskId: task.id, title: task.title, assigneeProfileId: null });
+      continue;
+    }
+    const candidates = await suggestTaskAssignees(task.unitId, { dueAt: task.dueAt });
+    const best = candidates[0];
+    if (!best) {
+      skipped += 1;
+      details.push({ taskId: task.id, title: task.title, assigneeProfileId: null });
+      continue;
+    }
+    await db.update(tasks).set({ assigneeProfileId: best.profileId, assignedByUserId: input.actorUserId }).where(eq(tasks.id, task.id));
+    for (const notification of taskAssignmentNotifications({ taskId: task.id, title: task.title, assigneeProfileId: best.profileId })) {
+      await db.insert(notifications).values(notification);
+      try {
+        await sendPushForNotification(notification.profileId, { title: notification.title, body: notification.body, url: `/tasks?taskId=${task.id}`, tag: notification.dedupeKey ?? `task-${task.id}` });
+      } catch (error) {
+        console.warn("[WebPush] فشل إشعار التوزيع التلقائي دون تعطيل الإسناد", { taskId: task.id, error });
+      }
+    }
+    await logAudit({ actorUserId: input.actorUserId, action: "task.auto_assigned", entityType: "task", entityId: task.id, metadata: { assigneeProfileId: best.profileId } });
+    assigned += 1;
+    details.push({ taskId: task.id, title: task.title, assigneeProfileId: best.profileId });
+  }
+
+  return { assigned, skipped, details };
+}
+
 export async function setTaskPinned(input: { taskId: number; actorUserId: number; isPinned: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
