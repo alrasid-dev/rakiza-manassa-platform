@@ -33,7 +33,7 @@ describe("مساحة مدير القسم", () => {
     await caller.delays.list();
     await caller.reports.operational({ period: "monthly" });
     await expect(caller.units.list()).resolves.toEqual([{ id: 44, name: "وحدة المدير" }]);
-    expect(mocks.getManagedUnitDashboard).toHaveBeenCalledWith([44]);
+    expect(mocks.getManagedUnitDashboard).toHaveBeenCalledWith([44], 7);
     expect(mocks.listTasksForUnits).toHaveBeenCalledWith([44], undefined, undefined);
     expect(mocks.listDelaysForUnits).toHaveBeenCalledWith([44], undefined);
     expect(mocks.getOperationalReport).toHaveBeenCalledWith(expect.objectContaining({ unitId: 44 }));

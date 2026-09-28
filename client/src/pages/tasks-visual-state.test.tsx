@@ -18,7 +18,7 @@ describe("الحالة البصرية للمهام", () => {
   it("يعرض الأحمر مع وميض عند بدء التأخير أو حالة التأخر الصريحة", () => {
     expect(taskVisualState({ status: "in_progress", dueAt: "2026-08-25T07:59:00Z" }, now)).toBe("overdue");
     expect(taskVisualState({ status: "overdue", dueAt: "2026-08-30T08:00:00Z" }, now)).toBe("overdue");
-    expect(taskVisualClasses("overdue")).toContain("fff3ef");
+    expect(taskVisualClasses("overdue")).toContain("bg-red-50");
     expect(taskVisualClasses("overdue")).toContain("rakiza-task-overdue");
   });
 

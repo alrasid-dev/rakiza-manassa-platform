@@ -144,6 +144,7 @@ import {
   listSupportTickets,
   markDecisionCircularRead,
   markNotificationRead,
+  markAllNotificationsRead,
   publishDecisionCircular,
   saveMeetingMinutes,
   updateMeetingAttendee,
@@ -697,7 +698,7 @@ export const courtRouter = router({
     const permission = await requirePermission(ctx.user, "view");
     if (await hasLeadershipPlatformScope(ctx.user, permission)) return getDashboardSummary(ctx.user.id, ctx.user.role === "admin");
     const managedUnits = await managedUnitIdsForUser(ctx.user);
-    if (managedUnits.length) return getManagedUnitDashboard(managedUnits);
+    if (managedUnits.length) return getManagedUnitDashboard(managedUnits, ctx.user.id);
     const { profile } = await requirePersonalWorkspace(ctx.user);
     return getPersonalDashboard(profile.id);
   }),
@@ -1719,6 +1720,12 @@ export const courtRouter = router({
       if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "لا يوجد ملف شخصي مرتبط بالحساب الحالي." });
       await markNotificationRead(input.notificationId, profile.id);
       return { success: true };
+    }),
+    markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "لا يوجد ملف شخصي مرتبط بالحساب الحالي." });
+      const updated = await markAllNotificationsRead(profile.id);
+      return { updated };
     }),
   }),
 

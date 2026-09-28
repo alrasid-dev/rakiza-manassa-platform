@@ -265,7 +265,7 @@
     }
 
     .rakiza-task-overdue {
-      animation: rakiza-task-overdue-pulse 1.1s ease-in-out infinite;
+      animation: rakiza-task-overdue-pulse 2.5s ease-in-out infinite;
     }
 
     @keyframes rakiza-task-starting-glow {

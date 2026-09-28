@@ -63,7 +63,7 @@ export function taskVisualState(task: { status: TaskStatus; dueAt: Date | string
 }
 
 export function taskVisualClasses(state: TaskVisualState) {
-  return ({ completed: "border-[#b9d8bf] bg-[#f2f8f2]", overdue: "border-[#efc0b5] bg-[#fff3ef] rakiza-task-overdue", due_soon: "border-[#ead594] bg-[#fffaf0] rakiza-task-due-soon", starting: "border-[#9ecfae] bg-[#eef7f1] rakiza-task-starting", open: "border-[#c9d8e8] bg-[#f2f7fb] rakiza-task-open", normal: "border-transparent bg-transparent" } as const)[state];
+  return ({ completed: "border-[#b9d8bf] bg-[#f2f8f2]", overdue: "border-2 border-red-500 bg-red-50 rakiza-task-overdue", due_soon: "border-[#ead594] bg-[#fffaf0] rakiza-task-due-soon", starting: "border-[#9ecfae] bg-[#eef7f1] rakiza-task-starting", open: "border-[#c9d8e8] bg-[#f2f7fb] rakiza-task-open", normal: "border-transparent bg-transparent" } as const)[state];
 }
 
 export function taskStateBadgeClasses(state: TaskVisualState) {
