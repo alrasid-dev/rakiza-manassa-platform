@@ -105,7 +105,7 @@ export function AuthExperimentPage() {
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[#6c7b73]">
             {mode === "owner"
               ? "مسار مخصص لبريد مالك المنصة الاستثنائي، عبر حساب Google فقط ودون كلمة مرور تقليدية."
-              : "الدخول بالبريد الرسمي المنتهي بـ @moj.gov.sa ورمز المرور فقط. أول دخول: أنشئ رمزاً من 6 أرقام ويُعتمد للدخول بعد ذلك."}
+              : "أدخل بريدك الرسمي @moj.gov.sa. إذا كانت أول مرة، ستُنشئ رمز مرور من 6 أرقام يُعتمد للدخول بعدها."}
           </p>
         </div>
         <ShieldCheck aria-hidden="true" className="h-11 w-11 shrink-0 text-[#006c35]" />
@@ -121,6 +121,7 @@ export function AuthExperimentPage() {
             <div>
               <label className="block text-xs font-bold text-[#52665a]" htmlFor="rakiza-login-email">البريد الإلكتروني الرسمي</label>
               <input id="rakiza-login-email" aria-label="البريد الإلكتروني الرسمي" value={email} onChange={event => setEmail(event.target.value)} type="email" dir="ltr" inputMode="email" autoComplete="username" placeholder="name@moj.gov.sa" className="mt-2 h-11 w-full rounded-xl border border-input px-3 text-sm" />
+              <p className="mt-1 text-[11px] leading-5 text-[#718078]">موظف جديد؟ أدخل بريدك الرسمي وسيُطلب منك إنشاء رمز مرور من 6 أرقام تلقائياً.</p>
               {email.trim().length > 0 && !validLoginEmail && <p role="alert" className="mt-2 text-xs font-bold text-[#9a4634]">لا يُقبل إلا بريد رسمي من نطاق moj.gov.sa أو بريد مالك رَكيزة المعتمد.</p>}
               {email.trim().length > 0 && validLoginEmail && isOwnerAccount && <p role="status" className="mt-2 text-xs font-bold text-[#246047]">حساب مالك معتمد: يُسمح بالدخول دون شرط النطاق الرسمي.</p>}
             </div>

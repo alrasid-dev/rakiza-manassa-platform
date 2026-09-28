@@ -45,14 +45,12 @@ import LeadershipWorkloadPage from "@/pages/LeadershipWorkloadPage";
 import PerformanceReportEvaluationsPage from "@/pages/PerformanceReportEvaluationsPage";
 import CorrespondenceWorkspaceContent from "@/pages/CorrespondenceWorkspaceContent";
 import InstallAppsPage from "@/pages/InstallAppsPage";
-import EmployeeStaffAuthPage from "@/pages/EmployeeStaffAuthPage";
 
 export type PlatformPage = { path: string; label: string; component: ComponentType };
 
 export const PLATFORM_PAGES: PlatformPage[] = [
   { path: "/", label: "لوحة القيادة", component: Home },
   { path: "/login", label: "دخول رَكيزة", component: AuthExperimentPage },
-  { path: "/staff-login", label: "دخول الموظفين", component: EmployeeStaffAuthPage },
   { path: "/recover", label: "استعادة الحساب", component: PasswordRecoveryPage },
   { path: "/register", label: "طلب التسجيل", component: RegistrationPage },
   { path: "/apps", label: "تثبيت التطبيقات", component: InstallAppsPage },

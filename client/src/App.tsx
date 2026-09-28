@@ -48,7 +48,6 @@ import LeadershipWorkloadPage from "./pages/LeadershipWorkloadPage";
 import PerformanceReportEvaluationsPage from "./pages/PerformanceReportEvaluationsPage";
 import CorrespondenceWorkspaceContent from "./pages/CorrespondenceWorkspaceContent";
 import InstallAppsPage from "./pages/InstallAppsPage";
-import EmployeeStaffAuthPage from "./pages/EmployeeStaffAuthPage";
 import DepartmentDocumentsPage from "./pages/DepartmentDocumentsPage";
 
 const routerBase = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -60,7 +59,6 @@ function Router() {
     <Switch>
       <Route path="/apps" component={InstallAppsPage} />
       <Route path="/login" component={AuthExperimentPage} />
-      <Route path="/staff-login" component={EmployeeStaffAuthPage} />
       <Route path="/recover" component={PasswordRecoveryPage} />
       <Route path="/approvals" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="archive" /> : ApprovalsPage} />
       <Route path="/delegation" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : DelegationPage} />
@@ -102,7 +100,6 @@ function Router() {
       <Route path="/platform-modules" component={PlatformModulesPage} />
       <Route path="/department-documents" component={DepartmentDocumentsPage} />
       <Route path="/email-settings" component={EmailSettingsPage} />
-      <Route path="/auth-experiment" component={AuthExperimentPage} />
       <Route path="/trainee-correspondence-templates" component={TraineeCorrespondenceTemplatesPage} />
       <Route path="/leadership-access" component={LeadershipAccessPage} />
       <Route path="/manager-assignment-request" component={ManagerAssignmentRequestPage} />

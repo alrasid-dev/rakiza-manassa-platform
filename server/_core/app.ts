@@ -12,7 +12,6 @@ import { handleInternalMailSchedule } from "../scheduled/internal-mail";
 import { trpcMutationOriginGuard } from "./originGuard";
 import { securityHeaders } from "./securityHeaders";
 import { dataConnectionsStatus } from "./data-connections";
-import { registerEmployeeAuthRoutes } from "../employee-auth/routes";
 import { loginFallbackErrorHandler, registerLoginConfigRoutes } from "./login-fallback";
 
 export function createExpressApp() {
@@ -22,7 +21,6 @@ export function createExpressApp() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
-  registerEmployeeAuthRoutes(app);
   registerLoginConfigRoutes(app);
   app.post("/api/scheduled/trainee-due-soon", handleTraineeDueSoonSchedule);
   app.post("/api/scheduled/daily-task-reminder", handleDailyTaskReminderSchedule);
