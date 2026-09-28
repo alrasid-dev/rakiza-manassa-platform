@@ -14,6 +14,7 @@ export const ENV = {
   appId: readEnv("VITE_APP_ID") || MOCK_APP_ID,
   cookieSecret: readEnv("JWT_SECRET", "VITE_JWT_SECRET") || MOCK_COOKIE_SECRET,
   databaseUrl: readEnv("DATABASE_URL", "VITE_DATABASE_URL"),
+  cronSecret: readEnv("CRON_SECRET"),
   oAuthServerUrl: readEnv("OAUTH_SERVER_URL"),
   ownerOpenId: readEnv("OWNER_OPEN_ID"),
   platformOwnerEmail: (readEnv("PLATFORM_OWNER_EMAIL") || "rakizaplatform@gmail.com").toLowerCase(),

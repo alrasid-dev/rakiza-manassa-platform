@@ -1,0 +1,44 @@
+name: Rakiza Cron Jobs
+
+on:
+  schedule:
+    # كل 5 دقائق (أقل تكرار مدعوم في GitHub Actions).
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rakiza-cron-jobs
+  cancel-in-progress: false
+
+jobs:
+  trigger-cron:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Trigger Scheduled Jobs
+        run: |
+          BASE_URL="${{ secrets.RAKIZA_BASE_URL }}"
+          CRON_SECRET="${{ secrets.RAKIZA_CRON_SECRET }}"
+
+          JOBS=(
+            "attendance-confirmation"
+            "task-escalation"
+            "daily-task-reminder"
+            "leave-status-refresh"
+            "support-ticket-escalation"
+            "trainee-due-soon"
+            "trainee-excel-sync"
+            "internal-mail-dispatch"
+          )
+
+          for JOB in "${JOBS[@]}"; do
+            echo "Running: $JOB"
+            curl -X POST "${BASE_URL}/api/scheduled/${JOB}" \
+              -H "x-cron-secret: ${CRON_SECRET}" \
+              -H "Content-Type: application/json" \
+              --max-time 60 \
+              --silent --show-error || echo "Failed: $JOB"
+          done

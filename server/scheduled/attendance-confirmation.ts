@@ -1,12 +1,15 @@
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, or } from "drizzle-orm";
 import type { Request, Response } from "express";
-import { attendanceRecords, notifications, personProfiles, scheduledJobConfigs } from "../../drizzle/schema";
+import { approvalRequests, attendanceRecords, notifications, personProfiles, scoreEvents, scheduledJobConfigs } from "../../drizzle/schema";
 import { getDb } from "../db";
 import { sdk } from "../_core/sdk";
 import { sendSafeScheduledFailure } from "./safe-scheduled-failure";
-import { attendanceConfirmationCadence, shouldRequestAttendanceConfirmation } from "../attendance-confirmation-policy";
+import { isValidCronSecret } from "./cron-auth";
+import { attendanceConfirmationCadence, attendanceConfirmationPolicyDefaults, shouldRequestAttendanceConfirmation } from "../attendance-confirmation-policy";
+import { dateRangeForSaudiDay } from "../task-automation";
 
 const ACTIVE_REMOTE_MODES = ["remote", "mixed"] as const;
+const SYSTEM_ACTOR_ID = 0;
 
 export type AttendanceAudience = "employees" | "trainees" | "judges" | "all" | "employees,trainees" | "employees,judges" | "trainees,judges" | "employees,trainees,judges";
 
@@ -15,6 +18,7 @@ type AttendanceCycleResult = {
   notified: number;
   skipped: number;
   policy: "enabled";
+  penalized: number;
 };
 
 export async function runAttendanceConfirmationCycle(now = new Date(), targetProfileId?: number | null, audience: AttendanceAudience = "all"): Promise<AttendanceCycleResult> {
@@ -62,7 +66,90 @@ export async function runAttendanceConfirmationCycle(now = new Date(), targetPro
     });
     if (Number(result[0].affectedRows) === 1) notified += 1;
   }
-  return { scanned: profiles.length, notified, skipped, policy: "enabled" };
+  const accountability = await runAttendanceAccountabilityCycle(now);
+  return { scanned: profiles.length, notified, skipped, policy: "enabled", penalized: accountability.penalized };
+}
+
+/**
+ * مساءلة عدم تأكيد الحضور (المسار الثاني من السياسة): لأي موظف عن بُعد استلم
+ * تنبيهاً لتأكيد بدء العمل اليوم وتجاوزت نافذة التأكيد، إن لم يسجل حضوره
+ * تُنشأ مساءلة مباشرة، ويُخصم منه نقطة مؤشر الالتزام، وتُرسل نسخة لمديره المباشر.
+ * العملية idempotent: لن تُنشأ مساءلة مكررة لنفس اليوم.
+ */
+export async function runAttendanceAccountabilityCycle(now = new Date()): Promise<{ checked: number; penalized: number }> {
+  const db = await getDb();
+  if (!db) return { checked: 0, penalized: 0 };
+
+  const policy = attendanceConfirmationPolicyDefaults();
+  const dayRange = dateRangeForSaudiDay(now);
+  const deadlineMs = policy.confirmationWindowMinutes * 60 * 1000;
+
+  const sentRows = await db
+    .select({ profileId: notifications.profileId, sentAt: notifications.sentAt })
+    .from(notifications)
+    .where(and(eq(notifications.category, "attendance_confirmation"), gte(notifications.sentAt, dayRange.start), lt(notifications.sentAt, dayRange.end)));
+
+  const earliestByProfile = new Map<number, Date>();
+  for (const row of sentRows) {
+    if (row.profileId == null) continue;
+    const previous = earliestByProfile.get(row.profileId);
+    if (!previous || row.sentAt < previous) earliestByProfile.set(row.profileId, row.sentAt);
+  }
+
+  let penalized = 0;
+  for (const [profileId, sentAt] of earliestByProfile) {
+    if (sentAt.getTime() + deadlineMs > now.getTime()) continue;
+
+    const confirmed = await db
+      .select({ id: attendanceRecords.id })
+      .from(attendanceRecords)
+      .where(and(eq(attendanceRecords.profileId, profileId), gte(attendanceRecords.recordDate, dayRange.start), lt(attendanceRecords.recordDate, dayRange.end), inArray(attendanceRecords.status, ["present", "late"])))
+      .limit(1);
+    if (confirmed[0]) continue;
+
+    const existingDiscipline = await db
+      .select({ id: approvalRequests.id })
+      .from(approvalRequests)
+      .where(and(eq(approvalRequests.entityType, "disciplinary_action"), eq(approvalRequests.entityId, profileId), eq(approvalRequests.status, "pending"), gte(approvalRequests.createdAt, dayRange.start)))
+      .limit(1);
+    if (existingDiscipline[0]) continue;
+
+    const profile = (await db
+      .select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId })
+      .from(personProfiles)
+      .where(eq(personProfiles.id, profileId))
+      .limit(1))[0];
+    if (!profile) continue;
+
+    await db.insert(approvalRequests).values({
+      entityType: "disciplinary_action",
+      entityId: profileId,
+      requestedByUserId: SYSTEM_ACTOR_ID,
+      currentRole: "human_resources_manager",
+      requestNote: `عدم تأكيد بدء العمل خلال ${policy.confirmationWindowMinutes} دقيقة (${dayRange.start.toISOString().slice(0, 10)})`,
+    });
+
+    await db.insert(scoreEvents).values({
+      profileId,
+      points: policy.ignoredConfirmationPenalty,
+      reason: "عدم تأكيد بدء العمل خلال النافذة المحددة",
+      createdByUserId: SYSTEM_ACTOR_ID,
+    });
+
+    if (profile.directManagerProfileId) {
+      await db.insert(notifications).values({
+        profileId: profile.directManagerProfileId,
+        category: "security_alert",
+        title: "مساءلة تأكيد حضور",
+        body: `${profile.fullName} لم يؤكد بدء العمل خلال ${policy.confirmationWindowMinutes} دقيقة.`,
+        dedupeKey: `attendance-accountability-${profileId}-${dayRange.start.toISOString().slice(0, 10)}`,
+      }).onDuplicateKeyUpdate({ set: { title: "مساءلة تأكيد حضور" } });
+    }
+
+    penalized += 1;
+  }
+
+  return { checked: earliestByProfile.size, penalized };
 }
 
 function nowForAttendanceCycle() {
@@ -71,6 +158,12 @@ function nowForAttendanceCycle() {
 
 export async function handleAttendanceConfirmationSchedule(req: Request, res: Response) {
   try {
+    if (isValidCronSecret(req)) {
+      const db = await getDb();
+      if (!db) return res.status(503).json({ error: "database-unavailable" });
+      const result = await runAttendanceConfirmationCycle(nowForAttendanceCycle(), null, "all");
+      return res.json({ ok: true, job: "attendance_confirmation", ...result, via: "cron-secret" });
+    }
     const user = await sdk.authenticateRequest(req);
     if (!user.isCron || !user.taskUid) return res.status(403).json({ error: "cron-only" });
     const db = await getDb();
