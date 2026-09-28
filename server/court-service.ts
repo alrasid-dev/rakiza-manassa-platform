@@ -1103,8 +1103,8 @@ export async function listProfilesForUnits(unitIds: number[], personType?: "admi
   if (!db || !unitIds.length) return [];
   const conditions = [inArray(personProfiles.unitId, unitIds)];
   if (personType) conditions.push(eq(personProfiles.personType, personType));
-  const rows = await db.select().from(personProfiles).where(and(...conditions));
-  return rows.sort((a, b) => a.fullName.localeCompare(b.fullName, "ar"));
+  const rows = await db.select({ profile: personProfiles, unitName: organizationUnits.name }).from(personProfiles).leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId)).where(and(...conditions));
+  return rows.map(row => ({ ...row.profile, unitName: row.unitName })).sort((a, b) => a.fullName.localeCompare(b.fullName, "ar"));
 }
 
 export async function createProfile(input: { unitId?: number; personType: "administrative" | "trainee" | "judge"; fullName: string; email?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review"; sourceReference?: string; reason?: string; actorUserId: number }) {

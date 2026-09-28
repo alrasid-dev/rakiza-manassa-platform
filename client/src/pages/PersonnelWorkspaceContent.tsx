@@ -3,6 +3,7 @@ import LeadershipDelegationPanel from "@/components/LeadershipDelegationPanel";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
+import { useSelectedUnit } from "@/contexts/SelectedUnitContext";
 import { Briefcase, ChevronDown, CircleDashed, FilePenLine, FilePlus2, Search, UsersRound } from "lucide-react";
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -35,7 +36,8 @@ export default function PersonnelWorkspaceContent() {
   const utils = trpc.useUtils();
   const permission = trpc.court.registration.myPermission.useQuery();
   const roles = trpc.court.myRoles.useQuery();
-  const peopleQuery = trpc.court.people.list.useQuery();
+  const { selectedUnitId } = useSelectedUnit();
+  const peopleQuery = trpc.court.people.list.useQuery(selectedUnitId ? { unitId: selectedUnitId } : undefined);
   const selfQuery = trpc.court.people?.self?.useQuery?.() ?? { data: undefined as { unitName?: string | null } | undefined };
   const unitsQuery = trpc.court.units?.list?.useQuery?.() ?? { data: [] as Array<{ id: number; name: string }> };
   const judgesQuery = trpc.court.judges?.list?.useQuery?.() ?? { data: [] as Profile[] };

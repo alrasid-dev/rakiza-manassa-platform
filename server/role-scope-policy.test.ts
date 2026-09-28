@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   listTraineesForJudge: vi.fn(async () => [{ id: 3, fullName: "المتدرب المرتبط" }]),
   listTasksForProfile: vi.fn(async () => [{ id: 21, assigneeProfileId: 3, title: "مهمة المتدرب" }]),
   listTasks: vi.fn(async () => [{ id: 21, assigneeProfileId: 3, title: "مهمة المتدرب" }]),
+  listTasksForUnits: vi.fn(async () => [{ id: 12, unitId: 5, title: "مهمة الوحدة" }]),
   listDelaysForProfile: vi.fn(async () => [{ id: 31, relatedProfileId: 3, status: "overdue" }]),
   listPlatformModules: vi.fn(async () => [{ id: 7, moduleKey: "future-module", label: "وحدة مستقبلية" }]),
   createPlatformModule: vi.fn(async () => 8),
@@ -28,6 +29,7 @@ vi.mock("./court-service", async importOriginal => {
     listTraineesForJudge: mocks.listTraineesForJudge,
     listTasksForProfile: mocks.listTasksForProfile,
     listTasks: mocks.listTasks,
+    listTasksForUnits: mocks.listTasksForUnits,
     listDelaysForProfile: mocks.listDelaysForProfile,
     listPlatformModules: mocks.listPlatformModules,
     createPlatformModule: mocks.createPlatformModule,
@@ -71,5 +73,13 @@ describe("سياسة نطاق الأدوار الجديدة", () => {
     await expect(owner.modules.list()).resolves.toEqual([{ id: 7, moduleKey: "future-module", label: "وحدة مستقبلية" }]);
     await expect(owner.modules.create({ moduleKey: "future-module-2", label: "وحدة", path: "/future", iconKey: "Boxes", moduleType: "software", audience: ["full_control"], sortOrder: 1 })).resolves.toEqual({ id: 8 });
     await expect(caller({ id: 13, role: "user", email: "employee@court.example" }).modules.list()).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("يمرر فلتر القسم من المالك إلى قوائم المهام والموظفين", async () => {
+    const owner = caller({ id: 1, role: "admin", email: OWNER_EMAIL });
+    await owner.people.list({ unitId: 5 });
+    expect(mocks.listProfilesForUnits).toHaveBeenCalledWith([5], undefined);
+    await owner.tasks.list({ unitId: 5 });
+    expect(mocks.listTasksForUnits).toHaveBeenCalledWith([5], undefined, 9);
   });
 });

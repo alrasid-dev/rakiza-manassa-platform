@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Redirect, Route, Router as WouterRouter, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { SelectedUnitProvider } from "./contexts/SelectedUnitContext";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import PreviewWorkspace from "./pages/PreviewWorkspace";
@@ -126,7 +127,9 @@ export default function App() {
       <ThemeProvider defaultTheme="light" switchable>
         <TooltipProvider>
           <Toaster position="top-center" richColors />
-          <Router />
+          <SelectedUnitProvider>
+            <Router />
+          </SelectedUnitProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

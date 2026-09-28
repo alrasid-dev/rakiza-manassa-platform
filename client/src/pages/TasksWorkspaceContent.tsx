@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { useSelectedUnit } from "@/contexts/SelectedUnitContext";
 import { AlertCircle, AlertTriangle, ChevronLeft, ChevronRight, CheckCircle2, CircleDashed, Copy, Download, FilePlus2, FileText, ListChecks, Loader2, MessageCircle, Paperclip, Pencil, Pin, PinOff, Play, RefreshCcw, RotateCw, Search, Send, ShieldAlert, Sparkles, UserRoundCheck, XCircle, ZoomIn, ZoomOut } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
@@ -126,6 +127,7 @@ export default function TasksWorkspaceContent() {
   const people = trpc.court.people.list.useQuery();
   const currentProfile = trpc.court.people.self.useQuery();
   const units = trpc.court.units.list.useQuery();
+  const { selectedUnitId } = useSelectedUnit();
   const canManageTask = (task: { assigneeProfileId: number | null }) =>
     permission.data === "full_control" ||
     roles.data?.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager"].includes(role)) ||
@@ -135,7 +137,10 @@ export default function TasksWorkspaceContent() {
   useEffect(() => {
     if (platformWide) setTaskView("scope");
   }, [platformWide]);
-  const taskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id } : undefined;
+  useEffect(() => {
+    if (selectedUnitId) setTaskView("scope");
+  }, [selectedUnitId]);
+  const taskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id } : (selectedUnitId ? { unitId: selectedUnitId } : undefined);
   const tasks = trpc.court.tasks.list.useQuery(taskQuery, { enabled: taskView === "scope" || Boolean(currentProfile.data?.id) });
   const conversations = trpc.court.communications.conversations.list.useQuery();
   const create = trpc.court.tasks.create.useMutation({

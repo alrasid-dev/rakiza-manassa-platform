@@ -54,6 +54,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useTheme } from "../contexts/ThemeContext";
+import { useSelectedUnit } from "../contexts/SelectedUnitContext";
 import { toast } from "sonner";
 import { PushNotificationPrompt } from "./PushNotificationPrompt";
 import { useLocation } from "wouter";
@@ -267,6 +268,8 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   const roles = trpc.court.myRoles.useQuery(undefined, { enabled: Boolean(user) || IS_PREVIEW_MODE });
   const notifications = trpc.court.notifications.listMine.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE });
   const currentProfile = trpc.court.people.self.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE });
+  const units = trpc.court.units.list.useQuery(undefined, { enabled: Boolean(user) || IS_PREVIEW_MODE });
+  const { selectedUnitId, setSelectedUnitId } = useSelectedUnit();
   const internalMailProcedure = (trpc.court as any).internalMail?.folderCounts;
   const internalMailCounts = internalMailProcedure?.useQuery ? internalMailProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE, refetchInterval: 30_000 }) : { data: { unread: 0 } };
   const chatUnreadProcedure = (trpc.court as any).communications?.conversations?.unreadCount;
@@ -319,6 +322,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   }, [user?.id, location]);
   const markNotificationRead = trpc.court.notifications.markRead.useMutation({ onSuccess: () => utils.court.notifications.listMine.invalidate() });
   const hasLeadershipScope = roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary") ?? false;
+  const canSwitchDepartment = permission.data === "full_control" || hasLeadershipScope;
   const workMode = useWorkMode(hasLeadershipScope);
   const navigationPermission = resolveNavigationPermission(permission.data, hasLeadershipScope && workMode !== "employee");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -418,6 +422,16 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
                 <p className="mt-1 truncate text-xs font-semibold text-[#748078]">مساحة العمل الآمنة</p>
               </div>
             </div>
+            {canSwitchDepartment && (
+              <label className="order-5 flex items-center gap-2 rounded-xl border border-[#d2d9cf] bg-[#f1f2ec] px-3 py-2.5 lg:order-none">
+                <Building2 className="h-4 w-4 shrink-0 text-[#2d6b4f]" aria-hidden="true" />
+                <span className="text-[11px] font-bold text-[#6a786f]">القسم</span>
+                <select aria-label="اختر القسم لعرض بياناته" value={selectedUnitId ?? ""} onChange={event => setSelectedUnitId(event.target.value ? Number(event.target.value) : null)} className="max-w-[12rem] bg-transparent text-xs font-black text-[#315348] focus:outline-none">
+                  <option value="">كل الأقسام</option>
+                  {(units.data ?? []).map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+                </select>
+              </label>
+            )}
             <button type="button" onClick={() => setLocation("/announcements")} className="order-3 flex w-full min-w-0 items-center gap-3 rounded-xl border border-[#d2d9cf] bg-[#f1f2ec] px-3 py-2.5 text-right transition hover:bg-[#e5ece2] md:order-none md:flex-1 lg:max-w-[34rem]" aria-label="لوحة التعاميم والإعلانات">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#dce9da] text-[#2d6b4f]"><Megaphone className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" /></span>
               <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-[11px] font-black text-[#315348]">لوحة التعاميم والإعلانات</span>{announcementCopy.isNew ? <span className="rounded-full bg-[#e0eadf] px-1.5 py-0.5 text-[9px] font-black text-[#2d6b4f]">جديد</span> : null}</span><span className="mt-1 block truncate text-xs font-bold text-[#365548]">{announcementCopy.title}</span><span className="mt-0.5 hidden truncate text-[10px] text-[#748078] sm:block">{announcementCopy.summary}</span></span>

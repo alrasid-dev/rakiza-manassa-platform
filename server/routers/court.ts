@@ -985,14 +985,14 @@ export const courtRouter = router({
       const unit = units.find(item => item.id === department.unitId);
       return { id: 0, unitId: department.unitId, unitName: unit?.name ?? department.displayName, unitCode: unit?.code ?? null, fullName: department.displayName, email: department.loginEmail, employeeNumber: null, personType: "administrative" as const, jobTitle: "حساب قسم", judicialFormation: null, attendanceMode: null, activityState: "inactive" as const, lastActiveAt: null, status: "active" as const, directManagerProfileId: null };
     }),
-    list: protectedProcedure.input(z.object({ personType: z.enum(["administrative", "trainee", "judge"]).optional() }).optional()).query(async ({ ctx, input }) => {
+    list: protectedProcedure.input(z.object({ personType: z.enum(["administrative", "trainee", "judge"]).optional(), unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
       const roles = await rolesForUser(ctx.user);
       if (roles.includes("human_resources_manager")) {
         if (input?.personType && input.personType !== "administrative") return [];
         return listProfiles("administrative");
       }
-      if (canViewWholePlatform(permission) || roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary")) return listProfiles(input?.personType);
+      if (canViewWholePlatform(permission) || roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary")) { if (input?.unitId) return listProfilesForUnits([input.unitId], input?.personType); return listProfiles(input?.personType); }
 
       if (roles.includes("performance_monitor")) return listProfiles(input?.personType);
       if (roles.includes("judge")) {
@@ -1088,9 +1088,9 @@ export const courtRouter = router({
       await requireOperationsManager(ctx.user);
       return restoreArchivedOperationalWork({ ...input, actorUserId: ctx.user.id });
     }),
-    list: protectedProcedure.input(z.object({ status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]).optional(), assigneeProfileId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
+    list: protectedProcedure.input(z.object({ status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]).optional(), assigneeProfileId: z.number().int().positive().optional(), unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
-      if (await hasLeadershipPlatformScope(ctx.user, permission)) { const viewerProfile = await getProfileForUser(ctx.user.id); return listTasks({ ...input, visibleProfileId: viewerProfile?.id }); }
+      if (await hasLeadershipPlatformScope(ctx.user, permission)) { const viewerProfile = await getProfileForUser(ctx.user.id); if (input?.unitId) return listTasksForUnits([input.unitId], input?.status, viewerProfile?.id); return listTasks({ status: input?.status, assigneeProfileId: input?.assigneeProfileId, visibleProfileId: viewerProfile?.id }); }
       const roles = await rolesForUser(ctx.user);
       if (roles.includes("judge")) {
         const judgeProfile = await getProfileForUser(ctx.user.id);
