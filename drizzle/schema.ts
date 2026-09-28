@@ -151,6 +151,7 @@ export const personProfiles = mysqlTable("person_profiles", {
   employmentStatus: varchar("employmentStatus", { length: 180 }),
   assignmentNote: text("assignmentNote"),
   sourceReference: varchar("sourceReference", { length: 240 }),
+  lastConfirmExemptionAt: timestamp("lastConfirmExemptionAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => [

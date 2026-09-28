@@ -5,7 +5,7 @@ import { getDb } from "../db";
 import { sdk } from "../_core/sdk";
 import { sendSafeScheduledFailure } from "./safe-scheduled-failure";
 import { isValidCronSecret } from "./cron-auth";
-import { attendanceConfirmationCadence, attendanceConfirmationPolicyDefaults, shouldRequestAttendanceConfirmation } from "../attendance-confirmation-policy";
+import { attendanceConfirmationCadence, attendanceConfirmationPolicyDefaults, shouldRequestAttendanceConfirmation, calculateComplianceRate, COMPLIANCE_EXEMPTION_THRESHOLD, COMPLIANCE_MANDATORY_THRESHOLD, EXEMPTION_WINDOW_DAYS, type AttendanceConfirmationCadence } from "../attendance-confirmation-policy";
 import { dateRangeForSaudiDay } from "../task-automation";
 
 const ACTIVE_REMOTE_MODES = ["remote", "mixed"] as const;
@@ -50,7 +50,25 @@ export async function runAttendanceConfirmationCycle(now = new Date(), targetPro
       .where(eq(attendanceRecords.profileId, profile.id))
       .orderBy(desc(attendanceRecords.recordDate));
     const confirmedDays = recentAttendance.filter(record => record.status === "present" || record.status === "late").slice(0, 30).length;
-    const cadence = attendanceConfirmationCadence({ enabled: true, consecutiveConfirmedDays: confirmedDays, ignoredRecentConfirmations: 0 });
+    const complianceRate = calculateComplianceRate(confirmedDays, 30);
+
+    // الإعفاء الذكي: المنضبط (≥90%) يُعفى من التأكيد لمدة 7 أيام.
+    if (complianceRate >= COMPLIANCE_EXEMPTION_THRESHOLD) {
+      const lastExemption = profile.lastConfirmExemptionAt;
+      if (lastExemption && now.getTime() - lastExemption.getTime() < EXEMPTION_WINDOW_DAYS * 24 * 60 * 60 * 1000) {
+        skipped += 1;
+        continue;
+      }
+      await db.update(personProfiles).set({ lastConfirmExemptionAt: now }).where(eq(personProfiles.id, profile.id));
+      skipped += 1;
+      continue;
+    }
+
+    // غير المنضبط (<50%) يُلزم بتأكيد يومي إجباري.
+    const cadence: AttendanceConfirmationCadence | "disabled" = complianceRate < COMPLIANCE_MANDATORY_THRESHOLD
+      ? "daily"
+      : attendanceConfirmationCadence({ enabled: true, consecutiveConfirmedDays: confirmedDays, ignoredRecentConfirmations: 0 });
+
     if (!shouldRequestAttendanceConfirmation({ enabled: true, lastRequestedAt, now, cadence })) {
       skipped += 1;
       continue;
