@@ -1106,6 +1106,17 @@ export async function listTraineesForJudge(judgeProfileId: number) {
   return rows.sort((a, b) => a.fullName.localeCompare(b.fullName, "ar"));
 }
 
+export async function listJudgesWithTraineeCounts() {
+  const db = await getDb();
+  if (!db) return listProfiles("judge");
+  const [profiles, counts] = await Promise.all([
+    listProfiles("judge"),
+    db.select({ judgeId: traineeAssignments.supervisingJudgeProfileId, count: sql<number>`count(*)` }).from(traineeAssignments).where(isNotNull(traineeAssignments.supervisingJudgeProfileId)).groupBy(traineeAssignments.supervisingJudgeProfileId),
+  ]);
+  const countMap = new Map(counts.filter(c => c.judgeId != null).map(c => [c.judgeId as number, Number(c.count)]));
+  return profiles.map(profile => ({ ...profile, traineeCount: countMap.get(profile.id) ?? 0 }));
+}
+
 export async function listProfilesForUnits(unitIds: number[], personType?: "administrative" | "trainee" | "judge") {
   const db = await getDb();
   if (!db || !unitIds.length) return [];
@@ -3140,6 +3151,35 @@ export async function setTraineeAssignment(input: { profileId: number; expectedS
   await db.insert(traineeAssignments).values({ profileId: input.profileId, expectedStartAt: input.expectedStartAt, expectedEndAt, durationDays: input.durationDays, trainingJudge: input.trainingJudge ?? supervisingJudge[0]?.fullName ?? null, supervisingJudgeProfileId: input.supervisingJudgeProfileId ?? null, courtTrack: input.courtTrack ?? null, status: "active" }).onDuplicateKeyUpdate({ set: { expectedStartAt: input.expectedStartAt, expectedEndAt, durationDays: input.durationDays, trainingJudge: input.trainingJudge ?? supervisingJudge[0]?.fullName ?? null, supervisingJudgeProfileId: input.supervisingJudgeProfileId ?? null, courtTrack: input.courtTrack ?? null, status: "active" } });
   await logAudit({ actorUserId: input.actorUserId, action: "trainee_assignment.set", entityType: "trainee_assignment", entityId: input.profileId, metadata: { durationDays: input.durationDays, expectedEndAt: expectedEndAt.toISOString() } });
   return expectedEndAt;
+}
+
+export async function updateTraineeAssignmentRecord(input: {
+  profileId: number;
+  judicialFormation?: string;
+  supervisingJudgeProfileId?: number | null;
+  trainingJudge?: string;
+  courtTrack?: string;
+  durationDays?: number;
+  status?: "active" | "on_leave" | "completed" | "needs_date_confirmation";
+  actorUserId: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  if (input.judicialFormation !== undefined) {
+    await db.update(personProfiles).set({ judicialFormation: input.judicialFormation || null }).where(eq(personProfiles.id, input.profileId));
+  }
+  const assignmentSet = {
+    ...(input.supervisingJudgeProfileId !== undefined ? { supervisingJudgeProfileId: input.supervisingJudgeProfileId } : {}),
+    ...(input.trainingJudge !== undefined ? { trainingJudge: input.trainingJudge } : {}),
+    ...(input.courtTrack !== undefined ? { courtTrack: input.courtTrack } : {}),
+    ...(input.durationDays !== undefined ? { durationDays: input.durationDays } : {}),
+    ...(input.status !== undefined ? { status: input.status } : {}),
+  };
+  if (Object.keys(assignmentSet).length) {
+    await db.update(traineeAssignments).set(assignmentSet).where(eq(traineeAssignments.profileId, input.profileId));
+  }
+  await logAudit({ actorUserId: input.actorUserId, action: "trainee_assignment.updated", entityType: "trainee_assignment", entityId: input.profileId, metadata: {} });
+  return { success: true };
 }
 
 export async function renewTraineeAssignment(input: { profileId: number; startAt: Date; durationDays: number; actorUserId: number }) {

@@ -113,6 +113,7 @@ import {
   listDepartmentAccountDelegations,
   listGovernanceArchive,
   linkImportBatchAsTraineeSource,
+  listJudgesWithTraineeCounts,
   listLeaveRequests,
   listLeaveRequestsForProfile,
   listNotificationsForProfile,
@@ -175,6 +176,7 @@ import {
   saveImportBatch,
   saveAdministrativeLevel,
   setTraineeAssignment,
+  updateTraineeAssignmentRecord,
   submitRegistrationRequest,
   submitLeaveRequest,
   switchActiveDepartmentIdentity,
@@ -1066,7 +1068,7 @@ export const courtRouter = router({
   judges: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       await requirePlatformView(ctx.user);
-      return listProfiles("judge");
+      return listJudgesWithTraineeCounts();
     }),
     create: protectedProcedure.input(z.object({ fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review"]).default("active") })).mutation(async ({ ctx, input }) => {
       await requirePlatformOwner(ctx.user);
@@ -1523,6 +1525,12 @@ export const courtRouter = router({
     renew: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), startAt: z.date(), durationDays: z.number().int().min(1).max(365) })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");
       return { expectedEndAt: await renewTraineeAssignment({ ...input, actorUserId: ctx.user.id }) };
+    }),
+    updateAssignment: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), judicialFormation: z.string().trim().max(180).optional(), supervisingJudgeProfileId: z.number().int().positive().nullable().optional(), trainingJudge: z.string().trim().max(240).optional(), courtTrack: z.string().trim().max(160).optional(), durationDays: z.number().int().min(1).max(365).optional(), status: z.enum(["active", "on_leave", "completed", "needs_date_confirmation"]).optional() })).mutation(async ({ ctx, input }) => {
+      const permission = await permissionForUser(ctx.user);
+      const roles = await rolesForUser(ctx.user);
+      if (permission !== "full_control" && !roles.includes("trainee_affairs_manager")) throw new TRPCError({ code: "FORBIDDEN", message: "تعديل بيانات الملازمين متاح لمالك المنصة أو مدير شؤون الملازمين فقط." });
+      return updateTraineeAssignmentRecord({ ...input, actorUserId: ctx.user.id });
     }),
     runDueSoonCheck: protectedProcedure.mutation(async ({ ctx }) => {
       await requirePermission(ctx.user, "edit");
