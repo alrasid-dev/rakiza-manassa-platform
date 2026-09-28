@@ -33,6 +33,7 @@ import {
   createSupportTicket,
   createAnnouncement,
   deleteAnnouncement,
+  stopAnnouncement,
   updateAnnouncement,
   createDueSoonNotifications,
   createProfile,
@@ -758,6 +759,10 @@ export const courtRouter = router({
     delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requirePlatformOwner(ctx.user);
       return deleteAnnouncement({ id: input.id, actorUserId: ctx.user.id });
+    }),
+    stop: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requirePlatformOwner(ctx.user);
+      return stopAnnouncement({ id: input.id, actorUserId: ctx.user.id });
     }),
   }),
   myRoles: protectedProcedure.query(({ ctx }) => rolesForUser(ctx.user)),

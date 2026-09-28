@@ -816,6 +816,9 @@ export const announcements = mysqlTable("announcements", {
   expiresAt: timestamp("expiresAt"),
   createdByUserId: int("createdByUserId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  status: mysqlEnum("status", ["active", "stopped"]).default("active").notNull(),
+  stoppedAt: timestamp("stoppedAt"),
+  stoppedByUserId: int("stoppedByUserId"),
 }, table => [index("announcements_published_idx").on(table.publishedAt)]);
 
 export const importBatches = mysqlTable("import_batches", {

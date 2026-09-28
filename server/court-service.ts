@@ -1048,8 +1048,9 @@ export async function listVisibleAnnouncements(input: { unitId?: number | null; 
   return rows.filter(item => {
     const isPublished = Boolean(item.publishedAt && item.publishedAt <= now);
     const isCurrent = !item.expiresAt || item.expiresAt > now;
+    const isStopped = item.status === "stopped";
     const inScope = input.isLeadership || item.visibility === "all" || (item.visibility === "unit_only" && input.unitId !== undefined && input.unitId !== null && item.unitId === input.unitId);
-    return isPublished && isCurrent && inScope;
+    return isPublished && isCurrent && !isStopped && inScope;
   }).sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0));
 }
 
@@ -1085,6 +1086,14 @@ export async function deleteAnnouncement(input: { id: number; actorUserId: numbe
   await db.delete(announcements).where(eq(announcements.id, input.id));
   await logAudit({ actorUserId: input.actorUserId, action: "announcement.deleted", entityType: "announcement", entityId: input.id });
   return { deleted: true };
+}
+
+export async function stopAnnouncement(input: { id: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  await db.update(announcements).set({ status: "stopped", stoppedAt: new Date(), stoppedByUserId: input.actorUserId }).where(eq(announcements.id, input.id));
+  await logAudit({ actorUserId: input.actorUserId, action: "announcement.stopped", entityType: "announcement", entityId: input.id });
+  return { stopped: true };
 }
 
 export async function listProfiles(personType?: "administrative" | "trainee" | "judge") {
