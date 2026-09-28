@@ -28,3 +28,30 @@ export function taskAssignmentNotifications(input: { taskId: number; title: stri
 export function completedTaskTransition() {
   return { status: "under_review" as const, updateType: "submitted" as const, note: "تمت المعالجة بانتظار مراجعة المدير" };
 }
+
+export const TASK_START_DEADLINE_HOURS = 2;
+export const TASK_REVIEW_DEADLINE_HOURS = 24;
+
+/** مهلة بدء المهمة (من وقت الإسناد/الاستحقاق). */
+export function taskStartDeadline(scheduledFor: Date): Date {
+  return new Date(scheduledFor.getTime() + TASK_START_DEADLINE_HOURS * 60 * 60 * 1000);
+}
+
+/** مهلة مراجعة المهمة المقدمة (من وقت الرفع للمراجعة). */
+export function taskReviewDeadline(submittedAt: Date): Date {
+  return new Date(submittedAt.getTime() + TASK_REVIEW_DEADLINE_HOURS * 60 * 60 * 1000);
+}
+
+/** نوع تنبيه المهمة قبل الموعد. */
+export type TaskNudgeKind = "none" | "24h" | "12h" | "1h";
+
+/** يحدد أقرب تنبيه قبل موعد استحقاق المهمة (24/12/1 ساعة). */
+export function taskDueNudgeKind(dueAt: Date, now: Date): TaskNudgeKind {
+  const diff = dueAt.getTime() - now.getTime();
+  if (diff <= 0) return "none";
+  const hours = diff / 36e5;
+  if (hours <= 1) return "1h";
+  if (hours <= 12) return "12h";
+  if (hours <= 24) return "24h";
+  return "none";
+}
