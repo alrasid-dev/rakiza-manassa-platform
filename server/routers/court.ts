@@ -169,6 +169,7 @@ import {
   endDepartmentAccountDelegation,
   reviewRegistrationRequest,
   reviewLeaveRequest,
+  reviewLeaveOwnerApproval,
   routeCorrespondence,
   saveImportBatch,
   saveAdministrativeLevel,
@@ -1870,6 +1871,14 @@ export const courtRouter = router({
     review: protectedProcedure.input(z.object({ leaveRequestId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]) })).mutation(async ({ ctx, input }) => {
       await requireOperationsManager(ctx.user);
       await reviewLeaveRequest({ ...input, reviewedByUserId: ctx.user.id });
+      return { success: true };
+    }),
+    reviewOwnerApproval: protectedProcedure.input(z.object({ leaveRequestId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]) })).mutation(async ({ ctx, input }) => {
+      const permission = await permissionForUser(ctx.user);
+      const roles = await rolesForUser(ctx.user);
+      const allowed = permission === "full_control" || roles.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+      if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "اعتماد الاستئذان النهائي متاح للأمين والقيادة فقط." });
+      await reviewLeaveOwnerApproval({ ...input, reviewedByUserId: ctx.user.id });
       return { success: true };
     }),
     refreshStatuses: protectedProcedure.mutation(async ({ ctx }) => {

@@ -97,6 +97,8 @@ import { addDays, assessTransferReadiness, isDueWithinSevenDays } from "./traine
 import { buildLeadershipWorkloadObservatory } from "./leadership-workload-observatory";
 import { reportStart, type ReportPeriod } from "./reporting";
 import { automaticUnstartedTaskScore, earlyTaskStartScore, newDelayScore, taskApprovalScore } from "./points-policy";
+import { hijriMonthKey } from "./hijri-month";
+import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
 import { dateRangeForSaudiDay, escalationStage, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, saudiScheduledTime } from "./task-automation";
 import { detectExcelChangeCandidates } from "./excel-change-detector";
@@ -2846,9 +2848,21 @@ export async function submitLeaveRequest(input: { profileId: number; requestType
   if (openTasks.length && !input.substituteProfileId) throw new Error("يجب اختيار بديل لإسناد المهام المفتوحة قبل تقديم طلب الإجازة.");
   if (input.substituteProfileId === input.profileId) throw new Error("لا يمكن اختيار مقدم الطلب بديلاً لنفسه.");
   const durationMinutes = Math.ceil((input.endAt.getTime() - input.startAt.getTime()) / 60000);
-  const result = await db.insert(leaveRequests).values({ profileId: input.profileId, requestType: input.requestType, startAt: input.startAt, endAt: input.endAt, durationMinutes, substituteProfileId: input.substituteProfileId ?? null, handoverConfirmed: openTasks.length === 0 || Boolean(input.substituteProfileId), status: "pending", note: input.note ?? null, requestedByUserId: input.requestedByUserId });
+
+  let hijriMonthKeyValue: string | null = null;
+  let requestSequenceInMonth = 0;
+  if (input.requestType === "permission") {
+    if (durationMinutes > PERMISSION_POLICY.maxMinutesPerRequest) throw new Error(`الاستئذان الواحد لا يتجاوز ${PERMISSION_POLICY.maxMinutesPerRequest} دقيقة.`);
+    hijriMonthKeyValue = hijriMonthKey(input.startAt);
+    const monthPermissions = await db.select({ durationMinutes: leaveRequests.durationMinutes }).from(leaveRequests).where(and(eq(leaveRequests.profileId, input.profileId), eq(leaveRequests.requestType, "permission"), eq(leaveRequests.hijriMonthKey, hijriMonthKeyValue), ne(leaveRequests.status, "rejected")));
+    const monthMinutes = monthPermissions.reduce((sum, row) => sum + row.durationMinutes, 0);
+    if (monthMinutes + durationMinutes > PERMISSION_POLICY.maxMinutesPerMonth) throw new Error(`تجاوز الحد الشهري للاستئذان (${PERMISSION_POLICY.maxMinutesPerMonth} دقيقة بالشهر الهجري).`);
+    requestSequenceInMonth = monthPermissions.length + 1;
+  }
+
+  const result = await db.insert(leaveRequests).values({ profileId: input.profileId, requestType: input.requestType, startAt: input.startAt, endAt: input.endAt, durationMinutes, substituteProfileId: input.substituteProfileId ?? null, handoverConfirmed: openTasks.length === 0 || Boolean(input.substituteProfileId), status: "pending", hijriMonthKey: hijriMonthKeyValue, requestSequenceInMonth, note: input.note ?? null, requestedByUserId: input.requestedByUserId });
   const id = Number(result[0].insertId);
-  await logAudit({ actorUserId: input.requestedByUserId, action: "leave.submitted", entityType: "leave_request", entityId: id, metadata: { openTaskCount: openTasks.length, substituteProfileId: input.substituteProfileId ?? null } });
+  await logAudit({ actorUserId: input.requestedByUserId, action: "leave.submitted", entityType: "leave_request", entityId: id, metadata: { openTaskCount: openTasks.length, substituteProfileId: input.substituteProfileId ?? null, hijriMonthKey: hijriMonthKeyValue, requestSequenceInMonth } });
   return id;
 }
 
@@ -2858,7 +2872,11 @@ export async function reviewLeaveRequest(input: { leaveRequestId: number; decisi
   const request = (await db.select().from(leaveRequests).where(eq(leaveRequests.id, input.leaveRequestId)).limit(1))[0];
   if (!request || request.status !== "pending") throw new Error("طلب الإجازة غير موجود أو تمت مراجعته.");
   if (input.decision === "approved" && !request.handoverConfirmed) throw new Error("لا يمكن اعتماد الإجازة قبل تأكيد إسناد المهام.");
-  await db.update(leaveRequests).set({ status: input.decision, reviewedByUserId: input.reviewedByUserId, reviewedAt: new Date() }).where(eq(leaveRequests.id, request.id));
+  const nextStatus = input.decision === "approved" && request.requestType === "permission" && request.requestSequenceInMonth > PERMISSION_POLICY.maxRequestsBeforeOwnerApproval ? "pending_owner_approval" : input.decision;
+  await db.update(leaveRequests).set({ status: nextStatus, reviewedByUserId: input.reviewedByUserId, reviewedAt: new Date() }).where(eq(leaveRequests.id, request.id));
+  if (nextStatus === "pending_owner_approval") {
+    await db.insert(notifications).values({ profileId: request.profileId, category: "security_alert", title: "استئذان بانتظار اعتماد الأمين", body: `طلب الاستئذان رقم ${request.id} يحتاج اعتماد الأمين بعد تجاوز الحد المسموح.`, dedupeKey: `permission-owner-approval-${request.id}` }).onDuplicateKeyUpdate({ set: { title: "استئذان بانتظار اعتماد الأمين" } });
+  }
   if (input.decision === "approved" && request.substituteProfileId) {
     await db.update(tasks).set({ assigneeProfileId: request.substituteProfileId, updatedAt: new Date() }).where(and(eq(tasks.assigneeProfileId, request.profileId), inArray(tasks.status, ["new", "in_progress", "under_review"])));
     const owner = (await db.select().from(personProfiles).where(eq(personProfiles.id, request.profileId)).limit(1))[0];
@@ -2875,6 +2893,16 @@ export async function reviewLeaveRequest(input: { leaveRequestId: number; decisi
     }
   }
   await logAudit({ actorUserId: input.reviewedByUserId, action: `leave.${input.decision}`, entityType: "leave_request", entityId: request.id, metadata: { substituteProfileId: request.substituteProfileId } });
+}
+
+/** اعتماد الأمين النهائي لطلب استئذان تجاوز الحد الشهري (الرابع فما فوق). */
+export async function reviewLeaveOwnerApproval(input: { leaveRequestId: number; decision: "approved" | "rejected"; reviewedByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const request = (await db.select().from(leaveRequests).where(eq(leaveRequests.id, input.leaveRequestId)).limit(1))[0];
+  if (!request || request.status !== "pending_owner_approval") throw new Error("طلب الاستئذان غير موجود أو ليس بانتظار اعتماد الأمين.");
+  await db.update(leaveRequests).set({ status: input.decision, reviewedByUserId: input.reviewedByUserId, reviewedAt: new Date() }).where(eq(leaveRequests.id, request.id));
+  await logAudit({ actorUserId: input.reviewedByUserId, action: `leave.owner_${input.decision}`, entityType: "leave_request", entityId: request.id, metadata: { substituteProfileId: request.substituteProfileId } });
 }
 
 export async function listLeaveRequests() {
