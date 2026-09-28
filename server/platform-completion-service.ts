@@ -194,9 +194,9 @@ export async function globalSearch(input: { query: string; userId: number; limit
   return rankSearchResults(hits, input.limit ?? 25);
 }
 
-export async function getOwnerLeadershipKpis() {
+export async function getOwnerLeadershipKpis(periodArg: "daily" | "weekly" | "monthly" = "monthly") {
   const db = await getDb();
-  const period = { startAt: reportStart("monthly", new Date()), endAt: new Date() };
+  const period = { startAt: reportStart(periodArg, new Date()), endAt: new Date() };
   const [units, observatory, delays, completed, profiles, scores, attendance] = await Promise.all([
     getDepartmentPerformance({ startAt: period.startAt, endAt: period.endAt }),
     getLeadershipWorkloadObservatory(),

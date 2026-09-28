@@ -2051,11 +2051,11 @@ export const courtRouter = router({
     }),
   }),
 
-  ownerKpis: protectedProcedure.query(async ({ ctx }) => {
+  ownerKpis: protectedProcedure.input(z.object({ period: z.enum(["daily", "weekly", "monthly"]).optional() })).query(async ({ ctx, input }) => {
     const permission = await permissionForUser(ctx.user);
     const roles = await rolesForUser(ctx.user);
     if (permission !== "full_control" && !roles.includes("court_president")) throw new TRPCError({ code: "FORBIDDEN", message: "مؤشرات القيادة العليا متاحة للمالك ورئيس المحكمة فقط." });
-    return getOwnerLeadershipKpis();
+    return getOwnerLeadershipKpis(input?.period ?? "monthly");
   }),
 
   attendanceSummary: protectedProcedure.input(z.object({ period: z.enum(["daily", "weekly", "monthly"]).default("daily") }).optional()).query(async ({ ctx, input }) => {
