@@ -2840,6 +2840,29 @@ export async function listRemoteAttendanceReport(input: { unitIds?: number[]; st
   return db.select({ attendance: attendanceRecords, profileId: personProfiles.id, profileName: personProfiles.fullName, personType: personProfiles.personType, attendanceMode: personProfiles.attendanceMode, unitId: personProfiles.unitId }).from(attendanceRecords).innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId)).where(and(...conditions)).orderBy(desc(attendanceRecords.recordDate)).limit(1000);
 }
 
+export async function getMyPermissionUsage(profileId: number) {
+  const db = await getDb();
+  if (!db) {
+    return {
+      minutesUsedThisMonth: 0,
+      maxMinutesPerMonth: PERMISSION_POLICY.maxMinutesPerMonth,
+      requestsUsedThisMonth: 0,
+      maxRequestsBeforeOwnerApproval: PERMISSION_POLICY.maxRequestsBeforeOwnerApproval,
+      maxMinutesPerRequest: PERMISSION_POLICY.maxMinutesPerRequest,
+    };
+  }
+  const monthKey = hijriMonthKey(new Date());
+  const monthPermissions = await db.select({ durationMinutes: leaveRequests.durationMinutes }).from(leaveRequests).where(and(eq(leaveRequests.profileId, profileId), eq(leaveRequests.requestType, "permission"), eq(leaveRequests.hijriMonthKey, monthKey), ne(leaveRequests.status, "rejected")));
+  const minutesUsedThisMonth = monthPermissions.reduce((sum, row) => sum + row.durationMinutes, 0);
+  return {
+    minutesUsedThisMonth,
+    maxMinutesPerMonth: PERMISSION_POLICY.maxMinutesPerMonth,
+    requestsUsedThisMonth: monthPermissions.length,
+    maxRequestsBeforeOwnerApproval: PERMISSION_POLICY.maxRequestsBeforeOwnerApproval,
+    maxMinutesPerRequest: PERMISSION_POLICY.maxMinutesPerRequest,
+  };
+}
+
 export async function submitLeaveRequest(input: { profileId: number; requestType: "leave" | "permission"; startAt: Date; endAt: Date; substituteProfileId?: number; note?: string; requestedByUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");

@@ -69,6 +69,7 @@ import {
   getPersonalDashboard,
   getProfileById,
   getProfileForUser,
+  getMyPermissionUsage,
   recordUserActivity,
   getUserEmailSettings,
   recoverUserNotificationEmail,
@@ -1859,6 +1860,12 @@ export const courtRouter = router({
       const workspace = await requirePersonalWorkspace(ctx.user);
       if (workspace.profile.personType !== "administrative") return [];
       return listAdministrativeSubstitutes(workspace.profile.unitId, workspace.profile.id);
+    }),
+    myPermissionUsage: protectedProcedure.query(async ({ ctx }) => {
+      await requirePermission(ctx.user, "edit");
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف شخصي لعرض حدود الاستئذان." });
+      return getMyPermissionUsage(profile.id);
     }),
     submit: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), requestType: z.enum(["leave", "permission"]), startAt: z.date(), endAt: z.date(), substituteProfileId: z.number().int().positive().optional(), note: z.string().trim().max(3000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
