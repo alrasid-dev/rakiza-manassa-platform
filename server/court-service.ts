@@ -100,7 +100,8 @@ import { automaticUnstartedTaskScore, earlyTaskStartScore, newDelayScore, taskAp
 import { hijriMonthKey } from "./hijri-month";
 import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
-import { dateRangeForSaudiDay, escalationStage, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, saudiScheduledTime } from "./task-automation";
+import { dateRangeForSaudiDay, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, saudiScheduledTime } from "./task-automation";
+import { isOfficialHoliday, officialHolidayName, workHoursFor } from "./holidays";
 import { detectExcelChangeCandidates } from "./excel-change-detector";
 import { completedTaskTransition, taskAssignmentNotifications } from "./task-response-policy";
 import { validateTaskAttachment, type TaskAttachmentInput } from "./task-attachment-policy";
@@ -3054,11 +3055,46 @@ export async function setAttendanceConfirmationConfig(input: { isActive?: boolea
   return getAttendanceConfirmationConfig();
 }
 
+export function parseTimeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+export function riyadhMinutesOfDay(now: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
+  const field = (name: string) => Number(parts.find(p => p.type === name)?.value || "0");
+  return field("hour") * 60 + field("minute");
+}
+
+export function formatMinutesOfDay(minutes: number): string {
+  const m = ((minutes % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/** يتحقق أن التسجيل يقع ضمن ساعات العمل الرسمية (عادي 07:00-15:00، رمضان 10:00-15:00) مع فترة سماح 15 دقيقة. */
+export function checkAttendanceWindow(now: Date, kind: "check_in" | "check_out") {
+  if (!isSaudiWorkday(now)) return { allowed: false as const, reason: "اليوم يوم عطلة (الجمعة أو السبت)." };
+  if (isOfficialHoliday(now)) return { allowed: false as const, reason: `اليوم إجازة رسمية (${officialHolidayName(now)}).` };
+  const hours = workHoursFor(now);
+  const start = parseTimeToMinutes(hours.start);
+  const end = parseTimeToMinutes(hours.end);
+  const nowMin = riyadhMinutesOfDay(now);
+  const grace = 15;
+  if (kind === "check_in") {
+    if (nowMin < start - grace) return { allowed: false as const, reason: `تسجيل الحضور يبدأ من ${hours.start} (فترة سماح ${grace} دقيقة قبلها).` };
+    return { allowed: true as const, isLate: nowMin > start };
+  }
+  if (nowMin < end - grace) return { allowed: false as const, reason: `تسجيل الانصراف يبدأ من ${formatMinutesOfDay(end - grace)}.` };
+  return { allowed: true as const };
+}
+
 export async function recordAttendance(input: { profileId: number; recordDate: Date; checkInAt?: Date; checkOutAt?: Date; status: "present" | "late" | "absent" | "excused" | "on_leave"; note?: string; actorUserId: number; autoClassify?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   let status = input.status;
   if (input.autoClassify && input.checkInAt && (status === "present" || status === "late")) {
+    const window = checkAttendanceWindow(input.checkInAt, "check_in");
+    if (!window.allowed) throw new Error(window.reason);
     const profile = (await db.select({ shiftId: personProfiles.shiftId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
     const shift = profile?.shiftId ? (await db.select({ lateStartMinutes: workShifts.lateStartMinutes }).from(workShifts).where(eq(workShifts.id, profile.shiftId)).limit(1))[0] : (await db.select({ lateStartMinutes: workShifts.lateStartMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1))[0];
     if (shift) {
@@ -3075,6 +3111,8 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
 export async function recordAttendanceCheckout(input: { profileId: number; checkOutAt: Date; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const window = checkAttendanceWindow(input.checkOutAt, "check_out");
+  if (!window.allowed) throw new Error(window.reason);
   const dayStart = new Date(Date.UTC(input.checkOutAt.getUTCFullYear(), input.checkOutAt.getUTCMonth(), input.checkOutAt.getUTCDate()));
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).orderBy(desc(attendanceRecords.recordDate)).limit(1))[0];

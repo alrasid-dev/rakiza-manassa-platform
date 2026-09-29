@@ -6,10 +6,22 @@ import { sdk } from "../_core/sdk";
 import { sendSafeScheduledFailure } from "./safe-scheduled-failure";
 import { isValidCronSecret } from "./cron-auth";
 import { attendanceConfirmationCadence, attendanceConfirmationPolicyDefaults, shouldRequestAttendanceConfirmation, calculateComplianceRate, COMPLIANCE_EXEMPTION_THRESHOLD, COMPLIANCE_MANDATORY_THRESHOLD, EXEMPTION_WINDOW_DAYS, type AttendanceConfirmationCadence } from "../attendance-confirmation-policy";
-import { dateRangeForSaudiDay } from "../task-automation";
+import { dateRangeForSaudiDay, isSaudiWorkday } from "../task-automation";
+import { isOfficialHoliday, workHoursFor } from "../holidays";
 
 const ACTIVE_REMOTE_MODES = ["remote", "mixed"] as const;
 const SYSTEM_ACTOR_ID = 0;
+
+function parseTimeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function riyadhMinutesOfDay(now: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
+  const field = (name: string) => Number(parts.find(p => p.type === name)?.value || "0");
+  return field("hour") * 60 + field("minute");
+}
 
 export type AttendanceAudience = "employees" | "trainees" | "judges" | "all" | "employees,trainees" | "employees,judges" | "trainees,judges" | "employees,trainees,judges";
 
@@ -24,6 +36,10 @@ type AttendanceCycleResult = {
 export async function runAttendanceConfirmationCycle(now = new Date(), targetProfileId?: number | null, audience: AttendanceAudience = "all"): Promise<AttendanceCycleResult> {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
+
+  // لا تعمل قبل بداية ساعات العمل الرسمية + فترة سماح 15 دقيقة، ولا في العطل.
+  if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return { scanned: 0, notified: 0, skipped: 0, policy: "enabled", penalized: 0 };
+  if (riyadhMinutesOfDay(now) < parseTimeToMinutes(workHoursFor(now).start) + 15) return { scanned: 0, notified: 0, skipped: 0, policy: "enabled", penalized: 0 };
 
   const selectedAudiences = audience === "all" || audience === "employees,trainees,judges" ? ["employees", "trainees", "judges"] : audience.split(",");
   const audienceFilter = selectedAudiences.length === 3 ? undefined : or(...selectedAudiences.map(selected => selected === "employees" ? eq(personProfiles.personType, "administrative") : selected === "trainees" ? eq(personProfiles.personType, "trainee") : eq(personProfiles.personType, "judge")));
