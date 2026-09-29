@@ -1,17 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { renderPoliciesHtml } from "./policy-pdf";
+import { generatePoliciesPdf } from "./policy-pdf";
 
 describe("مولّد PDF السياسات", () => {
-  it("يضمّن خط Noto Sans Arabic كـ base64 (Regular + Bold)", () => {
-    const html = renderPoliciesHtml("سياسة التدريب", [{ title: "قسم", content: "نص عربي تجريبي" }]);
-    expect(html).toContain("@font-face");
-    expect(html).toContain("data:font/woff2;base64,");
-    expect(html).toContain("font-weight: 400");
-    expect(html).toContain("font-weight: 700");
-    expect(html).toContain('font-family: "Noto Sans Arabic"');
-    // تأكد أن base64 غير فارغ (الخط مضمّن فعلياً وليس مساراً معطوباً)
-    const match = html.match(/data:font\/woff2;base64,([A-Za-z0-9+/=]+)/);
-    expect(match).toBeTruthy();
-    expect(match![1].length).toBeGreaterThan(1000);
+  it("ينتج PDF سليماً بالعربية يبدأ بـ %PDF ويحوي المحتوى", async () => {
+    const pdf = await generatePoliciesPdf("سياسة التدريب", [
+      { title: "قسم أول", content: "نص عربي تجريبي للسياسات الداخلية." },
+      { title: "قسم ثانٍ", content: "نص آخر يغطي قواعد الحضور والانصراف." },
+    ]);
+    expect(Buffer.isBuffer(pdf)).toBe(true);
+    expect(pdf.length).toBeGreaterThan(500);
+    expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
   });
 });

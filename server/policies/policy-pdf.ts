@@ -1,71 +1,152 @@
 /**
  * server/policies/policy-pdf.ts
- * توليد PDF للسياسات بالعربية (RTL) باستخدام Puppeteer-core + @sparticuz/chromium
- * (يعمل على Vercel ويدعم النص العربي).
+ * توليد PDF للسياسات بالعربية (RTL) باستخدام jsPDF + arabic-reshaper
+ * (بدون Puppeteer/Chromium لتجنّب تجاوز حد حجم دالة Vercel).
  */
-import chromium from "@sparticuz/chromium";
-import puppeteer from "puppeteer-core";
+import { jsPDF } from "jspdf";
+import arabicReshaper from "arabic-reshaper";
 import type { PolicySection } from "./policy-content";
 import { readFileSync } from "fs";
+import { inflateSync } from "zlib";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-function loadFontBase64(filename: string): string {
+const FONT_REGULAR = "noto-sans-arabic-arabic-400-normal.woff";
+const FONT_BOLD = "noto-sans-arabic-arabic-700-normal.woff";
+const REGULAR_ID = "NotoArabic";
+const BOLD_ID = "NotoArabicBold";
+
+/** يحوّل خط WOFF1 إلى TTF صالح لاستخدام jsPDF (إزالة غلاف WOFF وفك ضغط الجداول). */
+function woffToTtf(woff: Buffer): Buffer {
+  const numTables = woff.readUInt16BE(12);
+  const flavor = woff.readUInt32BE(4);
+  const entries: { tag: number; checksum: number; origLength: number; data: Buffer }[] = [];
+  let p = 44;
+  for (let i = 0; i < numTables; i++) {
+    const tag = woff.readUInt32BE(p);
+    const offset = woff.readUInt32BE(p + 4);
+    const compLength = woff.readUInt32BE(p + 8);
+    const origLength = woff.readUInt32BE(p + 12);
+    const checksum = woff.readUInt32BE(p + 16);
+    const raw = woff.subarray(offset, offset + compLength);
+    const data = compLength === origLength ? Buffer.from(raw) : Buffer.from(inflateSync(raw));
+    entries.push({ tag, checksum, origLength, data });
+    p += 20;
+  }
+  entries.sort((a, b) => a.tag - b.tag);
+  let maxPow2 = 1;
+  while (maxPow2 <= numTables) maxPow2 <<= 1;
+  maxPow2 >>= 1;
+  const searchRange = maxPow2 * 16;
+  const entrySelector = Math.floor(Math.log2(maxPow2));
+  const rangeShift = numTables * 16 - searchRange;
+  const headerSize = 12 + 16 * numTables;
+  let dataOffset = headerSize;
+  const records: Buffer[] = [];
+  const datas: Buffer[] = [];
+  for (const e of entries) {
+    const padded = (e.data.length + 3) & ~3;
+    const rec = Buffer.alloc(16);
+    rec.writeUInt32BE(e.tag, 0);
+    rec.writeUInt32BE(e.checksum, 4);
+    rec.writeUInt32BE(dataOffset, 8);
+    rec.writeUInt32BE(e.origLength, 12);
+    records.push(rec);
+    const pd = Buffer.alloc(padded);
+    e.data.copy(pd);
+    datas.push(pd);
+    dataOffset += padded;
+  }
+  const header = Buffer.alloc(12);
+  header.writeUInt32BE(flavor, 0);
+  header.writeUInt16BE(numTables, 4);
+  header.writeUInt16BE(searchRange, 6);
+  header.writeUInt16BE(entrySelector, 8);
+  header.writeUInt16BE(rangeShift, 10);
+  return Buffer.concat([header, ...records, ...datas]);
+}
+
+function loadFontTtf(filename: string): Buffer {
   const candidates = [
     join(process.cwd(), "node_modules/@fontsource/noto-sans-arabic/files", filename),
     join(dirname(fileURLToPath(import.meta.url)), "..", "node_modules/@fontsource/noto-sans-arabic/files", filename),
+    join(dirname(fileURLToPath(import.meta.url)), "..", "..", "node_modules/@fontsource/noto-sans-arabic/files", filename),
   ];
   for (const fontPath of candidates) {
     try {
-      return readFileSync(fontPath).toString("base64");
+      return woffToTtf(readFileSync(fontPath));
     } catch {
       // جرّب المسار التالي
     }
   }
-  console.error(`[pdf] خط ${filename} غير موجود في أي من المسارات المتوقعة.`);
-  return "";
+  console.error(`[pdf] الخط ${filename} غير موجود في أي من المسارات المتوقعة.`);
+  return Buffer.alloc(0);
 }
 
-const fontRegular = loadFontBase64("noto-sans-arabic-arabic-400-normal.woff2");
-const fontBold = loadFontBase64("noto-sans-arabic-arabic-700-normal.woff2");
+const ttfRegular = loadFontTtf(FONT_REGULAR);
+const ttfBold = loadFontTtf(FONT_BOLD);
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+function reshape(text: string): string {
+  return arabicReshaper.convertArabic(text).split("").reverse().join("");
 }
 
-export function renderPoliciesHtml(title: string, sections: PolicySection[]): string {
-  const items = sections
-    .map(section => `<section class="policy"><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.content)}</p></section>`)
-    .join("");
-  return `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8" /><style>
-    @page { size: A4; margin: 1.8cm; }
-    @font-face { font-family: "Noto Sans Arabic"; src: url(data:font/woff2;base64,${fontRegular}) format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
-    @font-face { font-family: "Noto Sans Arabic"; src: url(data:font/woff2;base64,${fontBold}) format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
-    * { box-sizing: border-box; }
-    body { font-family: "Noto Sans Arabic", "Noto Naskh Arabic", "Segoe UI", "Tahoma", sans-serif; direction: rtl; color: #12352f; line-height: 2; margin: 0; }
-    h1 { color: #0f2e27; border-bottom: 3px solid #b18448; padding-bottom: 10px; margin-bottom: 24px; font-size: 1.6rem; font-weight: 700; }
-    .policy { margin-bottom: 20px; page-break-inside: avoid; border-right: 4px solid #d8cbaa; padding-right: 12px; }
-    .policy h2 { color: #1f5a47; font-size: 1.05rem; margin: 0 0 4px; font-weight: 700; }
-    .policy p { color: #44584e; font-size: 0.88rem; margin: 0; white-space: pre-wrap; }
-  </style></head><body><h1>${escapeHtml(title)}</h1>${items}</body></html>`;
+function wrapLines(doc: jsPDF, text: string, maxWidth: number, fontId: string, size: number): string[] {
+  doc.setFont(fontId, "normal");
+  doc.setFontSize(size);
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (doc.getTextWidth(reshape(candidate)) > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
 }
 
 export async function generatePoliciesPdf(title: string, sections: PolicySection[]): Promise<Buffer> {
-  const html = renderPoliciesHtml(title, sections);
-  const browser = await puppeteer.launch({
-    args: [...chromium.args, "--no-sandbox", "--disable-dev-shm-usage"],
-    executablePath: await chromium.executablePath(),
-    headless: true,
-  });
-  try {
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "load" });
-    const pdf = await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true });
-    return Buffer.from(pdf);
-  } finally {
-    await browser.close();
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 50;
+  const maxWidth = pageWidth - margin * 2;
+  let y = margin;
+
+  if (ttfRegular.length) {
+    doc.addFileToVFS("NotoArabic.ttf", ttfRegular.toString("base64"));
+    doc.addFont("NotoArabic.ttf", REGULAR_ID, "normal");
   }
+  if (ttfBold.length) {
+    doc.addFileToVFS("NotoArabicBold.ttf", ttfBold.toString("base64"));
+    doc.addFont("NotoArabicBold.ttf", BOLD_ID, "normal");
+  }
+
+  const renderBlock = (text: string, size: number, bold: boolean) => {
+    const fontId = bold && ttfBold.length ? BOLD_ID : REGULAR_ID;
+    for (const line of wrapLines(doc, text, maxWidth, fontId, size)) {
+      if (y > pageHeight - margin) { doc.addPage(); y = margin; }
+      doc.setFont(fontId, "normal");
+      doc.setFontSize(size);
+      doc.text(reshape(line), pageWidth - margin, y, { align: "right" });
+      y += size + 5;
+    }
+    y += 6;
+  };
+
+  renderBlock(title, 18, true);
+  y += 6;
+
+  for (const section of sections) {
+    renderBlock(section.title, 13, true);
+    renderBlock(section.content, 11, false);
+    y += 4;
+  }
+
+  return Buffer.from(doc.output("arraybuffer"));
 }
+
