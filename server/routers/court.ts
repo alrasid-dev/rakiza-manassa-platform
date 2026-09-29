@@ -28,6 +28,7 @@ import {
   createOperationalReport,
   addMeetingAttendees,
   createMeeting,
+  createMeetingTask,
   createTasksFromMeetingRecommendations,
   createDelay,
   createSupportTicket,
@@ -921,6 +922,10 @@ export const courtRouter = router({
       await requirePermission(ctx.user, "manage_access");
       await saveMeetingMinutes({ ...input, actorUserId: ctx.user.id });
       return { success: true };
+    }),
+    addTask: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), title: z.string().trim().min(3).max(500), assigneeProfileId: z.number().int().positive().optional(), dueAt: z.date().optional() })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "manage_access");
+      return { id: await createMeetingTask({ ...input, assignedByUserId: ctx.user.id }) };
     }),
   }),
 

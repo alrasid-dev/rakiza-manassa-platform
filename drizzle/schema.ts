@@ -678,6 +678,7 @@ export const tasks = mysqlTable("tasks", {
   isOpen: boolean("isOpen").default(false).notNull(),
   isPinned: boolean("isPinned").default(false).notNull(),
   taskNotes: text("taskNotes"),
+  meetingId: int("meetingId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => [
@@ -687,6 +688,7 @@ export const tasks = mysqlTable("tasks", {
   index("tasks_archived_idx").on(table.archivedAt),
   index("tasks_watcher_idx").on(table.watcherProfileId),
   index("tasks_confidential_idx").on(table.isConfidential, table.confidentialityExpiresAt),
+  index("tasks_meeting_idx").on(table.meetingId),
 ]);
 
 export const taskUpdates = mysqlTable("task_updates", {

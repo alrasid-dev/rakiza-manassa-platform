@@ -1889,7 +1889,7 @@ async function createTaskConversation(input: { db: any; taskId: number; title: s
   return conversationId;
 }
 
-export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; isOpen?: boolean }) {
+export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   if (input.assigneeProfileId) {
@@ -1914,6 +1914,29 @@ export async function createTask(input: { title: string; unitId?: number; assign
     }
   }
   await logAudit({ actorUserId: input.assignedByUserId, action: "task.created", entityType: "task", entityId: id, metadata: { traineeCopyProfileId: traineeCopyProfileId ?? null } });
+  return id;
+}
+
+/** يحوّل قراراً مُقرراً في اجتماع إلى مهمة قابلة للتتبع، مع ربطها بالاجتماع وذكر مصدرها في المفكرة. */
+export async function createMeetingTask(input: { meetingId: number; title: string; assigneeProfileId?: number; dueAt?: Date; assignedByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const meeting = (await db.select().from(meetings).where(eq(meetings.id, input.meetingId)).limit(1))[0];
+  if (!meeting) throw new Error("الاجتماع غير موجود.");
+  const scheduledFor = meeting.scheduledAt ?? new Date();
+  const dueAt = input.dueAt ?? new Date(scheduledFor.getTime() + 24 * 60 * 60 * 1000);
+  const id = await createTask({
+    title: input.title,
+    assigneeProfileId: input.assigneeProfileId,
+    scheduledFor,
+    dueAt,
+    priority: "normal",
+    assignedByUserId: input.assignedByUserId,
+    unitId: meeting.unitId ?? undefined,
+    meetingId: meeting.id,
+    taskNotes: `مُقرَّرة في اجتماع ${meeting.title}`,
+  });
+  await logAudit({ actorUserId: input.assignedByUserId, action: "meeting.task_created", entityType: "meeting", entityId: meeting.id, metadata: { taskId: id, assigneeProfileId: input.assigneeProfileId ?? null } });
   return id;
 }
 
