@@ -50,6 +50,7 @@ import CorrespondenceWorkspaceContent from "./pages/CorrespondenceWorkspaceConte
 import InstallAppsPage from "./pages/InstallAppsPage";
 import DepartmentDocumentsPage from "./pages/DepartmentDocumentsPage";
 import TaskTemplatesPage from "./pages/TaskTemplatesPage";
+import DepartmentTasksPage from "./pages/DepartmentTasksPage";
 
 const routerBase = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -108,6 +109,7 @@ function Router() {
       <Route path="/internal-mail" component={() => <Redirect to="/rakiza-mail" />} />
       <Route path="/department-templates" component={DepartmentTemplatesPage} />
       <Route path="/task-templates" component={TaskTemplatesPage} />
+      <Route path="/department/:unitId/tasks" component={DepartmentTasksPage} />
                             <Route path="/workflow-map" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : WorkflowMapPage} />
       <Route path="/messages" component={MessagesPage} />
       <Route path="/data-exports" component={DataExportsPage} />

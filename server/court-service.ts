@@ -1507,6 +1507,16 @@ export async function listTasksForProfile(profileId: number, status?: "new" | "i
   return listTasks({ assigneeProfileId: profileId, status });
 }
 
+export async function archiveTask(input: { taskId: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new Error("المهمة غير موجودة.");
+  await db.update(tasks).set({ archivedAt: new Date(), archivedByUserId: input.actorUserId, updatedAt: new Date() }).where(eq(tasks.id, input.taskId));
+  await logAudit({ actorUserId: input.actorUserId, action: "task.archived", entityType: "task", entityId: input.taskId });
+  return { success: true as const };
+}
+
 export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number) {
   const db = await getDb();
   if (!db || !unitIds.length) return [];

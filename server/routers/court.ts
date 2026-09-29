@@ -148,6 +148,7 @@ import {
   restoreArchivedOperationalWork,
   listTasksForProfile,
   listTasksForUnits,
+  archiveTask,
   suggestTaskAssignees,
   autoAssignTasks,
   listTaskTemplatesForUnit,
@@ -922,6 +923,30 @@ export const courtRouter = router({
       if (unitId === null) throw new TRPCError({ code: "NOT_FOUND", message: "قالب المهمة غير موجود." });
       if (unitId !== null && !unitIds.includes(unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تفعيل قالب خارج نطاق قسمك." });
       return setDepartmentTaskTemplateActive({ templateId: input.templateId, isActive: input.isActive, actorUserId: ctx.user.id });
+    }),
+  }),
+
+  department: router({
+    tasks: protectedProcedure.input(z.object({ unitId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      const leadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      if (!leadership) {
+        const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+        if (!managedUnitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض مهام قسم خارج نطاقك." });
+      }
+      const viewerProfile = await getProfileForUser(ctx.user.id);
+      return listTasksForUnits([input.unitId], undefined, viewerProfile?.id);
+    }),
+    archive: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+      const leadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      if (!leadership) {
+        const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+        if (!task.unitId || !managedUnitIds.includes(task.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك أرشفة مهمة خارج نطاق قسمك." });
+      }
+      return archiveTask({ taskId: input.taskId, actorUserId: ctx.user.id });
     }),
   }),
 
