@@ -2048,7 +2048,7 @@ async function createTaskConversation(input: { db: any; taskId: number; title: s
   return conversationId;
 }
 
-export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean }) {
+export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom"; recurrenceInterval?: number; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   if (input.assigneeProfileId) {
@@ -2472,7 +2472,8 @@ export async function updateTask(input: {
   isOpen?: boolean;
   assigneeProfileId?: number | null;
   watcherProfileId?: number | null;
-  recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "custom";
+  recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+  recurrenceInterval?: number | null;
   recurrenceEndAt?: Date | null;
   isConfidential?: boolean;
   confidentialityExpiresAt?: Date | null;
