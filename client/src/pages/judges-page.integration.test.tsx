@@ -13,6 +13,7 @@ vi.mock("@/lib/trpc", () => ({
     court: {
       judges: {
         list: { useQuery: () => ({ data: [{ id: 300, fullName: "القاضي المختبَر", email: "judge@court.example", employeeNumber: "J-01", personType: "judge", status: "active", jobTitle: "قاضٍ", judicialFormation: "الدائرة الأولى", attendanceMode: "in_person" }], isLoading: false, error: null }) },
+        withoutEmail: { useQuery: () => ({ data: [], isLoading: false, error: null }) },
         create: { useMutation: () => mutation(state.createCalls) },
         update: { useMutation: () => mutation(state.updateCalls) },
       },

@@ -1177,6 +1177,25 @@ export async function listJudgesWithTraineeCounts() {
   return profiles.map(profile => ({ ...profile, traineeCount: countMap.get(profile.id) ?? 0 }));
 }
 
+/** قضاة بلا بريد رسمي مسجل (لإضافتهم يدوياً). */
+export async function listJudgesWithoutEmail() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: personProfiles.id,
+    fullName: personProfiles.fullName,
+    email: personProfiles.email,
+    unitId: personProfiles.unitId,
+    judicialFormation: personProfiles.judicialFormation,
+    nationalId: personProfiles.nationalId,
+    jobTitle: personProfiles.jobTitle,
+    status: personProfiles.status,
+  })
+    .from(personProfiles)
+    .where(and(eq(personProfiles.personType, "judge"), or(isNull(personProfiles.email), eq(personProfiles.email, ""))))
+    .orderBy(personProfiles.id);
+}
+
 export async function listProfilesForUnits(unitIds: number[], personType?: "administrative" | "trainee" | "judge") {
   const db = await getDb();
   if (!db || !unitIds.length) return [];

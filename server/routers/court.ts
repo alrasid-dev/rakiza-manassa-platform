@@ -117,6 +117,7 @@ import {
   listGovernanceArchive,
   linkImportBatchAsTraineeSource,
   listJudgesWithTraineeCounts,
+  listJudgesWithoutEmail,
   listLeaveRequests,
   listLeaveRequestsForProfile,
   listNotificationsForProfile,
@@ -1089,6 +1090,10 @@ export const courtRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       await requirePlatformView(ctx.user);
       return listJudgesWithTraineeCounts();
+    }),
+    withoutEmail: protectedProcedure.query(async ({ ctx }) => {
+      await requirePlatformView(ctx.user);
+      return listJudgesWithoutEmail();
     }),
     create: protectedProcedure.input(z.object({ fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review"]).default("active") })).mutation(async ({ ctx, input }) => {
       await requirePlatformOwner(ctx.user);
