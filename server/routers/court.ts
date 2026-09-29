@@ -887,7 +887,8 @@ export const courtRouter = router({
     create: protectedProcedure.input(z.object({
       unitId: z.number().int().positive(),
       title: z.string().trim().min(3).max(500),
-      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "custom"]),
+      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly", "custom"]),
+      intervalDays: z.number().int().min(1).max(365).nullable().optional(),
       dueHourLocal: z.number().int().min(0).max(23).default(13),
       workdayOnly: z.boolean().default(true),
       defaultAssigneeProfileId: z.number().int().positive().optional(),
@@ -898,13 +899,14 @@ export const courtRouter = router({
     }),
     updateFrequency: protectedProcedure.input(z.object({
       templateId: z.number().int().positive(),
-      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "custom"]),
+      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly", "custom"]),
+      intervalDays: z.number().int().min(1).max(365).nullable().optional(),
     })).mutation(async ({ ctx, input }) => {
       const unitIds = await manageableTemplateUnitIds(ctx.user);
       const unitId = await getTaskTemplateUnitId(input.templateId);
       if (unitId === null) throw new TRPCError({ code: "NOT_FOUND", message: "قالب المهمة غير موجود." });
       if (unitId !== null && !unitIds.includes(unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تعديل قالب خارج نطاق قسمك." });
-      return updateTaskTemplateFrequency({ templateId: input.templateId, frequency: input.frequency, actorUserId: ctx.user.id });
+      return updateTaskTemplateFrequency({ templateId: input.templateId, frequency: input.frequency, intervalDays: input.intervalDays ?? null, actorUserId: ctx.user.id });
     }),
     toggleActive: protectedProcedure.input(z.object({
       templateId: z.number().int().positive(),

@@ -9,7 +9,8 @@ const FREQUENCIES = [
   { value: "weekly", label: "أسبوعي" },
   { value: "monthly", label: "شهري" },
   { value: "quarterly", label: "ربع سنوي" },
-  { value: "custom", label: "مخصص" },
+  { value: "yearly", label: "سنوي" },
+  { value: "custom", label: "كل X أيام" },
 ] as const;
 
 type Frequency = (typeof FREQUENCIES)[number]["value"];
@@ -19,10 +20,10 @@ export default function TaskTemplatesPage() {
   const templates = trpc.court.templates.list.useQuery();
   const units = trpc.court.units.list.useQuery();
 
-  const [form, setForm] = useState({ unitId: "", title: "", frequency: "daily" as Frequency, dueHourLocal: "13", workdayOnly: true });
+  const [form, setForm] = useState({ unitId: "", title: "", frequency: "daily" as Frequency, intervalDays: 1, dueHourLocal: "13", workdayOnly: true });
 
   const create = trpc.court.templates.create.useMutation({
-    onSuccess: () => { utils.court.templates.list.invalidate(); setForm({ unitId: "", title: "", frequency: "daily", dueHourLocal: "13", workdayOnly: true }); toast.success("تم إنشاء القالب."); },
+    onSuccess: () => { utils.court.templates.list.invalidate(); setForm({ unitId: "", title: "", frequency: "daily", intervalDays: 1, dueHourLocal: "13", workdayOnly: true }); toast.success("تم إنشاء القالب."); },
     onError: error => toast.error(error.message || "تعذر إنشاء القالب."),
   });
   const updateFrequency = trpc.court.templates.updateFrequency.useMutation({
@@ -37,7 +38,7 @@ export default function TaskTemplatesPage() {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!form.title.trim() || !form.unitId) { toast.error("أكمل القسم والعنوان."); return; }
-    create.mutate({ unitId: Number(form.unitId), title: form.title.trim(), frequency: form.frequency, dueHourLocal: Number(form.dueHourLocal), workdayOnly: form.workdayOnly });
+    create.mutate({ unitId: Number(form.unitId), title: form.title.trim(), frequency: form.frequency, intervalDays: form.frequency === "custom" ? form.intervalDays : null, dueHourLocal: Number(form.dueHourLocal), workdayOnly: form.workdayOnly });
   };
 
   const activeUnits = (units.data ?? []).filter(unit => unit.isActive !== false);
@@ -69,6 +70,9 @@ export default function TaskTemplatesPage() {
             {FREQUENCIES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </label>
+        {form.frequency === "custom" && <label className="text-xs font-bold text-[#53675d]">كل كم يوم؟ (1-365)
+          <input type="number" min={1} max={365} value={form.intervalDays} onChange={event => setForm({ ...form, intervalDays: Number(event.target.value) })} className="mt-1 h-10 w-full rounded-xl border border-[#ddd5c9] px-3 text-sm outline-none focus:border-[#57927b]" />
+        </label>}
         <label className="text-xs font-bold text-[#53675d]">ساعة الاستحقاق (محلياً)
           <select value={form.dueHourLocal} onChange={event => setForm({ ...form, dueHourLocal: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#ddd5c9] px-3 text-sm outline-none focus:border-[#57927b]">
             {Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour}>{`${String(hour).padStart(2, "0")}:00`}</option>)}
@@ -89,16 +93,19 @@ export default function TaskTemplatesPage() {
       {templates.isLoading ? <p className="mt-4 text-sm text-[#65766d]">جارٍ التحميل…</p> : !(templates.data?.length) ? <p className="mt-4 text-sm text-[#65766d]">لا توجد قوالب ضمن نطاق صلاحيتك بعد.</p> : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[640px] text-right text-sm">
-            <thead><tr className="border-b border-[#eee7da] text-xs text-[#8a9189]"><th className="py-2 font-bold">العنوان</th><th className="py-2 font-bold">القسم</th><th className="py-2 font-bold">التكرار</th><th className="py-2 font-bold">الساعة</th><th className="py-2 font-bold">الحالة</th></tr></thead>
+            <thead><tr className="border-b border-[#eee7da] text-xs text-[#8a9189]"><th className="py-2 font-bold">العنوان</th><th className="py-2 font-bold">القسم</th><th className="py-2 font-bold">التكرار</th><th className="py-2 font-bold">الفترة</th><th className="py-2 font-bold">الساعة</th><th className="py-2 font-bold">الحالة</th></tr></thead>
             <tbody>
               {(templates.data ?? []).map(row => (
                 <tr key={row.template.id} className="border-b border-[#f3eee3] align-middle">
                   <td className="max-w-xs py-3 pr-2 font-bold text-[#29463b]">{row.template.title}</td>
                   <td className="py-3 px-2 text-[#65766d]">{row.unitName ?? "—"}</td>
                   <td className="py-3 px-2">
-                    <select value={row.template.frequency} disabled={updateFrequency.isPending} onChange={event => updateFrequency.mutate({ templateId: row.template.id, frequency: event.target.value as Frequency })} className="h-9 rounded-lg border border-[#ddd5c9] px-2 text-sm outline-none focus:border-[#57927b]">
+                    <select value={row.template.frequency} disabled={updateFrequency.isPending} onChange={event => updateFrequency.mutate({ templateId: row.template.id, frequency: event.target.value as Frequency, intervalDays: event.target.value === "custom" ? (row.template.intervalDays ?? 1) : null })} className="h-9 rounded-lg border border-[#ddd5c9] px-2 text-sm outline-none focus:border-[#57927b]">
                       {FREQUENCIES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
                     </select>
+                  </td>
+                  <td className="py-3 px-2 text-[#65766d]">
+                    {row.template.frequency === "custom" ? <input type="number" min={1} max={365} value={row.template.intervalDays ?? 1} disabled={updateFrequency.isPending} onChange={event => updateFrequency.mutate({ templateId: row.template.id, frequency: row.template.frequency, intervalDays: Number(event.target.value) })} className="h-9 w-20 rounded-lg border border-[#ddd5c9] px-2 text-sm outline-none focus:border-[#57927b]" /> : "—"}
                   </td>
                   <td className="py-3 px-2 text-[#65766d]">{`${String(row.template.dueHourLocal).padStart(2, "0")}:00`}</td>
                   <td className="py-3 px-2">

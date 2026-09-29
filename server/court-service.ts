@@ -727,13 +727,14 @@ export async function setDepartmentTaskTemplateActive(input: { templateId: numbe
 }
 
 /** إنشاء قالب مهمة قسم جديد. */
-export async function createTaskTemplate(input: { unitId: number; title: string; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "custom"; dueHourLocal: number; workdayOnly: boolean; defaultAssigneeProfileId?: number | null; createdByUserId: number }) {
+export async function createTaskTemplate(input: { unitId: number; title: string; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom"; intervalDays?: number | null; dueHourLocal: number; workdayOnly: boolean; defaultAssigneeProfileId?: number | null; createdByUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const result = await db.insert(taskTemplates).values({
     unitId: input.unitId,
     title: input.title,
     frequency: input.frequency,
+    intervalDays: input.intervalDays ?? null,
     workdayOnly: input.workdayOnly,
     dueHourLocal: input.dueHourLocal,
     defaultAssigneeProfileId: input.defaultAssigneeProfileId ?? null,
@@ -746,10 +747,10 @@ export async function createTaskTemplate(input: { unitId: number; title: string;
 }
 
 /** تعديل تكرار قالب مهمة قسم. */
-export async function updateTaskTemplateFrequency(input: { templateId: number; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "custom"; actorUserId: number }) {
+export async function updateTaskTemplateFrequency(input: { templateId: number; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom"; intervalDays?: number | null; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  await db.update(taskTemplates).set({ frequency: input.frequency, updatedAt: new Date() }).where(eq(taskTemplates.id, input.templateId));
+  await db.update(taskTemplates).set({ frequency: input.frequency, intervalDays: input.intervalDays ?? null, updatedAt: new Date() }).where(eq(taskTemplates.id, input.templateId));
   await logAudit({ actorUserId: input.actorUserId, action: "task_template.frequency_updated", entityType: "task_template", entityId: input.templateId, metadata: { frequency: input.frequency } });
   return { success: true as const };
 }
