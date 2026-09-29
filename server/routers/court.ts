@@ -98,6 +98,7 @@ import {
   listDelaysForUnits,
   listAttendance,
   listAttendanceForProfile,
+  listAttendanceForUnits,
   listActivityLog,
   logAudit,
   listVisibleAnnouncements,
@@ -111,6 +112,7 @@ import {
   listDepartmentManagers,
   listPublishedDecisionsCirculars,
   listMeetings,
+  listMeetingsForUnits,
   listMeetingAttendees,
   listPlatformModules,
   createPlatformModule,
@@ -125,6 +127,7 @@ import {
   listJudgesWithoutEmail,
   listLeaveRequests,
   listLeaveRequestsForProfile,
+  listLeaveRequestsForUnits,
   listNotificationsForProfile,
   listOrganizationUnits,
   listRemoteAttendanceReport,
@@ -780,7 +783,9 @@ export const courtRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const permission = await requirePermission(ctx.user, "view");
       const profile = await getProfileForUser(ctx.user.id);
-      return listVisibleAnnouncements({ unitId: profile?.unitId, isLeadership: await hasLeadershipPlatformScope(ctx.user, permission) });
+      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      const unitIds = managedUnitIds.length ? managedUnitIds : (profile?.unitId != null ? [profile.unitId] : null);
+      return listVisibleAnnouncements({ unitIds, isLeadership: await hasLeadershipPlatformScope(ctx.user, permission) });
     }),
     create: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), body: z.string().trim().min(3).max(10_000), visibility: z.enum(["all", "unit_only"]), unitId: z.number().int().positive().optional(), expiresAt: z.date().optional() }).refine(input => input.visibility !== "unit_only" || Boolean(input.unitId), { message: "يلزم اختيار وحدة للإعلان المقيد بالوحدة." })).mutation(async ({ ctx, input }) => {
       await requirePlatformOwner(ctx.user);
@@ -979,6 +984,8 @@ export const courtRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const permission = await requirePermission(ctx.user, "view");
       if (await hasLeadershipPlatformScope(ctx.user, permission)) return listMeetings();
+      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      if (managedUnitIds.length) return listMeetingsForUnits(managedUnitIds);
       const profile = await getProfileForUser(ctx.user.id);
       return listMeetings(profile?.unitId);
     }),
@@ -1924,6 +1931,8 @@ export const courtRouter = router({
     list: protectedProcedure.input(z.object({ date: z.date().optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
       if (await hasLeadershipPlatformScope(ctx.user, permission)) return listAttendance(input?.date);
+      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      if (managedUnitIds.length) return listAttendanceForUnits(managedUnitIds, input?.date);
       const { profile } = await requireSelfAttendanceProfile(ctx.user);
       return listAttendanceForProfile(profile.id, input?.date);
     }),
@@ -2008,6 +2017,8 @@ export const courtRouter = router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const permission = await requirePermission(ctx.user, "view");
       if (await hasLeadershipPlatformScope(ctx.user, permission)) return listLeaveRequests();
+      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      if (managedUnitIds.length) return listLeaveRequestsForUnits(managedUnitIds);
       const { profile } = await requirePersonalWorkspace(ctx.user);
       return listLeaveRequestsForProfile(profile.id);
     }),

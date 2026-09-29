@@ -256,6 +256,12 @@ export async function listMeetings(unitId?: number | null) {
   return db.select().from(meetings).where(unitId == null ? undefined : or(isNull(meetings.unitId), eq(meetings.unitId, unitId))).orderBy(desc(meetings.scheduledAt)).limit(200);
 }
 
+export async function listMeetingsForUnits(unitIds: number[]) {
+  const db = await getDb();
+  if (!db || !unitIds.length) return [];
+  return db.select().from(meetings).where(or(isNull(meetings.unitId), inArray(meetings.unitId, unitIds))).orderBy(desc(meetings.scheduledAt)).limit(200);
+}
+
 export async function getMeetingById(meetingId: number) {
   const db = await getDb();
   if (!db) return undefined;
@@ -1117,7 +1123,7 @@ export async function getPersonalDashboard(profileId: number) {
   return { openTasks: Number(openTasks[0]?.count ?? 0), overdueTasks: Number(overdueTasks[0]?.count ?? 0), openDelays: Number(openDelays[0]?.count ?? 0), unreadNotifications: Number(unreadNotifications[0]?.count ?? 0) };
 }
 
-export async function listVisibleAnnouncements(input: { unitId?: number | null; isLeadership: boolean }) {
+export async function listVisibleAnnouncements(input: { unitIds?: number[] | null; isLeadership: boolean }) {
   const db = await getDb();
   if (!db) return [];
   const now = new Date();
@@ -1126,7 +1132,7 @@ export async function listVisibleAnnouncements(input: { unitId?: number | null; 
     const isPublished = Boolean(item.publishedAt && item.publishedAt <= now);
     const isCurrent = !item.expiresAt || item.expiresAt > now;
     const isStopped = item.status === "stopped";
-    const inScope = input.isLeadership || item.visibility === "all" || (item.visibility === "unit_only" && input.unitId !== undefined && input.unitId !== null && item.unitId === input.unitId);
+    const inScope = input.isLeadership || item.visibility === "all" || (item.visibility === "unit_only" && input.unitIds != null && item.unitId != null && input.unitIds.includes(item.unitId));
     return isPublished && isCurrent && !isStopped && inScope;
   }).sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0));
 }
@@ -3134,6 +3140,18 @@ export async function listAttendance(date?: Date) {
   return query.where(and(gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end))).limit(200);
 }
 
+export async function listAttendanceForUnits(unitIds: number[], date?: Date) {
+  const db = await getDb();
+  if (!db || !unitIds.length) return [];
+  const conditions = [inArray(personProfiles.unitId, unitIds)];
+  if (date) {
+    const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    conditions.push(gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end));
+  }
+  return db.select({ attendance: attendanceRecords, profileName: personProfiles.fullName, personType: personProfiles.personType }).from(attendanceRecords).innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId)).where(and(...conditions)).orderBy(desc(attendanceRecords.recordDate)).limit(200);
+}
+
 export async function listTraineeAttendance(date?: Date) {
   const db = await getDb();
   if (!db) return [];
@@ -3260,6 +3278,12 @@ export async function listLeaveRequestsForProfile(profileId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select({ request: leaveRequests, profileName: personProfiles.fullName, substituteName: sql<string | null>`(select fullName from person_profiles substitute where substitute.id = ${leaveRequests.substituteProfileId})` }).from(leaveRequests).innerJoin(personProfiles, eq(personProfiles.id, leaveRequests.profileId)).where(eq(leaveRequests.profileId, profileId)).orderBy(desc(leaveRequests.createdAt)).limit(200);
+}
+
+export async function listLeaveRequestsForUnits(unitIds: number[]) {
+  const db = await getDb();
+  if (!db || !unitIds.length) return [];
+  return db.select({ request: leaveRequests, profileName: personProfiles.fullName, substituteName: sql<string | null>`(select fullName from person_profiles substitute where substitute.id = ${leaveRequests.substituteProfileId})` }).from(leaveRequests).innerJoin(personProfiles, eq(personProfiles.id, leaveRequests.profileId)).where(inArray(personProfiles.unitId, unitIds)).orderBy(desc(leaveRequests.createdAt)).limit(200);
 }
 
 export async function activateScheduledLeaveStatuses(now = new Date()) {
