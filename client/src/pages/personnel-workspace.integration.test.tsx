@@ -22,6 +22,7 @@ vi.mock("@/lib/trpc", () => ({
         create: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
         update: { useMutation: () => ({ isPending: false, error: null, mutate: (input: Record<string, unknown>) => state.updateCalls.push(input) }) },
         deactivate: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
+        archive: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
         delegations: { useQuery: () => ({ data: [], isLoading: false, error: null }) },
         createDelegation: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
         updateDelegationStatus: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
