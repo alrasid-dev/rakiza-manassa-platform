@@ -2067,9 +2067,9 @@ export async function createTask(input: { title: string; unitId?: number; assign
     const existingTemplate = (await db.select({ id: taskTemplates.id }).from(taskTemplates).where(and(eq(taskTemplates.title, input.title), input.unitId ? eq(taskTemplates.unitId, input.unitId) : isNull(taskTemplates.unitId))).limit(1))[0];
     let templateId = existingTemplate?.id ?? null;
     if (templateId) {
-      await db.update(taskTemplates).set({ frequency: input.recurrence, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, updatedAt: new Date() }).where(eq(taskTemplates.id, templateId));
+      await db.update(taskTemplates).set({ frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, updatedAt: new Date() }).where(eq(taskTemplates.id, templateId));
     } else {
-      const templateResult = await db.insert(taskTemplates).values({ unitId: input.unitId ?? null, title: input.title, frequency: input.recurrence, workdayOnly: true, dueHourLocal: input.dueAt ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", hour12: false }).format(new Date(input.dueAt))) : 13, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, createdByUserId: input.assignedByUserId });
+      const templateResult = await db.insert(taskTemplates).values({ unitId: input.unitId ?? null, title: input.title, frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, workdayOnly: true, dueHourLocal: input.dueAt ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", hour12: false }).format(new Date(input.dueAt))) : 13, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, createdByUserId: input.assignedByUserId });
       templateId = Number(templateResult[0].insertId);
     }
     await db.update(tasks).set({ templateId }).where(eq(tasks.id, id));
