@@ -578,6 +578,29 @@ export async function listPlatformUsersForRoleAssignment() {
     .orderBy(users.name);
 }
 
+export async function listDepartmentManagers(input: { unitId?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  const rows = await db.select({ profileId: personProfiles.id, fullName: personProfiles.fullName, unitId: courtRoleAssignments.unitId })
+    .from(courtRoleAssignments)
+    .innerJoin(personProfiles, eq(personProfiles.userId, courtRoleAssignments.userId))
+    .where(and(
+      eq(courtRoleAssignments.role, "department_manager"),
+      eq(courtRoleAssignments.isActive, true),
+      lte(courtRoleAssignments.startsAt, now),
+      or(isNull(courtRoleAssignments.endsAt), gt(courtRoleAssignments.endsAt, now)),
+      ...(input.unitId ? [eq(courtRoleAssignments.unitId, input.unitId)] : []),
+    ))
+    .orderBy(asc(personProfiles.fullName));
+  const seen = new Set<number>();
+  return rows.filter(row => {
+    if (seen.has(row.profileId)) return false;
+    seen.add(row.profileId);
+    return true;
+  });
+}
+
 export async function listAdministrativeSubstitutes(unitId: number | null, excludeProfileId: number) {
   const db = await getDb();
   if (!db || !unitId) return [];
