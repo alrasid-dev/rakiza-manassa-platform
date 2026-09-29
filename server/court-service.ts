@@ -726,6 +726,34 @@ export async function setDepartmentTaskTemplateActive(input: { templateId: numbe
   return { success: true as const };
 }
 
+/** إنشاء قالب مهمة قسم جديد. */
+export async function createTaskTemplate(input: { unitId: number; title: string; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "custom"; dueHourLocal: number; workdayOnly: boolean; defaultAssigneeProfileId?: number | null; createdByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const result = await db.insert(taskTemplates).values({
+    unitId: input.unitId,
+    title: input.title,
+    frequency: input.frequency,
+    workdayOnly: input.workdayOnly,
+    dueHourLocal: input.dueHourLocal,
+    defaultAssigneeProfileId: input.defaultAssigneeProfileId ?? null,
+    isActive: true,
+    createdByUserId: input.createdByUserId,
+  });
+  const id = Number(result[0].insertId);
+  await logAudit({ actorUserId: input.createdByUserId, action: "task_template.created", entityType: "task_template", entityId: id });
+  return id;
+}
+
+/** تعديل تكرار قالب مهمة قسم. */
+export async function updateTaskTemplateFrequency(input: { templateId: number; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "custom"; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  await db.update(taskTemplates).set({ frequency: input.frequency, updatedAt: new Date() }).where(eq(taskTemplates.id, input.templateId));
+  await logAudit({ actorUserId: input.actorUserId, action: "task_template.frequency_updated", entityType: "task_template", entityId: input.templateId, metadata: { frequency: input.frequency } });
+  return { success: true as const };
+}
+
 /** مستندات الأقسام ضمن الوحدات المحددة (لشاشة «مستندات القسم»). */
 export async function listDepartmentDocuments(unitIds: number[]) {
   const db = await getDb();

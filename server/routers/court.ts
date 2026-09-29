@@ -176,6 +176,8 @@ import {
   listDepartmentTaskTemplates,
   getTaskTemplateUnitId,
   setDepartmentTaskTemplateActive,
+  createTaskTemplate,
+  updateTaskTemplateFrequency,
   listDepartmentDocuments,
   createDepartmentDocument,
   endDepartmentAccountDelegation,
@@ -874,6 +876,45 @@ export const courtRouter = router({
       if (!unitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك رفع مستند خارج نطاق قسمك." });
       const profile = await getProfileForUser(ctx.user.id);
       return createDepartmentDocument({ ...input, actorUserId: ctx.user.id, profileId: profile?.id });
+    }),
+  }),
+
+  templates: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const unitIds = await manageableTemplateUnitIds(ctx.user);
+      return listDepartmentTaskTemplates(unitIds);
+    }),
+    create: protectedProcedure.input(z.object({
+      unitId: z.number().int().positive(),
+      title: z.string().trim().min(3).max(500),
+      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "custom"]),
+      dueHourLocal: z.number().int().min(0).max(23).default(13),
+      workdayOnly: z.boolean().default(true),
+      defaultAssigneeProfileId: z.number().int().positive().optional(),
+    })).mutation(async ({ ctx, input }) => {
+      const unitIds = await manageableTemplateUnitIds(ctx.user);
+      if (!unitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إنشاء قالب خارج نطاق قسمك." });
+      return { id: await createTaskTemplate({ ...input, createdByUserId: ctx.user.id }) };
+    }),
+    updateFrequency: protectedProcedure.input(z.object({
+      templateId: z.number().int().positive(),
+      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "custom"]),
+    })).mutation(async ({ ctx, input }) => {
+      const unitIds = await manageableTemplateUnitIds(ctx.user);
+      const unitId = await getTaskTemplateUnitId(input.templateId);
+      if (unitId === null) throw new TRPCError({ code: "NOT_FOUND", message: "قالب المهمة غير موجود." });
+      if (unitId !== null && !unitIds.includes(unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تعديل قالب خارج نطاق قسمك." });
+      return updateTaskTemplateFrequency({ templateId: input.templateId, frequency: input.frequency, actorUserId: ctx.user.id });
+    }),
+    toggleActive: protectedProcedure.input(z.object({
+      templateId: z.number().int().positive(),
+      isActive: z.boolean(),
+    })).mutation(async ({ ctx, input }) => {
+      const unitIds = await manageableTemplateUnitIds(ctx.user);
+      const unitId = await getTaskTemplateUnitId(input.templateId);
+      if (unitId === null) throw new TRPCError({ code: "NOT_FOUND", message: "قالب المهمة غير موجود." });
+      if (unitId !== null && !unitIds.includes(unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تفعيل قالب خارج نطاق قسمك." });
+      return setDepartmentTaskTemplateActive({ templateId: input.templateId, isActive: input.isActive, actorUserId: ctx.user.id });
     }),
   }),
 

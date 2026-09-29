@@ -32,6 +32,7 @@ import { AssetsPage } from "@/pages/AssetsPage";
 import ManagerAssignmentRequestPage from "@/pages/ManagerAssignmentRequestPage";
 import RakizaMailPage from "@/pages/RakizaMailPage";
 import DepartmentTemplatesPage from "@/pages/DepartmentTemplatesPage";
+import TaskTemplatesPage from "@/pages/TaskTemplatesPage";
 import WorkflowMapPage from "@/pages/WorkflowMapPage";
 import MessagesPage from "@/pages/MessagesPage";
 import DataExportsPage from "@/pages/DataExportsPage";
@@ -95,6 +96,7 @@ export const PLATFORM_PAGES: PlatformPage[] = [
   { path: "/leadership-access", label: "وصول القيادة", component: LeadershipAccessPage },
   { path: "/manager-assignment-request", label: "طلب تكليف مدير", component: ManagerAssignmentRequestPage },
   { path: "/department-templates", label: "قوالب الأقسام", component: DepartmentTemplatesPage },
+  { path: "/task-templates", label: "قوالب المهام", component: TaskTemplatesPage },
   { path: "/workflow-map", label: "مخطط سير العمل", component: WorkflowMapPage },
   { path: "/trainee-correspondence-templates", label: "قوالب مراسلات الملازمين", component: TraineeCorrespondenceTemplatesPage },
   { path: "/design-preview", label: "معاينة الهوية", component: MinimalJusticePreviewPage },
