@@ -1028,16 +1028,24 @@ export async function sendPerformanceRecommendation(input: { actorUserId: number
 
 export async function getDashboardSummary(userId: number, isPlatformAdmin: boolean) {
   const db = await getDb();
-  if (!db) return { roles: [] as CourtRole[], profiles: 0, templates: 0, openDelays: 0, overdueDelays: 0, dueTasks: 0, openTasks: 0, unreadNotifications: 0, announcements: [] as { id: number; title: string; body: string; publishedAt: Date | null }[] };
+  if (!db) return { roles: [] as CourtRole[], profiles: 0, templates: 0, openDelays: 0, overdueDelays: 0, dueTasks: 0, openTasks: 0, overdueTasks: 0, unreadNotifications: 0, announcements: [] as { id: number; title: string; body: string; publishedAt: Date | null }[] };
   const profileId = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, userId)).limit(1))[0]?.id ?? null;
-  const [roles, profileRows, templateRows, delayRows, overdueRows, taskRows, openTaskRows, unreadRows, announcementRows] = await Promise.all([
+  const now = new Date();
+  const [roles, profileRows, templateRows, delayRows, overdueRows, taskRows, openTaskRows, overdueTaskRows, unreadRows, announcementRows] = await Promise.all([
     getEffectiveRoles(userId, isPlatformAdmin),
     db.select({ count: sql<number>`count(*)` }).from(personProfiles),
     db.select({ count: sql<number>`count(*)` }).from(taskTemplates).where(eq(taskTemplates.isActive, true)),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(eq(delayRecords.status, "under_follow_up")),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(eq(delayRecords.status, "overdue")),
-    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(gte(tasks.dueAt, new Date()), eq(tasks.status, "new"))),
+    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(gte(tasks.dueAt, now), eq(tasks.status, "new"))),
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(inArray(tasks.status, ["new", "in_progress", "under_review", "overdue"])),
+    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
+      isNull(tasks.archivedAt),
+      or(
+        eq(tasks.status, "overdue"),
+        and(lt(tasks.dueAt, now), inArray(tasks.status, ["new", "in_progress", "under_review"]))
+      )
+    )),
     db.select({ count: sql<number>`count(*)` }).from(notifications).where(and(eq(notifications.profileId, profileId ?? 0), eq(notifications.isRead, false))),
     db.select({ id: announcements.id, title: announcements.title, body: announcements.body, publishedAt: announcements.publishedAt })
       .from(announcements)
@@ -1053,6 +1061,7 @@ export async function getDashboardSummary(userId: number, isPlatformAdmin: boole
     overdueDelays: Number(overdueRows[0]?.count ?? 0),
     dueTasks: Number(taskRows[0]?.count ?? 0),
     openTasks: Number(openTaskRows[0]?.count ?? 0),
+    overdueTasks: Number(overdueTaskRows[0]?.count ?? 0),
     unreadNotifications: Number(unreadRows[0]?.count ?? 0),
     announcements: announcementRows,
   };
@@ -1068,10 +1077,18 @@ export async function getManagedUnitDashboard(unitIds: number[], userId: number)
   const db = await getDb();
   if (!db || !unitIds.length) return { scope: "unit" as const, profiles: 0, openTasks: 0, overdueTasks: 0, openDelays: 0, overdueDelays: 0, unreadNotifications: 0 };
   const profileId = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, userId)).limit(1))[0]?.id ?? null;
+  const now = new Date();
   const [profileRows, openTaskRows, overdueTaskRows, openDelayRows, overdueDelayRows, unreadRows] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(personProfiles).where(inArray(personProfiles.unitId, unitIds)),
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(inArray(tasks.unitId, unitIds), inArray(tasks.status, ["new", "in_progress", "under_review"]))),
-    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(inArray(tasks.unitId, unitIds), eq(tasks.status, "overdue"))),
+    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
+      inArray(tasks.unitId, unitIds),
+      isNull(tasks.archivedAt),
+      or(
+        eq(tasks.status, "overdue"),
+        and(lt(tasks.dueAt, now), inArray(tasks.status, ["new", "in_progress", "under_review"]))
+      )
+    )),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(and(inArray(delayRecords.unitId, unitIds), eq(delayRecords.status, "under_follow_up"))),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(and(inArray(delayRecords.unitId, unitIds), eq(delayRecords.status, "overdue"))),
     db.select({ count: sql<number>`count(*)` }).from(notifications).where(and(eq(notifications.profileId, profileId ?? 0), eq(notifications.isRead, false))),

@@ -116,7 +116,7 @@ export default function Home() {
   const tasksList = trpc.court.tasks.list.useQuery(undefined, { enabled: Boolean(permission.data) });
   const openFlaggedTasks = (tasksList.data ?? []).filter(task => task.isOpen).length;
   const activeCount = openTasks + overdueTasks;
-  const lateCount = overdueTasks + overdueDelays;
+  const lateCount = overdueTasks;
 
   const homeCards: HomeCardEntry[] = [
     { id: "home", label: "الرئيسية", icon: LayoutDashboard, tone: "from-[#1f6e4d] to-[#2f8a63]", sub: "نظرة عامة على عملك", path: "/", allowed: true },
