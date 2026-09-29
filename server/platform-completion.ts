@@ -4,7 +4,7 @@ export type WorkMode = "employee" | "manager";
 export type AttendancePeriod = "daily" | "weekly" | "monthly";
 export type NotificationFilter = "all" | "unread" | "tasks" | "mail" | "attendance" | "leave" | "escalation";
 export type DeadlineNudgeKind = "none" | "24h" | "12h";
-export type ProfileAssignmentStatus = "active" | "on_leave" | "inactive" | "pending_review";
+export type ProfileAssignmentStatus = "active" | "on_leave" | "inactive" | "pending_review" | "archived";
 
 const ARABIC_DIACRITICS = /[\u064B-\u065F\u0670]/g;
 
@@ -38,6 +38,7 @@ export function profileCanReceiveNewTask(status?: ProfileAssignmentStatus | null
 export function assignmentBlockReason(status?: ProfileAssignmentStatus | null) {
   if (status === "on_leave") return "لا يمكن إسناد مهمة جديدة لموظف في إجازة أو غياب معتمد.";
   if (status === "inactive") return "لا يمكن إسناد مهمة لموظف موقوف عن العمل.";
+  if (status === "archived") return "لا يمكن إسناد مهمة لملف مؤرشف.";
   if (status === "pending_review") return "لا يمكن إسناد مهمة لملف ما زال قيد المراجعة.";
   if (!status) return "ملف المكلف غير موجود.";
   return null;

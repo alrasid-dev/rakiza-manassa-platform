@@ -1234,6 +1234,14 @@ export async function deactivateProfile(profileId: number, actorUserId: number, 
   await logAudit({ actorUserId, action: "profile.deactivated", entityType: "person_profile", entityId: profileId, metadata: { reason: reason ?? null } });
 }
 
+/** أرشفة نظامية لملف شخصي: لا تحذف السجل بل توقفه بوسم archived مع حفظ السبب والفاعل. */
+export async function archiveProfile(profileId: number, actorUserId: number, reason?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  await db.update(personProfiles).set({ status: "archived", archivedAt: new Date(), archivedReason: reason ?? null, archivedByUserId: actorUserId }).where(eq(personProfiles.id, profileId));
+  await logAudit({ actorUserId, action: "profile.archived", entityType: "person_profile", entityId: profileId, metadata: { reason: reason ?? null } });
+}
+
 export async function updateJudgeProfile(input: { judgeId: number; fullName: string; email?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review"; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");

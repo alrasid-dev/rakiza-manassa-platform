@@ -147,11 +147,14 @@ export const personProfiles = mysqlTable("person_profiles", {
   attendanceMode: mysqlEnum("attendanceMode", ["in_person", "remote", "mixed"]),
   activityState: mysqlEnum("activityState", ["active", "chatting", "inactive"]).default("inactive").notNull(),
   lastActiveAt: timestamp("lastActiveAt"),
-  status: mysqlEnum("status", ["active", "on_leave", "inactive", "pending_review"]).default("pending_review").notNull(),
+  status: mysqlEnum("status", ["active", "on_leave", "inactive", "pending_review", "archived"]).default("pending_review").notNull(),
   employmentStatus: varchar("employmentStatus", { length: 180 }),
   assignmentNote: text("assignmentNote"),
   sourceReference: varchar("sourceReference", { length: 240 }),
   lastConfirmExemptionAt: timestamp("lastConfirmExemptionAt"),
+  archivedAt: timestamp("archivedAt"),
+  archivedReason: varchar("archivedReason", { length: 500 }),
+  archivedByUserId: int("archivedByUserId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => [
@@ -159,6 +162,7 @@ export const personProfiles = mysqlTable("person_profiles", {
   index("person_profiles_manager_idx").on(table.directManagerProfileId),
   index("person_profiles_type_idx").on(table.personType),
   index("person_profiles_user_idx").on(table.userId),
+  index("idx_person_profiles_archived").on(table.status, table.archivedAt),
 ]);
 
 export const profileDelegations = mysqlTable("profile_delegations", {

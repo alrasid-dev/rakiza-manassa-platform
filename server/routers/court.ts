@@ -51,6 +51,7 @@ import {
   listTaskRouteTargets,
   routeTaskToProfile,
   deactivateProfile,
+  archiveProfile,
   decideApproval,
   getAccessPermission,
   getActiveCourtRoleAssignments,
@@ -1052,6 +1053,13 @@ export const courtRouter = router({
       if (roles.includes("human_resources_manager") && !input.reason) throw new TRPCError({ code: "BAD_REQUEST", message: "يلزم بيان سبب إيقاف دخول الموظف." });
       await requireAssetClearance(input.profileId);
       await deactivateProfile(input.profileId, ctx.user.id, input.reason);
+      return { success: true };
+    }),
+    archive: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), reason: z.string().trim().min(3).max(500).optional() })).mutation(async ({ ctx, input }) => {
+      const { roles } = await requireHumanResourcesOrLeadership(ctx.user);
+      if (roles.includes("human_resources_manager") && !input.reason) throw new TRPCError({ code: "BAD_REQUEST", message: "يلزم بيان سبب الأرشفة." });
+      await requireAssetClearance(input.profileId);
+      await archiveProfile(input.profileId, ctx.user.id, input.reason);
       return { success: true };
     }),
     update: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), unitId: z.number().int().positive().nullable().optional(), directManagerProfileId: z.number().int().positive().nullable().optional(), fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review"]), reason: z.string().trim().min(5).max(1000).optional() })).mutation(async ({ ctx, input }) => {
