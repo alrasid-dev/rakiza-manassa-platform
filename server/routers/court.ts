@@ -228,6 +228,7 @@ import { sdk } from "../_core/sdk";
 import { assignCourtAsset, canClearProfile, countOpenCustodies, createCourtAsset, listCourtAssets, returnCourtAsset } from "../assets-service";
 import { archiveManagerTemplate, buildUnitDataExport, createFlexibleCorrespondence, createCustomConversation, createInternalConversation, createManagerTemplate, forwardInternalConversationMessage, getInternalConversation, getUnreadConversationCount, listCommunicationUnits, listDataExportJobs, listFrequentContacts, listInternalConversations, listManagerTemplates, requestUnitDataExport, searchInternalConversationMessages, searchInternalPeople, sendInternalMessage, setInternalConversationPinnedMessage, setInternalConversationTyping, toggleInternalConversationMessageReaction, updateManagerTemplate } from "../internal-communications-service";
 import { departmentAccounts } from "../../drizzle/schema";
+import { isRamadan, officialHolidayName, workHoursFor } from "../holidays";
 import { getPoliciesForRoles } from "../policies/policy-content";
 import { generatePoliciesPdf } from "../policies/policy-pdf";
 import { sendPushForNotification } from "../push-service";
@@ -982,6 +983,20 @@ export const courtRouter = router({
       const sections = getPoliciesForRoles(roles, permission);
       const pdf = await generatePoliciesPdf("سياسات منصة ركيزة", sections);
       return { base64: pdf.toString("base64"), count: sections.length };
+    }),
+  }),
+
+  holidays: router({
+    today: protectedProcedure.query(() => {
+      const today = new Date();
+      const holidayName = officialHolidayName(today);
+      const ramadan = isRamadan(today);
+      return {
+        isHoliday: Boolean(holidayName),
+        holidayName,
+        workHours: workHoursFor(today),
+        isRamadan: ramadan,
+      };
     }),
   }),
 
