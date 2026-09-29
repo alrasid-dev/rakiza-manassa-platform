@@ -130,3 +130,10 @@ export function getPoliciesForRole(role: string | null | undefined, permission: 
   const rank = audienceRankFor(role, permission);
   return POLICY_SECTIONS.filter(section => AUDIENCE_RANK[section.appliesTo] <= rank);
 }
+
+/** السياسات المطبقة على مستخدم له عدة أدوار (تؤخذ أعلى صلاحية بينها). */
+export function getPoliciesForRoles(roles: Array<string | null | undefined>, permission: string | null | undefined): PolicySection[] {
+  let rank = AUDIENCE_RANK.all;
+  for (const role of roles) rank = Math.max(rank, audienceRankFor(role, permission));
+  return POLICY_SECTIONS.filter(section => AUDIENCE_RANK[section.appliesTo] <= rank);
+}

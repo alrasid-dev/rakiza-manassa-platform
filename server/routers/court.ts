@@ -226,6 +226,8 @@ import { sdk } from "../_core/sdk";
 import { assignCourtAsset, canClearProfile, countOpenCustodies, createCourtAsset, listCourtAssets, returnCourtAsset } from "../assets-service";
 import { archiveManagerTemplate, buildUnitDataExport, createFlexibleCorrespondence, createCustomConversation, createInternalConversation, createManagerTemplate, forwardInternalConversationMessage, getInternalConversation, getUnreadConversationCount, listCommunicationUnits, listDataExportJobs, listFrequentContacts, listInternalConversations, listManagerTemplates, requestUnitDataExport, searchInternalConversationMessages, searchInternalPeople, sendInternalMessage, setInternalConversationPinnedMessage, setInternalConversationTyping, toggleInternalConversationMessageReaction, updateManagerTemplate } from "../internal-communications-service";
 import { departmentAccounts } from "../../drizzle/schema";
+import { getPoliciesForRoles } from "../policies/policy-content";
+import { generatePoliciesPdf } from "../policies/policy-pdf";
 import { sendPushForNotification } from "../push-service";
 import { deleteInternalMailRule, deleteInternalMailTemplate, getInternalMailFolderCounts, getInternalMailMessage, getInternalMailPreferences, listInternalMail, listInternalMailRecurringSchedules, saveInternalMailDraft, saveInternalMailRule, saveInternalMailTemplate, scheduleInternalMail, scheduleRecurringInternalMail, sendInternalMail, suggestInternalMailAssistant, summarizeInternalMailMessage, updateInternalMailAssistantPreferences, updateInternalMailContact, updateInternalMailEntry, updateInternalMailPreferences, updateInternalMailRecurringSchedule, uploadInternalMailSignatureImage } from "../internal-mail-service";
 import { removeFcmToken, sendFcmToProfile, upsertFcmToken } from "../fcm-service";
@@ -939,6 +941,21 @@ export const courtRouter = router({
     addTask: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), title: z.string().trim().min(3).max(500), assigneeProfileId: z.number().int().positive().optional(), dueAt: z.date().optional() })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "manage_access");
       return { id: await createMeetingTask({ ...input, assignedByUserId: ctx.user.id }) };
+    }),
+  }),
+
+  policies: router({
+    content: protectedProcedure.query(async ({ ctx }) => {
+      const permission = await permissionForUser(ctx.user);
+      const roles = await rolesForUser(ctx.user);
+      return getPoliciesForRoles(roles, permission);
+    }),
+    pdf: protectedProcedure.query(async ({ ctx }) => {
+      const permission = await permissionForUser(ctx.user);
+      const roles = await rolesForUser(ctx.user);
+      const sections = getPoliciesForRoles(roles, permission);
+      const pdf = await generatePoliciesPdf("سياسات منصة ركيزة", sections);
+      return { base64: pdf.toString("base64"), count: sections.length };
     }),
   }),
 
