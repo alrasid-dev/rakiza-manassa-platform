@@ -3476,7 +3476,7 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
   let createdTasks = 0;
   let skipped = 0;
   for (const template of templates) {
-    if (!isTemplateDue(template.frequency, template.workdayOnly, now)) { skipped += 1; continue; }
+    if (!isTemplateDue(template.frequency, template.workdayOnly, now, template.intervalDays, template.lastGeneratedAt)) { skipped += 1; continue; }
     const existing = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.templateId, template.id), gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))).limit(1);
     if (existing[0]) { skipped += 1; continue; }
     const autoAssignee = admins.length ? admins[(template.id - 1) % admins.length] : undefined;
@@ -3485,7 +3485,7 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
     if (!assigneeProfileId) { skipped += 1; continue; }
     const scheduledFor = saudiScheduledTime(now, 7);
     const dueAt = saudiScheduledTime(now, template.dueHourLocal);
-    await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt });
+    await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null });
     await db.update(taskTemplates).set({ lastGeneratedAt: now }).where(eq(taskTemplates.id, template.id));
     createdTasks += 1;
   }
