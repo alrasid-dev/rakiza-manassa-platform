@@ -15,12 +15,12 @@ describe("نطاق الإعلانات الداخلية", () => {
       { id: 4, title: "منتهٍ", visibility: "all", unitId: null, publishedAt: new Date(now.getTime() - 10_000), expiresAt: new Date(now.getTime() - 1_000) },
       { id: 5, title: "غير منشور", visibility: "all", unitId: null, publishedAt: null, expiresAt: null },
     ];
-    const visible = await listVisibleAnnouncements({ unitId: 4, isLeadership: false });
+    const visible = await listVisibleAnnouncements({ unitIds: [4], isLeadership: false });
     expect(visible.map(item => item.id)).toEqual([2, 1]);
   });
 
   it("يتيح للقيادة الاطلاع على الإعلانات التشغيلية السارية عبر الوحدات", async () => {
-    const visible = await listVisibleAnnouncements({ unitId: 4, isLeadership: true });
+    const visible = await listVisibleAnnouncements({ unitIds: [4], isLeadership: true });
     expect(visible.map(item => item.id)).toEqual([3, 2, 1]);
   });
 });

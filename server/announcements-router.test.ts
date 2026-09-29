@@ -19,7 +19,7 @@ describe("مركز الإعلانات الداخلية", () => {
   it("يعرض الإعلانات من خلال خدمة النطاق وينشر المالك إعلاناً عاماً", async () => {
     const owner = courtRouter.createCaller({ user: { id: 1, role: "admin", email: OWNER_EMAIL, name: "المالك", openId: "owner" } } as never);
     await expect(owner.announcements.list()).resolves.toEqual([expect.objectContaining({ id: 31, title: "إعلان عام" })]);
-    expect(mocks.listVisibleAnnouncements).toHaveBeenCalledWith({ unitId: 4, isLeadership: true });
+    expect(mocks.listVisibleAnnouncements).toHaveBeenCalledWith({ unitIds: [4], isLeadership: true });
     await expect(owner.announcements.create({ title: "تنبيه داخلي", body: "هذا إعلان تشغيلي", visibility: "all" })).resolves.toEqual({ id: 31 });
     expect(mocks.createAnnouncement).toHaveBeenCalledWith(expect.objectContaining({ title: "تنبيه داخلي", visibility: "all", createdByUserId: 1 }));
   });
