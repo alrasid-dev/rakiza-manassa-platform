@@ -1138,6 +1138,34 @@ export async function listTraineesForJudge(judgeProfileId: number) {
   return rows.sort((a, b) => a.fullName.localeCompare(b.fullName, "ar"));
 }
 
+export async function listUnitRoster(unitId: number) {
+  const db = await getDb();
+  if (!db) return { administrative: [], trainees: [], judges: [] };
+  const [unitProfiles, allJudges, assignments] = await Promise.all([
+    db.select().from(personProfiles).where(and(eq(personProfiles.unitId, unitId), ne(personProfiles.status, "inactive"))),
+    db.select().from(personProfiles).where(and(eq(personProfiles.personType, "judge"), ne(personProfiles.status, "inactive"))),
+    db.select().from(traineeAssignments),
+  ]);
+  const judgeInfo = new Map<number, { fullName: string; judicialFormation: string | null }>(allJudges.map(judge => [judge.id, { fullName: judge.fullName, judicialFormation: judge.judicialFormation }]));
+  const supervisingByTrainee = new Map<number, number>();
+  const traineeCountByJudge = new Map<number, number>();
+  for (const assignment of assignments) {
+    if (assignment.supervisingJudgeProfileId != null) {
+      supervisingByTrainee.set(assignment.profileId, assignment.supervisingJudgeProfileId);
+      traineeCountByJudge.set(assignment.supervisingJudgeProfileId, (traineeCountByJudge.get(assignment.supervisingJudgeProfileId) ?? 0) + 1);
+    }
+  }
+  return {
+    administrative: unitProfiles.filter(profile => profile.personType === "administrative"),
+    trainees: unitProfiles.filter(profile => profile.personType === "trainee").map(profile => {
+      const judgeId = supervisingByTrainee.get(profile.id);
+      const judge = judgeId != null ? judgeInfo.get(judgeId) : undefined;
+      return { ...profile, supervisingJudgeName: judge?.fullName ?? null, formation: judge?.judicialFormation ?? null };
+    }),
+    judges: unitProfiles.filter(profile => profile.personType === "judge").map(profile => ({ ...profile, traineeCount: traineeCountByJudge.get(profile.id) ?? 0 })),
+  };
+}
+
 export async function listJudgesWithTraineeCounts() {
   const db = await getDb();
   if (!db) return listProfiles("judge");

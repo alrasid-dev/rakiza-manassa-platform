@@ -127,6 +127,7 @@ import {
   listProfiles,
   listProfilesForUnits,
   listTraineesForJudge,
+  listUnitRoster,
   listProfileDelegations,
   createProfileDelegation,
   updateProfileDelegationStatus,
@@ -1027,6 +1028,10 @@ export const courtRouter = router({
     listDepartmentManagers: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "manage_access");
       return listDepartmentManagers({ unitId: input?.unitId });
+    }),
+    roster: protectedProcedure.input(z.object({ unitId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      await requirePlatformView(ctx.user);
+      return listUnitRoster(input.unitId);
     }),
     create: protectedProcedure.input(z.object({
       unitId: z.number().int().positive().optional(), personType: z.enum(["administrative", "trainee", "judge"]), fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review"]), reason: z.string().trim().min(5).max(1000).optional(),
