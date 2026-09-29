@@ -273,6 +273,15 @@ async function requireHumanResourcesOrLeadership(user: { id: number; role: "user
   return { permission, roles };
 }
 
+/** صلاحية موحّدة لإدارة القضاة: المالك أو القيادة المخولة (الرئيس/الأمين/مساعد الرئيس). */
+async function requireJudicialLeadershipAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
+  const permission = await permissionForUser(user);
+  const roles = await rolesForUser(user);
+  const allowed = permission === "full_control" || roles.some(role => ["court_secretary", "court_president", "assistant_president"].includes(role));
+  if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "إدارة القضاة متاحة للمالك أو القيادة المخولة (الرئيس/الأمين/مساعد الرئيس) فقط." });
+  return { permission, roles };
+}
+
 async function requireAttendancePolicyAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
   const permission = await permissionForUser(user);
   const roles = await rolesForUser(user);
@@ -1106,19 +1115,17 @@ export const courtRouter = router({
       return listJudgesWithoutEmail();
     }),
     create: protectedProcedure.input(z.object({ fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa."), nationalId: z.string().trim().max(32).optional(), phone: z.string().trim().max(40).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), unitId: z.number().int().positive().optional() })).mutation(async ({ ctx, input }) => {
-      const permission = await permissionForUser(ctx.user);
-      const roles = await rolesForUser(ctx.user);
-      if (permission !== "full_control" && !roles.includes("court_secretary")) throw new TRPCError({ code: "FORBIDDEN", message: "إضافة القضاة متاحة للمالك وأمين السر فقط." });
+      await requireJudicialLeadershipAccess(ctx.user);
       return { id: await createJudgeWithAccount({ ...input, actorUserId: ctx.user.id }) };
     }),
     update: protectedProcedure.input(z.object({ judgeId: z.number().int().positive(), fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review"]) })).mutation(async ({ ctx, input }) => {
-      await requirePlatformOwner(ctx.user);
+      await requireJudicialLeadershipAccess(ctx.user);
       if (input.status === "inactive") await requireAssetClearance(input.judgeId);
       await updateJudgeProfile({ ...input, actorUserId: ctx.user.id });
       return { success: true };
     }),
     archive: protectedProcedure.input(z.object({ judgeId: z.number().int().positive(), reason: z.string().trim().min(3).max(500).optional() })).mutation(async ({ ctx, input }) => {
-      await requirePlatformOwner(ctx.user);
+      await requireJudicialLeadershipAccess(ctx.user);
       await requireAssetClearance(input.judgeId);
       await archiveProfile(input.judgeId, ctx.user.id, input.reason);
       return { success: true };
