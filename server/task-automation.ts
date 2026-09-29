@@ -1,4 +1,4 @@
-export type TaskFrequency = "daily" | "weekly" | "monthly" | "quarterly" | "custom";
+export type TaskFrequency = "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
 
 function riyadhParts(now: Date) {
   const values = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", year: "numeric", month: "numeric", day: "numeric" }).formatToParts(now);
