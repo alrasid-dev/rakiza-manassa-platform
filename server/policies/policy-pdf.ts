@@ -11,6 +11,12 @@ import { inflateSync } from "zlib";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
+type ArabicReshaper = {
+  convertArabic(text: string): string;
+  convertArabicBack(text: string): string;
+};
+const reshaper = arabicReshaper as ArabicReshaper;
+
 const FONT_REGULAR = "noto-sans-arabic-arabic-400-normal.woff";
 const FONT_BOLD = "noto-sans-arabic-arabic-700-normal.woff";
 const REGULAR_ID = "NotoArabic";
@@ -87,7 +93,7 @@ const ttfRegular = loadFontTtf(FONT_REGULAR);
 const ttfBold = loadFontTtf(FONT_BOLD);
 
 function reshape(text: string): string {
-  return arabicReshaper.convertArabic(text).split("").reverse().join("");
+  return reshaper.convertArabic(text).split("").reverse().join("");
 }
 
 function wrapLines(doc: jsPDF, text: string, maxWidth: number, fontId: string, size: number): string[] {
