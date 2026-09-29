@@ -9,6 +9,7 @@ import { CascadingUnitPersonPicker, type CascadingUnitPersonValue } from "@/comp
 export function MeetingsPage() {
   const utils = trpc.useUtils();
   const permission = trpc.court.registration.myPermission.useQuery();
+  const roles = trpc.court.myRoles.useQuery();
   const meetings = trpc.court.meetings.list.useQuery();
   const people = trpc.court.people.list.useQuery();
   const invite = trpc.court.meetings.invite.useMutation();
@@ -23,7 +24,7 @@ export function MeetingsPage() {
   const [minutes, setMinutes] = useState<Record<number, string>>({});
   const create = trpc.court.meetings.create.useMutation({ onSuccess: () => { setForm({ title: "", agenda: "", scheduledAt: "", location: "", unitId: "" }); void utils.court.meetings.list.invalidate(); } });
   const saveMinutes = trpc.court.meetings.minutes.useMutation({ onSuccess: () => void utils.court.meetings.list.invalidate() });
-  const canManage = permission.data === "full_control" || permission.data === "general_view";
+  const canManage = permission.data === "full_control" || (roles.data ?? []).some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
   const inviteDepartmentManagers = (meetingId: number) => {
     const selectedUnit = managerUnitSelections[meetingId];
     const managers = (departmentManagers.data ?? []).filter(manager => !selectedUnit || manager.unitId === Number(selectedUnit));
