@@ -19,6 +19,7 @@ export function isTemplateDue(frequency: TaskFrequency, workdayOnly: boolean, no
   if (frequency === "weekly") return new Date(Date.UTC(riyadhParts(now).year, month - 1, day)).getUTCDay() === 0;
   if (frequency === "monthly") return day === 1;
   if (frequency === "quarterly") return day === 1 && [1, 4, 7, 10].includes(month);
+  if (frequency === "custom") return true; // يُعامل كـ daily
   return false;
 }
 
