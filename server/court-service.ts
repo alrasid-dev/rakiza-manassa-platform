@@ -1206,7 +1206,7 @@ export async function listProfilesForUnits(unitIds: number[], personType?: "admi
   return rows.map(row => ({ ...row.profile, unitName: row.unitName })).sort((a, b) => a.fullName.localeCompare(b.fullName, "ar"));
 }
 
-export async function createProfile(input: { unitId?: number; personType: "administrative" | "trainee" | "judge"; fullName: string; email?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review"; sourceReference?: string; reason?: string; actorUserId: number }) {
+export async function createProfile(input: { unitId?: number; personType: "administrative" | "trainee" | "judge"; fullName: string; email?: string; nationalId?: string; phone?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review"; sourceReference?: string; reason?: string; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const [defaultShift] = await db.select({ id: workShifts.id }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
@@ -1215,6 +1215,8 @@ export async function createProfile(input: { unitId?: number; personType: "admin
     personType: input.personType,
     fullName: input.fullName,
     email: input.email ?? null,
+    nationalId: input.nationalId ?? null,
+    phone: input.phone ?? null,
     employeeNumber: input.employeeNumber ?? null,
     jobTitle: input.jobTitle ?? null,
     judicialFormation: input.judicialFormation ?? null,
@@ -1261,6 +1263,52 @@ export async function createJudgeWithAccount(input: { fullName: string; email: s
     grantedByUserId: input.actorUserId,
   }).onDuplicateKeyUpdate({ set: { userId, permission: "employee", isActive: true, grantedByUserId: input.actorUserId, updatedAt: new Date() } });
   await logAudit({ actorUserId: input.actorUserId, action: "judge.created_with_account", entityType: "person_profile", entityId: profileId, metadata: { userId, email: input.email.trim() } });
+  return profileId;
+}
+
+/** إنشاء ملف ملازم قضائي مع حساب دخول (trainee) وإسناد اختياري لقاضٍ مشرف في خطوة واحدة. */
+export async function createTraineeWithAccount(input: { fullName: string; email: string; nationalId?: string; phone?: string; judicialFormation?: string; supervisingJudgeProfileId?: number; courtTrack?: string; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const openId = `seed:${input.email.trim().toLowerCase()}`;
+  let userId = (await db.select({ id: users.id }).from(users).where(eq(users.openId, openId)).limit(1))[0]?.id;
+  if (!userId) {
+    const userResult = await db.insert(users).values({ openId, email: input.email.trim(), name: input.fullName, loginMethod: "seed", role: "user" });
+    userId = Number(userResult[0].insertId);
+  }
+  const profileResult = await db.insert(personProfiles).values({
+    unitId: 2,
+    personType: "trainee",
+    fullName: input.fullName,
+    email: input.email.trim(),
+    nationalId: input.nationalId ?? null,
+    phone: input.phone ?? null,
+    jobTitle: "ملازم قضائي",
+    judicialFormation: input.judicialFormation ?? null,
+    status: "active",
+    sourceReference: "manual",
+    userId,
+  });
+  const profileId = Number(profileResult[0].insertId);
+  await db.insert(accessGrants).values({
+    userId,
+    fullName: input.fullName,
+    officialEmail: input.email.trim(),
+    notificationEmail: input.email.trim(),
+    permission: "trainee",
+    grantedByUserId: input.actorUserId,
+  }).onDuplicateKeyUpdate({ set: { userId, permission: "trainee", isActive: true, grantedByUserId: input.actorUserId, updatedAt: new Date() } });
+  if (input.supervisingJudgeProfileId) {
+    const judge = (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, input.supervisingJudgeProfileId)).limit(1))[0];
+    await db.insert(traineeAssignments).values({
+      profileId,
+      supervisingJudgeProfileId: input.supervisingJudgeProfileId,
+      trainingJudge: judge?.fullName ?? null,
+      courtTrack: input.courtTrack ?? null,
+      status: "active",
+    });
+  }
+  await logAudit({ actorUserId: input.actorUserId, action: "trainee.created_with_account", entityType: "person_profile", entityId: profileId, metadata: { userId, email: input.email.trim() } });
   return profileId;
 }
 
