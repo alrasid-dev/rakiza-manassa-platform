@@ -392,6 +392,17 @@ async function managedUnitIdsForUser(user: { id: number; role: "user" | "admin";
   return managed;
 }
 
+/** هل يستطيع المستخدم الوصول لمهمة معيّنة؟ (قيادة / صاحب المهمة / مدير وحدة المهمة). */
+async function canAccessTask(user: { id: number; role: "user" | "admin"; email: string | null }, task: { unitId: number | null; assigneeProfileId: number | null; assignedByUserId: number | null }) {
+  const permission = await permissionForUser(user);
+  if (await hasLeadershipPlatformScope(user, permission)) return true;
+  const profile = await getProfileForUser(user.id);
+  if (profile && (task.assigneeProfileId === profile.id || task.assignedByUserId === user.id)) return true;
+  const managedUnits = await managedUnitIdsForUser(user);
+  if (task.unitId && managedUnits.includes(task.unitId)) return true;
+  return false;
+}
+
 async function requireAssetClearance(profileId: number) {
   const openCustodyCount = await countOpenCustodies(profileId);
   if (!canClearProfile(openCustodyCount)) throw new TRPCError({ code: "CONFLICT", message: `لا يمكن نقل أو إنهاء الملف قبل إخلاء العهد المفتوحة (${openCustodyCount}).` });
@@ -1262,10 +1273,7 @@ export const courtRouter = router({
     submitForReview: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
-      const roles = await rolesForUser(ctx.user);
-      const profile = await getProfileForUser(ctx.user.id);
-      const ownsTask = Boolean(profile && task.assigneeProfileId === profile.id);
-      if (!ownsTask && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك رفع مهمة ليست مسندة إليك." });
+      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك رفع مهمة ليست مسندة إليك." });
       return submitTaskForReview(input.taskId, ctx.user.id, input.note);
     }),
     updateStatus: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
@@ -1280,57 +1288,42 @@ export const courtRouter = router({
     update: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), title: z.string().trim().min(3).max(2000).optional(), taskNotes: z.string().trim().max(4000).nullable().optional(), priority: z.enum(["normal", "high", "critical"]).optional(), taskType: z.enum(["permanent", "urgent"]).optional(), scheduledFor: z.date().optional(), dueAt: z.date().optional(), isOpen: z.boolean().optional(), assigneeProfileId: z.number().int().positive().nullable().optional(), watcherProfileId: z.number().int().positive().nullable().optional(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "custom"]).optional(), recurrenceEndAt: z.date().nullable().optional(), isConfidential: z.boolean().optional(), confidentialityExpiresAt: z.date().nullable().optional(), unitId: z.number().int().positive().nullable().optional() })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
-      const permission = await permissionForUser(ctx.user);
-      const roles = await rolesForUser(ctx.user);
-      const profile = await getProfileForUser(ctx.user.id);
-      const canManage = permission === "full_control" || canManageOperations(roles);
-      const ownsTask = Boolean(profile && task.assigneeProfileId === profile.id) || task.assignedByUserId === ctx.user.id;
-      if (!canManage && !ownsTask) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بتعديل هذه المهمة." });
+      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بتعديل هذه المهمة." });
       return updateTask({ ...input, actorUserId: ctx.user.id });
     }),
     cancel: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), cancellationReason: z.string().trim().min(3).max(2000) })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
-      const permission = await permissionForUser(ctx.user);
-      const roles = await rolesForUser(ctx.user);
-      const profile = await getProfileForUser(ctx.user.id);
-      const canManage = permission === "full_control" || canManageOperations(roles);
-      const ownsTask = Boolean(profile && task.assigneeProfileId === profile.id) || task.assignedByUserId === ctx.user.id;
-      if (!canManage && !ownsTask) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بإلغاء هذه المهمة." });
+      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بإلغاء هذه المهمة." });
       return cancelTask({ taskId: input.taskId, actorUserId: ctx.user.id, cancellationReason: input.cancellationReason });
     }),
     acknowledge: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
       const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
-      if (task.assigneeProfileId !== profile?.id && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تأكيد مهمة غير مسندة إليك." });
+      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تأكيد مهمة غير مسندة إليك." });
       return acknowledgeTask({ taskId: input.taskId, actorUserId: ctx.user.id, profileId: profile?.id, scheduledFor: task.scheduledFor });
     }),
     markAsProcessed: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
-      const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
-      if (task.assigneeProfileId !== profile?.id && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إتمام مهمة غير مسندة إليك." });
+      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إتمام مهمة غير مسندة إليك." });
       return markTaskAsProcessed({ taskId: input.taskId, actorUserId: ctx.user.id, note: input.note });
     }),
     addComment: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), comment: z.string().trim().min(2).max(4000) })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
       const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
       const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك التعليق على هذه المهمة." });
+      if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك التعليق على هذه المهمة." });
       return { id: await addTaskComment({ taskId: input.taskId, profileId: profile.id, authorUserId: ctx.user.id, comment: input.comment }) };
     }),
     reportObstacle: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), detail: z.string().trim().min(3).max(4000) })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
       const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
       const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تسجيل عائق على هذه المهمة." });
+      if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تسجيل عائق على هذه المهمة." });
       return reportTaskObstacle({ taskId: input.taskId, actorUserId: ctx.user.id, detail: input.detail });
     }),
     requestReassignment: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), reason: z.string().trim().min(3).max(4000) })).mutation(async ({ ctx, input }) => {
@@ -1344,9 +1337,8 @@ export const courtRouter = router({
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
       const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
       const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك طلب تمديد مهمة غير مسندة إليك." });
+      if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك طلب تمديد مهمة غير مسندة إليك." });
       return requestTaskExtension({ taskId: input.taskId, newDueAt: input.newDueAt, reason: input.reason, actorUserId: ctx.user.id });
     }),
     details: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).query(async ({ ctx, input }) => {
@@ -1354,27 +1346,20 @@ export const courtRouter = router({
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
       const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
       const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-      if (!participates && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض تفاصيل هذه المهمة." });
+      if (!participates && !(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض تفاصيل هذه المهمة." });
       return getTaskDetails(input.taskId);
     }),
     setPinned: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), isPinned: z.boolean() })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
-      const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
-      const isAssignee = profile && task.assigneeProfileId === profile.id;
-      if (!isAssignee && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تثبيت مهمة غير مسندة إليك." });
+      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تثبيت مهمة غير مسندة إليك." });
       return setTaskPinned({ taskId: input.taskId, actorUserId: ctx.user.id, isPinned: input.isPinned });
     }),
     setNotes: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), notes: z.string().trim().max(4000) })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
-      const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
-      const isAssignee = profile && task.assigneeProfileId === profile.id;
-      if (!isAssignee && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تعديل مفكرة مهمة غير مسندة إليك." });
+      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تعديل مفكرة مهمة غير مسندة إليك." });
       return setTaskNotes({ taskId: input.taskId, actorUserId: ctx.user.id, notes: input.notes });
     }),
     createDepartment: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), unitId: z.number().int().positive(), assigneeProfileIds: z.array(z.number().int().positive()).min(1).max(50), taskType: z.enum(["permanent", "urgent"]), priority: z.enum(["normal", "high", "critical"]), scheduledFor: z.date(), dueAt: z.date() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد البدء." })).mutation(async ({ ctx, input }) => {
@@ -1408,8 +1393,7 @@ export const courtRouter = router({
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
       const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
-      if (task.assigneeProfileId !== profile?.id && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك التعليق على مهمة غير مسندة إليك." });
+      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك التعليق على مهمة غير مسندة إليك." });
       return { id: await addTaskCommentAndEscalate({ taskId: input.taskId, profileId: profile?.id, authorUserId: ctx.user.id, comment: input.comment }) };
     }),
     addProgressNote: protectedProcedure.input(z.object({
@@ -1422,9 +1406,8 @@ export const courtRouter = router({
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
       const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
       const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تسجيل تحديث في هذه المهمة." });
+      if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تسجيل تحديث في هذه المهمة." });
       return addTaskProgressNote({ ...input, profileId: profile.id, actorUserId: ctx.user.id });
     }),
     timeline: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).query(async ({ ctx, input }) => {
@@ -1432,9 +1415,8 @@ export const courtRouter = router({
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
       const profile = await getProfileForUser(ctx.user.id);
-      const roles = await rolesForUser(ctx.user);
       const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض سجل هذه المهمة." });
+      if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض سجل هذه المهمة." });
       return listTaskTimeline(input.taskId);
     }),
     attachments: router({
@@ -1442,9 +1424,8 @@ export const courtRouter = router({
         const task = await getTaskById(input.taskId);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
         const profile = await getProfileForUser(ctx.user.id);
-        const roles = await rolesForUser(ctx.user);
         const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-        if (!participates && !canManageOperations(roles)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض مرفقات هذه المهمة." });
+        if (!participates && !(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض مرفقات هذه المهمة." });
         return listTaskAttachments(input.taskId);
       }),
       upload: protectedProcedure.input(z.object({
@@ -1455,9 +1436,8 @@ export const courtRouter = router({
         const task = await getTaskById(input.taskId);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
         const profile = await getProfileForUser(ctx.user.id);
-        const roles = await rolesForUser(ctx.user);
         const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-        if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إرفاق ملف بهذه المهمة." });
+        if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إرفاق ملف بهذه المهمة." });
         return addTaskAttachment({ taskId: input.taskId, actorUserId: ctx.user.id, uploaderProfileId: profile.id, attachment: input.attachment });
       }),
       extractText: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), attachmentId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
@@ -1465,9 +1445,8 @@ export const courtRouter = router({
         const task = await getTaskById(input.taskId);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
         const profile = await getProfileForUser(ctx.user.id);
-        const roles = await rolesForUser(ctx.user);
         const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-        if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك استخراج نص من مرفق هذه المهمة." });
+        if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك استخراج نص من مرفق هذه المهمة." });
         return extractTaskAttachmentText({ ...input, actorUserId: ctx.user.id });
       }),
       translateText: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), attachmentId: z.number().int().positive(), text: z.string().trim().min(1).max(60_000), targetLanguage: z.enum(["en", "fr", "ur", "tr", "hi", "bn"]) })).mutation(async ({ ctx, input }) => {
@@ -1475,9 +1454,8 @@ export const courtRouter = router({
         const task = await getTaskById(input.taskId);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
         const profile = await getProfileForUser(ctx.user.id);
-        const roles = await rolesForUser(ctx.user);
         const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-        if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك ترجمة نص مرفق هذه المهمة." });
+        if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك ترجمة نص مرفق هذه المهمة." });
         return translateTaskAttachmentText({ ...input, actorUserId: ctx.user.id });
       }),
       summarizeText: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), attachmentId: z.number().int().positive(), text: z.string().trim().min(1).max(60_000), sourceKind: z.enum(["extracted", "translated"]) })).mutation(async ({ ctx, input }) => {
@@ -1485,9 +1463,8 @@ export const courtRouter = router({
         const task = await getTaskById(input.taskId);
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
         const profile = await getProfileForUser(ctx.user.id);
-        const roles = await rolesForUser(ctx.user);
         const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
-        if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تلخيص نص مرفق هذه المهمة." });
+        if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تلخيص نص مرفق هذه المهمة." });
         return summarizeTaskAttachmentText({ ...input, actorUserId: ctx.user.id });
       }),
     }),

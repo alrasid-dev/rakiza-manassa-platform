@@ -4,6 +4,8 @@ const mocks = vi.hoisted(() => ({
   getTaskById: vi.fn(async () => ({ id: 44, assigneeProfileId: 4, watcherProfileId: 8, archivedAt: null })),
   getProfileForUser: vi.fn(async () => ({ id: 4, userId: 9, fullName: "المكلف", unitId: 2, status: "active" })),
   getEffectiveRoles: vi.fn(async () => []),
+  getAccessPermission: vi.fn(async () => "employee"),
+  getActiveCourtRoleAssignments: vi.fn(async () => []),
   listTaskAttachments: vi.fn(async () => [{ id: 1, originalName: "ملف.pdf" }]),
   listTaskTimeline: vi.fn(async () => [{ id: 31, updateType: "progress", note: "إحالة إدارية: سبب الإحالة", actorName: "مدير القسم", attachments: [], mentions: [] }]),
   addTaskAttachment: vi.fn(async () => ({ id: 1, originalName: "ملف.pdf" })),
@@ -20,6 +22,8 @@ vi.mock("./court-service", async importOriginal => {
     getTaskById: mocks.getTaskById,
     getProfileForUser: mocks.getProfileForUser,
     getEffectiveRoles: mocks.getEffectiveRoles,
+    getAccessPermission: mocks.getAccessPermission,
+    getActiveCourtRoleAssignments: mocks.getActiveCourtRoleAssignments,
     listTaskAttachments: mocks.listTaskAttachments,
     listTaskTimeline: mocks.listTaskTimeline,
     addTaskAttachment: mocks.addTaskAttachment,
@@ -33,6 +37,7 @@ vi.mock("./court-service", async importOriginal => {
 import { courtRouter } from "./routers/court";
 
 const adminCaller = () => courtRouter.createCaller({ user: { id: 9, role: "admin", email: "owner@court.example", name: "مالك", openId: "owner" } } as never);
+const memberCaller = () => courtRouter.createCaller({ user: { id: 9, role: "user", email: "employee@court.example", name: "موظف", openId: "employee" } } as never);
 
 describe("مساحة كتابة ومرفقات المهمة", () => {
   beforeEach(() => {
@@ -40,6 +45,8 @@ describe("مساحة كتابة ومرفقات المهمة", () => {
     mocks.getTaskById.mockResolvedValue({ id: 44, assigneeProfileId: 4, watcherProfileId: 8, archivedAt: null });
     mocks.getProfileForUser.mockResolvedValue({ id: 4, userId: 9, fullName: "المكلف", unitId: 2, status: "active" });
     mocks.getEffectiveRoles.mockResolvedValue([]);
+    mocks.getAccessPermission.mockResolvedValue("employee");
+    mocks.getActiveCourtRoleAssignments.mockResolvedValue([]);
   });
 
   it("يسمح للمكلف بحفظ تحديث عمل مستقل دون استدعاء مسار التعليقات المصعّد", async () => {
@@ -81,8 +88,8 @@ describe("مساحة كتابة ومرفقات المهمة", () => {
 
   it("يرفض القراءة والكتابة لملف لا يشارك في المهمة", async () => {
     mocks.getProfileForUser.mockResolvedValue({ id: 77, userId: 9, fullName: "غير مشارك", unitId: 3, status: "active" });
-    await expect(adminCaller().tasks.attachments.list({ taskId: 44 })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(adminCaller().tasks.addProgressNote({ taskId: 44, note: "محاولة غير مصرح بها" })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(adminCaller().tasks.timeline({ taskId: 44 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(memberCaller().tasks.attachments.list({ taskId: 44 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(memberCaller().tasks.addProgressNote({ taskId: 44, note: "محاولة غير مصرح بها" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(memberCaller().tasks.timeline({ taskId: 44 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
