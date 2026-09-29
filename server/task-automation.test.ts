@@ -23,6 +23,10 @@ describe("أتمتة مهام شؤون الملازمين", () => {
     expect(isTemplateDue("monthly", false, midMonth)).toBe(false);
     expect(isTemplateDue("quarterly", false, firstOfMonth)).toBe(false);
   });
+  it("يعامل التكرار المخصص كتكرار يومي", () => {
+    expect(isTemplateDue("custom", true, sunday)).toBe(true);
+    expect(isTemplateDue("custom", true, friday)).toBe(false);
+  });
   it("يقصر التنفيذ الفوري الوارد من المصدر المرتبط على نافذة السابعة إلى الثالثة", () => {
     expect(isWithinSaudiWorkHours(new Date("2026-08-16T04:00:00Z"))).toBe(true);
     expect(isWithinSaudiWorkHours(new Date("2026-08-16T12:00:00Z"))).toBe(false);
