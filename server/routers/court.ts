@@ -89,6 +89,7 @@ import {
   isAllowedLoginEmail,
   isPlatformOwnerEmail,
   isAllowedRegistrationEmail,
+  getMeetingById,
   getSupportTicketDetail,
   getTaskById,
   getTaskDetails,
@@ -942,7 +943,20 @@ export const courtRouter = router({
       return { id: await createMeeting({ ...input, createdByUserId: ctx.user.id }) };
     }),
     attendees: protectedProcedure.input(z.object({ meetingId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requirePermission(ctx.user, "view"); return listMeetingAttendees(input.meetingId); }),
-    invite: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), profileIds: z.array(z.number().int().positive()).min(1).max(100) })).mutation(async ({ ctx, input }) => { await requirePermission(ctx.user, "manage_access"); await addMeetingAttendees({ ...input, actorUserId: ctx.user.id }); return { success: true }; }),
+    invite: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), profileIds: z.array(z.number().int().positive()).min(1).max(100) })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "manage_access");
+      const meeting = await getMeetingById(input.meetingId);
+      if (!meeting) throw new TRPCError({ code: "NOT_FOUND", message: "الاجتماع المطلوب غير موجود." });
+      const permission = await permissionForUser(ctx.user);
+      if (!(await hasLeadershipPlatformScope(ctx.user, permission))) {
+        const managedUnits = await managedUnitIdsForUser(ctx.user);
+        if (meeting.unitId && !managedUnits.includes(meeting.unitId)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك دعوة حاضرين لاجتماع قسم آخر." });
+        }
+      }
+      await addMeetingAttendees({ ...input, actorUserId: ctx.user.id });
+      return { success: true };
+    }),
     updateAttendance: protectedProcedure.input(z.object({ attendeeId: z.number().int().positive(), attendanceStatus: z.enum(["invited", "attended", "absent", "excused"]) })).mutation(async ({ ctx, input }) => { await requirePermission(ctx.user, "manage_access"); await updateMeetingAttendee({ id: input.attendeeId, attendanceStatus: input.attendanceStatus, actorUserId: ctx.user.id }); return { success: true }; }),
     recommendationsToTasks: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), unitId: z.number().int().positive().nullable().optional(), recommendations: z.string().trim().min(3).max(20000), scheduledFor: z.date(), dueAt: z.date() })).mutation(async ({ ctx, input }) => { await requirePermission(ctx.user, "manage_access"); return { taskIds: await createTasksFromMeetingRecommendations({ ...input, actorUserId: ctx.user.id }) }; }),
     minutes: protectedProcedure.input(z.object({ meetingId: z.number().int().positive(), minutes: z.string().trim().min(3).max(30000), recommendations: z.string().trim().max(20000).optional() })).mutation(async ({ ctx, input }) => {

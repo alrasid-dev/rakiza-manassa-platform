@@ -255,6 +255,13 @@ export async function listMeetings(unitId?: number | null) {
   return db.select().from(meetings).where(unitId == null ? undefined : or(isNull(meetings.unitId), eq(meetings.unitId, unitId))).orderBy(desc(meetings.scheduledAt)).limit(200);
 }
 
+export async function getMeetingById(meetingId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(meetings).where(eq(meetings.id, meetingId)).limit(1);
+  return rows[0];
+}
+
 export async function createMeeting(input: { title: string; agenda?: string; scheduledAt: Date; location?: string; unitId?: number | null; createdByUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
