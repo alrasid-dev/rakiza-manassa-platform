@@ -652,11 +652,13 @@ export const taskTemplates = mysqlTable("task_templates", {
   createdByUserId: int("createdByUserId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  lastGeneratedAt: timestamp("lastGeneratedAt"),
 }, table => [index("task_templates_unit_active_idx").on(table.unitId, table.isActive)]);
 
 export const tasks = mysqlTable("tasks", {
   id: int("id").autoincrement().primaryKey(),
   templateId: int("templateId"),
+  sourceTaskId: int("sourceTaskId"),
   unitId: int("unitId"),
   title: text("title").notNull(),
   status: mysqlEnum("status", ["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]).default("new").notNull(),
@@ -673,7 +675,7 @@ export const tasks = mysqlTable("tasks", {
   cancellationReason: text("cancellationReason"),
   archivedAt: timestamp("archivedAt"),
   archivedByUserId: int("archivedByUserId"),
-  recurrence: mysqlEnum("recurrence", ["none", "daily", "weekly", "monthly", "custom"]).default("none").notNull(),
+  recurrence: mysqlEnum("recurrence", ["none", "daily", "weekly", "monthly", "quarterly", "custom"]).default("none").notNull(),
   recurrenceEndAt: timestamp("recurrenceEndAt"),
   watcherProfileId: int("watcherProfileId"),
   isConfidential: boolean("isConfidential").default(false).notNull(),
@@ -693,6 +695,8 @@ export const tasks = mysqlTable("tasks", {
   index("tasks_watcher_idx").on(table.watcherProfileId),
   index("tasks_confidential_idx").on(table.isConfidential, table.confidentialityExpiresAt),
   index("tasks_meeting_idx").on(table.meetingId),
+  index("idx_tasks_templateId").on(table.templateId),
+  index("idx_tasks_sourceTaskId").on(table.sourceTaskId),
 ]);
 
 export const taskUpdates = mysqlTable("task_updates", {
