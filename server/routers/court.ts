@@ -1855,7 +1855,13 @@ export const courtRouter = router({
       if (input.isActive === true) {
         const sessionToken = parseCookie(ctx.req.headers.cookie ?? "")[COOKIE_NAME] ?? "";
         if (!sessionToken) throw new TRPCError({ code: "UNAUTHORIZED", message: "جلسة المستخدم غير متاحة لتفعيل إرسال الحضور." });
-        await ensureAttendanceConfirmationHeartbeatJob({ userSession: sessionToken });
+        try {
+          await ensureAttendanceConfirmationHeartbeatJob({ userSession: sessionToken });
+        } catch (error) {
+          // Forge غير مهيأ أو فشل مؤقت: نحفظ الإعداد محلياً حتى يعمل الزر،
+          // ويُعاد تسجيل وظيفة Heartbeat لاحقاً عند تهيئة Forge.
+          console.warn("[attendance] فشل تسجيل وظيفة Heartbeat عبر Forge؛ سيُحفظ الإعداد محلياً فقط:", error);
+        }
       }
       return setAttendanceConfirmationConfig({ ...input, actorUserId: ctx.user.id });
     }),
