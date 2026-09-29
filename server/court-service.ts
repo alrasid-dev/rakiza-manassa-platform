@@ -2020,7 +2020,7 @@ async function createTaskConversation(input: { db: any; taskId: number; title: s
   return conversationId;
 }
 
-export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean }) {
+export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "custom"; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   if (input.assigneeProfileId) {
@@ -2035,6 +2035,17 @@ export async function createTask(input: { title: string; unitId?: number; assign
     dueAt: input.isOpen ? new Date("2099-12-31T23:59:59Z") : input.dueAt,
   });
   const id = Number(result[0].insertId);
+  if (input.recurrence && input.recurrence !== "none") {
+    const existingTemplate = (await db.select({ id: taskTemplates.id }).from(taskTemplates).where(and(eq(taskTemplates.title, input.title), input.unitId ? eq(taskTemplates.unitId, input.unitId) : isNull(taskTemplates.unitId))).limit(1))[0];
+    let templateId = existingTemplate?.id ?? null;
+    if (templateId) {
+      await db.update(taskTemplates).set({ frequency: input.recurrence, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, updatedAt: new Date() }).where(eq(taskTemplates.id, templateId));
+    } else {
+      const templateResult = await db.insert(taskTemplates).values({ unitId: input.unitId ?? null, title: input.title, frequency: input.recurrence, workdayOnly: true, dueHourLocal: input.dueAt ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", hour12: false }).format(new Date(input.dueAt))) : 13, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, createdByUserId: input.assignedByUserId });
+      templateId = Number(templateResult[0].insertId);
+    }
+    await db.update(tasks).set({ templateId }).where(eq(tasks.id, id));
+  }
   await createTaskConversation({ db, taskId: id, title: input.title, creatorUserId: input.assignedByUserId, assigneeProfileId: input.assigneeProfileId, watcherProfileId: input.watcherProfileId });
   for (const notification of taskAssignmentNotifications({ taskId: id, title: input.title, assigneeProfileId: input.assigneeProfileId, traineeCopyProfileId })) {
     await db.insert(notifications).values(notification);
@@ -2433,7 +2444,7 @@ export async function updateTask(input: {
   isOpen?: boolean;
   assigneeProfileId?: number | null;
   watcherProfileId?: number | null;
-  recurrence?: "none" | "daily" | "weekly" | "monthly" | "custom";
+  recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "custom";
   recurrenceEndAt?: Date | null;
   isConfidential?: boolean;
   confidentialityExpiresAt?: Date | null;
