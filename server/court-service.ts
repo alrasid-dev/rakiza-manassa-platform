@@ -3489,8 +3489,11 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
     const configuredAdministrativeAssignee = assignees.find(profile => profile.id === template.defaultAssigneeProfileId);
     const assigneeProfileId = configuredAdministrativeAssignee?.id ?? autoAssignee?.id ?? null;
     if (!assigneeProfileId) { skipped += 1; continue; }
-    const scheduledFor = saudiScheduledTime(now, 7);
-    const dueAt = saudiScheduledTime(now, template.dueHourLocal);
+    // إصلاح الجدولة المتأخرة: إذا تجاوزنا السابعة صباحاً (بتوقيت الرياض)، تُجدول المهمة لليوم التالي
+    const scheduleOffsetMs = now.getTime() > saudiScheduledTime(now, 7).getTime() ? 24 * 60 * 60 * 1000 : 0;
+    const scheduleAnchor = new Date(now.getTime() + scheduleOffsetMs);
+    const scheduledFor = saudiScheduledTime(scheduleAnchor, 7);
+    const dueAt = saudiScheduledTime(scheduleAnchor, template.dueHourLocal);
     await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null });
     await db.update(taskTemplates).set({ lastGeneratedAt: now }).where(eq(taskTemplates.id, template.id));
     createdTasks += 1;
