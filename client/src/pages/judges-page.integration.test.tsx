@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import React, { type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ permission: "full_control" as "full_control" | "employee", createCalls: [] as Record<string, unknown>[], updateCalls: [] as Record<string, unknown>[] }));
+const state = vi.hoisted(() => ({ permission: "full_control" as "full_control" | "employee", createCalls: [] as Record<string, unknown>[], updateCalls: [] as Record<string, unknown>[], archiveCalls: [] as Record<string, unknown>[] }));
 const mutation = (calls: Record<string, unknown>[]) => ({ isPending: false, error: null, mutate: (input: Record<string, unknown>) => calls.push(input) });
 
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
@@ -16,6 +16,7 @@ vi.mock("@/lib/trpc", () => ({
         withoutEmail: { useQuery: () => ({ data: [], isLoading: false, error: null }) },
         create: { useMutation: () => mutation(state.createCalls) },
         update: { useMutation: () => mutation(state.updateCalls) },
+        archive: { useMutation: () => mutation(state.archiveCalls) },
       },
       registration: { myPermission: { useQuery: () => ({ data: state.permission, isLoading: false, error: null }) } },
     },
@@ -24,7 +25,7 @@ vi.mock("@/lib/trpc", () => ({
 
 import { JudgesPage } from "./JudgesPage";
 
-beforeEach(() => { state.permission = "full_control"; state.createCalls.length = 0; state.updateCalls.length = 0; });
+beforeEach(() => { state.permission = "full_control"; state.createCalls.length = 0; state.updateCalls.length = 0; state.archiveCalls.length = 0; });
 afterEach(() => cleanup());
 
 describe("واجهة شؤون القضاة", () => {

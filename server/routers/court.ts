@@ -1113,6 +1113,12 @@ export const courtRouter = router({
       await updateJudgeProfile({ ...input, actorUserId: ctx.user.id });
       return { success: true };
     }),
+    archive: protectedProcedure.input(z.object({ judgeId: z.number().int().positive(), reason: z.string().trim().min(3).max(500).optional() })).mutation(async ({ ctx, input }) => {
+      await requirePlatformOwner(ctx.user);
+      await requireAssetClearance(input.judgeId);
+      await archiveProfile(input.judgeId, ctx.user.id, input.reason);
+      return { success: true };
+    }),
   }),
 
   formations: router({

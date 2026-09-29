@@ -1122,8 +1122,9 @@ export async function stopAnnouncement(input: { id: number; actorUserId: number 
 export async function listProfiles(personType?: "administrative" | "trainee" | "judge") {
   const db = await getDb();
   if (!db) return [];
-  const query = db.select({ profile: personProfiles, unitName: organizationUnits.name }).from(personProfiles).leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId));
-  const rows = personType ? await query.where(eq(personProfiles.personType, personType)) : await query;
+  const conditions = [ne(personProfiles.status, "archived")];
+  if (personType) conditions.push(eq(personProfiles.personType, personType));
+  const rows = await db.select({ profile: personProfiles, unitName: organizationUnits.name }).from(personProfiles).leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId)).where(and(...conditions));
   return rows.map(row => ({ ...row.profile, unitName: row.unitName })).sort((a, b) => a.fullName.localeCompare(b.fullName, "ar"));
 }
 
@@ -1192,14 +1193,14 @@ export async function listJudgesWithoutEmail() {
     status: personProfiles.status,
   })
     .from(personProfiles)
-    .where(and(eq(personProfiles.personType, "judge"), or(isNull(personProfiles.email), eq(personProfiles.email, ""))))
+    .where(and(eq(personProfiles.personType, "judge"), ne(personProfiles.status, "archived"), or(isNull(personProfiles.email), eq(personProfiles.email, ""))))
     .orderBy(personProfiles.id);
 }
 
 export async function listProfilesForUnits(unitIds: number[], personType?: "administrative" | "trainee" | "judge") {
   const db = await getDb();
   if (!db || !unitIds.length) return [];
-  const conditions = [inArray(personProfiles.unitId, unitIds)];
+  const conditions = [inArray(personProfiles.unitId, unitIds), ne(personProfiles.status, "archived")];
   if (personType) conditions.push(eq(personProfiles.personType, personType));
   const rows = await db.select({ profile: personProfiles, unitName: organizationUnits.name }).from(personProfiles).leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId)).where(and(...conditions));
   return rows.map(row => ({ ...row.profile, unitName: row.unitName })).sort((a, b) => a.fullName.localeCompare(b.fullName, "ar"));
