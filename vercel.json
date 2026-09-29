@@ -6,7 +6,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 30,
-      "includeFiles": "{public/**,api/handler.js}"
+      "includeFiles": "{public/**,api/handler.js,node_modules/@fontsource/noto-sans-arabic/files/**}"
     }
   },
   "rewrites": [

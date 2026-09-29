@@ -7,20 +7,23 @@ import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 import type { PolicySection } from "./policy-content";
 import { readFileSync } from "fs";
-import { join } from "path";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
 function loadFontBase64(filename: string): string {
-  try {
-    const fontPath = join(
-      process.cwd(),
-      "node_modules/@fontsource/noto-sans-arabic/files",
-      filename,
-    );
-    return readFileSync(fontPath).toString("base64");
-  } catch (err) {
-    console.error(`[pdf] خط ${filename} غير موجود:`, err);
-    return "";
+  const candidates = [
+    join(process.cwd(), "node_modules/@fontsource/noto-sans-arabic/files", filename),
+    join(dirname(fileURLToPath(import.meta.url)), "..", "node_modules/@fontsource/noto-sans-arabic/files", filename),
+  ];
+  for (const fontPath of candidates) {
+    try {
+      return readFileSync(fontPath).toString("base64");
+    } catch {
+      // جرّب المسار التالي
+    }
   }
+  console.error(`[pdf] خط ${filename} غير موجود في أي من المسارات المتوقعة.`);
+  return "";
 }
 
 const fontRegular = loadFontBase64("noto-sans-arabic-arabic-400-normal.woff2");
