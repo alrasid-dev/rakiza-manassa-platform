@@ -33,8 +33,9 @@ describe("واجهة شؤون القضاة", () => {
     render(<JudgesPage />);
     expect(screen.getByText("القاضي المختبَر")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("الاسم الكامل"), { target: { value: "قاضٍ جديد" } });
+    fireEvent.change(screen.getByPlaceholderText("البريد الرسمي"), { target: { value: "judge@moj.gov.sa" } });
     fireEvent.submit(screen.getByPlaceholderText("الاسم الكامل").closest("form")!);
-    expect(state.createCalls).toEqual([expect.objectContaining({ fullName: "قاضٍ جديد", status: "active" })]);
+    expect(state.createCalls).toEqual([expect.objectContaining({ fullName: "قاضٍ جديد", email: "judge@moj.gov.sa" })]);
   });
 
   it("يحمل الملف في النموذج ويستدعي تعديل الملف من داخل القسم", () => {

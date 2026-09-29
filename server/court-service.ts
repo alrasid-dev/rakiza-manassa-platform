@@ -1228,6 +1228,42 @@ export async function createProfile(input: { unitId?: number; personType: "admin
   return id;
 }
 
+/** إنشاء ملف قاضٍ مع حساب دخول ومنحة وصول (employee) في خطوة واحدة للإدارة اليدوية. */
+export async function createJudgeWithAccount(input: { fullName: string; email: string; nationalId?: string; phone?: string; jobTitle?: string; judicialFormation?: string; unitId?: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const openId = `seed:${input.email.trim().toLowerCase()}`;
+  let userId = (await db.select({ id: users.id }).from(users).where(eq(users.openId, openId)).limit(1))[0]?.id;
+  if (!userId) {
+    const userResult = await db.insert(users).values({ openId, email: input.email.trim(), name: input.fullName, loginMethod: "seed", role: "user" });
+    userId = Number(userResult[0].insertId);
+  }
+  const profileResult = await db.insert(personProfiles).values({
+    unitId: input.unitId ?? 60016,
+    personType: "judge",
+    fullName: input.fullName,
+    email: input.email.trim(),
+    nationalId: input.nationalId ?? null,
+    phone: input.phone ?? null,
+    jobTitle: input.jobTitle ?? "قاضٍ",
+    judicialFormation: input.judicialFormation ?? null,
+    status: "active",
+    sourceReference: "manual",
+    userId,
+  });
+  const profileId = Number(profileResult[0].insertId);
+  await db.insert(accessGrants).values({
+    userId,
+    fullName: input.fullName,
+    officialEmail: input.email.trim(),
+    notificationEmail: input.email.trim(),
+    permission: "employee",
+    grantedByUserId: input.actorUserId,
+  }).onDuplicateKeyUpdate({ set: { userId, permission: "employee", isActive: true, grantedByUserId: input.actorUserId, updatedAt: new Date() } });
+  await logAudit({ actorUserId: input.actorUserId, action: "judge.created_with_account", entityType: "person_profile", entityId: profileId, metadata: { userId, email: input.email.trim() } });
+  return profileId;
+}
+
 export async function deactivateProfile(profileId: number, actorUserId: number, reason?: string) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
