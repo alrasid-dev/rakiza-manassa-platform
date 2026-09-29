@@ -156,7 +156,7 @@ export default function TasksWorkspaceContent() {
   const roles = trpc.court.myRoles.useQuery();
   const canAssign = permission.data === "full_control" || roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary" || role === "department_manager" || role === "trainee_affairs_manager");
   const routeTargets = trpc.court.tasks.routeTargets.useQuery(undefined, { enabled: Boolean(canAssign) });
-  const people = trpc.court.people.list.useQuery();
+  const people = trpc.court.people.list.useQuery(permission.data === "full_control" ? undefined : { personType: "administrative" });
   const currentProfile = trpc.court.people.self.useQuery();
   const units = trpc.court.units.list.useQuery();
   const holidayInfo = trpc.court.holidays.today.useQuery();
