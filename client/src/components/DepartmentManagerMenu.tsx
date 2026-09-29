@@ -17,9 +17,9 @@ export default function DepartmentManagerMenu({ variant = "dark" }: { variant?: 
   const allowed = canOpenDepartmentMenu(permission.data, roles.data);
   const isSecretary = permission.data === "full_control" || Boolean(roles.data?.includes("court_secretary"));
   const units = trpc.court.units.list.useQuery(undefined, { enabled: allowed });
-  const people = trpc.court.people.list.useQuery({ personType: "administrative" }, { enabled: allowed });
-  const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", taskType: "permanent" as "permanent" | "urgent", priority: "normal" as "normal" | "high" | "critical", unitId: "", assigneeProfileIds: [] as number[], scheduledFor: "", dueAt: "" });
+  const people = trpc.court.people.list.useQuery({ personType: "administrative", unitId: form.unitId ? Number(form.unitId) : undefined }, { enabled: allowed && Boolean(form.unitId) });
+  const [open, setOpen] = useState(false);
   const createDepartmentProcedure = (trpc.court as any).tasks?.createDepartment;
   const createDepartment = createDepartmentProcedure?.useMutation
     ? createDepartmentProcedure.useMutation({
@@ -58,7 +58,7 @@ export default function DepartmentManagerMenu({ variant = "dark" }: { variant?: 
               <label className="block text-xs font-bold text-[#6a786f]">نوع المهمة<select value={form.taskType} onChange={event => setForm({ ...form, taskType: event.target.value as "permanent" | "urgent" })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="permanent">دائمة</option><option value="urgent">طارئة</option></select></label>
               <label className="block text-xs font-bold text-[#6a786f]">الأولوية<select value={form.priority} onChange={event => setForm({ ...form, priority: event.target.value as "normal" | "high" | "critical" })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="normal">عادية</option><option value="high">عالية</option><option value="critical">حرجة</option></select></label>
             </div>
-            <label className="block text-xs font-bold text-[#6a786f]">القسم<select value={form.unitId} onChange={event => setForm({ ...form, unitId: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="">اختر القسم</option>{units.data?.map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label>
+            <label className="block text-xs font-bold text-[#6a786f]">القسم<select value={form.unitId} onChange={event => setForm({ ...form, unitId: event.target.value, assigneeProfileIds: [] })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="">اختر القسم</option>{units.data?.map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block text-xs font-bold text-[#6a786f]">وقت البدء<input type="datetime-local" value={form.scheduledFor} onChange={event => setForm({ ...form, scheduledFor: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" /></label>
               <label className="block text-xs font-bold text-[#6a786f]">وقت التسليم<input type="datetime-local" value={form.dueAt} onChange={event => setForm({ ...form, dueAt: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" /></label>
