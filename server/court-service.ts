@@ -3486,6 +3486,7 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
     const scheduledFor = saudiScheduledTime(now, 7);
     const dueAt = saudiScheduledTime(now, template.dueHourLocal);
     await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt });
+    await db.update(taskTemplates).set({ lastGeneratedAt: now }).where(eq(taskTemplates.id, template.id));
     createdTasks += 1;
   }
   const scheduledTasks = await db.select().from(tasks).where(and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end), inArray(tasks.status, ["new", "in_progress"])));
