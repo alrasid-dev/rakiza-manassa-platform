@@ -12,14 +12,21 @@ export function isSaudiWorkday(now: Date) {
   return weekday >= 0 && weekday <= 4;
 }
 
-export function isTemplateDue(frequency: TaskFrequency, workdayOnly: boolean, now: Date) {
+export function isTemplateDue(frequency: TaskFrequency, workdayOnly: boolean, now: Date, intervalDays: number | null = null, lastGeneratedAt: Date | null = null): boolean {
   if (workdayOnly && !isSaudiWorkday(now)) return false;
   const { month, day } = riyadhParts(now);
+  // دعم interval (كل X أيام)
+  if (intervalDays && intervalDays > 1) {
+    if (!lastGeneratedAt) return true; // أول مرة
+    const daysSinceLast = Math.floor((now.getTime() - lastGeneratedAt.getTime()) / 86400000);
+    return daysSinceLast >= intervalDays;
+  }
   if (frequency === "daily") return true;
   if (frequency === "weekly") return new Date(Date.UTC(riyadhParts(now).year, month - 1, day)).getUTCDay() === 0;
   if (frequency === "monthly") return day === 1;
   if (frequency === "quarterly") return day === 1 && [1, 4, 7, 10].includes(month);
-  if (frequency === "custom") return true; // يُعامل كـ daily
+  if (frequency === "yearly") return day === 1 && month === 1;
+  if (frequency === "custom") return true;
   return false;
 }
 
