@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { Archive, Plus } from "lucide-react";
+import { Archive, Plus, Pencil, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useParams } from "wouter";
 import { toast } from "sonner";
@@ -31,6 +31,20 @@ export default function DepartmentTasksPage() {
   const archive = trpc.court.department.archive.useMutation({
     onSuccess: () => { utils.court.department.tasks.invalidate({ unitId }); toast.success("تمت أرشفة المهمة."); },
     onError: error => toast.error(error.message || "تعذر الأرشفة."),
+  });
+
+  const [editTask, setEditTask] = useState<{ id: number; title: string; assigneeProfileId: number | null } | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editAssignee, setEditAssignee] = useState("");
+  const updateTask = trpc.court.tasks.update.useMutation({
+    onSuccess: () => { utils.court.department.tasks.invalidate({ unitId }); setEditTask(null); toast.success("تم تحديث المهمة."); },
+    onError: error => toast.error(error.message || "تعذر التعديل."),
+  });
+  const [cancelTask, setCancelTask] = useState<{ id: number; title: string } | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const cancel = trpc.court.tasks.cancel.useMutation({
+    onSuccess: () => { utils.court.department.tasks.invalidate({ unitId }); setCancelTask(null); setCancelReason(""); toast.success("تم إلغاء المهمة."); },
+    onError: error => toast.error(error.message || "تعذر الإلغاء."),
   });
 
   const peopleById = useMemo(() => new Map((people.data ?? []).map(p => [p.id, p.fullName])), [people.data]);
@@ -93,7 +107,11 @@ export default function DepartmentTasksPage() {
                     <td className="py-3 px-2 text-[#65766d]">{task.assigneeProfileId ? peopleById.get(task.assigneeProfileId) ?? `#${task.assigneeProfileId}` : "—"}</td>
                     <td className="py-3 px-2"><span className="rounded-full bg-[#f1f1ef] px-2 py-1 text-xs font-bold text-[#5a625d]">{STATUS_LABELS[task.status] ?? task.status}</span></td>
                     <td className="py-3 px-2">
-                      <button type="button" onClick={() => archive.mutate({ taskId: task.id })} disabled={archive.isPending} className="inline-flex items-center gap-1 rounded-lg border border-[#e7c5b8] px-2 py-1 text-xs font-bold text-[#a04a35] hover:bg-[#fff3ef]"><Archive className="h-3.5 w-3.5" />أرشفة</button>
+                      <div className="flex flex-wrap gap-1">
+                        <button type="button" onClick={() => { setEditTask(task); setEditTitle(task.title); setEditAssignee(task.assigneeProfileId ? String(task.assigneeProfileId) : ""); }} className="inline-flex items-center gap-1 rounded-lg border border-[#cbd5cf] px-2 py-1 text-xs font-bold text-[#355d4b] hover:bg-[#eef5ef]"><Pencil className="h-3.5 w-3.5" />تعديل</button>
+                        <button type="button" onClick={() => { setCancelTask(task); setCancelReason(""); }} className="inline-flex items-center gap-1 rounded-lg border border-[#e7d6b8] px-2 py-1 text-xs font-bold text-[#8a6731] hover:bg-[#fff7ec]"><XCircle className="h-3.5 w-3.5" />إلغاء</button>
+                        <button type="button" onClick={() => archive.mutate({ taskId: task.id })} disabled={archive.isPending} className="inline-flex items-center gap-1 rounded-lg border border-[#e7c5b8] px-2 py-1 text-xs font-bold text-[#a04a35] hover:bg-[#fff3ef]"><Archive className="h-3.5 w-3.5" />أرشفة</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -102,6 +120,42 @@ export default function DepartmentTasksPage() {
           </div>
         )}
       </div>
+
+      {editTask && <div className="fixed inset-0 z-[70] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
+        <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" dir="rtl">
+          <h3 className="text-lg font-bold text-[#12352f]">تعديل المهمة</h3>
+          <p className="mt-1 text-xs text-[#65766d]">{editTask.title}</p>
+          <label className="mt-4 block text-xs font-bold text-[#6a786f]">العنوان
+            <input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-[#ddd5c9] px-3 text-sm" />
+          </label>
+          <label className="mt-3 block text-xs font-bold text-[#6a786f]">المكلَّفة
+            <select value={editAssignee} onChange={e => setEditAssignee(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-[#ddd5c9] bg-white px-3 text-sm">
+              <option value="">— بلا مكلَّفة —</option>
+              {(people.data ?? []).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+            </select>
+          </label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" onClick={() => setEditTask(null)} className="rounded-lg border border-[#cbd5cf] px-3 py-2 text-sm font-bold text-[#355d4b]">رجوع</button>
+            <button type="button" onClick={() => updateTask.mutate({ taskId: editTask.id, title: editTitle, assigneeProfileId: editAssignee ? Number(editAssignee) : null })} disabled={updateTask.isPending || editTitle.trim().length < 3} className="rounded-lg bg-[#174b3c] px-3 py-2 text-sm font-bold text-white">{updateTask.isPending ? "جارٍ الحفظ…" : "حفظ"}</button>
+          </div>
+          {updateTask.error && <p className="mt-2 text-xs text-[#a04a35]">{updateTask.error.message}</p>}
+        </div>
+      </div>}
+
+      {cancelTask && <div className="fixed inset-0 z-[70] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
+        <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" dir="rtl">
+          <h3 className="text-lg font-bold text-[#12352f]">إلغاء المهمة</h3>
+          <p className="mt-1 text-xs text-[#65766d]">{cancelTask.title}</p>
+          <label className="mt-4 block text-xs font-bold text-[#6a786f]">سبب الإلغاء (مطلوب، 3 أحرف على الأقل)
+            <textarea value={cancelReason} onChange={e => setCancelReason(e.target.value)} className="mt-1 min-h-24 w-full rounded-md border border-[#ddd5c9] px-3 py-2 text-sm" />
+          </label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" onClick={() => setCancelTask(null)} className="rounded-lg border border-[#cbd5cf] px-3 py-2 text-sm font-bold text-[#355d4b]">رجوع</button>
+            <button type="button" onClick={() => cancel.mutate({ taskId: cancelTask.id, cancellationReason: cancelReason })} disabled={cancel.isPending || cancelReason.trim().length < 3} className="rounded-lg bg-[#a04a35] px-3 py-2 text-sm font-bold text-white">{cancel.isPending ? "جارٍ الإلغاء…" : "تأكيد الإلغاء"}</button>
+          </div>
+          {cancel.error && <p className="mt-2 text-xs text-[#a04a35]">{cancel.error.message}</p>}
+        </div>
+      </div>}
     </section>
   </DashboardLayout>;
 }

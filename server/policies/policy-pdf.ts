@@ -4,6 +4,7 @@
  * (بدون Puppeteer/Chromium لتجنّب تجاوز حد حجم دالة Vercel).
  */
 import { jsPDF } from "jspdf";
+// @ts-ignore - arabic-reshaper لا يملك تعريفات TypeScript
 import arabicReshaper from "arabic-reshaper";
 import type { PolicySection } from "./policy-content";
 import { readFileSync } from "fs";
