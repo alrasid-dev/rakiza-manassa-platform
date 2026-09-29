@@ -1773,10 +1773,11 @@ export const courtRouter = router({
       if (!ownProfile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف شخصي لرفع تقرير إنجاز." });
       const roles = await rolesForUser(ctx.user);
       const isPerformanceMonitor = roles.includes("performance_monitor");
-      // المالك والأمين ومساعد الرئيس ورئيس المحكمة يرفعون لأي قسم، وكذلك مراقبة الأداء.
-      const hasLeadershipScope = await hasLeadershipPlatformScope(ctx.user, permission);
-      const canUploadAnywhere = hasLeadershipScope || isPerformanceMonitor;
       const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      // المالك والأمين ومساعد الرئيس ورئيس المحكمة يرفعون لأي قسم، وكذلك مراقبة الأداء ومدير قسم مراقبة الأداء (unitId=4).
+      const hasLeadershipScope = await hasLeadershipPlatformScope(ctx.user, permission);
+      const isMonitoringManager = managedUnitIds.includes(4);
+      const canUploadAnywhere = hasLeadershipScope || isPerformanceMonitor || isMonitoringManager;
       const targetProfile = input.profileId ? await getProfileById(input.profileId) : ownProfile;
       if (!targetProfile) throw new TRPCError({ code: "NOT_FOUND", message: "ملف الموظف المحدد غير موجود." });
       const targetUnitId = input.unitId ?? targetProfile.unitId ?? ownProfile.unitId ?? undefined;
