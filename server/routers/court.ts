@@ -52,6 +52,7 @@ import {
   listTaskTimeline,
   listTaskRouteTargets,
   routeTaskToProfile,
+  requestTaskExtension,
   deactivateProfile,
   archiveProfile,
   decideApproval,
@@ -1337,6 +1338,16 @@ export const courtRouter = router({
       const profile = await getProfileForUser(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف موظف لتقديم طلب إعادة الإسناد." });
       return createTaskExceptionRequest({ taskId: input.taskId, kind: "reassignment", requesterProfileId: profile.id, actorUserId: ctx.user.id, reason: input.reason });
+    }),
+    requestExtension: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), newDueAt: z.date(), reason: z.string().trim().min(10).max(1000) })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "edit");
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+      const profile = await getProfileForUser(ctx.user.id);
+      const roles = await rolesForUser(ctx.user);
+      const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
+      if (!profile || (!participates && !canManageOperations(roles))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك طلب تمديد مهمة غير مسندة إليك." });
+      return requestTaskExtension({ taskId: input.taskId, newDueAt: input.newDueAt, reason: input.reason, actorUserId: ctx.user.id });
     }),
     details: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).query(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "view");

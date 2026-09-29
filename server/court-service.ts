@@ -1312,6 +1312,18 @@ export async function createTraineeWithAccount(input: { fullName: string; email:
   return profileId;
 }
 
+/** طلب تمديد موعد مهمة: يحدّث الاستحقاق ويسجّل الطلب في سجل المهمة. */
+export async function requestTaskExtension(input: { taskId: number; newDueAt: Date; reason: string; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new Error("المهمة غير موجودة.");
+  await db.update(tasks).set({ dueAt: input.newDueAt }).where(eq(tasks.id, input.taskId));
+  await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: `طلب تمديد الموعد إلى ${input.newDueAt.toISOString()}: ${input.reason.trim()}` });
+  await logAudit({ actorUserId: input.actorUserId, action: "task.extension_requested", entityType: "task", entityId: input.taskId, metadata: { newDueAt: input.newDueAt.toISOString() } });
+  return { success: true as const };
+}
+
 export async function deactivateProfile(profileId: number, actorUserId: number, reason?: string) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
