@@ -3473,7 +3473,6 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
   if (!db) return { createdTasks: 0, createdNotifications: 0, skipped: 0 };
   await activateScheduledLeaveStatuses(now);
   const templates = await db.select().from(taskTemplates).where(eq(taskTemplates.isActive, true));
-  const admins = await db.select().from(personProfiles).where(and(eq(personProfiles.personType, "administrative"), eq(personProfiles.status, "active"))).orderBy(personProfiles.id);
   const { start, end } = dateRangeForSaudiDay(now);
   let createdTasks = 0;
   let skipped = 0;
@@ -3481,8 +3480,13 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
     if (!isTemplateDue(template.frequency, template.workdayOnly, now, template.intervalDays, template.lastGeneratedAt)) { skipped += 1; continue; }
     const existing = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.templateId, template.id), gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))).limit(1);
     if (existing[0]) { skipped += 1; continue; }
-    const autoAssignee = admins.length ? admins[(template.id - 1) % admins.length] : undefined;
-    const configuredAdministrativeAssignee = admins.find(profile => profile.id === template.defaultAssigneeProfileId);
+    // عزل الإسناد على موظفي قسم القالب فقط
+    const assigneeConditions = [eq(personProfiles.personType, "administrative"), eq(personProfiles.status, "active")];
+    if (template.unitId != null) assigneeConditions.push(eq(personProfiles.unitId, template.unitId));
+    const assignees = await db.select().from(personProfiles).where(and(...assigneeConditions)).orderBy(personProfiles.id);
+    if (assignees.length === 0) { console.warn(`[recurring] لا موظفين في القسم ${template.unitId} للقالب ${template.id}`); skipped += 1; continue; }
+    const autoAssignee = assignees[(template.id - 1) % assignees.length];
+    const configuredAdministrativeAssignee = assignees.find(profile => profile.id === template.defaultAssigneeProfileId);
     const assigneeProfileId = configuredAdministrativeAssignee?.id ?? autoAssignee?.id ?? null;
     if (!assigneeProfileId) { skipped += 1; continue; }
     const scheduledFor = saudiScheduledTime(now, 7);
