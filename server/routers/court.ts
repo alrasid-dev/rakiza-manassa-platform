@@ -2128,15 +2128,17 @@ export const courtRouter = router({
     }),
     teamMonthlyBalances: protectedProcedure.input(z.object({ hijriMonthKey: z.string().trim().min(1).max(10) })).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
-      const unitIds = (await hasLeadershipPlatformScope(ctx.user, permission)) ? null : await managedUnitIdsForUser(ctx.user);
-      if (unitIds && !unitIds.length) throw new TRPCError({ code: "FORBIDDEN", message: "أرصدة الفريق متاحة للمديرين فقط." });
-      return listTeamMonthlyBalances(unitIds, input.hijriMonthKey);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      if (!isLeadership && !managedUnitIds.length) return [];
+      return listTeamMonthlyBalances(isLeadership ? null : managedUnitIds, input.hijriMonthKey);
     }),
     teamCumulativeBalances: protectedProcedure.query(async ({ ctx }) => {
       const permission = await requirePermission(ctx.user, "view");
-      const unitIds = (await hasLeadershipPlatformScope(ctx.user, permission)) ? null : await managedUnitIdsForUser(ctx.user);
-      if (unitIds && !unitIds.length) throw new TRPCError({ code: "FORBIDDEN", message: "أرصدة الفريق متاحة للمديرين فقط." });
-      return listTeamCumulativeBalances(unitIds);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      if (!isLeadership && !managedUnitIds.length) return [];
+      return listTeamCumulativeBalances(isLeadership ? null : managedUnitIds);
     }),
   }),
 

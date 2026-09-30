@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import TeamBalancesTable from "@/components/TeamBalancesTable";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 
@@ -94,6 +95,12 @@ export default function DisciplinaryPage() {
                 />
               </div>
             ))}
+          </section>
+        )}
+        {teamCases.data && teamCases.data.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-lg font-bold text-[#12352f]">أرصدة الفريق</h2>
+            <div className="mt-3"><TeamBalancesTable /></div>
           </section>
         )}
       </section>
