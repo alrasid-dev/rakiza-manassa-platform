@@ -576,6 +576,8 @@ export const attendanceRecords = mysqlTable("attendance_records", {
   checkOutAt: timestamp("checkOutAt"),
   status: mysqlEnum("status", ["present", "late", "absent", "excused", "on_leave"]).notNull(),
   note: text("note"),
+  penaltyMinutes: int("penaltyMinutes").default(0).notNull(),
+  compensationNote: text("compensationNote"),
   createdByUserId: int("createdByUserId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
