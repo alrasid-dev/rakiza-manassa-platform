@@ -104,6 +104,24 @@ export async function runAttendanceConfirmationCycle(now = new Date(), targetPro
   return { scanned: profiles.length, notified, skipped, policy: "enabled", penalized: accountability.penalized };
 }
 
+/** يحسب عدد أيام عدم التأكيد خلال آخر 30 يوماً. */
+async function countMissedConfirmationDays(profileId: number, now: Date): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const rows = await db.select({ id: scoreEvents.id }).from(scoreEvents).where(and(eq(scoreEvents.profileId, profileId), eq(scoreEvents.reason, "عدم تأكيد بدء العمل خلال النافذة المحددة"), gte(scoreEvents.createdAt, since)));
+  return rows.length;
+}
+
+/** خصم متدرج حسب تكرار عدم التأكيد: كل يومين → أسبوع → أسبوعين → شهر. */
+async function calculatePenalty(profileId: number, now: Date): Promise<number> {
+  const missedDays = await countMissedConfirmationDays(profileId, now);
+  if (missedDays < 5) return -1;
+  if (missedDays < 15) return -2;
+  if (missedDays < 30) return -3;
+  return -5;
+}
+
 /**
  * مساءلة عدم تأكيد الحضور (المسار الثاني من السياسة): لأي موظف عن بُعد استلم
  * تنبيهاً لتأكيد بدء العمل اليوم وتجاوزت نافذة التأكيد، إن لم يسجل حضوره
@@ -165,7 +183,7 @@ export async function runAttendanceAccountabilityCycle(now = new Date()): Promis
 
     await db.insert(scoreEvents).values({
       profileId,
-      points: policy.ignoredConfirmationPenalty,
+      points: await calculatePenalty(profileId, now),
       reason: "عدم تأكيد بدء العمل خلال النافذة المحددة",
       createdByUserId: SYSTEM_ACTOR_ID,
     });

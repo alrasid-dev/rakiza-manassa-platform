@@ -179,5 +179,21 @@ describe("مساءلة عدم تأكيد الحضور (المسار الثاني
     expect(result.penalized).toBe(0);
     expect(db.state.inserts).toHaveLength(0);
   });
+
+  it("يخصم نقاطاً متدرجة عند تكرار عدم التأكيد", async () => {
+    const db = makeFakeDb();
+    mocks.getDb.mockResolvedValue(db);
+    db.setRows(notifications, [{ profileId: 7, category: "attendance_confirmation", sentAt }]);
+    db.setRows(attendanceRecords, []);
+    db.setRows(approvalRequests, []);
+    db.setRows(personProfiles, [{ id: 7, fullName: "فهد العتيبي", directManagerProfileId: 3 }]);
+    db.setRows(scoreEvents, Array.from({ length: 6 }, (_, i) => ({ profileId: 7, reason: "عدم تأكيد بدء العمل خلال النافذة المحددة", createdAt: new Date(sentAt.getTime() - i * 24 * 60 * 60 * 1000) })));
+
+    const result = await runAttendanceAccountabilityCycle(new Date(sentAt.getTime() + 30 * 60 * 1000));
+
+    expect(result.penalized).toBe(1);
+    const penalty = db.state.inserts.find((i) => typeof i.points === "number" && i.points < 0);
+    expect(penalty.points).toBe(-2);
+  });
 });
 
