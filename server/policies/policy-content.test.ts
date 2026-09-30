@@ -3,7 +3,7 @@ import { getPoliciesForRole } from "./policy-content";
 
 describe("سياسات الأدوار", () => {
   it("يعرض كل السياسات للمالك (full_control)", () => {
-    expect(getPoliciesForRole("court_president", "full_control").length).toBe(11);
+    expect(getPoliciesForRole("court_president", "full_control").length).toBe(12);
   });
 
   it("يعرض سياسات الإدارة للمدير دون صلاحيات المالك", () => {
@@ -17,7 +17,7 @@ describe("سياسات الأدوار", () => {
 
   it("يعرض السياسات العامة فقط للموظف العادي", () => {
     const ids = getPoliciesForRole(null, "employee").map(s => s.id);
-    expect(ids).toEqual(["login", "attendance", "leave_permission", "tasks", "scores_accountability"]);
+    expect(ids).toEqual(["login", "attendance", "leave_permission", "monthly_balance", "tasks", "scores_accountability"]);
   });
 
   it("يعرض صلاحيات الأمين للأمين", () => {

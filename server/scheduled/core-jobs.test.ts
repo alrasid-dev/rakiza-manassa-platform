@@ -3,7 +3,7 @@ import { CORE_JOBS } from "./core-jobs";
 
 describe("وظائف Heartbeat الأساسية", () => {
   it("تغطي التنبيهات والتصعيد والمزامنة وحالات الإجازة والدعم", () => {
-    expect(CORE_JOBS).toHaveLength(7);
+    expect(CORE_JOBS).toHaveLength(8);
     for (const job of CORE_JOBS) {
       expect(job.path).toMatch(/^\/api\/scheduled\//);
       expect(job.cronExpression.trim().split(/\s+/)).toHaveLength(6);
