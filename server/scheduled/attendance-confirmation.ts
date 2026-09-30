@@ -1,6 +1,6 @@
-import { and, desc, eq, gte, inArray, lt, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 import type { Request, Response } from "express";
-import { approvalRequests, attendanceRecords, notifications, personProfiles, scoreEvents, scheduledJobConfigs } from "../../drizzle/schema";
+import { approvalRequests, attendanceRecords, leaveRequests, notifications, personProfiles, scoreEvents, scheduledJobConfigs, workShifts } from "../../drizzle/schema";
 import { getDb } from "../db";
 import { sdk } from "../_core/sdk";
 import { sendSafeScheduledFailure } from "./safe-scheduled-failure";
@@ -8,6 +8,7 @@ import { isValidCronSecret } from "./cron-auth";
 import { attendanceConfirmationCadence, attendanceConfirmationPolicyDefaults, shouldRequestAttendanceConfirmation, calculateComplianceRate, COMPLIANCE_EXEMPTION_THRESHOLD, COMPLIANCE_MANDATORY_THRESHOLD, EXEMPTION_WINDOW_DAYS, type AttendanceConfirmationCadence } from "../attendance-confirmation-policy";
 import { dateRangeForSaudiDay, isSaudiWorkday } from "../task-automation";
 import { isOfficialHoliday, workHoursFor } from "../holidays";
+import { MISSING_CHECKOUT_PENALTY_MINUTES, MISSING_CHECKOUT_PENALTY_POINTS } from "../court-service";
 
 const ACTIVE_REMOTE_MODES = ["remote", "mixed"] as const;
 const SYSTEM_ACTOR_ID = 0;
@@ -101,6 +102,7 @@ export async function runAttendanceConfirmationCycle(now = new Date(), targetPro
     if (Number(result[0].affectedRows) === 1) notified += 1;
   }
   const accountability = await runAttendanceAccountabilityCycle(now);
+  await runMissingCheckoutPenalty(now);
   return { scanned: profiles.length, notified, skipped, policy: "enabled", penalized: accountability.penalized };
 }
 
@@ -202,6 +204,118 @@ export async function runAttendanceAccountabilityCycle(now = new Date()): Promis
   }
 
   return { checked: earliestByProfile.size, penalized };
+}
+
+/**
+ * عقوبة عدم تسجيل الانصراف: لأي موظف بصم دخولاً اليوم ولم يسجل انصرافاً،
+ * بعد غلق البصمة تُطبَّق عقوبة فورية (-4 نقاط + خصم 240 دقيقة) مع مساءلة وإشعار.
+ * الاستثناءات (لا تُطبَّق العقوبة إطلاقاً):
+ * 1) الجمعة أو السبت. 2) الإجازات الرسمية. 3) لا يوجد بصمة دخول.
+ * 4) إجازة معتمدة تغطي اليوم. 5) الوقت قبل غلق البصمة (14:59).
+ * العملية idempotent: لن تُطبَّق العقوبة مرتين لنفس اليوم.
+ */
+export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ checked: number; penalized: number }> {
+  const db = await getDb();
+  if (!db) return { checked: 0, penalized: 0 };
+
+  // الشرط 1 و 2: ليس جمعة/سبت ولا إجازة رسمية.
+  if (!isSaudiWorkday(now) || isOfficialHoliday(now)) {
+    console.log("[missing-checkout] تخطي: يوم عطلة أو إجازة رسمية.");
+    return { checked: 0, penalized: 0 };
+  }
+
+  // الشرط 5: الوقت بعد غلق البصمة (الافتراضي 14:59 = 899 دقيقة).
+  const [shift] = await db
+    .select({ fingerprintCloseMinutes: workShifts.fingerprintCloseMinutes })
+    .from(workShifts)
+    .where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true)))
+    .limit(1);
+  const closeMinutes = shift?.fingerprintCloseMinutes ?? 899;
+  if (riyadhMinutesOfDay(now) <= closeMinutes) return { checked: 0, penalized: 0 };
+
+  const dayRange = dateRangeForSaudiDay(now);
+
+  // الشرط 3: يوجد بصمة دخول اليوم ولا يوجد بصمة انصراف.
+  const records = await db
+    .select()
+    .from(attendanceRecords)
+    .where(and(
+      gte(attendanceRecords.recordDate, dayRange.start),
+      lt(attendanceRecords.recordDate, dayRange.end),
+      isNotNull(attendanceRecords.checkInAt),
+      isNull(attendanceRecords.checkOutAt),
+    ));
+
+  let penalized = 0;
+  for (const record of records) {
+    // الشرط 4: لا توجد إجازة معتمدة تغطي اليوم.
+    const approvedLeave = await db
+      .select({ id: leaveRequests.id })
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.profileId, record.profileId),
+        eq(leaveRequests.status, "approved"),
+        lte(leaveRequests.startAt, dayRange.end),
+        gte(leaveRequests.endAt, dayRange.start),
+      ))
+      .limit(1);
+    if (approvedLeave[0]) {
+      console.log(`[missing-checkout] تخطي ${record.profileId}: إجازة معتمدة تغطي اليوم.`);
+      continue;
+    }
+
+    // idempotent: لا تطبّق العقوبة مرتين.
+    if (record.penaltyMinutes > 0) continue;
+
+    await db.update(attendanceRecords).set({
+      penaltyMinutes: MISSING_CHECKOUT_PENALTY_MINUTES,
+      compensationNote: "عقوبة: عدم تسجيل الانصراف → -4 نقاط + -240 دقيقة",
+      updatedAt: new Date(),
+    }).where(eq(attendanceRecords.id, record.id));
+
+    await db.insert(scoreEvents).values({
+      profileId: record.profileId,
+      points: MISSING_CHECKOUT_PENALTY_POINTS,
+      reason: "عقوبة: عدم تسجيل الانصراف",
+      createdByUserId: 0,
+    });
+
+    await db.insert(approvalRequests).values({
+      entityType: "disciplinary_action",
+      entityId: record.profileId,
+      requestedByUserId: 0,
+      currentRole: "human_resources_manager",
+      requestNote: "عقوبة: عدم تسجيل الانصراف → -4 نقاط + -240 دقيقة",
+    });
+
+    const dayKey = dayRange.start.toISOString().slice(0, 10);
+    await db.insert(notifications).values({
+      profileId: record.profileId,
+      category: "security_alert",
+      title: "عقوبة عدم تسجيل الانصراف",
+      body: "لم تسجل انصرافك اليوم، وطُبّقت عقوبة: -4 نقاط + خصم 240 دقيقة. يمكنك تقديم استئذان متأخر للمدير المباشر.",
+      dedupeKey: `missing-checkout-${record.profileId}-${dayKey}`,
+    }).onDuplicateKeyUpdate({ set: { title: "عقوبة عدم تسجيل الانصراف" } });
+
+    const profile = (await db
+      .select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId })
+      .from(personProfiles)
+      .where(eq(personProfiles.id, record.profileId))
+      .limit(1))[0];
+    if (profile?.directManagerProfileId) {
+      await db.insert(notifications).values({
+        profileId: profile.directManagerProfileId,
+        category: "security_alert",
+        title: "مساءلة عدم انصراف",
+        body: `${profile.fullName} لم يسجل انصرافه اليوم وطُبّقت عليه العقوبة.`,
+        dedupeKey: `missing-checkout-manager-${record.profileId}-${dayKey}`,
+      }).onDuplicateKeyUpdate({ set: { title: "مساءلة عدم انصراف" } });
+    }
+
+    penalized += 1;
+  }
+
+  return { checked: records.length, penalized };
 }
 
 function nowForAttendanceCycle() {
