@@ -73,6 +73,7 @@ import {
   registrationRequests,
   scoreEvents,
   scheduledJobConfigs,
+  systemConfigs,
   supportTicketAttachments,
   supportTicketComments,
   supportTickets,
@@ -3379,6 +3380,42 @@ export async function confirmAttendance(input: { assignmentId: number; profileId
   if (new Date() > deadline) throw new Error("انتهت نافذة التأكيد.");
   await db.update(confirmationAssignments).set({ confirmedAt: new Date(), status: "done" }).where(eq(confirmationAssignments.id, input.assignmentId));
   return { success: true };
+}
+
+/** قراءة إعدادات نظام تأكيد الحضور (عام + لكل قسم). */
+export async function getConfirmationSettingsService() {
+  const db = await getDb();
+  if (!db) return { globalEnabled: true, perDept: {} as Record<string, boolean> };
+  const [row] = await db.select().from(systemConfigs).limit(1);
+  return { globalEnabled: row?.confirmationEnabledGlobal ?? true, perDept: (row?.confirmationEnabledPerDept ?? {}) as Record<string, boolean> };
+}
+
+/** تفعيل/إيقاف نظام التأكيد عاماً. */
+export async function setGlobalConfirmation(enabled: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [row] = await db.select().from(systemConfigs).limit(1);
+  if (row) {
+    await db.update(systemConfigs).set({ confirmationEnabledGlobal: enabled, updatedAt: new Date() }).where(eq(systemConfigs.id, row.id));
+  } else {
+    await db.insert(systemConfigs).values({ confirmationEnabledGlobal: enabled, confirmationEnabledPerDept: {} });
+  }
+  return getConfirmationSettingsService();
+}
+
+/** تفعيل/إيقاف نظام التأكيد لقسم محدد. */
+export async function setDepartmentConfirmation(unitId: number, enabled: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [row] = await db.select().from(systemConfigs).limit(1);
+  const current = (row?.confirmationEnabledPerDept ?? {}) as Record<string, boolean>;
+  current[String(unitId)] = enabled;
+  if (row) {
+    await db.update(systemConfigs).set({ confirmationEnabledPerDept: current, updatedAt: new Date() }).where(eq(systemConfigs.id, row.id));
+  } else {
+    await db.insert(systemConfigs).values({ confirmationEnabledGlobal: true, confirmationEnabledPerDept: current });
+  }
+  return getConfirmationSettingsService();
 }
 
 export async function listRemoteAttendanceReport(input: { unitIds?: number[]; startAt?: Date; endAt?: Date }) {

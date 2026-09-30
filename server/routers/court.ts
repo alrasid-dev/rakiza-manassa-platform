@@ -176,6 +176,9 @@ import {
   recordAttendanceCheckout,
   getPendingConfirmationAssignment,
   confirmAttendance,
+  getConfirmationSettingsService,
+  setGlobalConfirmation,
+  setDepartmentConfirmation,
   notifyPlatformOwnerSecurityAlert,
   renewTraineeAssignment,
   resolveSupportTicket,
@@ -2017,6 +2020,18 @@ export const courtRouter = router({
       const profile = await getProfileForUser(ctx.user.id);
       if (!profile) throw new TRPCError({ code: "FORBIDDEN" });
       return confirmAttendance({ assignmentId: input.assignmentId, profileId: profile.id });
+    }),
+    confirmationSettings: protectedProcedure.query(async ({ ctx }) => {
+      await requireAttendancePolicyAccess(ctx.user);
+      return getConfirmationSettingsService();
+    }),
+    setGlobalConfirmation: protectedProcedure.input(z.object({ enabled: z.boolean() })).mutation(async ({ ctx, input }) => {
+      await requireAttendancePolicyAccess(ctx.user);
+      return setGlobalConfirmation(input.enabled);
+    }),
+    setDepartmentConfirmation: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), enabled: z.boolean() })).mutation(async ({ ctx, input }) => {
+      await requireAttendancePolicyAccess(ctx.user);
+      return setDepartmentConfirmation(input.unitId, input.enabled);
     }),
     currentWindow: protectedProcedure.query(async ({ ctx }) => {
       const { profile } = await requireSelfAttendanceProfile(ctx.user);

@@ -196,7 +196,7 @@ function formatLastSeen(value: Date | string | number | null | undefined) {
   if (!value) return "لم يُسجل نشاط بعد";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "لم يُسجل نشاط بعد";
-  return `آخر ظهور ${date.toLocaleDateString("ar-SA")} · ${date.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}`;
+  return `آخر ظهور ${date.toLocaleDateString("ar-SA")} · ${date.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}`;
 }
 
 function CourtMark() {
