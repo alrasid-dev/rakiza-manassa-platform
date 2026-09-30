@@ -11,6 +11,7 @@ const FREQUENCIES = [
   { value: "quarterly", label: "ربع سنوي" },
   { value: "yearly", label: "سنوي" },
   { value: "custom", label: "كل X أيام" },
+  { value: "specific_days", label: "أيام محددة من الأسبوع" },
 ] as const;
 
 type Frequency = (typeof FREQUENCIES)[number]["value"];
@@ -21,6 +22,7 @@ export default function TaskTemplatesPage() {
   const units = trpc.court.units.list.useQuery();
 
   const [form, setForm] = useState({ unitId: "", title: "", frequency: "daily" as Frequency, intervalDays: 1, dueHourLocal: "13", workdayOnly: true });
+  const [specificDays, setSpecificDays] = useState<number[]>([]);
 
   const create = trpc.court.templates.create.useMutation({
     onSuccess: () => { utils.court.templates.list.invalidate(); setForm({ unitId: "", title: "", frequency: "daily", intervalDays: 1, dueHourLocal: "13", workdayOnly: true }); toast.success("تم إنشاء القالب."); },
@@ -38,7 +40,7 @@ export default function TaskTemplatesPage() {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!form.title.trim() || !form.unitId) { toast.error("أكمل القسم والعنوان."); return; }
-    create.mutate({ unitId: Number(form.unitId), title: form.title.trim(), frequency: form.frequency, intervalDays: form.frequency === "custom" ? form.intervalDays : null, dueHourLocal: Number(form.dueHourLocal), workdayOnly: form.workdayOnly });
+    create.mutate({ unitId: Number(form.unitId), title: form.title.trim(), frequency: form.frequency, intervalDays: form.frequency === "custom" ? form.intervalDays : null, specificDays: form.frequency === "specific_days" ? specificDays : null, dueHourLocal: Number(form.dueHourLocal), workdayOnly: form.workdayOnly });
   };
 
   const activeUnits = (units.data ?? []).filter(unit => unit.isActive !== false);
@@ -73,6 +75,7 @@ export default function TaskTemplatesPage() {
         {form.frequency === "custom" && <label className="text-xs font-bold text-[#53675d]">كل كم يوم؟ (1-365)
           <input type="number" min={1} max={365} value={form.intervalDays} onChange={event => setForm({ ...form, intervalDays: Number(event.target.value) })} className="mt-1 h-10 w-full rounded-xl border border-[#ddd5c9] px-3 text-sm outline-none focus:border-[#57927b]" />
         </label>}
+        {form.frequency === "specific_days" && <div className="md:col-span-2"><label className="text-xs font-bold text-[#53675d]">اختر الأيام</label><div className="mt-1 flex flex-wrap gap-2">{[{ day: 0, label: "الأحد" },{ day: 1, label: "الاثنين" },{ day: 2, label: "الثلاثاء" },{ day: 3, label: "الأربعاء" },{ day: 4, label: "الخميس" },{ day: 5, label: "الجمعة" },{ day: 6, label: "السبت" }].map(({ day, label }) => <label key={day} className="flex items-center gap-1 text-sm"><input type="checkbox" checked={specificDays.includes(day)} onChange={event => { if (event.target.checked) { setSpecificDays([...specificDays, day]); } else { setSpecificDays(specificDays.filter(d => d !== day)); } }} className="h-4 w-4 accent-[#2d6b4f]" />{label}</label>)}</div>{specificDays.length === 0 && <p className="text-xs text-red-500 mt-1">⚠️ اختر يوم واحد على الأقل</p>}</div>}
         <label className="text-xs font-bold text-[#53675d]">ساعة الاستحقاق (محلياً)
           <select value={form.dueHourLocal} onChange={event => setForm({ ...form, dueHourLocal: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#ddd5c9] px-3 text-sm outline-none focus:border-[#57927b]">
             {Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour}>{`${String(hour).padStart(2, "0")}:00`}</option>)}

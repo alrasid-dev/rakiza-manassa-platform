@@ -39,6 +39,18 @@ describe("أتمتة مهام شؤون الملازمين", () => {
     // بعد يومين فقط → لا تُنشأ
     expect(isTemplateDue("custom", false, new Date("2026-01-03T05:00:00Z"), 3, jan1)).toBe(false);
   });
+  it("يدعم أيام محددة من الأسبوع (specific_days)", () => {
+    const monday = new Date("2026-08-17T05:00:00Z");
+    const tuesday = new Date("2026-08-18T05:00:00Z");
+    // يوم الاثنين فقط (بدون تقييد أيام العمل لعزل منطق اليوم)
+    expect(isTemplateDue("specific_days", false, monday, null, null, [1])).toBe(true);
+    expect(isTemplateDue("specific_days", false, tuesday, null, null, [1])).toBe(false);
+    // بدون أيام محددة → لا تُنشأ
+    expect(isTemplateDue("specific_days", false, monday, null, null, [])).toBe(false);
+    expect(isTemplateDue("specific_days", false, monday, null, null, null)).toBe(false);
+    // الجمعة ضمن الأيام المختارة (اليوم 5) → تُنشأ إذا لم يُقيّد بأيام العمل
+    expect(isTemplateDue("specific_days", false, friday, null, null, [5])).toBe(true);
+  });
   it("يقصر التنفيذ الفوري الوارد من المصدر المرتبط على نافذة السابعة إلى الثالثة", () => {
     expect(isWithinSaudiWorkHours(new Date("2026-08-16T04:00:00Z"))).toBe(true);
     expect(isWithinSaudiWorkHours(new Date("2026-08-16T12:00:00Z"))).toBe(false);

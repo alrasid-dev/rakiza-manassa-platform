@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   int,
+  json,
   mysqlEnum,
   mysqlTable,
   text,
@@ -642,7 +643,7 @@ export const taskTemplates = mysqlTable("task_templates", {
   id: int("id").autoincrement().primaryKey(),
   unitId: int("unitId"),
   title: text("title").notNull(),
-  frequency: mysqlEnum("frequency", ["daily", "weekly", "monthly", "quarterly", "yearly", "custom"]).notNull(),
+  frequency: mysqlEnum("frequency", ["daily", "weekly", "monthly", "quarterly", "yearly", "custom", "specific_days"]).notNull(),
   workdayOnly: boolean("workdayOnly").default(true).notNull(),
   dueHourLocal: int("dueHourLocal").default(13).notNull(),
   requiredApprovals: int("requiredApprovals").default(1).notNull(),
@@ -654,6 +655,7 @@ export const taskTemplates = mysqlTable("task_templates", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastGeneratedAt: timestamp("lastGeneratedAt"),
   intervalDays: int("intervalDays"),
+  specificDays: json("specificDays"),
 }, table => [index("task_templates_unit_active_idx").on(table.unitId, table.isActive)]);
 
 export const tasks = mysqlTable("tasks", {
@@ -676,9 +678,10 @@ export const tasks = mysqlTable("tasks", {
   cancellationReason: text("cancellationReason"),
   archivedAt: timestamp("archivedAt"),
   archivedByUserId: int("archivedByUserId"),
-  recurrence: mysqlEnum("recurrence", ["none", "daily", "weekly", "monthly", "quarterly", "yearly", "custom"]).default("none").notNull(),
+  recurrence: mysqlEnum("recurrence", ["none", "daily", "weekly", "monthly", "quarterly", "yearly", "custom", "specific_days"]).default("none").notNull(),
   recurrenceEndAt: timestamp("recurrenceEndAt"),
   recurrenceInterval: int("recurrenceInterval"),
+  specificDays: json("specificDays"),
   watcherProfileId: int("watcherProfileId"),
   isConfidential: boolean("isConfidential").default(false).notNull(),
   confidentialityExpiresAt: timestamp("confidentialityExpiresAt"),

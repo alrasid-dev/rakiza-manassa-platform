@@ -893,8 +893,9 @@ export const courtRouter = router({
     create: protectedProcedure.input(z.object({
       unitId: z.number().int().positive(),
       title: z.string().trim().min(3).max(500),
-      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly", "custom"]),
+      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly", "custom", "specific_days"]),
       intervalDays: z.number().int().min(1).max(365).nullable().optional(),
+      specificDays: z.array(z.number().int().min(0).max(6)).nullable().optional(),
       dueHourLocal: z.number().int().min(0).max(23).default(13),
       workdayOnly: z.boolean().default(true),
       defaultAssigneeProfileId: z.number().int().positive().optional(),
@@ -905,14 +906,15 @@ export const courtRouter = router({
     }),
     updateFrequency: protectedProcedure.input(z.object({
       templateId: z.number().int().positive(),
-      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly", "custom"]),
+      frequency: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly", "custom", "specific_days"]),
       intervalDays: z.number().int().min(1).max(365).nullable().optional(),
+      specificDays: z.array(z.number().int().min(0).max(6)).nullable().optional(),
     })).mutation(async ({ ctx, input }) => {
       const unitIds = await manageableTemplateUnitIds(ctx.user);
       const unitId = await getTaskTemplateUnitId(input.templateId);
       if (unitId === null) throw new TRPCError({ code: "NOT_FOUND", message: "قالب المهمة غير موجود." });
       if (unitId !== null && !unitIds.includes(unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تعديل قالب خارج نطاق قسمك." });
-      return updateTaskTemplateFrequency({ templateId: input.templateId, frequency: input.frequency, intervalDays: input.intervalDays ?? null, actorUserId: ctx.user.id });
+      return updateTaskTemplateFrequency({ templateId: input.templateId, frequency: input.frequency, intervalDays: input.intervalDays ?? null, specificDays: input.specificDays, actorUserId: ctx.user.id });
     }),
     toggleActive: protectedProcedure.input(z.object({
       templateId: z.number().int().positive(),
@@ -1353,7 +1355,7 @@ export const courtRouter = router({
       if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف موظف لإنشاء مهمة ذاتية." });
       return createSelfTask({ ...input, profileId: profile.id, actorUserId: ctx.user.id });
     }),
-    create: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), traineeCopyProfileId: z.number().int().positive().optional(), watcherProfileId: z.number().int().positive().optional(), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), scheduledFor: z.date(), dueAt: z.date(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "quarterly", "yearly", "custom"]).default("none"), recurrenceInterval: z.number().int().min(1).max(365).optional(), recurrenceEndAt: z.date().optional(), isConfidential: z.boolean().default(false), confidentialityExpiresAt: z.date().optional(), taskNotes: z.string().trim().max(4000).optional(), isOpen: z.boolean().default(false), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(12_000_000) })).max(5).optional() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
+    create: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), traineeCopyProfileId: z.number().int().positive().optional(), watcherProfileId: z.number().int().positive().optional(), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), scheduledFor: z.date(), dueAt: z.date(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "quarterly", "yearly", "custom", "specific_days"]).default("none"), recurrenceInterval: z.number().int().min(1).max(365).optional(), recurrenceEndAt: z.date().optional(), specificDays: z.array(z.number().int().min(0).max(6)).optional(), isConfidential: z.boolean().default(false), confidentialityExpiresAt: z.date().optional(), taskNotes: z.string().trim().max(4000).optional(), isOpen: z.boolean().default(false), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(12_000_000) })).max(5).optional() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
       const roles = await requireOperationsManager(ctx.user);
       const isLeadership = roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
       let taskId: number;
@@ -1389,7 +1391,7 @@ export const courtRouter = router({
       if (!leadership && (!task.unitId || !managedUnits.includes(task.unitId))) throw new TRPCError({ code: "FORBIDDEN", message: "تعديل حالة المهمة محصور بالقيادة أو مدير القسم المسؤول." });
       return updateTaskStatus({ ...input, actorUserId: ctx.user.id });
     }),
-    update: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), title: z.string().trim().min(3).max(2000).optional(), taskNotes: z.string().trim().max(4000).nullable().optional(), priority: z.enum(["normal", "high", "critical"]).optional(), taskType: z.enum(["permanent", "urgent"]).optional(), scheduledFor: z.date().optional(), dueAt: z.date().optional(), isOpen: z.boolean().optional(), assigneeProfileId: z.number().int().positive().nullable().optional(), watcherProfileId: z.number().int().positive().nullable().optional(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "quarterly", "yearly", "custom"]).optional(), recurrenceInterval: z.number().int().min(1).max(365).nullable().optional(), recurrenceEndAt: z.date().nullable().optional(), isConfidential: z.boolean().optional(), confidentialityExpiresAt: z.date().nullable().optional(), unitId: z.number().int().positive().nullable().optional() })).mutation(async ({ ctx, input }) => {
+    update: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), title: z.string().trim().min(3).max(2000).optional(), taskNotes: z.string().trim().max(4000).nullable().optional(), priority: z.enum(["normal", "high", "critical"]).optional(), taskType: z.enum(["permanent", "urgent"]).optional(), scheduledFor: z.date().optional(), dueAt: z.date().optional(), isOpen: z.boolean().optional(), assigneeProfileId: z.number().int().positive().nullable().optional(), watcherProfileId: z.number().int().positive().nullable().optional(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "quarterly", "yearly", "custom", "specific_days"]).optional(), recurrenceInterval: z.number().int().min(1).max(365).nullable().optional(), recurrenceEndAt: z.date().nullable().optional(), specificDays: z.array(z.number().int().min(0).max(6)).nullable().optional(), isConfidential: z.boolean().optional(), confidentialityExpiresAt: z.date().nullable().optional(), unitId: z.number().int().positive().nullable().optional() })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
       if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بتعديل هذه المهمة." });

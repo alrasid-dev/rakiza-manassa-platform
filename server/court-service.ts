@@ -100,7 +100,7 @@ import { automaticUnstartedTaskScore, earlyTaskStartScore, newDelayScore, taskAp
 import { hijriMonthKey } from "./hijri-month";
 import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
-import { dateRangeForSaudiDay, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, saudiScheduledTime } from "./task-automation";
+import { dateRangeForSaudiDay, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime } from "./task-automation";
 import { isOfficialHoliday, officialHolidayName, workHoursFor } from "./holidays";
 import { detectExcelChangeCandidates } from "./excel-change-detector";
 import { completedTaskTransition, taskAssignmentNotifications } from "./task-response-policy";
@@ -734,7 +734,7 @@ export async function setDepartmentTaskTemplateActive(input: { templateId: numbe
 }
 
 /** إنشاء قالب مهمة قسم جديد. */
-export async function createTaskTemplate(input: { unitId: number; title: string; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom"; intervalDays?: number | null; dueHourLocal: number; workdayOnly: boolean; defaultAssigneeProfileId?: number | null; createdByUserId: number }) {
+export async function createTaskTemplate(input: { unitId: number; title: string; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom" | "specific_days"; intervalDays?: number | null; specificDays?: number[] | null; dueHourLocal: number; workdayOnly: boolean; defaultAssigneeProfileId?: number | null; createdByUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const result = await db.insert(taskTemplates).values({
@@ -742,6 +742,7 @@ export async function createTaskTemplate(input: { unitId: number; title: string;
     title: input.title,
     frequency: input.frequency,
     intervalDays: input.intervalDays ?? null,
+    specificDays: input.frequency === "specific_days" && input.specificDays && input.specificDays.length ? JSON.stringify(input.specificDays) : null,
     workdayOnly: input.workdayOnly,
     dueHourLocal: input.dueHourLocal,
     defaultAssigneeProfileId: input.defaultAssigneeProfileId ?? null,
@@ -754,10 +755,12 @@ export async function createTaskTemplate(input: { unitId: number; title: string;
 }
 
 /** تعديل تكرار قالب مهمة قسم. */
-export async function updateTaskTemplateFrequency(input: { templateId: number; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom"; intervalDays?: number | null; actorUserId: number }) {
+export async function updateTaskTemplateFrequency(input: { templateId: number; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom" | "specific_days"; intervalDays?: number | null; specificDays?: number[] | null; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  await db.update(taskTemplates).set({ frequency: input.frequency, intervalDays: input.intervalDays ?? null, updatedAt: new Date() }).where(eq(taskTemplates.id, input.templateId));
+  const patch: Partial<typeof taskTemplates.$inferInsert> = { frequency: input.frequency, intervalDays: input.intervalDays ?? null, updatedAt: new Date() };
+  if (input.specificDays !== undefined) patch.specificDays = input.frequency === "specific_days" && input.specificDays && input.specificDays.length ? JSON.stringify(input.specificDays) : null;
+  await db.update(taskTemplates).set(patch).where(eq(taskTemplates.id, input.templateId));
   await logAudit({ actorUserId: input.actorUserId, action: "task_template.frequency_updated", entityType: "task_template", entityId: input.templateId, metadata: { frequency: input.frequency } });
   return { success: true as const };
 }
@@ -2083,7 +2086,7 @@ async function createTaskConversation(input: { db: any; taskId: number; title: s
   return conversationId;
 }
 
-export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom"; recurrenceInterval?: number; recurrenceEndAt?: Date; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean }) {
+export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom" | "specific_days"; recurrenceInterval?: number; recurrenceEndAt?: Date; specificDays?: number[]; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   if (input.assigneeProfileId) {
@@ -2091,20 +2094,22 @@ export async function createTask(input: { title: string; unitId?: number; assign
     const blocked = assignmentBlockReason(assignee?.status);
     if (blocked) throw new Error(blocked);
   }
-  const { traineeCopyProfileId, ...taskInput } = input;
+  const { traineeCopyProfileId, specificDays, ...taskInput } = input;
+  const specificDaysJson = input.recurrence === "specific_days" && specificDays && specificDays.length ? JSON.stringify(specificDays) : null;
   const result = await db.insert(tasks).values({
     ...taskInput,
     isOpen: input.isOpen ?? false,
     dueAt: input.isOpen ? new Date("2099-12-31T23:59:59Z") : input.dueAt,
+    specificDays: specificDaysJson,
   });
   const id = Number(result[0].insertId);
   if (input.recurrence && input.recurrence !== "none") {
     const existingTemplate = (await db.select({ id: taskTemplates.id }).from(taskTemplates).where(and(eq(taskTemplates.title, input.title), input.unitId ? eq(taskTemplates.unitId, input.unitId) : isNull(taskTemplates.unitId))).limit(1))[0];
     let templateId = existingTemplate?.id ?? null;
     if (templateId) {
-      await db.update(taskTemplates).set({ frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, updatedAt: new Date() }).where(eq(taskTemplates.id, templateId));
+      await db.update(taskTemplates).set({ frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, specificDays: specificDaysJson, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, updatedAt: new Date() }).where(eq(taskTemplates.id, templateId));
     } else {
-      const templateResult = await db.insert(taskTemplates).values({ unitId: input.unitId ?? null, title: input.title, frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, workdayOnly: true, dueHourLocal: input.dueAt ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", hour12: false }).format(new Date(input.dueAt))) : 13, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, createdByUserId: input.assignedByUserId });
+      const templateResult = await db.insert(taskTemplates).values({ unitId: input.unitId ?? null, title: input.title, frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, specificDays: specificDaysJson, workdayOnly: true, dueHourLocal: input.dueAt ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", hour12: false }).format(new Date(input.dueAt))) : 13, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, createdByUserId: input.assignedByUserId });
       templateId = Number(templateResult[0].insertId);
     }
     await db.update(tasks).set({ templateId }).where(eq(tasks.id, id));
@@ -2507,9 +2512,10 @@ export async function updateTask(input: {
   isOpen?: boolean;
   assigneeProfileId?: number | null;
   watcherProfileId?: number | null;
-  recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+  recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom" | "specific_days";
   recurrenceInterval?: number | null;
   recurrenceEndAt?: Date | null;
+  specificDays?: number[] | null;
   isConfidential?: boolean;
   confidentialityExpiresAt?: Date | null;
   unitId?: number | null;
@@ -2530,7 +2536,9 @@ export async function updateTask(input: {
   if (input.assigneeProfileId !== undefined) patch.assigneeProfileId = input.assigneeProfileId;
   if (input.watcherProfileId !== undefined) patch.watcherProfileId = input.watcherProfileId;
   if (input.recurrence !== undefined) patch.recurrence = input.recurrence;
+  if (input.recurrenceInterval !== undefined) patch.recurrenceInterval = input.recurrenceInterval;
   if (input.recurrenceEndAt !== undefined) patch.recurrenceEndAt = input.recurrenceEndAt;
+  if (input.specificDays !== undefined) patch.specificDays = input.specificDays && input.specificDays.length ? JSON.stringify(input.specificDays) : null;
   if (input.isConfidential !== undefined) patch.isConfidential = input.isConfidential;
   if (input.confidentialityExpiresAt !== undefined) patch.confidentialityExpiresAt = input.confidentialityExpiresAt;
   if (input.unitId !== undefined) patch.unitId = input.unitId;
@@ -2538,6 +2546,28 @@ export async function updateTask(input: {
   if (Object.keys(patch).length === 0) return task;
 
   await db.update(tasks).set(patch).where(eq(tasks.id, input.taskId));
+
+  // مزامنة قالب التكرار عند تعديل التكرار
+  if (input.recurrence !== undefined) {
+    if (input.recurrence !== "none") {
+      const title = input.title !== undefined ? input.title.trim() : task.title;
+      const unitId = input.unitId !== undefined ? input.unitId : (task.unitId ?? null);
+      const assigneeProfileId = input.assigneeProfileId !== undefined ? input.assigneeProfileId : (task.assigneeProfileId ?? null);
+      const specificDaysJson = input.recurrence === "specific_days" && input.specificDays && input.specificDays.length ? JSON.stringify(input.specificDays) : null;
+      const existingTemplate = (await db.select({ id: taskTemplates.id }).from(taskTemplates).where(and(eq(taskTemplates.title, title), unitId != null ? eq(taskTemplates.unitId, unitId) : isNull(taskTemplates.unitId))).limit(1))[0];
+      let templateId = existingTemplate?.id ?? null;
+      if (templateId) {
+        await db.update(taskTemplates).set({ frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, specificDays: specificDaysJson, defaultAssigneeProfileId: assigneeProfileId, isActive: true, updatedAt: new Date() }).where(eq(taskTemplates.id, templateId));
+      } else {
+        const result = await db.insert(taskTemplates).values({ unitId, title, frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, specificDays: specificDaysJson, workdayOnly: true, dueHourLocal: (input.dueAt ?? task.dueAt) ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", hour12: false }).format(new Date(input.dueAt ?? task.dueAt))) : 13, defaultAssigneeProfileId: assigneeProfileId, isActive: true, createdByUserId: input.actorUserId });
+        templateId = Number(result[0].insertId);
+      }
+      await db.update(tasks).set({ templateId }).where(eq(tasks.id, input.taskId));
+    } else {
+      await db.update(tasks).set({ templateId: null }).where(eq(tasks.id, input.taskId));
+    }
+  }
+
   await logAudit({ actorUserId: input.actorUserId, action: "task.updated", entityType: "task", entityId: input.taskId, metadata: { fields: Object.keys(patch) } });
 
   return getTaskById(input.taskId);
@@ -3566,7 +3596,7 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
   let createdTasks = 0;
   let skipped = 0;
   for (const template of templates) {
-    if (!isTemplateDue(template.frequency, template.workdayOnly, now, template.intervalDays, template.lastGeneratedAt)) { skipped += 1; continue; }
+    if (!isTemplateDue(template.frequency, template.workdayOnly, now, template.intervalDays, template.lastGeneratedAt, parseSpecificDays(template.specificDays))) { skipped += 1; continue; }
     const existing = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.templateId, template.id), gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))).limit(1);
     if (existing[0]) { skipped += 1; continue; }
     // عزل الإسناد على موظفي قسم القالب فقط
@@ -3583,7 +3613,7 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
     const scheduleAnchor = new Date(now.getTime() + scheduleOffsetMs);
     const scheduledFor = saudiScheduledTime(scheduleAnchor, 7);
     const dueAt = saudiScheduledTime(scheduleAnchor, template.dueHourLocal);
-    await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null });
+    await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null, specificDays: template.specificDays ?? null });
     await db.update(taskTemplates).set({ lastGeneratedAt: now }).where(eq(taskTemplates.id, template.id));
     createdTasks += 1;
   }

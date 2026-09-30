@@ -1,4 +1,4 @@
-export type TaskFrequency = "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+export type TaskFrequency = "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom" | "specific_days";
 
 function riyadhParts(now: Date) {
   const values = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", year: "numeric", month: "numeric", day: "numeric" }).formatToParts(now);
@@ -12,9 +12,40 @@ export function isSaudiWorkday(now: Date) {
   return weekday >= 0 && weekday <= 4;
 }
 
-export function isTemplateDue(frequency: TaskFrequency, workdayOnly: boolean, now: Date, intervalDays: number | null = null, lastGeneratedAt: Date | null = null): boolean {
+/** يوم الأسبوع بتوقيت الرياض: 0=الأحد ... 6=السبت. */
+export function dayOfWeekRiyadh(now: Date) {
+  const { year, month, day } = riyadhParts(now);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+/** يحوّل قيمة specificDays (نص JSON أو مصفوفة) إلى مصفوفة أيام صالحة. */
+export function parseSpecificDays(value: unknown): number[] | null {
+  if (value == null) return null;
+  if (Array.isArray(value)) {
+    const days = value.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6);
+    return days.length ? days : null;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        const days = parsed.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6);
+        return days.length ? days : null;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+export function isTemplateDue(frequency: TaskFrequency, workdayOnly: boolean, now: Date, intervalDays: number | null = null, lastGeneratedAt: Date | null = null, specificDays: number[] | null = null): boolean {
   if (workdayOnly && !isSaudiWorkday(now)) return false;
   const { month, day } = riyadhParts(now);
+  // دعم الأيام المحددة
+  if (frequency === "specific_days" && specificDays && specificDays.length > 0) {
+    return specificDays.includes(dayOfWeekRiyadh(now));
+  }
   // دعم interval (كل X أيام)
   if (intervalDays && intervalDays > 1) {
     if (!lastGeneratedAt) return true; // أول مرة
@@ -22,7 +53,7 @@ export function isTemplateDue(frequency: TaskFrequency, workdayOnly: boolean, no
     return daysSinceLast >= intervalDays;
   }
   if (frequency === "daily") return true;
-  if (frequency === "weekly") return new Date(Date.UTC(riyadhParts(now).year, month - 1, day)).getUTCDay() === 0;
+  if (frequency === "weekly") return dayOfWeekRiyadh(now) === 0;
   if (frequency === "monthly") return day === 1;
   if (frequency === "quarterly") return day === 1 && [1, 4, 7, 10].includes(month);
   if (frequency === "yearly") return day === 1 && month === 1;
