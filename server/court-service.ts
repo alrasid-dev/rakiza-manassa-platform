@@ -3385,6 +3385,59 @@ export async function recomputeCumulativeBalance(profileId: number) {
   return { positiveMinutes: positive, negativeMinutes: negative, excuseMinutes: excuse, netMinutes: net };
 }
 
+/** قراءة رصيد شهر معين (يُنشأ عند الحاجة إذا لم يكن محسوباً بعد). */
+export async function getMonthlyBalance(profileId: number, hijriMonthKeyValue: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const row = (await db.select().from(monthlyBalances).where(and(
+    eq(monthlyBalances.profileId, profileId),
+    eq(monthlyBalances.hijriMonthKey, hijriMonthKeyValue),
+  )).limit(1))[0];
+  if (row) return row;
+  return recomputeMonthlyBalance(profileId, hijriMonthKeyValue);
+}
+
+/** الأشهر الهجرية المتاحة لموظف (الأحدث أولاً). */
+export async function getAvailableMonths(profileId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const balanceRows = await db.select({ hijriMonthKey: monthlyBalances.hijriMonthKey }).from(monthlyBalances).where(eq(monthlyBalances.profileId, profileId));
+  const recordRows = await db.select({ recordDate: attendanceRecords.recordDate }).from(attendanceRecords).where(eq(attendanceRecords.profileId, profileId));
+  const keys = new Set<string>();
+  for (const b of balanceRows) keys.add(b.hijriMonthKey);
+  for (const r of recordRows) keys.add(hijriMonthKey(r.recordDate));
+  return Array.from(keys).sort().reverse();
+}
+
+/** أرصدة الفريق (شهري) — unitIds = null تعني كل الأقسام (للقيادة). */
+export async function listTeamMonthlyBalances(unitIds: number[] | null, hijriMonthKeyValue: string) {
+  const profiles = unitIds ? await listProfilesForUnits(unitIds, "administrative") : await listProfiles("administrative");
+  const rows = [];
+  for (const p of profiles) {
+    const bal = await getMonthlyBalance(p.id, hijriMonthKeyValue);
+    rows.push({
+      profileId: p.id,
+      fullName: p.fullName,
+      positiveMinutes: bal?.positiveMinutes ?? 0,
+      negativeMinutes: bal?.negativeMinutes ?? 0,
+      excuseMinutes: bal?.excuseMinutes ?? 0,
+      netMinutes: bal?.netMinutes ?? 0,
+    });
+  }
+  return rows.sort((a, b) => a.netMinutes - b.netMinutes);
+}
+
+/** أرصدة الفريق (تراكمي) — unitIds = null تعني كل الأقسام (للقيادة). */
+export async function listTeamCumulativeBalances(unitIds: number[] | null) {
+  const profiles = unitIds ? await listProfilesForUnits(unitIds, "administrative") : await listProfiles("administrative");
+  const rows = [];
+  for (const p of profiles) {
+    const bal = await recomputeCumulativeBalance(p.id);
+    rows.push({ profileId: p.id, fullName: p.fullName, ...bal });
+  }
+  return rows.sort((a, b) => a.netMinutes - b.netMinutes);
+}
+
 export async function listAttendance(date?: Date) {
   const db = await getDb();
   if (!db) return [];

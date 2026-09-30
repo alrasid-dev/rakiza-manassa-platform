@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { previousReportRange, reportStart } from "../reporting";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { hijriMonthKey } from "../hijri-month";
 import { validateSupportAttachments } from "../support-attachment-policy";
 import { removePushSubscription, pushReadiness, upsertPushSubscription } from "../push-service";
 import {
@@ -76,6 +77,11 @@ import {
   getProfileById,
   getProfileForUser,
   getMyPermissionUsage,
+  getMonthlyBalance,
+  getAvailableMonths,
+  recomputeCumulativeBalance,
+  listTeamMonthlyBalances,
+  listTeamCumulativeBalances,
   recordUserActivity,
   getUserEmailSettings,
   recoverUserNotificationEmail,
@@ -2103,6 +2109,34 @@ export const courtRouter = router({
       if (attendanceWindow.kind === "check_in") throw new TRPCError({ code: "CONFLICT", message: "تسجيل الانصراف الذاتي متاح فقط خلال نافذة الانصراف المحددة في ورديتك." });
       if (attendanceWindow.kind !== "check_out" && !attendanceWindow.workingDay) throw new TRPCError({ code: "CONFLICT", message: "تسجيل الانصراف الذاتي متاح في أيام الوردية فقط." });
       return recordAttendanceCheckout({ profileId: profile.id, checkOutAt: new Date(), actorUserId: ctx.user.id });
+    }),
+  }),
+
+  balances: router({
+    myMonthlyBalance: protectedProcedure.input(z.object({ hijriMonthKey: z.string().trim().min(1).max(10).optional() })).query(async ({ ctx, input }) => {
+      const { profile } = await requireSelfAttendanceProfile(ctx.user);
+      const key = input?.hijriMonthKey ?? hijriMonthKey(new Date());
+      return getMonthlyBalance(profile.id, key);
+    }),
+    myCumulativeBalance: protectedProcedure.query(async ({ ctx }) => {
+      const { profile } = await requireSelfAttendanceProfile(ctx.user);
+      return recomputeCumulativeBalance(profile.id);
+    }),
+    myAvailableMonths: protectedProcedure.query(async ({ ctx }) => {
+      const { profile } = await requireSelfAttendanceProfile(ctx.user);
+      return getAvailableMonths(profile.id);
+    }),
+    teamMonthlyBalances: protectedProcedure.input(z.object({ hijriMonthKey: z.string().trim().min(1).max(10) })).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      const unitIds = (await hasLeadershipPlatformScope(ctx.user, permission)) ? null : await managedUnitIdsForUser(ctx.user);
+      if (unitIds && !unitIds.length) throw new TRPCError({ code: "FORBIDDEN", message: "أرصدة الفريق متاحة للمديرين فقط." });
+      return listTeamMonthlyBalances(unitIds, input.hijriMonthKey);
+    }),
+    teamCumulativeBalances: protectedProcedure.query(async ({ ctx }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      const unitIds = (await hasLeadershipPlatformScope(ctx.user, permission)) ? null : await managedUnitIdsForUser(ctx.user);
+      if (unitIds && !unitIds.length) throw new TRPCError({ code: "FORBIDDEN", message: "أرصدة الفريق متاحة للمديرين فقط." });
+      return listTeamCumulativeBalances(unitIds);
     }),
   }),
 
