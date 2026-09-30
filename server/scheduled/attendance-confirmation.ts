@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 import type { Request, Response } from "express";
-import { approvalRequests, attendanceRecords, confirmationAssignments, courtRoleAssignments, leaveRequests, notifications, personProfiles, scoreEvents, scheduledJobConfigs, systemConfigs, users, workShifts } from "../../drizzle/schema";
+import { accessGrants, approvalRequests, attendanceRecords, confirmationAssignments, courtRoleAssignments, leaveRequests, notifications, personProfiles, scoreEvents, scheduledJobConfigs, systemConfigs, users, workShifts } from "../../drizzle/schema";
 import { getDb } from "../db";
 import { sdk } from "../_core/sdk";
 import { sendSafeScheduledFailure } from "./safe-scheduled-failure";
@@ -277,6 +277,8 @@ async function getExcludedProfileIds(): Promise<Set<number>> {
   judges.forEach(r => excluded.add(r.id));
   const admins = await db.select({ id: personProfiles.id }).from(personProfiles).innerJoin(users, eq(users.id, personProfiles.userId)).where(eq(users.role, "admin"));
   admins.forEach(r => excluded.add(r.id));
+  const fullControl = await db.select({ id: personProfiles.id }).from(personProfiles).innerJoin(accessGrants, eq(accessGrants.userId, personProfiles.userId)).where(and(eq(accessGrants.permission, "full_control"), eq(accessGrants.isActive, true)));
+  fullControl.forEach(r => excluded.add(r.id));
   const leaders = await db.select({ userId: courtRoleAssignments.userId }).from(courtRoleAssignments).where(and(eq(courtRoleAssignments.isActive, true), inArray(courtRoleAssignments.role, ["court_president", "court_secretary"])));
   const leaderUserIds = leaders.map(r => r.userId).filter((v): v is number => v != null);
   if (leaderUserIds.length) {
