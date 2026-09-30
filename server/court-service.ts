@@ -3334,12 +3334,14 @@ export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyVa
   const positive = monthRecords.reduce((sum, r) => sum + (r.positiveMinutes ?? 0), 0);
   const negative = monthRecords.reduce((sum, r) => sum + (r.negativeMinutes ?? 0), 0);
 
-  const leaveRows = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
+  // الاستئذان فقط (requestType = "permission")؛ الإجازة (leave) لا تُحسب في رصيد الاستئذان.
+  const excuseRows = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
     eq(leaveRequests.profileId, profileId),
     eq(leaveRequests.hijriMonthKey, hijriMonthKeyValue),
     eq(leaveRequests.status, "approved"),
+    eq(leaveRequests.requestType, "permission"),
   ));
-  const excuseCount = leaveRows.length;
+  const excuseCount = excuseRows.length;
   const excuseMinutes = excuseCount * 240;
   const netMinutes = positive - negative + excuseMinutes;
 
@@ -3757,14 +3759,11 @@ export async function approveLateExcuse(input: { leaveRequestId: number; decisio
     const recordMonth = hijriMonthKey(record.recordDate);
     const sameMonth = !recordMonth || !request.hijriMonthKey || recordMonth === request.hijriMonthKey;
 
-    // خصم 240 دقيقة استئذان من السلبي (إن كان ضمن نفس الشهر).
-    const remainingNegative = sameMonth ? Math.max(0, record.negativeMinutes - 240) : record.negativeMinutes;
-
+    // لا يُعدَّل negativeMinutes هنا: يبقى خاماً، وتُسجَّل 240 دقيقة كرصيد استئذان في التجميع الشهري.
     const updateSet: Record<string, unknown> = {
       penaltyMinutes: 0,
-      negativeMinutes: remainingNegative,
       excuseApplied: sameMonth,
-      compensationNote: sameMonth ? "تم خصم 240 دقيقة استئذان" : "تم قبول الاستئذان المتأخر",
+      compensationNote: sameMonth ? "تم اعتماد الاستئذان المتأخر (240 دقيقة تُضاف لرصيد الاستئذان الشهري)" : "تم قبول الاستئذان المتأخر",
       updatedAt: new Date(),
     };
     if (checkoutMinutes <= 899) {
