@@ -3212,6 +3212,11 @@ export async function setAttendanceConfirmationConfig(input: { isActive?: boolea
   return getAttendanceConfirmationConfig();
 }
 
+/** عقوبة عدم تسجيل الانصراف — نقاط. */
+export const MISSING_CHECKOUT_PENALTY_POINTS = -4;
+/** عقوبة عدم تسجيل الانصراف — دقائق الخصم. */
+export const MISSING_CHECKOUT_PENALTY_MINUTES = 240;
+
 export function parseTimeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
@@ -3287,7 +3292,9 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).orderBy(desc(attendanceRecords.recordDate)).limit(1))[0];
   if (!existing) throw new Error("لا يوجد سجل حضور مفتوح لهذا اليوم؛ أكد بدء العمل أولاً.");
   if (existing.checkOutAt) throw new Error("تم تسجيل الانصراف لهذا السجل مسبقاً.");
-  await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
+  await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, penaltyMinutes: 0, compensationNote: null, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
+  // تسجيل الانصراف في الموعد (ضمن نافذة 14:15–14:59) → +1 نقطة وتصفير أي عقوبة سابقة.
+  await db.insert(scoreEvents).values({ profileId: input.profileId, points: 1, reason: "تسجيل الانصراف في الموعد", createdByUserId: input.actorUserId });
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId } });
   await notifyPlatformOwnerSecurityAlert({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, details: { profileId: input.profileId } });
   return { success: true, attendanceId: existing.id };
