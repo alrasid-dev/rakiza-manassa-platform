@@ -3393,29 +3393,6 @@ export async function confirmAttendance(input: { assignmentId: number; profileId
   return { success: true };
 }
 
-// TODO: remove before production — زر تجربة نافذة التأكيد للتطوير فقط.
-export async function forceGenerateConfirmation(profileId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("قاعدة البيانات غير متاحة");
-
-  // إلغاء أي تكليف pending قديم (تنظيف قبل الإنشاء)
-  await db.update(confirmationAssignments)
-    .set({ status: "missed" })
-    .where(and(
-      eq(confirmationAssignments.profileId, profileId),
-      eq(confirmationAssignments.status, "pending")
-    ));
-
-  // إنشاء تكليف جديد
-  const result = await db.insert(confirmationAssignments).values({
-    profileId,
-    scheduledAt: new Date(),
-    status: "pending"
-  });
-
-  return { assignmentId: Number(result[0].insertId) };
-}
-
 /** قراءة إعدادات نظام تأكيد الحضور (عام + لكل قسم). */
 export async function getConfirmationSettingsService() {
   const db = await getDb();

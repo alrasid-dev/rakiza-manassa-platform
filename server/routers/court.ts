@@ -179,7 +179,6 @@ import {
   getConfirmationSettingsService,
   setGlobalConfirmation,
   setDepartmentConfirmation,
-  forceGenerateConfirmation,
   notifyPlatformOwnerSecurityAlert,
   renewTraineeAssignment,
   resolveSupportTicket,
@@ -2033,13 +2032,6 @@ export const courtRouter = router({
     setDepartmentConfirmation: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), enabled: z.boolean() })).mutation(async ({ ctx, input }) => {
       await requireAttendancePolicyAccess(ctx.user);
       return setDepartmentConfirmation(input.unitId, input.enabled);
-    }),
-    // TODO: remove before production — زر تجربة نافذة التأكيد (للمالك فقط).
-    forceGenerateConfirmation: protectedProcedure.mutation(async ({ ctx }) => {
-      if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
-      const profile = await getProfileForUser(ctx.user.id);
-      if (!profile) throw new TRPCError({ code: "FORBIDDEN" });
-      return forceGenerateConfirmation(profile.id);
     }),
     currentWindow: protectedProcedure.query(async ({ ctx }) => {
       const { profile } = await requireSelfAttendanceProfile(ctx.user);
