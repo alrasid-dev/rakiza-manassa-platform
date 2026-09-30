@@ -801,7 +801,7 @@ export const approvalRequests = mysqlTable("approval_requests", {
   entityId: int("entityId").notNull(),
   requestedByUserId: int("requestedByUserId").notNull(),
   currentRole: mysqlEnum("currentRole", ["trainee_affairs_manager", "human_resources_manager", "court_secretary", "assistant_president", "court_president"]).notNull(),
-  status: mysqlEnum("status", ["pending", "returned", "approved", "rejected", "cancelled"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "returned", "approved", "rejected", "cancelled", "under_review", "escalated"]).default("pending").notNull(),
   requestNote: text("requestNote"),
   decisionNote: text("decisionNote"),
   decidedByUserId: int("decidedByUserId"),

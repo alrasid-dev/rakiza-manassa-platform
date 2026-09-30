@@ -13,6 +13,7 @@ import { trpcMutationOriginGuard } from "./originGuard";
 import { securityHeaders } from "./securityHeaders";
 import { dataConnectionsStatus } from "./data-connections";
 import { loginFallbackErrorHandler, registerLoginConfigRoutes } from "./login-fallback";
+import { registerPoliciesPdfRoute } from "../policies/policy-route";
 
 export function createExpressApp() {
   const app = express();
@@ -22,6 +23,7 @@ export function createExpressApp() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   registerLoginConfigRoutes(app);
+  registerPoliciesPdfRoute(app);
   app.post("/api/scheduled/trainee-due-soon", handleTraineeDueSoonSchedule);
   app.post("/api/scheduled/daily-task-reminder", handleDailyTaskReminderSchedule);
   app.post("/api/scheduled/task-escalation", handleTaskEscalationSchedule);
