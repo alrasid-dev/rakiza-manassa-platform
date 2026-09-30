@@ -649,7 +649,7 @@ export const leaveRequests = mysqlTable("leave_requests", {
 
 export const scheduledJobConfigs = mysqlTable("scheduled_job_configs", {
   id: int("id").autoincrement().primaryKey(),
-  jobType: mysqlEnum("jobType", ["trainee_due_soon", "daily_task_reminder", "task_escalation", "leave_status_refresh", "trainee_excel_sync", "support_ticket_escalation", "attendance_confirmation"]).notNull(),
+  jobType: mysqlEnum("jobType", ["trainee_due_soon", "daily_task_reminder", "task_escalation", "leave_status_refresh", "trainee_excel_sync", "support_ticket_escalation", "attendance_confirmation", "monthly_settlement"]).notNull(),
   scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
   attendanceTargetProfileId: int("attendanceTargetProfileId"),
   attendanceTargetAudience: varchar("attendanceTargetAudience", { length: 40 }).default("all").notNull(),

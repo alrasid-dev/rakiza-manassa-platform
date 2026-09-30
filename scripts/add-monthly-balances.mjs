@@ -69,5 +69,17 @@ if (tables.length) {
   `);
   console.log("+ monthly_balances");
 }
+
+// إضافة monthly_settlement إلى enum jobType (idempotent).
+const [jobCols] = await db.query("SHOW COLUMNS FROM scheduled_job_configs LIKE 'jobType'");
+if (jobCols.length) {
+  const colType = String(jobCols[0].Type || "");
+  if (!colType.includes("monthly_settlement")) {
+    await db.query("ALTER TABLE scheduled_job_configs MODIFY COLUMN jobType ENUM('trainee_due_soon','daily_task_reminder','task_escalation','leave_status_refresh','trainee_excel_sync','support_ticket_escalation','attendance_confirmation','monthly_settlement') NOT NULL");
+    console.log("+ jobType enum: monthly_settlement");
+  } else {
+    console.log("= jobType enum (يشمل monthly_settlement)");
+  }
+}
 console.log("migration completed (idempotent).");
 await db.end();

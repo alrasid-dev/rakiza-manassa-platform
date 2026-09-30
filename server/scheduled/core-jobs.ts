@@ -12,6 +12,7 @@ const CORE_JOBS = [
   { jobType: "trainee_excel_sync" as const, cronExpression: "0 */30 4-12 * * 0-4", path: "/api/scheduled/trainee-excel-sync", description: "مزامنة مصدر Excel كل 30 دقيقة أثناء وقت العمل" },
   { jobType: "support_ticket_escalation" as const, cronExpression: "0 0 * * * *", path: "/api/scheduled/support-ticket-escalation", description: "فحص تصعيد تذاكر الدعم كل ساعة" },
   { jobType: "attendance_confirmation" as const, cronExpression: "0 0 4-12 * * 0-4", path: "/api/scheduled/attendance-confirmation", description: "إرسال طلبات تأكيد الحضور للعاملين عن بعد خلال وقت العمل" },
+  { jobType: "monthly_settlement" as const, cronExpression: "0 0 3 * * *", path: "/api/scheduled/monthly-settlement", description: "تجميع وإقفال أرصدة الشهر الهجري المنتهي" },
 ] as const;
 
 export async function ensureAttendanceConfirmationHeartbeatJob(input: { userSession: string }) {

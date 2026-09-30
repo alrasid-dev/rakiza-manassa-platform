@@ -8,6 +8,7 @@ import { createContext } from "./context";
 import { handleTraineeDueSoonSchedule } from "../scheduled/trainee-due-soon";
 import { handleDailyTaskReminderSchedule, handleLeaveStatusRefreshSchedule, handleSupportTicketEscalationSchedule, handleTaskEscalationSchedule, handleTraineeExcelSyncSchedule } from "../scheduled/task-automation";
 import { handleAttendanceConfirmationSchedule } from "../scheduled/attendance-confirmation";
+import { handleMonthlySettlementSchedule } from "../scheduled/monthly-settlement";
 import { handleInternalMailSchedule } from "../scheduled/internal-mail";
 import { trpcMutationOriginGuard } from "./originGuard";
 import { securityHeaders } from "./securityHeaders";
@@ -31,6 +32,7 @@ export function createExpressApp() {
   app.post("/api/scheduled/trainee-excel-sync", handleTraineeExcelSyncSchedule);
   app.post("/api/scheduled/support-ticket-escalation", handleSupportTicketEscalationSchedule);
   app.post("/api/scheduled/attendance-confirmation", handleAttendanceConfirmationSchedule);
+  app.post("/api/scheduled/monthly-settlement", handleMonthlySettlementSchedule);
   app.post("/api/scheduled/internal-mail-dispatch", handleInternalMailSchedule);
   app.use(
     "/api/trpc",

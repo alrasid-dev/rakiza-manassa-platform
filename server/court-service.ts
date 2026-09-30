@@ -62,6 +62,7 @@ import {
   leaveRequests,
   meetingAttendees,
   meetings,
+  monthlyBalances,
   taskComments,
   notifications,
   otpChallenges,
@@ -3314,7 +3315,74 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   }
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, negativeMinutes } });
   await notifyPlatformOwnerSecurityAlert({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, details: { profileId: input.profileId } });
+  await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
   return { success: true, attendanceId: existing.id };
+}
+
+/** إعادة حساب وتخزين رصيد شهر هجري معين لموظف (له/عليه/استئذان/صافي). */
+export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyValue: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const records = await db.select({
+    positiveMinutes: attendanceRecords.positiveMinutes,
+    negativeMinutes: attendanceRecords.negativeMinutes,
+    recordDate: attendanceRecords.recordDate,
+  }).from(attendanceRecords).where(eq(attendanceRecords.profileId, profileId));
+
+  const monthRecords = records.filter(r => hijriMonthKey(r.recordDate) === hijriMonthKeyValue);
+  const positive = monthRecords.reduce((sum, r) => sum + (r.positiveMinutes ?? 0), 0);
+  const negative = monthRecords.reduce((sum, r) => sum + (r.negativeMinutes ?? 0), 0);
+
+  const leaveRows = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
+    eq(leaveRequests.profileId, profileId),
+    eq(leaveRequests.hijriMonthKey, hijriMonthKeyValue),
+    eq(leaveRequests.status, "approved"),
+  ));
+  const excuseCount = leaveRows.length;
+  const excuseMinutes = excuseCount * 240;
+  const netMinutes = positive - negative + excuseMinutes;
+
+  const now = new Date();
+  await db.insert(monthlyBalances).values({
+    profileId,
+    hijriMonthKey: hijriMonthKeyValue,
+    positiveMinutes: positive,
+    negativeMinutes: negative,
+    excuseMinutes,
+    netMinutes,
+    isSettled: false,
+    lastComputedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  }).onDuplicateKeyUpdate({ set: {
+    positiveMinutes: positive,
+    negativeMinutes: negative,
+    excuseMinutes,
+    netMinutes,
+    lastComputedAt: now,
+    updatedAt: now,
+  }});
+
+  return { profileId, hijriMonthKey: hijriMonthKeyValue, positiveMinutes: positive, negativeMinutes: negative, excuseMinutes, netMinutes };
+}
+
+/** المجموع التراكمي لكل الأشهر (محسوب عند الطلب، دون تخزين). */
+export async function recomputeCumulativeBalance(profileId: number) {
+  const db = await getDb();
+  if (!db) return { positiveMinutes: 0, negativeMinutes: 0, excuseMinutes: 0, netMinutes: 0 };
+  const rows = await db.select({
+    positiveMinutes: monthlyBalances.positiveMinutes,
+    negativeMinutes: monthlyBalances.negativeMinutes,
+    excuseMinutes: monthlyBalances.excuseMinutes,
+    netMinutes: monthlyBalances.netMinutes,
+  }).from(monthlyBalances).where(eq(monthlyBalances.profileId, profileId));
+
+  const positive = rows.reduce((sum, r) => sum + (r.positiveMinutes ?? 0), 0);
+  const negative = rows.reduce((sum, r) => sum + (r.negativeMinutes ?? 0), 0);
+  const excuse = rows.reduce((sum, r) => sum + (r.excuseMinutes ?? 0), 0);
+  const net = rows.reduce((sum, r) => sum + (r.netMinutes ?? 0), 0);
+  return { positiveMinutes: positive, negativeMinutes: negative, excuseMinutes: excuse, netMinutes: net };
 }
 
 export async function listAttendance(date?: Date) {
@@ -3661,6 +3729,8 @@ export async function approveLateExcuse(input: { leaveRequestId: number; decisio
       });
     }
   }
+
+  await recomputeMonthlyBalance(request.profileId, request.hijriMonthKey ?? hijriMonthKey(request.startAt));
 
   await db.insert(notifications).values({
     profileId: request.profileId,

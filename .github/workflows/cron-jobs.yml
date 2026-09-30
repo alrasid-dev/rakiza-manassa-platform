@@ -25,6 +25,7 @@ jobs:
 
           JOBS=(
             "attendance-confirmation"
+            "monthly-settlement"
             "task-escalation"
             "daily-task-reminder"
             "leave-status-refresh"
