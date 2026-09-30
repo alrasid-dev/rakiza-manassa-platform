@@ -51,6 +51,7 @@ import InstallAppsPage from "./pages/InstallAppsPage";
 import DepartmentDocumentsPage from "./pages/DepartmentDocumentsPage";
 import TaskTemplatesPage from "./pages/TaskTemplatesPage";
 import DepartmentTasksPage from "./pages/DepartmentTasksPage";
+import DisciplinaryPage from "./pages/DisciplinaryPage";
 
 const routerBase = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -67,6 +68,7 @@ function Router() {
       <Route path="/owner-kpi" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : OwnerKpiPage} />
       <Route path="/rotation" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : RotationPage} />
       <Route path="/personal-settings" component={PersonalSettingsPage} />
+      <Route path="/disciplinary" component={DisciplinaryPage} />
       <Route path="/design-preview" component={MinimalJusticePreviewPage} />
       <Route path="/emerald-glass-preview" component={EmeraldGlassPreviewPage} />
       <Route path="/executive-paper-preview" component={ExecutivePaperPreviewPage} />
