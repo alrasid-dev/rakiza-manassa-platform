@@ -578,6 +578,8 @@ export const attendanceRecords = mysqlTable("attendance_records", {
   note: text("note"),
   penaltyMinutes: int("penaltyMinutes").default(0).notNull(),
   compensationNote: text("compensationNote"),
+  negativeMinutes: int("negativeMinutes").default(0).notNull(),
+  excuseApplied: boolean("excuseApplied").default(false).notNull(),
   createdByUserId: int("createdByUserId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
