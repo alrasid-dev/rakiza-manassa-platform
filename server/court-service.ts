@@ -3248,21 +3248,18 @@ export async function checkAttendanceWindow(now: Date, kind: "check_in" | "check
   if (!shift) return { allowed: false as const, reason: "لم يتم ضبط الوردية الافتراضية." };
 
   const nowMin = riyadhMinutesOfDay(now);
-  if (kind === "check_in") {
-    if (nowMin < shift.fingerprintOpenMinutes) {
-      return { allowed: false as const, reason: "تبدأ ساعات العمل من 07:00 ص إلى 02:59 م" };
-    }
-    if (nowMin > shift.morningCompensationDeadlineMinutes) {
-      return { allowed: false as const, reason: "تبدأ ساعات العمل من 07:00 ص إلى 02:59 م" };
-    }
-    return { allowed: true as const, isLate: nowMin > shift.lateStartMinutes };
-  }
-  if (nowMin < shift.actualEndMinutes) {
-    return { allowed: false as const, reason: "نافذة تسجيل الانصراف من 02:15 م إلى 02:59 م" };
+  // خارج ساعات العمل (07:00–14:59) مرفوض لكلا النوعين.
+  if (nowMin < shift.fingerprintOpenMinutes) {
+    return { allowed: false as const, reason: "تبدأ ساعات العمل من 07:00 ص إلى 02:59 م" };
   }
   if (nowMin > shift.fingerprintCloseMinutes) {
-    return { allowed: false as const, reason: "نافذة تسجيل الانصراف من 02:15 م إلى 02:59 م" };
+    return { allowed: false as const, reason: "تبدأ ساعات العمل من 07:00 ص إلى 02:59 م" };
   }
+  if (kind === "check_in") {
+    // السماح بالحضور 07:00–14:59؛ "متأخر" بعد 08:15 (يُحسب سلبيًا لاحقًا).
+    return { allowed: true as const, isLate: nowMin > shift.morningCompensationDeadlineMinutes };
+  }
+  // check_out: أي وقت ضمن 07:00–14:59 مسموح (التبكير يُحسب سلبيًا لاحقًا).
   return { allowed: true as const };
 }
 
@@ -3295,15 +3292,25 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).orderBy(desc(attendanceRecords.recordDate)).limit(1))[0];
   if (!existing) throw new Error("لا يوجد سجل حضور مفتوح لهذا اليوم؛ أكد بدء العمل أولاً.");
+  if (!existing.checkInAt) throw new Error("لا يوجد بصمة دخول لهذا السجل.");
   if (existing.checkOutAt) throw new Error("تم تسجيل الانصراف لهذا السجل مسبقاً.");
-  await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, penaltyMinutes: 0, compensationNote: null, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
-  // +1 نقطة فقط إذا كان الانصراف ضمن 14:15–14:45 (قبل آخر خروج)؛ 14:45–14:59 بلا نقاط.
-  const [shift] = await db.select({ eveningCompensationDeadlineMinutes: workShifts.eveningCompensationDeadlineMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
-  const checkoutMinutes = riyadhMinutesOfDay(input.checkOutAt);
-  if (!shift || checkoutMinutes <= shift.eveningCompensationDeadlineMinutes) {
+
+  const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes, eveningCompensationDeadlineMinutes: workShifts.eveningCompensationDeadlineMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
+
+  // حساب السلبي: المتوقع (نهاية الدوام 14:15 − دخول) − الفعلي (خروج − دخول).
+  const checkInMin = riyadhMinutesOfDay(existing.checkInAt);
+  const checkOutMin = riyadhMinutesOfDay(input.checkOutAt);
+  const actualMinutes = checkOutMin - checkInMin;
+  const expectedMinutes = (shift?.actualEndMinutes ?? 855) - checkInMin;
+  const negativeMinutes = Math.max(0, expectedMinutes - actualMinutes);
+
+  await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, negativeMinutes, penaltyMinutes: 0, compensationNote: null, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
+
+  // +1 نقطة فقط إذا كان الانصراف ضمن 14:15–14:45؛ قبلها أو بعدها بلا نقاط.
+  if (shift && checkOutMin >= shift.actualEndMinutes && checkOutMin <= shift.eveningCompensationDeadlineMinutes) {
     await db.insert(scoreEvents).values({ profileId: input.profileId, points: 1, reason: "تسجيل الانصراف في الموعد", createdByUserId: input.actorUserId });
   }
-  await logAudit({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId } });
+  await logAudit({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, negativeMinutes } });
   await notifyPlatformOwnerSecurityAlert({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, details: { profileId: input.profileId } });
   return { success: true, attendanceId: existing.id };
 }

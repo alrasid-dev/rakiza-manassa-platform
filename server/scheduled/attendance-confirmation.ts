@@ -170,7 +170,7 @@ export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ che
 
   // الشرط 5: الوقت بعد غلق البصمة (الافتراضي 14:59 = 899 دقيقة).
   const [shift] = await db
-    .select({ fingerprintCloseMinutes: workShifts.fingerprintCloseMinutes })
+    .select({ fingerprintCloseMinutes: workShifts.fingerprintCloseMinutes, actualEndMinutes: workShifts.actualEndMinutes })
     .from(workShifts)
     .where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true)))
     .limit(1);
@@ -211,8 +211,13 @@ export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ che
     // idempotent: لا تطبّق العقوبة مرتين.
     if (record.penaltyMinutes > 0) continue;
 
+    // السلبي الكامل = المتوقع (نهاية الدوام 14:15 − دخول).
+    const checkInMin = riyadhMinutesOfDay(record.checkInAt!);
+    const expectedMinutes = Math.max(0, (shift?.actualEndMinutes ?? 855) - checkInMin);
+
     await db.update(attendanceRecords).set({
       penaltyMinutes: MISSING_CHECKOUT_PENALTY_MINUTES,
+      negativeMinutes: expectedMinutes,
       compensationNote: "عقوبة: عدم تسجيل الانصراف → -4 نقاط + -240 دقيقة",
       updatedAt: new Date(),
     }).where(eq(attendanceRecords.id, record.id));
