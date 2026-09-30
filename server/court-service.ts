@@ -3297,14 +3297,16 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
 
   const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes, eveningCompensationDeadlineMinutes: workShifts.eveningCompensationDeadlineMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
 
-  // حساب السلبي: المتوقع (نهاية الدوام 14:15 − دخول) − الفعلي (خروج − دخول).
+  // حساب الرصيد اليومي: الفعلي (خروج − دخول) مقابل المتوقع (نهاية الدوام 14:15 − دخول).
   const checkInMin = riyadhMinutesOfDay(existing.checkInAt);
   const checkOutMin = riyadhMinutesOfDay(input.checkOutAt);
   const actualMinutes = checkOutMin - checkInMin;
   const expectedMinutes = (shift?.actualEndMinutes ?? 855) - checkInMin;
-  const negativeMinutes = Math.max(0, expectedMinutes - actualMinutes);
+  const diff = actualMinutes - expectedMinutes;
+  const positiveMinutes = diff > 0 ? diff : 0;
+  const negativeMinutes = diff < 0 ? -diff : 0;
 
-  await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, negativeMinutes, penaltyMinutes: 0, compensationNote: null, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
+  await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, positiveMinutes, negativeMinutes, penaltyMinutes: 0, compensationNote: null, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
 
   // +1 نقطة فقط إذا كان الانصراف ضمن 14:15–14:45؛ قبلها أو بعدها بلا نقاط.
   if (shift && checkOutMin >= shift.actualEndMinutes && checkOutMin <= shift.eveningCompensationDeadlineMinutes) {
