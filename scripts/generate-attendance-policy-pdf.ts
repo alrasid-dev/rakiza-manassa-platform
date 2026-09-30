@@ -10,7 +10,7 @@ import { POLICY_SECTIONS } from "../server/policies/policy-content";
 import { generatePoliciesPdf } from "../server/policies/policy-pdf";
 
 async function main() {
-  const sections = POLICY_SECTIONS.filter(s => s.id === "attendance" || s.id === "leave_permission");
+  const sections = POLICY_SECTIONS.filter(s => s.id === "attendance" || s.id === "leave_permission" || s.id === "monthly_balance");
   const pdf = await generatePoliciesPdf("سياسة الحضور والانصراف", sections);
   const dir = path.resolve("docs/policies_pdf");
   fs.mkdirSync(dir, { recursive: true });
