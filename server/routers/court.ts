@@ -134,6 +134,9 @@ import {
   listRemoteAttendanceReport,
   listPlatformUsersForRoleAssignment,
   listPersonalDisciplinaryActions,
+  respondToDisciplinaryCase,
+  decideDisciplinaryCase,
+  listTeamDisciplinaryCases,
   listPendingApprovals,
   listProfiles,
   listProfilesForUnits,
@@ -1948,6 +1951,34 @@ export const courtRouter = router({
     mine: protectedProcedure.query(async ({ ctx }) => {
       const { profile } = await requirePersonalWorkspace(ctx.user);
       return listPersonalDisciplinaryActions(profile.id);
+    }),
+    respond: protectedProcedure.input(z.object({ caseId: z.number().int().positive(), response: z.string().trim().min(10).max(2000) })).mutation(async ({ ctx, input }) => {
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "لا يتوفر ملف شخصي مرتبط بالحساب." });
+      try {
+        return await respondToDisciplinaryCase({ caseId: input.caseId, profileId: profile.id, response: input.response, actorUserId: ctx.user.id });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "تعذر حفظ الرد.";
+        throw new TRPCError({ code: message.includes("غير موجودة") ? "NOT_FOUND" : "FORBIDDEN", message });
+      }
+    }),
+    managerDecision: protectedProcedure.input(z.object({ caseId: z.number().int().positive(), decision: z.enum(["escalate", "save"]), note: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
+      const permission = await permissionForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+      try {
+        return await decideDisciplinaryCase({ caseId: input.caseId, decision: input.decision, note: input.note, actorUserId: ctx.user.id, managedUnitIds });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "تعذر حفظ القرار.";
+        const code = message.includes("غير موجودة") ? "NOT_FOUND" : message.includes("نطاق") ? "FORBIDDEN" : "CONFLICT";
+        throw new TRPCError({ code, message });
+      }
+    }),
+    myTeam: protectedProcedure.query(async ({ ctx }) => {
+      const permission = await permissionForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+      return listTeamDisciplinaryCases(managedUnitIds);
     }),
   }),
 

@@ -2092,6 +2092,99 @@ export async function listPersonalDisciplinaryActions(profileId: number) {
   }));
 }
 
+export async function respondToDisciplinaryCase(input: { caseId: number; profileId: number; response: string; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const caseRow = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.caseId)).limit(1))[0];
+  if (!caseRow || caseRow.entityType !== "disciplinary_action") throw new Error("المساءلة غير موجودة.");
+  if (caseRow.status !== "pending") throw new Error("تمت معالجة هذه المساءلة مسبقاً.");
+  let isOwner = caseRow.entityId === input.profileId;
+  if (!isOwner) {
+    const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, caseRow.entityId)).limit(1))[0];
+    isOwner = task?.assigneeProfileId === input.profileId;
+  }
+  if (!isOwner) throw new Error("لا تملك صلاحية الرد على هذه المساءلة.");
+
+  await db.update(approvalRequests).set({
+    requestNote: (caseRow.requestNote || "") + "\n\n--- رد الموظف ---\n" + input.response,
+    status: "under_review",
+    updatedAt: new Date(),
+  }).where(eq(approvalRequests.id, input.caseId));
+
+  await logAudit({ actorUserId: input.actorUserId, action: "disciplinary.responded", entityType: "approval_request", entityId: input.caseId });
+
+  const profile = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  if (profile?.directManagerProfileId) {
+    await db.insert(notifications).values({
+      profileId: profile.directManagerProfileId,
+      category: "security_alert",
+      title: "رد موظف على مساءلة",
+      body: `قدّم ${profile.fullName} رده على المساءلة. يرجى المراجعة.`,
+      dedupeKey: `disciplinary-response-${input.caseId}`,
+    });
+  }
+  return { ok: true as const };
+}
+
+export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const caseRow = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.caseId)).limit(1))[0];
+  if (!caseRow || caseRow.entityType !== "disciplinary_action") throw new Error("المساءلة غير موجودة.");
+  if (caseRow.status !== "under_review") throw new Error("لم يرد الموظف بعد.");
+
+  if (input.managedUnitIds !== null) {
+    const targetProfile = (await db.select({ unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, caseRow.entityId)).limit(1))[0];
+    if (!targetProfile || !input.managedUnitIds.includes(targetProfile.unitId!)) throw new Error("خارج نطاق وحدتك.");
+  }
+
+  const newStatus = input.decision === "escalate" ? "escalated" : "approved";
+  const decisionLabel = input.decision === "escalate" ? "تصعيد للأمين" : "حفظ في السجل";
+  const patch: Partial<typeof approvalRequests.$inferInsert> = {
+    status: newStatus,
+    requestNote: (caseRow.requestNote || "") + "\n\n--- قرار المدير ---\n" + decisionLabel + (input.note ? " - " + input.note : ""),
+    decisionNote: input.note || null,
+    decidedByUserId: input.actorUserId,
+    decidedAt: new Date(),
+    updatedAt: new Date(),
+  };
+  if (input.decision === "escalate") patch.currentRole = "court_secretary";
+
+  await db.update(approvalRequests).set(patch).where(eq(approvalRequests.id, input.caseId));
+  await logAudit({ actorUserId: input.actorUserId, action: "disciplinary." + input.decision, entityType: "approval_request", entityId: input.caseId });
+
+  let targetProfileId = caseRow.entityId;
+  const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, caseRow.entityId)).limit(1))[0];
+  if (task?.assigneeProfileId) targetProfileId = task.assigneeProfileId;
+  if (targetProfileId) {
+    await db.insert(notifications).values({
+      profileId: targetProfileId,
+      category: "security_alert",
+      title: "قرار على المساءلة",
+      body: decisionLabel,
+      dedupeKey: `disciplinary-decision-${input.caseId}`,
+    });
+  }
+  return { ok: true as const };
+}
+
+export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(approvalRequests.entityType, "disciplinary_action"), eq(approvalRequests.status, "under_review")];
+  if (managedUnitIds !== null) {
+    const profiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
+    const profileIds = profiles.map(p => p.id);
+    if (profileIds.length === 0) return [];
+    conditions.push(inArray(approvalRequests.entityId, profileIds)!);
+  }
+  const cases = await db.select().from(approvalRequests).where(and(...conditions)).orderBy(desc(approvalRequests.createdAt));
+  return Promise.all(cases.map(async (c) => {
+    const profile = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, c.entityId)).limit(1))[0];
+    return { ...c, employeeName: profile?.fullName || "غير معروف", employeeUnitId: profile?.unitId ?? null };
+  }));
+}
+
 async function createTaskConversation(input: { db: any; taskId: number; title: string; creatorUserId: number; assigneeProfileId?: number; watcherProfileId?: number }) {
   // إنشاء غرفة الفريق تحسين اختياري؛ لا ينبغي أن يمنع إنشاء المهمة في محاكاة أو قاعدة قديمة.
   if (typeof input.db.select !== "function") return null;
