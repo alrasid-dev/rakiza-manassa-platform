@@ -94,7 +94,7 @@ const ttfRegular = loadFontTtf(FONT_REGULAR);
 const ttfBold = loadFontTtf(FONT_BOLD);
 
 function reshape(text: string): string {
-  return reshaper.convertArabic(text).split("").reverse().join("");
+  return reshaper.convertArabic(text);
 }
 
 function wrapLines(doc: jsPDF, text: string, maxWidth: number, fontId: string, size: number): string[] {
@@ -118,6 +118,7 @@ function wrapLines(doc: jsPDF, text: string, maxWidth: number, fontId: string, s
 
 export async function generatePoliciesPdf(title: string, sections: PolicySection[]): Promise<Buffer> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
+  doc.setR2L(true);
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 50;
