@@ -3629,9 +3629,19 @@ export async function approveLateExcuse(input: { leaveRequestId: number; decisio
 
   if (record) {
     const checkoutMinutes = riyadhMinutesOfDay(request.startAt);
+
+    // شرط "نفس الشهر": الاستئذان يُعالج آلياً فقط إذا كان في نفس الشهر الهجري للسجل.
+    const recordMonth = hijriMonthKey(record.recordDate);
+    const sameMonth = !recordMonth || !request.hijriMonthKey || recordMonth === request.hijriMonthKey;
+
+    // خصم 240 دقيقة استئذان من السلبي (إن كان ضمن نفس الشهر).
+    const remainingNegative = sameMonth ? Math.max(0, record.negativeMinutes - 240) : record.negativeMinutes;
+
     const updateSet: Record<string, unknown> = {
       penaltyMinutes: 0,
-      compensationNote: "تم قبول الاستئذان المتأخر",
+      negativeMinutes: remainingNegative,
+      excuseApplied: sameMonth,
+      compensationNote: sameMonth ? "تم خصم 240 دقيقة استئذان" : "تم قبول الاستئذان المتأخر",
       updatedAt: new Date(),
     };
     if (checkoutMinutes <= 899) {
@@ -3640,12 +3650,14 @@ export async function approveLateExcuse(input: { leaveRequestId: number; decisio
     }
     await db.update(attendanceRecords).set(updateSet).where(eq(attendanceRecords.id, record.id));
 
-    await db.insert(scoreEvents).values({
-      profileId: request.profileId,
-      points: Math.abs(MISSING_CHECKOUT_PENALTY_POINTS),
-      reason: "إلغاء عقوبة عدم تسجيل الانصراف (استئذان متأخر معتمد)",
-      createdByUserId: input.reviewedByUserId,
-    });
+    if (sameMonth) {
+      await db.insert(scoreEvents).values({
+        profileId: request.profileId,
+        points: Math.abs(MISSING_CHECKOUT_PENALTY_POINTS),
+        reason: "إلغاء عقوبة عدم تسجيل الانصراف (استئذان متأخر معتمد)",
+        createdByUserId: input.reviewedByUserId,
+      });
+    }
   }
 
   await db.insert(notifications).values({
