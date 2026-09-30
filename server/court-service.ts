@@ -57,6 +57,7 @@ import {
   importBatches,
   internalConversations,
   conversationParticipants,
+  confirmationAssignments,
   leaveRequests,
   meetingAttendees,
   meetings,
@@ -98,6 +99,7 @@ import { buildLeadershipWorkloadObservatory } from "./leadership-workload-observ
 import { reportStart, type ReportPeriod } from "./reporting";
 import { automaticUnstartedTaskScore, earlyTaskStartScore, newDelayScore, taskApprovalScore } from "./points-policy";
 import { hijriMonthKey } from "./hijri-month";
+import { CONFIRMATION_WINDOW_MINUTES } from "./confirmation-cadence";
 import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
 import { dateRangeForSaudiDay, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime } from "./task-automation";
@@ -3348,6 +3350,31 @@ export async function getTodayAttendanceForProfile(profileId: number) {
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   const rows = await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, profileId), gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end))).orderBy(desc(attendanceRecords.recordDate)).limit(1);
   return rows[0] ?? null;
+}
+
+/** التكليف المعلّق المستحق الآن لملف (لتأكيد الحضور في الواجهة). */
+export async function getPendingConfirmationAssignment(profileId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const rows = await db.select().from(confirmationAssignments).where(and(eq(confirmationAssignments.profileId, profileId), eq(confirmationAssignments.status, "pending"), gte(confirmationAssignments.scheduledAt, start), lt(confirmationAssignments.scheduledAt, end), lte(confirmationAssignments.scheduledAt, now))).orderBy(asc(confirmationAssignments.scheduledAt)).limit(1);
+  return rows[0] ?? null;
+}
+
+/** تأكيد حضور عبر تكليف معلّق (خلال نافذة 20 دقيقة). */
+export async function confirmAttendance(input: { assignmentId: number; profileId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const assignment = (await db.select().from(confirmationAssignments).where(eq(confirmationAssignments.id, input.assignmentId)).limit(1))[0];
+  if (!assignment) throw new Error("التكليف غير موجود.");
+  if (assignment.profileId !== input.profileId) throw new Error("هذا التكليف ليس لك.");
+  if (assignment.status !== "pending") throw new Error("تمت معالجة هذا التكليف مسبقاً.");
+  const deadline = new Date(assignment.scheduledAt.getTime() + CONFIRMATION_WINDOW_MINUTES * 60000);
+  if (new Date() > deadline) throw new Error("انتهت نافذة التأكيد.");
+  await db.update(confirmationAssignments).set({ confirmedAt: new Date(), status: "done" }).where(eq(confirmationAssignments.id, input.assignmentId));
+  return { success: true };
 }
 
 export async function listRemoteAttendanceReport(input: { unitIds?: number[]; startAt?: Date; endAt?: Date }) {

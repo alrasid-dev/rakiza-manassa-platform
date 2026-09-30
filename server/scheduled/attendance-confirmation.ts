@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 import type { Request, Response } from "express";
-import { approvalRequests, attendanceRecords, leaveRequests, notifications, personProfiles, scoreEvents, scheduledJobConfigs, workShifts } from "../../drizzle/schema";
+import { approvalRequests, attendanceRecords, confirmationAssignments, courtRoleAssignments, leaveRequests, notifications, personProfiles, scoreEvents, scheduledJobConfigs, systemConfigs, users, workShifts } from "../../drizzle/schema";
 import { getDb } from "../db";
 import { sdk } from "../_core/sdk";
 import { sendSafeScheduledFailure } from "./safe-scheduled-failure";
@@ -9,6 +9,7 @@ import { attendanceConfirmationCadence, attendanceConfirmationPolicyDefaults, sh
 import { dateRangeForSaudiDay, isSaudiWorkday } from "../task-automation";
 import { isOfficialHoliday, workHoursFor } from "../holidays";
 import { MISSING_CHECKOUT_PENALTY_MINUTES, MISSING_CHECKOUT_PENALTY_POINTS } from "../court-service";
+import { CONFIRMATION_RANDOM_END_MINUTES, CONFIRMATION_RANDOM_START_MINUTES, CONFIRMATION_WINDOW_MINUTES, confirmationCadence, shouldConfirmOnWorkday } from "../confirmation-cadence";
 
 const ACTIVE_REMOTE_MODES = ["remote", "mixed"] as const;
 const SYSTEM_ACTOR_ID = 0;
@@ -42,68 +43,11 @@ export async function runAttendanceConfirmationCycle(now = new Date(), targetPro
   if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return { scanned: 0, notified: 0, skipped: 0, policy: "enabled", penalized: 0 };
   if (riyadhMinutesOfDay(now) < parseTimeToMinutes(workHoursFor(now).start) + 15) return { scanned: 0, notified: 0, skipped: 0, policy: "enabled", penalized: 0 };
 
-  const selectedAudiences = audience === "all" || audience === "employees,trainees,judges" ? ["employees", "trainees", "judges"] : audience.split(",");
-  const audienceFilter = selectedAudiences.length === 3 ? undefined : or(...selectedAudiences.map(selected => selected === "employees" ? eq(personProfiles.personType, "administrative") : selected === "trainees" ? eq(personProfiles.personType, "trainee") : eq(personProfiles.personType, "judge")));
-  const profileFilters = [eq(personProfiles.status, "active"), or(eq(personProfiles.attendanceMode, ACTIVE_REMOTE_MODES[0]), eq(personProfiles.attendanceMode, ACTIVE_REMOTE_MODES[1])), ...(audienceFilter ? [audienceFilter] : [])];
-  if (targetProfileId !== undefined && targetProfileId !== null) profileFilters.push(eq(personProfiles.id, targetProfileId));
-  const profiles = await db.select().from(personProfiles).where(and(...profileFilters));
-  const recentRequests = await db
-    .select({ profileId: notifications.profileId, sentAt: notifications.sentAt })
-    .from(notifications)
-    .where(eq(notifications.category, "attendance_confirmation"))
-    .orderBy(desc(notifications.sentAt));
-  const lastRequestedByProfile = new Map<number, Date>();
-  for (const request of recentRequests) {
-    if (request.profileId != null && !lastRequestedByProfile.has(request.profileId)) lastRequestedByProfile.set(request.profileId, request.sentAt);
-  }
-
-  let notified = 0;
-  let skipped = 0;
-  for (const profile of profiles) {
-    const lastRequestedAt = lastRequestedByProfile.get(profile.id) ?? null;
-    const recentAttendance = await db
-      .select({ status: attendanceRecords.status, recordDate: attendanceRecords.recordDate })
-      .from(attendanceRecords)
-      .where(eq(attendanceRecords.profileId, profile.id))
-      .orderBy(desc(attendanceRecords.recordDate));
-    const confirmedDays = recentAttendance.filter(record => record.status === "present" || record.status === "late").slice(0, 30).length;
-    const complianceRate = calculateComplianceRate(confirmedDays, 30);
-
-    // الإعفاء الذكي: المنضبط (≥90%) يُعفى من التأكيد لمدة 7 أيام.
-    if (complianceRate >= COMPLIANCE_EXEMPTION_THRESHOLD) {
-      const lastExemption = profile.lastConfirmExemptionAt;
-      if (lastExemption && now.getTime() - lastExemption.getTime() < EXEMPTION_WINDOW_DAYS * 24 * 60 * 60 * 1000) {
-        skipped += 1;
-        continue;
-      }
-      await db.update(personProfiles).set({ lastConfirmExemptionAt: now }).where(eq(personProfiles.id, profile.id));
-      skipped += 1;
-      continue;
-    }
-
-    // غير المنضبط (<50%) يُلزم بتأكيد يومي إجباري.
-    const cadence: AttendanceConfirmationCadence | "disabled" = complianceRate < COMPLIANCE_MANDATORY_THRESHOLD
-      ? "daily"
-      : attendanceConfirmationCadence({ enabled: true, consecutiveConfirmedDays: confirmedDays, ignoredRecentConfirmations: 0 });
-
-    if (!shouldRequestAttendanceConfirmation({ enabled: true, lastRequestedAt, now, cadence })) {
-      skipped += 1;
-      continue;
-    }
-    const dayKey = now.toISOString().slice(0, 10);
-    const dedupeKey = `attendance-confirmation-${profile.id}-${dayKey}`;
-    const result = await db.insert(notifications).values({
-      profileId: profile.id,
-      category: "attendance_confirmation",
-      title: "تأكيد بدء العمل",
-      body: "يرجى تأكيد بدء العمل خلال 20 دقيقة من استلام هذا التنبيه. إذا تعذر التأكيد، أضف سبباً من شاشة الحضور.",
-      dedupeKey,
-    });
-    if (Number(result[0].affectedRows) === 1) notified += 1;
-  }
-  const accountability = await runAttendanceAccountabilityCycle(now);
+  // نظام التأكيد الجديد (confirmation_assignments): توليد يومي عشوائي + إرسال + مساءلة + خصم نقاط.
+  const generated = await generateConfirmationAssignments(now);
+  const dispatched = await dispatchConfirmationAssignments(now);
   await runMissingCheckoutPenalty(now);
-  return { scanned: profiles.length, notified, skipped, policy: "enabled", penalized: accountability.penalized };
+  return { scanned: generated, notified: dispatched.notified, skipped: 0, policy: "enabled", penalized: dispatched.missed };
 }
 
 /** يحسب عدد أيام عدم التأكيد خلال آخر 30 يوماً. */
@@ -316,6 +260,132 @@ export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ che
   }
 
   return { checked: records.length, penalized };
+}
+
+function riyadhWeekday(now: Date): number {
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", weekday: "short" }).format(now);
+  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return map[weekday] ?? -1;
+}
+
+/** الملفات الشخصية المستثناة من تأكيد الحضور (المالك/الرئيس/الأمين/القضاة). */
+async function getExcludedProfileIds(): Promise<Set<number>> {
+  const db = await getDb();
+  if (!db) return new Set();
+  const excluded = new Set<number>();
+  const judges = await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.personType, "judge"));
+  judges.forEach(r => excluded.add(r.id));
+  const admins = await db.select({ id: personProfiles.id }).from(personProfiles).innerJoin(users, eq(users.id, personProfiles.userId)).where(eq(users.role, "admin"));
+  admins.forEach(r => excluded.add(r.id));
+  const leaders = await db.select({ userId: courtRoleAssignments.userId }).from(courtRoleAssignments).where(and(eq(courtRoleAssignments.isActive, true), inArray(courtRoleAssignments.role, ["court_president", "court_secretary"])));
+  const leaderUserIds = leaders.map(r => r.userId).filter((v): v is number => v != null);
+  if (leaderUserIds.length) {
+    const leaderProfiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.userId, leaderUserIds));
+    leaderProfiles.forEach(r => excluded.add(r.id));
+  }
+  return excluded;
+}
+
+async function getConfirmationSettings() {
+  const db = await getDb();
+  if (!db) return { globalEnabled: true, perDept: {} as Record<string, boolean> };
+  const [row] = await db.select().from(systemConfigs).limit(1);
+  return { globalEnabled: row?.confirmationEnabledGlobal ?? true, perDept: (row?.confirmationEnabledPerDept ?? {}) as Record<string, boolean> };
+}
+
+/** عدد أيام العمل المتواصلة المنجزة (done) — عند أي تخلف (missed) يتوقف العد. */
+async function consecutiveDoneWorkdays(profileId: number, now: Date): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const since = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
+  const rows = await db.select({ scheduledAt: confirmationAssignments.scheduledAt, status: confirmationAssignments.status }).from(confirmationAssignments).where(and(eq(confirmationAssignments.profileId, profileId), gte(confirmationAssignments.scheduledAt, since)));
+  const byDay = new Map<string, { done: boolean; missed: boolean }>();
+  for (const r of rows) {
+    const key = r.scheduledAt.toISOString().slice(0, 10);
+    const cur = byDay.get(key) ?? { done: false, missed: false };
+    if (r.status === "done") cur.done = true;
+    if (r.status === "missed") cur.missed = true;
+    byDay.set(key, cur);
+  }
+  let count = 0;
+  const today = new Date(now);
+  today.setUTCHours(0, 0, 0, 0);
+  for (let i = 1; i <= 45; i++) {
+    const cursor = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+    const day = byDay.get(cursor.toISOString().slice(0, 10));
+    if (!day || day.missed || !day.done) break;
+    count += 1;
+  }
+  return count;
+}
+
+/** أيام منذ آخر تأكيد ناجح (done) — لاستخدامها في "مرة كل 15 يوم". */
+async function daysSinceLastDoneFor(profileId: number, now: Date): Promise<number> {
+  const db = await getDb();
+  if (!db) return 999;
+  const since = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
+  const rows = await db.select({ scheduledAt: confirmationAssignments.scheduledAt }).from(confirmationAssignments).where(and(eq(confirmationAssignments.profileId, profileId), eq(confirmationAssignments.status, "done"), gte(confirmationAssignments.scheduledAt, since))).orderBy(desc(confirmationAssignments.scheduledAt)).limit(1);
+  if (!rows[0]) return 999;
+  return Math.floor((now.getTime() - rows[0].scheduledAt.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+/** توليد تكليفات تأكيد الحضور اليومية (مرة واحدة) بوقت عشوائي لكل مستحق. */
+export async function generateConfirmationAssignments(now = new Date()): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return 0;
+  const settings = await getConfirmationSettings();
+  if (!settings.globalEnabled) return 0;
+
+  const dayRange = dateRangeForSaudiDay(now);
+  const existing = await db.select({ id: confirmationAssignments.id }).from(confirmationAssignments).where(and(gte(confirmationAssignments.scheduledAt, dayRange.start), lt(confirmationAssignments.scheduledAt, dayRange.end))).limit(1);
+  if (existing[0]) return 0;
+
+  const excluded = await getExcludedProfileIds();
+  const weekday = riyadhWeekday(now);
+  const profiles = await db.select().from(personProfiles).where(eq(personProfiles.status, "active"));
+
+  let generated = 0;
+  for (const profile of profiles) {
+    if (excluded.has(profile.id)) continue;
+    if (profile.unitId != null && settings.perDept[String(profile.unitId)] === false) continue;
+    const consecutive = await consecutiveDoneWorkdays(profile.id, now);
+    const cadence = confirmationCadence(consecutive);
+    const daysSinceLastDone = await daysSinceLastDoneFor(profile.id, now);
+    if (!shouldConfirmOnWorkday(cadence, weekday, daysSinceLastDone)) continue;
+    const minutes = CONFIRMATION_RANDOM_START_MINUTES + Math.floor(Math.random() * (CONFIRMATION_RANDOM_END_MINUTES - CONFIRMATION_RANDOM_START_MINUTES));
+    const scheduledAt = new Date(dayRange.start.getTime() + minutes * 60000);
+    await db.insert(confirmationAssignments).values({ profileId: profile.id, scheduledAt, status: "pending" });
+    generated += 1;
+  }
+  return generated;
+}
+
+/** إرسال إشعارات التكليفات المستحقة + تحويل المتخلفين إلى missed مع مساءلة وخصم نقطة. */
+export async function dispatchConfirmationAssignments(now = new Date()): Promise<{ notified: number; missed: number }> {
+  const db = await getDb();
+  if (!db) return { notified: 0, missed: 0 };
+  const settings = await getConfirmationSettings();
+  if (!settings.globalEnabled) return { notified: 0, missed: 0 };
+
+  const due = await db.select().from(confirmationAssignments).where(and(eq(confirmationAssignments.status, "pending"), lte(confirmationAssignments.scheduledAt, now)));
+
+  let notified = 0;
+  let missed = 0;
+  for (const assignment of due) {
+    const deadline = new Date(assignment.scheduledAt.getTime() + CONFIRMATION_WINDOW_MINUTES * 60000);
+    if (now > deadline) {
+      await db.update(confirmationAssignments).set({ status: "missed" }).where(eq(confirmationAssignments.id, assignment.id));
+      await db.insert(scoreEvents).values({ profileId: assignment.profileId, points: -1, reason: "التخلف عن تأكيد الحضور", createdByUserId: SYSTEM_ACTOR_ID });
+      await db.insert(approvalRequests).values({ entityType: "disciplinary_action", entityId: assignment.profileId, requestedByUserId: SYSTEM_ACTOR_ID, currentRole: "human_resources_manager", requestNote: "التخلف عن تأكيد الحضور خلال النافذة المحددة" });
+      await db.insert(notifications).values({ profileId: assignment.profileId, category: "attendance_confirmation", title: "فاتتك نافذة تأكيد الحضور", body: "انتهت نافذة تأكيد الحضور دون تأكيد، وسُجّلت مساءلة.", dedupeKey: `confirmation-missed-${assignment.id}` }).onDuplicateKeyUpdate({ set: { title: "فاتتك نافذة تأكيد الحضور" } });
+      missed += 1;
+    } else {
+      const result = await db.insert(notifications).values({ profileId: assignment.profileId, category: "attendance_confirmation", title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن.", dedupeKey: `confirmation-request-${assignment.id}` }).onDuplicateKeyUpdate({ set: { title: "تأكيد الحضور" } });
+      if (Number(result[0].affectedRows) === 1) notified += 1;
+    }
+  }
+  return { notified, missed };
 }
 
 function nowForAttendanceCycle() {

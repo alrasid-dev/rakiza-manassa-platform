@@ -174,6 +174,8 @@ import {
   reviewPerformanceReportEvaluation,
   recordAttendance,
   recordAttendanceCheckout,
+  getPendingConfirmationAssignment,
+  confirmAttendance,
   notifyPlatformOwnerSecurityAlert,
   renewTraineeAssignment,
   resolveSupportTicket,
@@ -2005,6 +2007,16 @@ export const courtRouter = router({
     today: protectedProcedure.query(async ({ ctx }) => {
       const { profile } = await requireSelfAttendanceProfile(ctx.user);
       return getTodayAttendanceForProfile(profile.id);
+    }),
+    pendingAssignment: protectedProcedure.query(async ({ ctx }) => {
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) return null;
+      return getPendingConfirmationAssignment(profile.id);
+    }),
+    confirmAttendance: protectedProcedure.input(z.object({ assignmentId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "FORBIDDEN" });
+      return confirmAttendance({ assignmentId: input.assignmentId, profileId: profile.id });
     }),
     currentWindow: protectedProcedure.query(async ({ ctx }) => {
       const { profile } = await requireSelfAttendanceProfile(ctx.user);

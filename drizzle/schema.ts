@@ -586,6 +586,23 @@ export const attendanceRecords = mysqlTable("attendance_records", {
   index("attendance_date_status_idx").on(table.recordDate, table.status),
 ]);
 
+export const confirmationAssignments = mysqlTable("confirmation_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  profileId: int("profileId").notNull(),
+  scheduledAt: timestamp("scheduledAt").notNull(),
+  confirmedAt: timestamp("confirmedAt"),
+  status: mysqlEnum("status", ["pending", "done", "missed"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => [index("confirmation_assignments_profile_scheduled_idx").on(table.profileId, table.scheduledAt)]);
+
+export const systemConfigs = mysqlTable("system_configs", {
+  id: int("id").autoincrement().primaryKey(),
+  confirmationEnabledGlobal: boolean("confirmationEnabledGlobal").default(true).notNull(),
+  confirmationEnabledPerDept: json("confirmationEnabledPerDept").$type<Record<string, boolean>>(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const leaveRequests = mysqlTable("leave_requests", {
   id: int("id").autoincrement().primaryKey(),
   profileId: int("profileId").notNull(),
