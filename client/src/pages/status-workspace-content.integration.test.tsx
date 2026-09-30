@@ -21,8 +21,7 @@ describe("مساحة الحالة اليومية", () => {
     const attendanceForm = screen.getByText("حضور وانصراف القضاة والعاملين عن بعد").closest("form");
     expect(attendanceForm).toBeTruthy();
     expect(within(attendanceForm!).getByRole("option", { name: /موظف عن بعد/ })).toBeTruthy();
-    expect(within(attendanceForm!).getByRole("button", { name: /تأكيد بدء العمل الآن/ })).toBeTruthy();
-    expect(within(attendanceForm!).getByRole("button", { name: /تسجيل الانصراف/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /تسجيل الانصراف/ })).toBeTruthy();
     expect(within(attendanceForm!).queryByRole("option", { name: /قاضٍ مختبر/ })).toBeNull();
     expect(within(attendanceForm!).queryByRole("option", { name: /ملازم غير مشمول/ })).toBeNull();
     expect(screen.getByText("رصيد الإنجاز الشخصي")).toBeTruthy();

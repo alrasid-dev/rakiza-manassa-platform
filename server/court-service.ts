@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gt, gte, inArray, isNull, isNotNull, like, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { ENV } from "./_core/env";
+import { TRPCError } from "@trpc/server";
 
 export async function sendBrevoTransactionalEmail(input: { to: string; recipientName?: string; subject: string; textContent: string; htmlContent?: string }) {
   if (!ENV.brevoApiKey || !ENV.brevoSenderEmail) throw new Error("إعدادات Brevo غير مكتملة.");
@@ -3249,18 +3250,18 @@ export async function checkAttendanceWindow(now: Date, kind: "check_in" | "check
   const nowMin = riyadhMinutesOfDay(now);
   if (kind === "check_in") {
     if (nowMin < shift.fingerprintOpenMinutes) {
-      return { allowed: false as const, reason: `لا يمكن تسجيل الحضور قبل ${formatMinutesOfDay(shift.fingerprintOpenMinutes)}.` };
+      return { allowed: false as const, reason: "تبدأ ساعات العمل من 07:00 ص إلى 02:59 م" };
     }
     if (nowMin > shift.morningCompensationDeadlineMinutes) {
-      return { allowed: false as const, reason: `انتهت نافذة تسجيل الحضور (${formatMinutesOfDay(shift.morningCompensationDeadlineMinutes)}).` };
+      return { allowed: false as const, reason: "تبدأ ساعات العمل من 07:00 ص إلى 02:59 م" };
     }
     return { allowed: true as const, isLate: nowMin > shift.lateStartMinutes };
   }
   if (nowMin < shift.actualEndMinutes) {
-    return { allowed: false as const, reason: `لا يمكن تسجيل الانصراف قبل ${formatMinutesOfDay(shift.actualEndMinutes)}.` };
+    return { allowed: false as const, reason: "نافذة تسجيل الانصراف من 02:15 م إلى 02:59 م" };
   }
   if (nowMin > shift.fingerprintCloseMinutes) {
-    return { allowed: false as const, reason: `انتهت نافذة تسجيل الانصراف (${formatMinutesOfDay(shift.fingerprintCloseMinutes)}).` };
+    return { allowed: false as const, reason: "نافذة تسجيل الانصراف من 02:15 م إلى 02:59 م" };
   }
   return { allowed: true as const };
 }
@@ -3271,7 +3272,7 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
   let status = input.status;
   if (input.autoClassify && input.checkInAt && (status === "present" || status === "late")) {
     const window = await checkAttendanceWindow(input.checkInAt, "check_in");
-    if (!window.allowed) throw new Error(window.reason);
+    if (!window.allowed) throw new TRPCError({ code: "BAD_REQUEST", message: window.reason });
     const profile = (await db.select({ shiftId: personProfiles.shiftId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
     const shift = profile?.shiftId ? (await db.select({ lateStartMinutes: workShifts.lateStartMinutes }).from(workShifts).where(eq(workShifts.id, profile.shiftId)).limit(1))[0] : (await db.select({ lateStartMinutes: workShifts.lateStartMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1))[0];
     if (shift) {
@@ -3289,7 +3290,7 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const window = await checkAttendanceWindow(input.checkOutAt, "check_out");
-  if (!window.allowed) throw new Error(window.reason);
+  if (!window.allowed) throw new TRPCError({ code: "BAD_REQUEST", message: window.reason });
   const dayStart = new Date(Date.UTC(input.checkOutAt.getUTCFullYear(), input.checkOutAt.getUTCMonth(), input.checkOutAt.getUTCDate()));
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).orderBy(desc(attendanceRecords.recordDate)).limit(1))[0];
