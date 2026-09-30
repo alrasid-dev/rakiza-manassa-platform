@@ -3448,6 +3448,127 @@ export async function reviewLeaveOwnerApproval(input: { leaveRequestId: number; 
   await logAudit({ actorUserId: input.reviewedByUserId, action: `leave.owner_${input.decision}`, entityType: "leave_request", entityId: request.id, metadata: { substituteProfileId: request.substituteProfileId } });
 }
 
+/**
+ * تقديم استئذان متأخر بعد عدم تسجيل الانصراف.
+ * يبقى pending حتى موافقة المدير المباشر، والعقوبة تبقى مطبقة حتى الموافقة.
+ */
+export async function requestLateExcuse(input: { profileId: number; recordDate: string; checkOutAt: Date; reason: string; requestedByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+
+  // رفض الطلب في أيام الجمعة/السبت أو الإجازات الرسمية.
+  if (!isSaudiWorkday(input.checkOutAt)) throw new Error("لا يمكن تقديم استئذان متأخر في يوم جمعة أو سبت.");
+  if (isOfficialHoliday(input.checkOutAt)) throw new Error(`لا يمكن تقديم استئذان متأخر في إجازة رسمية (${officialHolidayName(input.checkOutAt)}).`);
+
+  const [y, m, d] = input.recordDate.split("-").map(Number);
+  const dayStart = new Date(Date.UTC(y, m - 1, d));
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  // يجب أن يكون بصم دخولاً ولم يسجل انصرافاً ذلك اليوم.
+  const record = (await db.select().from(attendanceRecords).where(and(
+    eq(attendanceRecords.profileId, input.profileId),
+    gte(attendanceRecords.recordDate, dayStart),
+    lt(attendanceRecords.recordDate, dayEnd),
+    isNotNull(attendanceRecords.checkInAt),
+    isNull(attendanceRecords.checkOutAt),
+  )).limit(1))[0];
+  if (!record) throw new Error("لا يوجد سجل حضور مفتوح (بصمة دخول بدون انصراف) لهذا اليوم.");
+
+  // لا استئذانين في نفس اليوم.
+  const existing = (await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
+    eq(leaveRequests.profileId, input.profileId),
+    eq(leaveRequests.requestType, "permission"),
+    eq(leaveRequests.status, "pending"),
+    gte(leaveRequests.startAt, dayStart),
+    lt(leaveRequests.startAt, dayEnd),
+  )).limit(1))[0];
+  if (existing) throw new Error("لا استئذانين في نفس اليوم؛ يوجد طلب استئذان معلّق لهذا اليوم.");
+
+  const result = await db.insert(leaveRequests).values({
+    profileId: input.profileId,
+    requestType: "permission",
+    startAt: input.checkOutAt,
+    endAt: input.checkOutAt,
+    durationMinutes: MISSING_CHECKOUT_PENALTY_MINUTES,
+    handoverConfirmed: true,
+    status: "pending",
+    hijriMonthKey: hijriMonthKey(input.checkOutAt),
+    requestSequenceInMonth: 0,
+    note: input.reason,
+    requestedByUserId: input.requestedByUserId,
+  });
+  const id = Number(result[0].insertId);
+
+  await db.insert(approvalRequests).values({
+    entityType: "disciplinary_action",
+    entityId: input.profileId,
+    requestedByUserId: input.requestedByUserId,
+    currentRole: "human_resources_manager",
+    requestNote: `استئذان متأخر: عدم تسجيل الانصراف (${input.recordDate})`,
+  });
+
+  await logAudit({ actorUserId: input.requestedByUserId, action: "leave.late_excuse_submitted", entityType: "leave_request", entityId: id, metadata: { recordDate: input.recordDate } });
+  return id;
+}
+
+/**
+ * اعتماد أو رفض الاستئذان المتأخر.
+ * عند الموافقة: تصفير penaltyMinutes + إرجاع +4 نقاط + تسجيل الانصراف.
+ * عند الرفض: تبقى العقوبة سارية.
+ */
+export async function approveLateExcuse(input: { leaveRequestId: number; decision: "approved" | "rejected"; reviewedByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+
+  const request = (await db.select().from(leaveRequests).where(eq(leaveRequests.id, input.leaveRequestId)).limit(1))[0];
+  if (!request) throw new Error("طلب الاستئذان المتأخر غير موجود.");
+  if (request.status !== "pending") throw new Error("تمت مراجعة هذا الطلب مسبقاً.");
+
+  await db.update(leaveRequests).set({ status: input.decision, reviewedByUserId: input.reviewedByUserId, reviewedAt: new Date() }).where(eq(leaveRequests.id, request.id));
+
+  if (input.decision === "rejected") {
+    await logAudit({ actorUserId: input.reviewedByUserId, action: "leave.late_excuse_rejected", entityType: "leave_request", entityId: request.id });
+    return { success: true, status: "rejected" as const };
+  }
+
+  // الموافقة: تسجيل الانصراف + إلغاء العقوبة.
+  const dayStart = new Date(Date.UTC(request.startAt.getUTCFullYear(), request.startAt.getUTCMonth(), request.startAt.getUTCDate()));
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const record = (await db.select().from(attendanceRecords).where(and(
+    eq(attendanceRecords.profileId, request.profileId),
+    gte(attendanceRecords.recordDate, dayStart),
+    lt(attendanceRecords.recordDate, dayEnd),
+  )).limit(1))[0];
+
+  if (record) {
+    await db.update(attendanceRecords).set({
+      checkOutAt: request.startAt,
+      penaltyMinutes: 0,
+      compensationNote: "تم قبول الاستئذان المتأخر",
+      status: "excused",
+      updatedAt: new Date(),
+    }).where(eq(attendanceRecords.id, record.id));
+
+    await db.insert(scoreEvents).values({
+      profileId: request.profileId,
+      points: Math.abs(MISSING_CHECKOUT_PENALTY_POINTS),
+      reason: "إلغاء عقوبة عدم تسجيل الانصراف (استئذان متأخر معتمد)",
+      createdByUserId: input.reviewedByUserId,
+    });
+  }
+
+  await db.insert(notifications).values({
+    profileId: request.profileId,
+    category: "security_alert",
+    title: "تمت الموافقة على الاستئذان المتأخر",
+    body: "تم اعتماد استئذانك وإلغاء العقوبة، وسُجّل انصرافك.",
+    dedupeKey: `late-excuse-approved-${request.id}`,
+  }).onDuplicateKeyUpdate({ set: { title: "تمت الموافقة على الاستئذان المتأخر" } });
+
+  await logAudit({ actorUserId: input.reviewedByUserId, action: "leave.late_excuse_approved", entityType: "leave_request", entityId: request.id });
+  return { success: true, status: "approved" as const };
+}
+
 export async function listLeaveRequests() {
   const db = await getDb();
   if (!db) return [];

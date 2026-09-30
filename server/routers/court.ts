@@ -192,6 +192,8 @@ import {
   reviewRegistrationRequest,
   reviewLeaveRequest,
   reviewLeaveOwnerApproval,
+  requestLateExcuse,
+  approveLateExcuse,
   routeCorrespondence,
   saveImportBatch,
   saveAdministrativeLevel,
@@ -2127,6 +2129,15 @@ export const courtRouter = router({
     refreshStatuses: protectedProcedure.mutation(async ({ ctx }) => {
       await requireOperationsManager(ctx.user);
       return activateScheduledLeaveStatuses();
+    }),
+    requestLateExcuse: protectedProcedure.input(z.object({ recordDate: z.string(), checkOutAt: z.date(), reason: z.string().trim().min(10).max(500) })).mutation(async ({ ctx, input }) => {
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "FORBIDDEN" });
+      return { id: await requestLateExcuse({ profileId: profile.id, recordDate: input.recordDate, checkOutAt: input.checkOutAt, reason: input.reason, requestedByUserId: ctx.user.id }) };
+    }),
+    approveLateExcuse: protectedProcedure.input(z.object({ leaveRequestId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]) })).mutation(async ({ ctx, input }) => {
+      await requireOperationsManager(ctx.user);
+      return approveLateExcuse({ ...input, reviewedByUserId: ctx.user.id });
     }),
   }),
 
