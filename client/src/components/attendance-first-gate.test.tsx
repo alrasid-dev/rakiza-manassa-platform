@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -17,7 +17,7 @@ vi.mock("@/lib/trpc", () => ({
     useUtils: () => ({ court: { attendance: { list: { invalidate: vi.fn() }, currentWindow: { invalidate: vi.fn() } } } }),
     court: {
       attendance: {
-        self: { useQuery: () => ({ data: { id: 12 } }) },
+        self: { useQuery: () => ({ data: { id: 12, attendanceMode: "remote" } }) },
         list: { useQuery: () => ({ data: [], isLoading: false }) },
         currentWindow: { useQuery: () => ({ data: { kind: "check_in", shiftName: "الوردية الأساسية" } }) },
         record: { useMutation: (options: typeof recordOptions.current) => { recordOptions.current = options; return { mutate: recordMutate, isPending: false }; } },
@@ -29,7 +29,7 @@ vi.mock("@/lib/trpc", () => ({
 
 import AttendanceFirstGate from "./AttendanceFirstGate";
 
-afterEach(() => { cleanup(); sessionStorage.clear(); recordMutate.mockReset(); checkoutMutate.mockReset(); toastError.mockReset(); recordOptions.current = null; checkoutOptions.current = null; });
+afterEach(() => { cleanup(); sessionStorage.clear(); localStorage.clear(); recordMutate.mockReset(); checkoutMutate.mockReset(); toastError.mockReset(); recordOptions.current = null; checkoutOptions.current = null; });
 
 describe("نافذة الحضور الأولى", () => {
   it("تعرض تسجيل الحضور داخل نافذة الوردية وتستدعي المسار الذاتي المرتبط بالملف", async () => {
@@ -42,5 +42,16 @@ describe("نافذة الحضور الأولى", () => {
     render(<AttendanceFirstGate onComplete={vi.fn()} />);
     recordOptions.current?.onError?.({ message: "نافذة الحضور مغلقة الآن." });
     expect(toastError).toHaveBeenCalledWith("نافذة الحضور مغلقة الآن.");
+  });
+  it("يعرض تأكيداً إلزامياً بعد تسجيل الحضور", async () => {
+    render(<AttendanceFirstGate onComplete={vi.fn()} />);
+    act(() => { recordOptions.current?.onSuccess?.(); });
+    expect(await screen.findByRole("button", { name: "تأكيد وإغلاق" })).toBeTruthy();
+  });
+  it("يحفظ التخطي عند تجاهل اليوم", () => {
+    render(<AttendanceFirstGate onComplete={vi.fn()} />);
+    const key = `rakiza:attendance:skip:${new Date().toLocaleDateString("en-CA")}`;
+    fireEvent.click(screen.getByRole("button", { name: "تجاهل اليوم" }));
+    expect(localStorage.getItem(key)).toBe("true");
   });
 });
