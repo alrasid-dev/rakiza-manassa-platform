@@ -98,6 +98,7 @@ import {
   listDelaysForUnits,
   listAttendance,
   listAttendanceForProfile,
+  getTodayAttendanceForProfile,
   listAttendanceForUnits,
   listActivityLog,
   logAudit,
@@ -1967,6 +1968,10 @@ export const courtRouter = router({
     self: protectedProcedure.query(async ({ ctx }) => {
       const { profile } = await requireSelfAttendanceProfile(ctx.user);
       return profile;
+    }),
+    today: protectedProcedure.query(async ({ ctx }) => {
+      const { profile } = await requireSelfAttendanceProfile(ctx.user);
+      return getTodayAttendanceForProfile(profile.id);
     }),
     currentWindow: protectedProcedure.query(async ({ ctx }) => {
       const { profile } = await requireSelfAttendanceProfile(ctx.user);

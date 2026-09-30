@@ -268,6 +268,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   const roles = trpc.court.myRoles.useQuery(undefined, { enabled: Boolean(user) || IS_PREVIEW_MODE });
   const notifications = trpc.court.notifications.listMine.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE });
   const currentProfile = trpc.court.people.self.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE });
+  const todayAttendance = (trpc.court as any).attendance?.today?.useQuery ? (trpc.court as any).attendance.today.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE }) : { data: null };
   const units = trpc.court.units.list.useQuery(undefined, { enabled: Boolean(user) || IS_PREVIEW_MODE });
   const { selectedUnitId, setSelectedUnitId } = useSelectedUnit();
   const internalMailProcedure = (trpc.court as any).internalMail?.folderCounts;
@@ -448,6 +449,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
                 <div className="min-w-0 text-right">
                   <p className="max-w-44 truncate text-xs font-bold text-[#284239]">{permission.data === "full_control" ? "مالك المنصة" : (user?.name || "وضع المعاينة")}</p>
                   <p className="mt-0.5 max-w-44 truncate text-[11px] text-[#77867d]">{user?.email || "بيانات مصدر مستوردة · معاينة"}</p>
+                  {(currentProfile.data as any)?.attendanceMode === "in_person" ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#718078]">🏢 حضور مكتبي</p> : <>{todayAttendance.data?.checkInAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#16834b]">✓ الحضور: {new Date(todayAttendance.data.checkInAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}{todayAttendance.data?.checkOutAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#16834b]">✓ الانصراف: {new Date(todayAttendance.data.checkOutAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}</>}
                   <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-[#718078]" title={formatLastSeen(currentProfile.data?.lastActiveAt)}>
                     <span className={`h-2 w-2 rounded-full ${displayedActivityState === "active" ? "bg-[#16834b]" : displayedActivityState === "chatting" ? "bg-[#b18448]" : "bg-[#b64d3d]"}`} aria-hidden="true" />
                     <span>{activityStateLabel(displayedActivityState)}</span>

@@ -3222,6 +3222,16 @@ export async function listAttendanceForProfile(profileId: number, date?: Date) {
   return db.select({ attendance: attendanceRecords, profileName: personProfiles.fullName, personType: personProfiles.personType }).from(attendanceRecords).innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId)).where(and(eq(attendanceRecords.profileId, profileId), gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end))).orderBy(desc(attendanceRecords.recordDate)).limit(200);
 }
 
+export async function getTodayAttendanceForProfile(profileId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const rows = await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, profileId), gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end))).orderBy(desc(attendanceRecords.recordDate)).limit(1);
+  return rows[0] ?? null;
+}
+
 export async function listRemoteAttendanceReport(input: { unitIds?: number[]; startAt?: Date; endAt?: Date }) {
   const db = await getDb();
   if (!db) return [];
