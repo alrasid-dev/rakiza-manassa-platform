@@ -2066,12 +2066,30 @@ export async function listGovernanceArchive(filters?: { entityType?: "task" | "d
 export async function listPersonalDisciplinaryActions(profileId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ approval: approvalRequests, taskTitle: tasks.title })
-    .from(approvalRequests)
-    .innerJoin(tasks, and(eq(tasks.id, approvalRequests.entityId), eq(tasks.assigneeProfileId, profileId)))
-    .where(eq(approvalRequests.entityType, "disciplinary_action"))
-    .orderBy(desc(approvalRequests.createdAt))
-    .limit(100);
+  const taskIds = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.assigneeProfileId, profileId));
+  const taskIdList = taskIds.map(t => t.id);
+
+  const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
+  if (taskIdList.length > 0) {
+    conditions.push(or(inArray(approvalRequests.entityId, taskIdList), eq(approvalRequests.entityId, profileId))!);
+  } else {
+    conditions.push(eq(approvalRequests.entityId, profileId));
+  }
+
+  const cases = await db.select().from(approvalRequests).where(and(...conditions)).orderBy(desc(approvalRequests.createdAt));
+
+  return Promise.all(cases.map(async (c) => {
+    let source = "task";
+    let sourceLabel = "";
+    if (c.entityId === profileId) {
+      source = "attendance";
+      sourceLabel = "مساءلة حضور";
+    } else {
+      const t = await db.select().from(tasks).where(eq(tasks.id, c.entityId)).limit(1);
+      if (t.length) sourceLabel = "مهمة: " + t[0].title;
+    }
+    return { ...c, source, sourceLabel };
+  }));
 }
 
 async function createTaskConversation(input: { db: any; taskId: number; title: string; creatorUserId: number; assigneeProfileId?: number; watcherProfileId?: number }) {
