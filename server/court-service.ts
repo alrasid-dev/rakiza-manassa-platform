@@ -3255,8 +3255,8 @@ export async function checkAttendanceWindow(now: Date, kind: "check_in" | "check
     }
     return { allowed: true as const, isLate: nowMin > shift.lateStartMinutes };
   }
-  if (nowMin < shift.actualEndMinutes - 5) {
-    return { allowed: false as const, reason: `لا يمكن تسجيل الانصراف قبل ${formatMinutesOfDay(shift.actualEndMinutes - 5)}.` };
+  if (nowMin < shift.actualEndMinutes) {
+    return { allowed: false as const, reason: `لا يمكن تسجيل الانصراف قبل ${formatMinutesOfDay(shift.actualEndMinutes)}.` };
   }
   if (nowMin > shift.fingerprintCloseMinutes) {
     return { allowed: false as const, reason: `انتهت نافذة تسجيل الانصراف (${formatMinutesOfDay(shift.fingerprintCloseMinutes)}).` };
@@ -3295,8 +3295,12 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   if (!existing) throw new Error("لا يوجد سجل حضور مفتوح لهذا اليوم؛ أكد بدء العمل أولاً.");
   if (existing.checkOutAt) throw new Error("تم تسجيل الانصراف لهذا السجل مسبقاً.");
   await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, penaltyMinutes: 0, compensationNote: null, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
-  // تسجيل الانصراف في الموعد (ضمن نافذة 14:15–14:59) → +1 نقطة وتصفير أي عقوبة سابقة.
-  await db.insert(scoreEvents).values({ profileId: input.profileId, points: 1, reason: "تسجيل الانصراف في الموعد", createdByUserId: input.actorUserId });
+  // +1 نقطة فقط إذا كان الانصراف ضمن 14:15–14:45 (قبل آخر خروج)؛ 14:45–14:59 بلا نقاط.
+  const [shift] = await db.select({ eveningCompensationDeadlineMinutes: workShifts.eveningCompensationDeadlineMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
+  const checkoutMinutes = riyadhMinutesOfDay(input.checkOutAt);
+  if (!shift || checkoutMinutes <= shift.eveningCompensationDeadlineMinutes) {
+    await db.insert(scoreEvents).values({ profileId: input.profileId, points: 1, reason: "تسجيل الانصراف في الموعد", createdByUserId: input.actorUserId });
+  }
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId } });
   await notifyPlatformOwnerSecurityAlert({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, details: { profileId: input.profileId } });
   return { success: true, attendanceId: existing.id };
@@ -3568,13 +3572,17 @@ export async function approveLateExcuse(input: { leaveRequestId: number; decisio
   )).limit(1))[0];
 
   if (record) {
-    await db.update(attendanceRecords).set({
-      checkOutAt: request.startAt,
+    const checkoutMinutes = riyadhMinutesOfDay(request.startAt);
+    const updateSet: Record<string, unknown> = {
       penaltyMinutes: 0,
       compensationNote: "تم قبول الاستئذان المتأخر",
-      status: "excused",
       updatedAt: new Date(),
-    }).where(eq(attendanceRecords.id, record.id));
+    };
+    if (checkoutMinutes <= 899) {
+      updateSet.checkOutAt = request.startAt;
+      updateSet.status = "excused";
+    }
+    await db.update(attendanceRecords).set(updateSet).where(eq(attendanceRecords.id, record.id));
 
     await db.insert(scoreEvents).values({
       profileId: request.profileId,
