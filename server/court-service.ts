@@ -3361,10 +3361,21 @@ export async function getTodayAttendanceForProfile(profileId: number) {
 export async function getPendingConfirmationAssignment(profileId: number) {
   const db = await getDb();
   if (!db) return null;
+
   const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-  const rows = await db.select().from(confirmationAssignments).where(and(eq(confirmationAssignments.profileId, profileId), eq(confirmationAssignments.status, "pending"), gte(confirmationAssignments.scheduledAt, start), lt(confirmationAssignments.scheduledAt, end), lte(confirmationAssignments.scheduledAt, now))).orderBy(asc(confirmationAssignments.scheduledAt)).limit(1);
+  const cutoff = new Date(now.getTime() - CONFIRMATION_WINDOW_MINUTES * 60000);
+
+  const rows = await db.select()
+    .from(confirmationAssignments)
+    .where(and(
+      eq(confirmationAssignments.profileId, profileId),
+      eq(confirmationAssignments.status, "pending"),
+      gte(confirmationAssignments.scheduledAt, cutoff),
+      lte(confirmationAssignments.scheduledAt, now)
+    ))
+    .orderBy(desc(confirmationAssignments.scheduledAt))
+    .limit(1);
+
   return rows[0] ?? null;
 }
 
@@ -3386,7 +3397,22 @@ export async function confirmAttendance(input: { assignmentId: number; profileId
 export async function forceGenerateConfirmation(profileId: number) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const result = await db.insert(confirmationAssignments).values({ profileId, scheduledAt: new Date(), status: "pending" });
+
+  // إلغاء أي تكليف pending قديم (تنظيف قبل الإنشاء)
+  await db.update(confirmationAssignments)
+    .set({ status: "missed" })
+    .where(and(
+      eq(confirmationAssignments.profileId, profileId),
+      eq(confirmationAssignments.status, "pending")
+    ));
+
+  // إنشاء تكليف جديد
+  const result = await db.insert(confirmationAssignments).values({
+    profileId,
+    scheduledAt: new Date(),
+    status: "pending"
+  });
+
   return { assignmentId: Number(result[0].insertId) };
 }
 

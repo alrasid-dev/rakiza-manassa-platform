@@ -45,7 +45,7 @@ export default function StatusWorkspaceContent() {
   // فالنافذة تظهر فقط عند وجود pending فعلي (أو عبر زر التجربة الذي ينشئه يدويًا للمالك).
   const pendingAssignment = pendingAssignmentApi?.useQuery ? pendingAssignmentApi.useQuery(undefined, { refetchInterval: 5_000, refetchOnMount: true, refetchOnWindowFocus: true, enabled: true, onSuccess: (data: unknown) => console.log("Pending assignment:", data) }) : { data: null, refetch: async () => undefined };
   const confirmAttendanceApi = (trpc.court.attendance as any).confirmAttendance;
-  const confirmAttendance = confirmAttendanceApi?.useMutation ? confirmAttendanceApi.useMutation({ onSuccess: () => { toast.success("تم تأكيد حضورك."); }, onError: (error: { message?: string }) => toast.error(error?.message || "تعذر التأكيد") }) : { mutate: (_input: unknown) => undefined, isPending: false };
+  const confirmAttendance = confirmAttendanceApi?.useMutation ? confirmAttendanceApi.useMutation({ onSuccess: () => { toast.success("تم تأكيد حضورك."); }, onError: (error: { message?: string }) => { const msg = error?.message || ""; if (/fetch|network/i.test(msg)) { toast.error("تعذر الاتصال بالخادم. تأكد أن الخادم يعمل (npm run dev)."); } else { toast.error(msg || "تعذر التأكيد"); } } }) : { mutate: (_input: unknown) => undefined, isPending: false };
   const confirmationSettingsApi = (trpc.court.attendance as any).confirmationSettings;
   const confirmationSettings = confirmationSettingsApi?.useQuery ? confirmationSettingsApi.useQuery(undefined, { enabled: canManageAttendancePolicy }) : { data: { globalEnabled: true, perDept: {} as Record<string, boolean> }, refetch: async () => undefined };
   const setGlobalConfirmationApi = (trpc.court.attendance as any).setGlobalConfirmation;
