@@ -580,6 +580,7 @@ export const attendanceRecords = mysqlTable("attendance_records", {
   compensationNote: text("compensationNote"),
   negativeMinutes: int("negativeMinutes").default(0).notNull(),
   excuseApplied: boolean("excuseApplied").default(false).notNull(),
+  positiveMinutes: int("positiveMinutes").default(0).notNull(),
   createdByUserId: int("createdByUserId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -604,6 +605,24 @@ export const systemConfigs = mysqlTable("system_configs", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
+
+export const monthlyBalances = mysqlTable("monthly_balances", {
+  id: int("id").autoincrement().primaryKey(),
+  profileId: int("profileId").notNull(),
+  hijriMonthKey: varchar("hijriMonthKey", { length: 10 }).notNull(),
+  positiveMinutes: int("positiveMinutes").default(0).notNull(),
+  negativeMinutes: int("negativeMinutes").default(0).notNull(),
+  excuseMinutes: int("excuseMinutes").default(0).notNull(),
+  netMinutes: int("netMinutes").default(0).notNull(),
+  isSettled: boolean("isSettled").default(false).notNull(),
+  settledAt: timestamp("settledAt"),
+  lastComputedAt: timestamp("lastComputedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [
+  uniqueIndex("monthly_balances_profile_month_unq").on(table.profileId, table.hijriMonthKey),
+  index("monthly_balances_month_idx").on(table.hijriMonthKey),
+]);
 
 export const leaveRequests = mysqlTable("leave_requests", {
   id: int("id").autoincrement().primaryKey(),
