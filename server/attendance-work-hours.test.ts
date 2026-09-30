@@ -1,36 +1,63 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("./db", () => ({
+  getDb: vi.fn(async () => ({
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [
+            {
+              fingerprintOpenMinutes: 420,
+              startMinutes: 450,
+              lateStartMinutes: 480,
+              morningCompensationDeadlineMinutes: 495,
+              endMinutes: 930,
+              actualEndMinutes: 930,
+              eveningCompensationDeadlineMinutes: 945,
+              fingerprintCloseMinutes: 960,
+            },
+          ],
+        }),
+      }),
+    }),
+  })),
+}));
+
 import { checkAttendanceWindow } from "./court-service";
 
-// التواريخ: 2026-09-27 أحد، 2026-09-25 جمعة، 2026-09-23 الأربعاء (اليوم الوطني)، 2026-03-19 خميس (رمضان)
-describe("checkAttendanceWindow (ساعات العمل الرسمية)", () => {
-  it("يرفض تسجيل الحضور قبل بداية الدوام بفترة سماح 15 دقيقة", () => {
+// التواريخ: 2026-09-27 أحد، 2026-09-25 جمعة، 2026-09-23 الأربعاء (اليوم الوطني)
+describe("checkAttendanceWindow (نافذة الوردية)", () => {
+  it("يرفض تسجيل الحضور قبل فتح البصمة (07:00)", async () => {
     const before = new Date("2026-09-27T03:30:00Z"); // 06:30 الرياض
-    expect(checkAttendanceWindow(before, "check_in").allowed).toBe(false);
+    expect((await checkAttendanceWindow(before, "check_in")).allowed).toBe(false);
   });
-  it("يقبل تسجيل الحضور في الوقت مع تمييز التأخير", () => {
+  it("يقبل تسجيل الحضور في النافذة مع تمييز التأخير", async () => {
     const onTime = new Date("2026-09-27T04:00:00Z"); // 07:00 الرياض
-    const late = new Date("2026-09-27T05:00:00Z"); // 08:00 الرياض
-    expect(checkAttendanceWindow(onTime, "check_in")).toMatchObject({ allowed: true, isLate: false });
-    expect(checkAttendanceWindow(late, "check_in")).toMatchObject({ allowed: true, isLate: true });
+    const late = new Date("2026-09-27T05:10:00Z"); // 08:10 الرياض
+    expect(await checkAttendanceWindow(onTime, "check_in")).toMatchObject({ allowed: true, isLate: false });
+    expect(await checkAttendanceWindow(late, "check_in")).toMatchObject({ allowed: true, isLate: true });
   });
-  it("يرفض التسجيل يوم الجمعة (عطلة)", () => {
+  it("يرفض تسجيل الحضور بعد آخر تعويض (08:15)", async () => {
+    const after = new Date("2026-09-27T05:20:00Z"); // 08:20 الرياض
+    expect((await checkAttendanceWindow(after, "check_in")).allowed).toBe(false);
+  });
+  it("يرفض التسجيل يوم الجمعة (عطلة)", async () => {
     const friday = new Date("2026-09-25T04:00:00Z");
-    expect(checkAttendanceWindow(friday, "check_in").allowed).toBe(false);
+    expect((await checkAttendanceWindow(friday, "check_in")).allowed).toBe(false);
   });
-  it("يرفض التسجيل يوم إجازة رسمية (اليوم الوطني)", () => {
-    const nationalDay = new Date("2026-09-23T04:00:00Z"); // الأربعاء
-    expect(checkAttendanceWindow(nationalDay, "check_in").allowed).toBe(false);
+  it("يرفض التسجيل يوم إجازة رسمية (اليوم الوطني)", async () => {
+    const nationalDay = new Date("2026-09-23T04:00:00Z");
+    expect((await checkAttendanceWindow(nationalDay, "check_in")).allowed).toBe(false);
   });
-  it("يرفض الانصراف قبل نهاية الدوام - 15 دقيقة", () => {
-    const early = new Date("2026-09-27T11:00:00Z"); // 14:00 الرياض
-    expect(checkAttendanceWindow(early, "check_out").allowed).toBe(false);
-    const after = new Date("2026-09-27T12:00:00Z"); // 15:00 الرياض
-    expect(checkAttendanceWindow(after, "check_out").allowed).toBe(true);
+  it("يرفض الانصراف قبل نهاية الدوام الفعلية - 5 دقائق", async () => {
+    const early = new Date("2026-09-27T12:20:00Z"); // 15:20 الرياض
+    expect((await checkAttendanceWindow(early, "check_out")).allowed).toBe(false);
   });
-  it("يطبّق ساعات رمضان (10:00 - 15:00)", () => {
-    const before = new Date("2026-03-19T06:30:00Z"); // 09:30 الرياض
-    expect(checkAttendanceWindow(before, "check_in").allowed).toBe(false);
-    const onTime = new Date("2026-03-19T07:00:00Z"); // 10:00 الرياض
-    expect(checkAttendanceWindow(onTime, "check_in").allowed).toBe(true);
+  it("يقبل الانصراف في النافذة ويرفض بعد غلق البصمة (16:00)", async () => {
+    const onTime = new Date("2026-09-27T12:30:00Z"); // 15:30 الرياض
+    expect((await checkAttendanceWindow(onTime, "check_out")).allowed).toBe(true);
+    const after = new Date("2026-09-27T13:10:00Z"); // 16:10 الرياض
+    expect((await checkAttendanceWindow(after, "check_out")).allowed).toBe(false);
   });
 });
+
