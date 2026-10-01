@@ -1225,7 +1225,7 @@ export const courtRouter = router({
       // الموظف الإداري يرى ملفه فقط؛ عرض ملفات الوحدة مخصص للمديرين أو الصلاحيات القيادية.
       return [profile];
     }),
-    setStatusByManager: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), newStatus: z.enum(["active", "on_leave", "inactive", "pending_review", "pending_start"]), reason: z.string().trim().min(10).max(2000), startDate: z.date().optional(), endDate: z.date().optional() })).mutation(async ({ ctx, input }) => {
+    setStatusByManager: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), newStatus: z.enum(["active", "on_leave", "inactive", "pending_review", "pending_start", "dormant"]), reason: z.string().trim().min(10).max(2000), startDate: z.date().optional(), endDate: z.date().optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
       const roles = await rolesForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
@@ -1276,7 +1276,7 @@ export const courtRouter = router({
       return listUnitRoster(input.unitId);
     }),
     create: protectedProcedure.input(z.object({
-      unitId: z.number().int().positive().optional(), personType: z.enum(["administrative", "trainee", "judge"]), fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), nationalId: z.string().trim().max(32).optional(), phone: z.string().trim().max(40).optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review", "pending_start"]), reason: z.string().trim().min(5).max(1000).optional(),
+      unitId: z.number().int().positive().optional(), personType: z.enum(["administrative", "trainee", "judge"]), fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), nationalId: z.string().trim().max(32).optional(), phone: z.string().trim().max(40).optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review", "pending_start", "dormant"]), reason: z.string().trim().min(5).max(1000).optional(),
     })).mutation(async ({ ctx, input }) => {
       const { roles } = await requireHumanResourcesOrLeadership(ctx.user);
       if (roles.includes("human_resources_manager") && input.personType !== "administrative") throw new TRPCError({ code: "FORBIDDEN", message: "صلاحية الموارد البشرية مخصصة لملفات الموظفين الإداريين فقط." });
@@ -1297,7 +1297,7 @@ export const courtRouter = router({
       await archiveProfile(input.profileId, ctx.user.id, input.reason);
       return { success: true };
     }),
-    update: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), unitId: z.number().int().positive().nullable().optional(), directManagerProfileId: z.number().int().positive().nullable().optional(), fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review", "pending_start"]), reason: z.string().trim().min(5).max(1000).optional() })).mutation(async ({ ctx, input }) => {
+    update: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), unitId: z.number().int().positive().nullable().optional(), directManagerProfileId: z.number().int().positive().nullable().optional(), fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review", "pending_start", "dormant"]), reason: z.string().trim().min(5).max(1000).optional() })).mutation(async ({ ctx, input }) => {
       const { roles } = await requireHumanResourcesOrLeadership(ctx.user);
       if (roles.includes("human_resources_manager") && !input.reason) throw new TRPCError({ code: "BAD_REQUEST", message: "يلزم بيان سبب تعديل بيانات الموظف أو دخوله." });
       if (input.status === "inactive" || input.unitId !== undefined) await requireAssetClearance(input.profileId);
@@ -1342,7 +1342,7 @@ export const courtRouter = router({
       await requireJudicialLeadershipAccess(ctx.user);
       return { id: await createJudgeWithAccount({ ...input, actorUserId: ctx.user.id }) };
     }),
-    update: protectedProcedure.input(z.object({ judgeId: z.number().int().positive(), fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review", "pending_start"]) })).mutation(async ({ ctx, input }) => {
+    update: protectedProcedure.input(z.object({ judgeId: z.number().int().positive(), fullName: z.string().trim().min(3).max(240), email: z.string().trim().email().max(320).refine(value => isOfficialMojEmail(value), "يجب أن يكون بريد الملف الرسمي من نطاق moj.gov.sa.").optional(), employeeNumber: z.string().trim().max(80).optional(), jobTitle: z.string().trim().max(180).optional(), judicialFormation: z.string().trim().max(180).optional(), attendanceMode: z.enum(["in_person", "remote", "mixed"]).optional(), status: z.enum(["active", "on_leave", "inactive", "pending_review", "pending_start", "dormant"]) })).mutation(async ({ ctx, input }) => {
       await requireJudicialLeadershipAccess(ctx.user);
       if (input.status === "inactive") await requireAssetClearance(input.judgeId);
       await updateJudgeProfile({ ...input, actorUserId: ctx.user.id });

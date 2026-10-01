@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Link } from "wouter";
 
 type PersonType = "administrative" | "trainee";
-type ProfileStatus = "active" | "on_leave" | "inactive" | "pending_review" | "pending_start";
+type ProfileStatus = "active" | "on_leave" | "inactive" | "pending_review" | "pending_start" | "dormant";
 type AttendanceMode = "in_person" | "remote" | "mixed";
 type Profile = {
   id: number;
@@ -29,7 +29,7 @@ type Profile = {
 type EditForm = { unitId: number | null; directManagerProfileId: number | null; fullName: string; email: string; employeeNumber: string; jobTitle: string; judicialFormation: string; attendanceMode: AttendanceMode; status: ProfileStatus; reason: string };
 
 const blankEdit: EditForm = { unitId: null, directManagerProfileId: null, fullName: "", email: "", employeeNumber: "", jobTitle: "", judicialFormation: "", attendanceMode: "in_person", status: "active", reason: "" };
-const statusLabels: Record<ProfileStatus, string> = { active: "نشط", on_leave: "في إجازة", inactive: "موقوف", pending_review: "قيد المراجعة", pending_start: "بانتظار البدء" };
+const statusLabels: Record<ProfileStatus, string> = { active: "نشط", on_leave: "في إجازة", inactive: "موقوف", pending_review: "قيد المراجعة", pending_start: "بانتظار البدء", dormant: "ساكن (بلا نشاط)" };
 const attendanceModeLabels: Record<AttendanceMode, string> = { in_person: "حضوري", remote: "عن بُعد", mixed: "هجين" };
 
 export default function PersonnelWorkspaceContent() {

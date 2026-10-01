@@ -14,6 +14,7 @@ const statusLabels: Record<string, string> = {
   inactive: "غير نشط",
   pending_review: "قيد المراجعة",
   archived: "مؤرشف",
+  dormant: "ساكن (بلا نشاط)",
 };
 
 export default function TeamStatusPage() {

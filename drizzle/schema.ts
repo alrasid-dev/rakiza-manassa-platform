@@ -150,7 +150,7 @@ export const personProfiles = mysqlTable("person_profiles", {
   attendanceMode: mysqlEnum("attendanceMode", ["in_person", "remote", "mixed"]),
   activityState: mysqlEnum("activityState", ["active", "chatting", "inactive"]).default("inactive").notNull(),
   lastActiveAt: timestamp("lastActiveAt"),
-  status: mysqlEnum("status", ["active", "on_leave", "inactive", "pending_review", "archived", "pending_start"]).default("active").notNull(),
+  status: mysqlEnum("status", ["active", "on_leave", "inactive", "pending_review", "archived", "pending_start", "dormant"]).default("dormant").notNull(),
   employmentStatus: varchar("employmentStatus", { length: 180 }),
   assignmentNote: text("assignmentNote"),
   sourceReference: varchar("sourceReference", { length: 240 }),

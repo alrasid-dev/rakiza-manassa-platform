@@ -4,7 +4,7 @@ export type WorkMode = "employee" | "manager";
 export type AttendancePeriod = "daily" | "weekly" | "monthly";
 export type NotificationFilter = "all" | "unread" | "tasks" | "mail" | "attendance" | "leave" | "escalation";
 export type DeadlineNudgeKind = "none" | "24h" | "12h";
-export type ProfileAssignmentStatus = "active" | "on_leave" | "inactive" | "pending_review" | "archived" | "pending_start";
+export type ProfileAssignmentStatus = "active" | "on_leave" | "inactive" | "pending_review" | "archived" | "pending_start" | "dormant";
 
 const ARABIC_DIACRITICS = /[\u064B-\u065F\u0670]/g;
 
