@@ -10,6 +10,7 @@ import { dateRangeForSaudiDay, isSaudiWorkday } from "../task-automation";
 import { isOfficialHoliday, workHoursFor } from "../holidays";
 import { MISSING_CHECKOUT_PENALTY_MINUTES, MISSING_CHECKOUT_PENALTY_POINTS } from "../court-service";
 import { CONFIRMATION_RANDOM_END_MINUTES, CONFIRMATION_RANDOM_START_MINUTES, CONFIRMATION_WINDOW_MINUTES, confirmationCadence, shouldConfirmOnWorkday } from "../confirmation-cadence";
+import { sendPushForNotification } from "../push-service";
 
 const ACTIVE_REMOTE_MODES = ["remote", "mixed"] as const;
 const SYSTEM_ACTOR_ID = 0;
@@ -393,9 +394,11 @@ export async function dispatchConfirmationAssignments(now = new Date()): Promise
       await db.insert(scoreEvents).values({ profileId: assignment.profileId, points: -1, reason: "التخلف عن تأكيد الحضور", createdByUserId: SYSTEM_ACTOR_ID });
       await db.insert(approvalRequests).values({ entityType: "disciplinary_action", entityId: assignment.profileId, requestedByUserId: SYSTEM_ACTOR_ID, currentRole: "human_resources_manager", requestNote: "التخلف عن تأكيد الحضور خلال النافذة المحددة" });
       await db.insert(notifications).values({ profileId: assignment.profileId, category: "attendance_confirmation", title: "فاتتك نافذة تأكيد الحضور", body: "انتهت نافذة تأكيد الحضور دون تأكيد، وسُجّلت مساءلة.", dedupeKey: `confirmation-missed-${assignment.id}` }).onDuplicateKeyUpdate({ set: { title: "فاتتك نافذة تأكيد الحضور" } });
+      try { await sendPushForNotification(assignment.profileId, { title: "فاتتك نافذة تأكيد الحضور", body: "انتهت نافذة تأكيد الحضور دون تأكيد، وسُجّلت مساءلة.", url: "/disciplinary", tag: `confirmation-missed-${assignment.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار تخلف تأكيد الحضور", { assignmentId: assignment.id, error }); }
       missed += 1;
     } else {
       const result = await db.insert(notifications).values({ profileId: assignment.profileId, category: "attendance_confirmation", title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن.", dedupeKey: `confirmation-request-${assignment.id}` }).onDuplicateKeyUpdate({ set: { title: "تأكيد الحضور" } });
+      try { await sendPushForNotification(assignment.profileId, { title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن خلال 20 دقيقة.", url: "/status", tag: `confirmation-request-${assignment.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار تأكيد الحضور", { assignmentId: assignment.id, error }); }
       if (Number(result[0].affectedRows) === 1) notified += 1;
     }
   }

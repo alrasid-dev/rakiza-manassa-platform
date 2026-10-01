@@ -4680,6 +4680,7 @@ export async function escalateOverdueTasks(now = new Date()) {
           if (task.assigneeProfileId) {
             await db.insert(scoreEvents).values({ profileId: task.assigneeProfileId, taskId: task.id, delayRecordId: existingDelay[0].id, points: newDelayScore(), reason: "إحالة إشرافية ومساءلة آلية بعد 12 ساعة", createdByUserId: SYSTEM_ACTOR_ID });
             await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "security_alert", title: "مساءلة آلية: مطلوب ردك", body: `سُجّلت مساءلة تلقائية عليك لاستمرار تعثر المهمة «${task.title}» بعد المهلة الإضافية. يرجى فتح صفحة «المساءلات» وتقديم ردك.`, dedupeKey: `task-supervisory-${task.assigneeProfileId}-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "مساءلة آلية: مطلوب ردك" } });
+            try { await sendPushForNotification(task.assigneeProfileId, { title: "مساءلة آلية: مطلوب ردك", body: `سُجّلت مساءلة تلقائية عليك لاستمرار تعثر المهمة «${task.title}». يرجى فتح صفحة «المساءلات» وتقديم ردك.`, url: "/disciplinary", tag: `task-supervisory-${task.assigneeProfileId}-${task.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار المساءلة", { taskId: task.id, error }); }
           }
           supervisoryReferrals += 1;
         }
