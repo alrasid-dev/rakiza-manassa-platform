@@ -3279,7 +3279,10 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
     }
   }
   const { autoClassify: _autoClassify, ...attendanceInput } = input;
-  await db.insert(attendanceRecords).values({ ...attendanceInput, status, checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, note: input.note ?? null, createdByUserId: input.actorUserId }).onDuplicateKeyUpdate({ set: { checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, status, note: input.note ?? null, createdByUserId: input.actorUserId, updatedAt: new Date() } });
+  // تطبيع recordDate إلى بداية اليوم UTC حتى يعمل الـ unique index (profileId, recordDate) فعلياً
+  // ويمنع تكرار سجلات نفس الموظف في نفس اليوم (كان يخزّن timestamp كاملاً بثوانٍ مختلفة فلا يلتقط التكرار).
+  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  await db.insert(attendanceRecords).values({ ...attendanceInput, recordDate: dayStart, status, checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, note: input.note ?? null, createdByUserId: input.actorUserId }).onDuplicateKeyUpdate({ set: { checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, status, note: input.note ?? null, createdByUserId: input.actorUserId, updatedAt: new Date() } });
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.recorded", entityType: "attendance", entityId: input.profileId, metadata: { status } });
   await notifyPlatformOwnerSecurityAlert({ actorUserId: input.actorUserId, action: "attendance.recorded", entityType: "attendance", entityId: input.profileId, details: { status } });
 }
