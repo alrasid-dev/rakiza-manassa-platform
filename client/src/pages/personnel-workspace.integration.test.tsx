@@ -27,6 +27,10 @@ vi.mock("@/lib/trpc", () => ({
         createDelegation: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
         updateDelegationStatus: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
       },
+      tasks: {
+        pauseAllForProfile: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
+        resumeAllForProfile: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
+      },
     },
   },
 }));
