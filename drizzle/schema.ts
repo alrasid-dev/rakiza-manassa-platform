@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   index,
   int,
   json,
@@ -165,6 +166,21 @@ export const personProfiles = mysqlTable("person_profiles", {
   index("person_profiles_type_idx").on(table.personType),
   index("person_profiles_user_idx").on(table.userId),
   index("idx_person_profiles_archived").on(table.status, table.archivedAt),
+]);
+
+export const attendanceModePeriods = mysqlTable("attendance_mode_periods", {
+  id: int("id").autoincrement().primaryKey(),
+  profileId: int("profileId").notNull(),
+  mode: mysqlEnum("mode", ["in_person", "remote", "mixed"]).notNull(),
+  startDate: date("startDate").notNull(),
+  endDate: date("endDate"),
+  reason: varchar("reason", { length: 200 }),
+  setByUserId: int("setByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => [
+  index("idx_amp_profile_dates").on(table.profileId, table.startDate, table.endDate),
+  index("idx_amp_active").on(table.profileId, table.endDate),
 ]);
 
 export const profileDelegations = mysqlTable("profile_delegations", {
