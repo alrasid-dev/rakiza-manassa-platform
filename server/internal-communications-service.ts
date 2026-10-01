@@ -23,7 +23,8 @@ import {
   notifications,
 } from "../drizzle/schema";
 import { getDb } from "./db";
-import { storageGetSignedUrl, storagePut } from "./storage";
+import { storageGetSignedUrl } from "./storage";
+import { TRPCError } from "@trpc/server";
 import { createTask, logAudit } from "./court-service";
 import { sendPushForNotification } from "./push-service";
 
@@ -220,10 +221,11 @@ function isPdfBytes(bytes: Buffer) {
 export function validateConversationAttachment(attachment: { mimeType: string; contentBase64: string }, allowGeneratedZip = false) {
   const bytes = Buffer.from(attachment.contentBase64, "base64");
   const normalizedMime = attachment.mimeType === "application/octet-stream" && isPdfBytes(bytes) ? "application/pdf" : attachment.mimeType;
-  if (!ALLOWED_ATTACHMENT_MIME.has(normalizedMime) || (normalizedMime === "application/zip" && !allowGeneratedZip)) throw new Error("نوع المرفق غير مسموح به.");
+  if (!ALLOWED_ATTACHMENT_MIME.has(normalizedMime) || (normalizedMime === "application/zip" && !allowGeneratedZip)) throw new TRPCError({ code: "BAD_REQUEST", message: "نوع المرفق غير مسموح به." });
   const maxBytes = normalizedMime === "application/zip" ? MAX_ZIP_ATTACHMENT_BYTES : MAX_ATTACHMENT_BYTES;
-  if (!bytes.byteLength || bytes.byteLength > maxBytes) throw new Error(normalizedMime === "application/zip" ? "حجم حزمة ZIP يتجاوز 32 ميجابايت." : "حجم المرفق يتجاوز 8 ميجابايت.");
-  if (normalizedMime === "application/pdf" && !isPdfBytes(bytes)) throw new Error("محتوى ملف PDF غير صالح.");
+  if (!bytes.byteLength) throw new TRPCError({ code: "BAD_REQUEST", message: "الملف فارغ." });
+  if (bytes.byteLength > maxBytes) throw new TRPCError({ code: "BAD_REQUEST", message: normalizedMime === "application/zip" ? "حجم حزمة ZIP يتجاوز 32 ميجابايت." : "حجم المرفق يتجاوز 8 ميجابايت." });
+  if (normalizedMime === "application/pdf" && !isPdfBytes(bytes)) throw new TRPCError({ code: "BAD_REQUEST", message: "محتوى ملف PDF غير صالح." });
   return bytes;
 }
 

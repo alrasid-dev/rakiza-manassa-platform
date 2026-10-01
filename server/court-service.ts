@@ -94,7 +94,7 @@ import {
 import { getDb } from "./db";
 import { canActOnApproval, canActOnManagerAssignmentApproval, nextApprovalRole, nextManagerAssignmentApprovalRole, type ApprovalRole, type ManagerAssignmentApprovalRole } from "./court-workflow";
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "crypto";
-import { attachmentUrl, storageGetSignedUrl, storagePut } from "./storage";
+import { attachmentUrl, storageGetSignedUrl } from "./storage";
 import { invokeLLM } from "./_core/llm";
 import { analyzeExcelImport, type ImportAnalysis } from "./import-validator";
 import { addDays, assessTransferReadiness, isDueWithinSevenDays } from "./trainee-readiness";
@@ -1542,7 +1542,15 @@ export async function getTaskById(taskId: number) {
 export async function listTaskAttachments(taskId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(taskAttachments).where(eq(taskAttachments.taskId, taskId)).orderBy(desc(taskAttachments.createdAt));
+  return db.select({ id: taskAttachments.id, taskId: taskAttachments.taskId, originalName: taskAttachments.originalName, mimeType: taskAttachments.mimeType, sizeBytes: taskAttachments.sizeBytes, storageUrl: taskAttachments.storageUrl, uploadedByProfileId: taskAttachments.uploadedByProfileId, createdAt: taskAttachments.createdAt }).from(taskAttachments).where(eq(taskAttachments.taskId, taskId)).orderBy(desc(taskAttachments.createdAt));
+}
+
+export async function getTaskAttachmentContent(attachmentId: number) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة." });
+  const attachment = (await db.select().from(taskAttachments).where(eq(taskAttachments.id, attachmentId)).limit(1))[0];
+  if (!attachment) throw new TRPCError({ code: "NOT_FOUND", message: "المرفق غير موجود." });
+  return { taskId: attachment.taskId, originalName: attachment.originalName, mimeType: attachment.mimeType, contentBase64: attachment.contentBase64 };
 }
 
 export async function listTaskTimeline(taskId: number) {

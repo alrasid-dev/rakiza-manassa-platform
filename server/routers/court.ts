@@ -9,6 +9,7 @@ import {
   acknowledgeTask,
   addCorrespondenceAttachment,
   addTaskAttachment,
+  getTaskAttachmentContent,
   addTaskCommentAndEscalate,
   addTaskComment,
   markTaskAsProcessed,
@@ -1562,6 +1563,16 @@ export const courtRouter = router({
         const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
         if (!profile || (!participates && !(await canAccessTask(ctx.user, task)))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إرفاق ملف بهذه المهمة." });
         return addTaskAttachment({ taskId: input.taskId, actorUserId: ctx.user.id, uploaderProfileId: profile.id, attachment: input.attachment });
+      }),
+      download: protectedProcedure.input(z.object({ attachmentId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+        await requirePermission(ctx.user, "view");
+        const content = await getTaskAttachmentContent(input.attachmentId);
+        const task = await getTaskById(content.taskId);
+        if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+        const profile = await getProfileForUser(ctx.user.id);
+        const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
+        if (!participates && !(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تنزيل هذا المرفق." });
+        return { originalName: content.originalName, mimeType: content.mimeType, contentBase64: content.contentBase64 };
       }),
       extractText: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), attachmentId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
         await requirePermission(ctx.user, "view");

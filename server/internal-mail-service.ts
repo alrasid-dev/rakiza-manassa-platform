@@ -4,7 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, like, lte, ne, or, sql } from
 import { internalMailAssistantActions, internalMailAttachments, internalMailContacts, internalMailEntries, internalMailMessages, internalMailPreferences, internalMailRecurringScheduleRuns, internalMailRecurringSchedules, internalMailRules, internalMailTemplates, personProfiles } from "../drizzle/schema";
 import { getDb } from "./db";
 import { getProfileForUser, logAudit } from "./court-service";
-import { attachmentUrl, storageGetSignedUrl, storagePut } from "./storage";
+import { attachmentUrl } from "./storage";
 import { validateConversationAttachment } from "./internal-communications-service";
 import { invokeLLM } from "./_core/llm";
 
