@@ -10,6 +10,7 @@ import { handleDailyTaskReminderSchedule, handleLeaveStatusRefreshSchedule, hand
 import { handleAttendanceConfirmationSchedule } from "../scheduled/attendance-confirmation";
 import { handleMonthlySettlementSchedule } from "../scheduled/monthly-settlement";
 import { handleInternalMailSchedule } from "../scheduled/internal-mail";
+import { handleSmartNotificationsSchedule } from "../scheduled/smart-notifications-cron";
 import { trpcMutationOriginGuard } from "./originGuard";
 import { securityHeaders } from "./securityHeaders";
 import { dataConnectionsStatus } from "./data-connections";
@@ -34,6 +35,7 @@ export function createExpressApp() {
   app.post("/api/scheduled/attendance-confirmation", handleAttendanceConfirmationSchedule);
   app.post("/api/scheduled/monthly-settlement", handleMonthlySettlementSchedule);
   app.post("/api/scheduled/internal-mail-dispatch", handleInternalMailSchedule);
+  app.post("/api/scheduled/smart-notifications", handleSmartNotificationsSchedule);
   app.use(
     "/api/trpc",
     trpcMutationOriginGuard,

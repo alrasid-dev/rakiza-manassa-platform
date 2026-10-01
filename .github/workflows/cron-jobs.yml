@@ -33,6 +33,7 @@ jobs:
             "trainee-due-soon"
             "trainee-excel-sync"
             "internal-mail-dispatch"
+            "smart-notifications"
           )
 
           for JOB in "${JOBS[@]}"; do
