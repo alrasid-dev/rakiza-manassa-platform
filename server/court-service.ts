@@ -3174,6 +3174,22 @@ export async function listPendingTaskApprovals(options: { unitIds?: number[]; su
   return result;
 }
 
+/** اعتماد/رفض مجمع لمجموعة اعتمادات، مع الاستمرار عند فشل بعضها. */
+export async function bulkReviewTaskApprovals(input: { approvalIds: number[]; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number }) {
+  let processed = 0;
+  let failed = 0;
+  for (const approvalId of input.approvalIds) {
+    try {
+      await reviewTaskApproval({ approvalId, decision: input.decision, note: input.note, reviewerProfileId: input.reviewerProfileId, reviewerUserId: input.reviewerUserId });
+      processed += 1;
+    } catch (error) {
+      failed += 1;
+      console.warn("[Approvals] فشل البت في الاعتماد المجمع", { approvalId, error: (error as Error)?.message ?? String(error) });
+    }
+  }
+  return { processed, failed };
+}
+
 /**
  * إلغاء مهمة مع حفظ سبب الإلغاء في عمود cancellationReason.
  */

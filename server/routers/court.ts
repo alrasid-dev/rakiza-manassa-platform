@@ -242,6 +242,7 @@ import {
   submitTaskForApproval,
   reviewTaskApproval,
   listPendingTaskApprovals,
+  bulkReviewTaskApprovals,
   requestOtpCode,
   verifyOtpCode,
   issueAuthActivationToken,
@@ -1541,6 +1542,16 @@ export const courtRouter = router({
       if (isLeadership) return listPendingTaskApprovals();
       const unitIds = await managedUnitIdsForUser(ctx.user);
       return listPendingTaskApprovals({ unitIds });
+    }),
+    bulkReviewApprovals: protectedProcedure.input(z.object({ approvalIds: z.array(z.number().int().positive()).min(1).max(100), decision: z.enum(["approved", "rejected"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      const roles = await rolesForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+      if (!isLeadership && !isManager) throw new TRPCError({ code: "FORBIDDEN", message: "الاعتماد المجمع متاح للمدير والقيادة فقط." });
+      const reviewer = await getProfileForUser(ctx.user.id);
+      const note = input.note?.trim() || (input.decision === "approved" ? "اعتماد مجمع" : "رفض مجمع");
+      return bulkReviewTaskApprovals({ approvalIds: input.approvalIds, decision: input.decision, note, reviewerProfileId: reviewer?.id ?? 0, reviewerUserId: ctx.user.id });
     }),
     cancel: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), cancellationReason: z.string().trim().min(3).max(2000) })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
