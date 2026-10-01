@@ -1763,6 +1763,22 @@ export async function getTaskAttachmentContent(attachmentId: number) {
   return { taskId: attachment.taskId, originalName: attachment.originalName, mimeType: attachment.mimeType, contentBase64: attachment.contentBase64 };
 }
 
+export async function getTaskAttachmentById(attachmentId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(taskAttachments).where(eq(taskAttachments.id, attachmentId)).limit(1))[0];
+}
+
+export async function deleteTaskAttachment(input: { attachmentId: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة." });
+  const attachment = (await db.select().from(taskAttachments).where(eq(taskAttachments.id, input.attachmentId)).limit(1))[0];
+  if (!attachment) throw new TRPCError({ code: "NOT_FOUND", message: "المرفق غير موجود." });
+  await db.delete(taskAttachments).where(eq(taskAttachments.id, input.attachmentId));
+  await logAudit({ actorUserId: input.actorUserId, action: "attachment.deleted", entityType: "task_attachment", entityId: input.attachmentId, metadata: { fileName: attachment.originalName, taskId: attachment.taskId } });
+  return { success: true as const };
+}
+
 export async function listTaskTimeline(taskId: number) {
   const db = await getDb();
   if (!db) return [];

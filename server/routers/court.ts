@@ -60,6 +60,8 @@ import {
   decideTaskExceptionRequest,
   listTaskExceptionRequestsForManager,
   listTaskAttachments,
+  getTaskAttachmentById,
+  deleteTaskAttachment,
   listTaskTimeline,
   listTaskRouteTargets,
   routeTaskToProfile,
@@ -1620,6 +1622,18 @@ export const courtRouter = router({
         const participates = profile && (task.assigneeProfileId === profile.id || task.watcherProfileId === profile.id);
         if (!participates && !(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تنزيل هذا المرفق." });
         return { originalName: content.originalName, mimeType: content.mimeType, contentBase64: content.contentBase64 };
+      }),
+      delete: protectedProcedure.input(z.object({ attachmentId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+        await requirePermission(ctx.user, "edit");
+        const attachment = await getTaskAttachmentById(input.attachmentId);
+        if (!attachment) throw new TRPCError({ code: "NOT_FOUND", message: "المرفق غير موجود." });
+        const task = await getTaskById(attachment.taskId);
+        const profile = await getProfileForUser(ctx.user.id);
+        const isUploader = profile?.id != null && profile.id === attachment.uploadedByProfileId;
+        const isOwner = profile?.id != null && task?.assigneeProfileId != null && profile.id === task.assigneeProfileId;
+        const canManage = task ? await canAccessTask(ctx.user, task) : false;
+        if (!isUploader && !isOwner && !canManage) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك حذف هذا المرفق." });
+        return deleteTaskAttachment({ attachmentId: input.attachmentId, actorUserId: ctx.user.id });
       }),
       extractText: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), attachmentId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
         await requirePermission(ctx.user, "view");
