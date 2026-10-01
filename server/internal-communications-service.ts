@@ -245,9 +245,7 @@ export async function packageConversationAttachments(input: { attachments: Array
 async function addConversationAttachment(input: { db: any; messageId: number; profileId: number; attachment: { originalName: string; mimeType: string; contentBase64: string }; allowGeneratedZip?: boolean }) {
   const bytes = validateConversationAttachment(input.attachment, input.allowGeneratedZip);
   const mimeType = input.attachment.mimeType === "application/octet-stream" && isPdfBytes(bytes) ? "application/pdf" : input.attachment.mimeType;
-  const safeName = input.attachment.originalName.replace(/[^a-zA-Z0-9\u0600-\u06FF._-]+/g, "_").slice(0, 120) || "attachment";
-  const stored = await storagePut(`internal-conversations/${input.messageId}/${Date.now()}-${safeName}`, bytes, mimeType);
-  await input.db.insert(conversationAttachments).values({ messageId: input.messageId, originalName: input.attachment.originalName.slice(0, 255), mimeType, sizeBytes: bytes.byteLength, storageKey: stored.key, storageUrl: stored.url, uploadedByProfileId: input.profileId });
+  await input.db.insert(conversationAttachments).values({ messageId: input.messageId, originalName: input.attachment.originalName.slice(0, 255), mimeType, sizeBytes: bytes.byteLength, contentBase64: input.attachment.contentBase64, storageKey: null, storageUrl: null, uploadedByProfileId: input.profileId });
 }
 
 export async function ensureGeneralConversation(db: any, profile: { id: number }) {
@@ -545,12 +543,11 @@ export async function buildUnitDataExport(input: { userId: number; jobId: number
       { name: "correspondence-recipients.json", content: JSON.stringify(correspondenceRows, null, 2) },
       { name: "correspondences.json", content: JSON.stringify(docs, null, 2) },
     ]);
-    const stored = await storagePut(`data-exports/${job.unitId ?? "platform"}/${job.id}-${Date.now()}.zip`, zipBuffer, "application/zip");
     const sizeBytes = Number(zipBuffer.byteLength);
-    await db.update(dataExportJobs).set({ status: "completed", storageKey: stored.key, storageUrl: stored.url, sizeBytes, completedAt: new Date() }).where(eq(dataExportJobs.id, job.id));
+    await db.update(dataExportJobs).set({ status: "completed", storageKey: null, storageUrl: null, contentBase64: zipBuffer.toString("base64"), sizeBytes, completedAt: new Date() }).where(eq(dataExportJobs.id, job.id));
     await db.execute(sql`UPDATE data_export_jobs SET sizeBytes = ${sizeBytes} WHERE id = ${job.id}`);
     await logAudit({ actorUserId: input.userId, action: "data_export.completed", entityType: "data_export_job", entityId: job.id, metadata: { unitId: job.unitId, sizeBytes } });
-    return { jobId: job.id, status: "completed", url: stored.url, sizeBytes };
+    return { jobId: job.id, status: "completed", url: null, sizeBytes };
   } catch (error) {
     const message = error instanceof Error ? error.message : "تعذر إنشاء حزمة البيانات.";
     await db.update(dataExportJobs).set({ status: "failed", errorMessage: message.slice(0, 500) }).where(eq(dataExportJobs.id, job.id));

@@ -94,7 +94,7 @@ import {
 import { getDb } from "./db";
 import { canActOnApproval, canActOnManagerAssignmentApproval, nextApprovalRole, nextManagerAssignmentApprovalRole, type ApprovalRole, type ManagerAssignmentApprovalRole } from "./court-workflow";
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "crypto";
-import { storageGetSignedUrl, storagePut } from "./storage";
+import { attachmentUrl, storageGetSignedUrl, storagePut } from "./storage";
 import { invokeLLM } from "./_core/llm";
 import { analyzeExcelImport, type ImportAnalysis } from "./import-validator";
 import { addDays, assessTransferReadiness, isDueWithinSevenDays } from "./trainee-readiness";
@@ -444,12 +444,10 @@ export async function createOperationalReport(input: { title: string; originalNa
   } else {
     summary = `حزمة ZIP محفوظة للمراجعة: ${originalName}. لا يستخرج النظام محتواها أو ينشئ مهاماً منها تلقائياً.`;
   }
-  const key = `operational-reports/${input.actorUserId}/${Date.now()}-${reportStorageFilename(originalName)}`;
-  const uploaded = await storagePut(key, content, input.mimeType);
   const reportPeriod = input.reportPeriod ?? "monthly";
-  const result = await db.insert(documentRecords).values({ documentType: "report", title: input.title, storageKey: uploaded.key, storageUrl: uploaded.url, originalName, mimeType: input.mimeType, summary, profileId: input.profileId, unitId: input.unitId ?? null, linkedTaskId: input.linkedTaskId ?? null, reviewStatus: "submitted", reportPeriod, createdByUserId: input.actorUserId });
+  const result = await db.insert(documentRecords).values({ documentType: "report", title: input.title, storageKey: null, storageUrl: null, contentBase64: content.toString("base64"), fileSizeBytes: content.byteLength, originalName, mimeType: input.mimeType, summary, profileId: input.profileId, unitId: input.unitId ?? null, linkedTaskId: input.linkedTaskId ?? null, reviewStatus: "submitted", reportPeriod, createdByUserId: input.actorUserId });
   const documentId = Number(result[0].insertId);
-  const signedUrl = input.mimeType === "application/pdf" ? await storageGetSignedUrl(uploaded.key) : null;
+  const signedUrl = null;
   const evaluationResult = await analyzeReportForEvaluation({ reportPeriod, mimeType: input.mimeType, text: extractedText || summary, signedUrl });
   await db.insert(performanceReportEvaluations).values({ documentId, analysisStatus: evaluationResult.analysis.analysisStatus, analysisSummary: evaluationResult.analysis.summary, findingsJson: JSON.stringify(evaluationResult.analysis.findings), extractedCompletedCount: evaluationResult.analysis.completedCount, extractedIssueCount: evaluationResult.analysis.issueCount, periodDays: evaluationResult.proposal.periodDays, normalizedDailyRateHundredths: evaluationResult.proposal.normalizedDailyRateHundredths, confidence: evaluationResult.analysis.confidence, suggestedPoints: evaluationResult.proposal.suggestedPoints, analyzedAt: new Date() });
   let taskId = input.linkedTaskId;
@@ -802,14 +800,14 @@ export async function createDepartmentDocument(input: { unitId: number; title: s
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const content = Buffer.from(input.contentBase64, "base64");
-  const safeName = input.originalName.replace(/[^a-zA-Z0-9\u0600-\u06FF._-]+/g, "_").slice(0, 160) || "document";
-  const key = `department-documents/${input.unitId}/${Date.now()}-${safeName}`;
-  const stored = await storagePut(key, content, input.mimeType);
+  const fileSizeBytes = content.byteLength;
   const result = await db.insert(documentRecords).values({
     documentType: "other",
     title: input.title.trim(),
-    storageKey: stored.key,
-    storageUrl: stored.url,
+    storageKey: null,
+    storageUrl: null,
+    contentBase64: input.contentBase64,
+    fileSizeBytes,
     originalName: input.originalName.slice(0, 255),
     mimeType: input.mimeType,
     unitId: input.unitId,
@@ -887,11 +885,8 @@ export async function createSupportTicket(input: { requesterProfileId: number; r
   }
   for (const attachment of input.attachments ?? []) {
     const bytes = Buffer.from(attachment.contentBase64, "base64");
-    if (bytes.byteLength > 2 * 1024 * 1024) throw new Error("حجم صورة التذكرة يتجاوز الحد المسموح به.");
-    const extension = attachment.mimeType === "image/png" ? "png" : attachment.mimeType === "image/webp" ? "webp" : "jpg";
-    const safeKey = `support-tickets/${ticketId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-    const stored = await storagePut(safeKey, bytes, attachment.mimeType);
-    await db.insert(supportTicketAttachments).values({ ticketId, originalName: attachment.originalName.slice(0, 255), mimeType: attachment.mimeType, storageKey: stored.key, storageUrl: stored.url, uploadedByProfileId: input.requesterProfileId });
+    if (bytes.byteLength > 2 * 1024 * 1024) throw new TRPCError({ code: "BAD_REQUEST", message: "حجم صورة التذكرة يتجاوز الحد المسموح به وهو 2 ميغابايت." });
+    await db.insert(supportTicketAttachments).values({ ticketId, originalName: attachment.originalName.slice(0, 255), mimeType: attachment.mimeType, contentBase64: attachment.contentBase64, fileSizeBytes: bytes.byteLength, storageKey: null, storageUrl: null, uploadedByProfileId: input.requesterProfileId });
   }
   await db.insert(notifications).values({ profileId: input.requesterProfileId, category: "support_ticket", title: `تم تسجيل تذكرة الدعم #${ticketId}`, body: assignee ? `أُسندت التذكرة إلى ${assignee.fullName} بمهلة معالجة 72 ساعة.` : "سُجلت التذكرة وتنتظر توفر موظف دعم لإسنادها.", dedupeKey: `support-ticket-created-${ticketId}` });
   await logAudit({ actorUserId: input.requesterUserId, action: "support_ticket.created", entityType: "support_ticket", entityId: ticketId, metadata: { assigneeProfileId: assignee?.id ?? null, attachments: input.attachments?.length ?? 0 } });
@@ -1582,21 +1577,20 @@ export async function addTaskAttachment(input: { taskId: number; actorUserId: nu
   const task = await getTaskById(input.taskId);
   if (!task || task.archivedAt) throw new Error("المهمة غير متاحة لإضافة مرفق.");
   const { bytes, mimeType } = validateTaskAttachment(input.attachment);
-  const safeName = input.attachment.originalName.replace(/[^a-zA-Z0-9\u0600-\u06FF._-]+/g, "_").slice(0, 120) || "task-attachment";
-  const stored = await storagePut(`tasks/${input.taskId}/${Date.now()}-${safeName}`, bytes, mimeType);
   const result = await db.insert(taskAttachments).values({
     taskId: input.taskId,
     originalName: input.attachment.originalName.trim().slice(0, 255),
     mimeType,
     sizeBytes: bytes.byteLength,
-    storageKey: stored.key,
-    storageUrl: stored.url,
+    contentBase64: input.attachment.contentBase64,
+    storageKey: null,
+    storageUrl: null,
     uploadedByProfileId: input.uploaderProfileId,
   });
   const attachmentId = Number(result[0].insertId);
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: `أضيف مرفق للمهمة: ${input.attachment.originalName.trim().slice(0, 255)}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.attachment_added", entityType: "task_attachment", entityId: attachmentId, metadata: { taskId: input.taskId, uploaderProfileId: input.uploaderProfileId, mimeType, sizeBytes: bytes.byteLength } });
-  return { id: attachmentId, originalName: input.attachment.originalName.trim().slice(0, 255), mimeType, sizeBytes: bytes.byteLength, storageUrl: stored.url };
+  return { id: attachmentId, originalName: input.attachment.originalName.trim().slice(0, 255), mimeType, sizeBytes: bytes.byteLength, storageUrl: null };
 }
 
 export async function extractTaskAttachmentText(input: { taskId: number; attachmentId: number; actorUserId: number }) {
@@ -1605,7 +1599,8 @@ export async function extractTaskAttachmentText(input: { taskId: number; attachm
   const attachment = (await db.select().from(taskAttachments).where(and(eq(taskAttachments.id, input.attachmentId), eq(taskAttachments.taskId, input.taskId))).limit(1))[0];
   if (!attachment) throw new Error("المرفق غير موجود ضمن هذه المهمة.");
   if (!["image/png", "image/jpeg", "application/pdf"].includes(attachment.mimeType)) throw new Error("استخراج النص متاح لصور PNG وJPEG وملفات PDF فقط.");
-  const signedUrl = await storageGetSignedUrl(attachment.storageKey);
+  const signedUrl = await attachmentUrl({ mimeType: attachment.mimeType, contentBase64: attachment.contentBase64, storageKey: attachment.storageKey });
+  if (!signedUrl) throw new Error("تعذر الوصول لمحتوى المرفق.");
   const source = attachment.mimeType === "application/pdf"
     ? { type: "file_url" as const, file_url: { url: signedUrl, mime_type: "application/pdf" as const } }
     : { type: "image_url" as const, image_url: { url: signedUrl, detail: "high" as const } };
@@ -2955,21 +2950,20 @@ export async function addCorrespondenceAttachment(input: { correspondenceId: num
   const correspondence = await getCorrespondenceById(input.correspondenceId);
   if (!correspondence || correspondence.status === "closed" || correspondence.status === "rejected") throw new Error("الطلب أو المراسلة غير متاح لإضافة مرفق.");
   const { bytes, mimeType } = validateTaskAttachment(input.attachment);
-  const safeName = input.attachment.originalName.replace(/[^a-zA-Z0-9\u0600-\u06FF._-]+/g, "_").slice(0, 120) || "correspondence-attachment";
-  const stored = await storagePut(`correspondence/${input.correspondenceId}/${Date.now()}-${safeName}`, bytes, mimeType);
   const result = await db.insert(correspondenceAttachments).values({
     correspondenceId: input.correspondenceId,
     originalName: input.attachment.originalName.trim().slice(0, 255),
     mimeType,
     sizeBytes: bytes.byteLength,
-    storageKey: stored.key,
-    storageUrl: stored.url,
+    contentBase64: input.attachment.contentBase64,
+    storageKey: null,
+    storageUrl: null,
     uploadedByProfileId: input.uploaderProfileId,
   });
   const attachmentId = Number(result[0].insertId);
   await db.insert(correspondenceActions).values({ correspondenceId: input.correspondenceId, actorUserId: input.actorUserId, action: "commented", note: `أضيف مرفق للطلب أو المراسلة: ${input.attachment.originalName.trim().slice(0, 255)}` });
   await logAudit({ actorUserId: input.actorUserId, action: "correspondence.attachment_added", entityType: "correspondence_attachment", entityId: attachmentId, metadata: { correspondenceId: input.correspondenceId, uploaderProfileId: input.uploaderProfileId, mimeType, sizeBytes: bytes.byteLength } });
-  return { id: attachmentId, originalName: input.attachment.originalName.trim().slice(0, 255), mimeType, sizeBytes: bytes.byteLength, storageUrl: stored.url };
+  return { id: attachmentId, originalName: input.attachment.originalName.trim().slice(0, 255), mimeType, sizeBytes: bytes.byteLength, storageUrl: null };
 }
 
 export async function listCorrespondences() {
@@ -3064,13 +3058,15 @@ async function awardTaskCompletionPoints(taskId: number, actorUserId: number) {
 export async function saveImportBatch(input: { filename: string; content: Buffer; analysis: ImportAnalysis; createdByUserId: number; createTasks?: boolean; source?: "manual_upload" | "teams_sync" }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const safeName = input.filename.replace(/[^a-zA-Z0-9\u0600-\u06FF._-]+/g, "_").slice(0, 120) || "import.xlsx";
-  const uploaded = await storagePut(`court-imports/${input.createdByUserId}/${Date.now()}-${safeName}`, input.content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  const fileSizeBytes = input.content.byteLength;
+  const contentBase64 = input.content.toString("base64");
   const result = await db.insert(importBatches).values({
     source: input.source ?? "manual_upload",
     filename: input.filename.slice(0, 255),
-    storageKey: uploaded.key,
-    storageUrl: uploaded.url,
+    contentBase64,
+    fileSizeBytes,
+    storageKey: null,
+    storageUrl: null,
     status: input.analysis.status,
     summary: JSON.stringify(input.analysis),
     createdByUserId: input.createdByUserId,
@@ -3078,7 +3074,7 @@ export async function saveImportBatch(input: { filename: string; content: Buffer
   const id = Number(result[0].insertId);
   const changeResult = input.createTasks ? await createTasksFromExcelChanges({ importBatchId: id, content: input.content, analysis: input.analysis }) : { createdChanges: 0, createdTasks: 0 };
   await logAudit({ actorUserId: input.createdByUserId, action: input.createTasks ? "import.uploaded_and_scheduled" : "import.uploaded_for_manual_review", entityType: "import_batch", entityId: id, metadata: { template: input.analysis.template, rowCount: input.analysis.rowCount, createTasks: Boolean(input.createTasks) } });
-  return { id, url: uploaded.url, analysis: input.analysis, ...changeResult };
+  return { id, url: null, analysis: input.analysis, ...changeResult };
 }
 
 async function createTasksFromExcelChanges(input: { importBatchId: number; content: Buffer; analysis: ImportAnalysis }) {
@@ -3135,12 +3131,10 @@ export async function addTaskProgressNote(input: { taskId: number; profileId: nu
     ? await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(and(inArray(personProfiles.id, mentionedProfileIds), eq(personProfiles.status, "active")))
     : [];
   if (mentionedProfiles.length !== mentionedProfileIds.length) throw new Error("تتضمن الإشارات ملف مستخدم غير نشط أو غير موجود.");
-  let storedAttachment: { originalName: string; mimeType: string; sizeBytes: number; storageKey: string; storageUrl: string } | null = null;
+  let storedAttachment: { originalName: string; mimeType: string; sizeBytes: number; contentBase64: string | null; storageKey: string | null; storageUrl: string | null } | null = null;
   if (input.attachment) {
     const { bytes, mimeType } = validateTaskAttachment(input.attachment);
-    const safeName = input.attachment.originalName.replace(/[^a-zA-Z0-9\u0600-\u06FF._-]+/g, "_").slice(0, 120) || "task-comment-attachment";
-    const stored = await storagePut(`tasks/${input.taskId}/updates/${Date.now()}-${safeName}`, bytes, mimeType);
-    storedAttachment = { originalName: input.attachment.originalName.trim().slice(0, 255), mimeType, sizeBytes: bytes.byteLength, storageKey: stored.key, storageUrl: stored.url };
+    storedAttachment = { originalName: input.attachment.originalName.trim().slice(0, 255), mimeType, sizeBytes: bytes.byteLength, contentBase64: input.attachment.contentBase64, storageKey: null, storageUrl: null };
   }
   const result = await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: input.note.trim() });
   const updateId = Number(result[0].insertId);

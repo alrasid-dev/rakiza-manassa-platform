@@ -95,3 +95,12 @@ export async function storageGetSignedUrl(relKey: string): Promise<string> {
   const { url } = (await resp.json()) as { url: string };
   return url;
 }
+
+/** يعيد رابط تحميل المرفق: data URL من contentBase64 (المخزن في DB) أو signed URL قديم إن وُجد. */
+export async function attachmentUrl(input: { mimeType: string; contentBase64?: string | null; storageKey?: string | null }): Promise<string | null> {
+  if (input.contentBase64) return `data:${input.mimeType};base64,${input.contentBase64}`;
+  if (input.storageKey) {
+    try { return await storageGetSignedUrl(input.storageKey); } catch { return null; }
+  }
+  return null;
+}

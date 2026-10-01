@@ -313,12 +313,10 @@ export async function analyzeWorkflowDocument(input: { userId: number; originalN
   const local = await workflowTextFromDocument({ originalName: input.originalName, mimeType, buffer: bytes });
   let documentPart: WorkflowLlmPart | null = null;
   if (local.method === "ocr") {
-    const safeName = input.originalName.replace(/[^\w.\-\u0600-\u06FF]/g, "_").slice(-120) || "document";
-    const stored = await storagePut(`workflow-maps/${input.userId}/${Date.now()}-${safeName}`, bytes, mimeType);
-    const signedUrl = await storageGetSignedUrl(stored.key);
+    const dataUrl = `data:${mimeType};base64,${input.contentBase64}`;
     documentPart = mimeType === "application/pdf"
-      ? { type: "file_url", file_url: { url: signedUrl, mime_type: "application/pdf" } }
-      : { type: "image_url", image_url: { url: signedUrl, detail: "high" } };
+      ? { type: "file_url", file_url: { url: dataUrl, mime_type: "application/pdf" } }
+      : { type: "image_url", image_url: { url: dataUrl, detail: "high" } };
   }
   const sourceText = local.text.slice(0, 30_000);
   const userContent: WorkflowLlmPart[] = [{ type: "text", text: sourceText ? `استخرج مخطط سير العمل من هذا النص:\n${sourceText}` : "استخرج مخطط سير العمل من هذا المستند." }];

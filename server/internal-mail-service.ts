@@ -4,7 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, like, lte, ne, or, sql } from
 import { internalMailAssistantActions, internalMailAttachments, internalMailContacts, internalMailEntries, internalMailMessages, internalMailPreferences, internalMailRecurringScheduleRuns, internalMailRecurringSchedules, internalMailRules, internalMailTemplates, personProfiles } from "../drizzle/schema";
 import { getDb } from "./db";
 import { getProfileForUser, logAudit } from "./court-service";
-import { storageGetSignedUrl, storagePut } from "./storage";
+import { attachmentUrl, storageGetSignedUrl, storagePut } from "./storage";
 import { validateConversationAttachment } from "./internal-communications-service";
 import { invokeLLM } from "./_core/llm";
 
@@ -521,13 +521,11 @@ export async function uploadInternalMailSignatureImage(input: { userId: number; 
   const bytes = Buffer.from(input.image.contentBase64, "base64");
   if (!bytes.byteLength || bytes.byteLength > 2_000_000) throw new Error("اختر صورة توقيع بحجم لا يتجاوز 2 ميجابايت.");
   if (!["image/png", "image/jpeg", "image/webp"].includes(input.image.mimeType)) throw new Error("يدعم توقيع البريد صور PNG وJPEG وWebP فقط.");
-  const safeName = input.image.originalName.replace(/[^a-zA-Z0-9\u0600-\u06FF._-]+/g, "_").slice(0, 120) || "signature-image";
-  const stored = await storagePut(`internal-mail-signatures/${profile.id}/${Date.now()}-${safeName}`, bytes, input.image.mimeType);
   const existing = (await db.select().from(internalMailPreferences).where(eq(internalMailPreferences.profileId, profile.id)).limit(1))[0];
-  if (existing) await db.update(internalMailPreferences).set({ signatureImageStorageKey: stored.key, signatureImageStorageUrl: stored.url }).where(eq(internalMailPreferences.id, existing.id));
-  else await db.insert(internalMailPreferences).values({ profileId: profile.id, signatureImageStorageKey: stored.key, signatureImageStorageUrl: stored.url });
+  if (existing) await db.update(internalMailPreferences).set({ signatureImageStorageKey: null, signatureImageStorageUrl: null, signatureImageContentBase64: input.image.contentBase64, signatureImageFileSizeBytes: bytes.byteLength }).where(eq(internalMailPreferences.id, existing.id));
+  else await db.insert(internalMailPreferences).values({ profileId: profile.id, signatureImageStorageKey: null, signatureImageStorageUrl: null, signatureImageContentBase64: input.image.contentBase64, signatureImageFileSizeBytes: bytes.byteLength });
   await logAudit({ actorUserId: input.userId, action: "internal_mail.signature_image.updated", entityType: "person_profile", entityId: profile.id, metadata: { mimeType: input.image.mimeType, sizeBytes: bytes.byteLength } });
-  return { url: stored.url };
+  return { url: null };
 }
 
 export async function updateInternalMailAssistantPreferences(input: { userId: number; mode: InternalMailAssistantMode; replyTone?: "formal" | "concise"; forwardProfileId?: number | null; subjectContains?: string | null; authorizationConfirmed?: boolean }) {
@@ -607,7 +605,7 @@ export async function getInternalMailMessage(input: { userId: number; messageId:
   const visibleTypes = entry.entry.recipientType === "sender" ? ["to", "cc", "bcc"] as const : ["to", "cc"] as const;
   const recipients = await db.select({ recipientType: internalMailEntries.recipientType, profileId: internalMailEntries.profileId, fullName: personProfiles.fullName, email: personProfiles.email }).from(internalMailEntries).innerJoin(personProfiles, eq(personProfiles.id, internalMailEntries.profileId)).where(and(eq(internalMailEntries.messageId, input.messageId), inArray(internalMailEntries.recipientType, visibleTypes)));
   const attachmentRows = await db.select().from(internalMailAttachments).where(eq(internalMailAttachments.messageId, input.messageId));
-  const attachments = await Promise.all(attachmentRows.map(async attachment => ({ id: attachment.id, originalName: attachment.originalName, mimeType: attachment.mimeType, sizeBytes: attachment.sizeBytes, url: await storageGetSignedUrl(attachment.storageKey) })));
+  const attachments = await Promise.all(attachmentRows.map(async attachment => ({ id: attachment.id, originalName: attachment.originalName, mimeType: attachment.mimeType, sizeBytes: attachment.sizeBytes, url: await attachmentUrl({ mimeType: attachment.mimeType, contentBase64: attachment.contentBase64, storageKey: attachment.storageKey }) })));
   const threadId = entry.message.threadId ?? entry.message.id;
   const thread = await db.select({ message: internalMailMessages, entry: internalMailEntries, senderName: personProfiles.fullName, senderJobTitle: personProfiles.jobTitle })
     .from(internalMailEntries)
@@ -658,9 +656,7 @@ export async function updateInternalMailEntry(input: { userId: number; messageId
 
 async function addInternalMailAttachment(input: { db: Awaited<ReturnType<typeof getDb>> & {}; messageId: number; profileId: number; attachment: MailAttachmentInput }) {
   const bytes = validateConversationAttachment(input.attachment);
-  const safeName = input.attachment.originalName.replace(/[^a-zA-Z0-9\u0600-\u06FF._-]+/g, "_").slice(0, 120) || "attachment";
-  const stored = await storagePut(`internal-mail/${input.messageId}/${Date.now()}-${safeName}`, bytes, input.attachment.mimeType);
-  await input.db.insert(internalMailAttachments).values({ messageId: input.messageId, originalName: input.attachment.originalName.slice(0, 255), mimeType: input.attachment.mimeType, sizeBytes: bytes.byteLength, storageKey: stored.key, storageUrl: stored.url, uploadedByProfileId: input.profileId });
+  await input.db.insert(internalMailAttachments).values({ messageId: input.messageId, originalName: input.attachment.originalName.slice(0, 255), mimeType: input.attachment.mimeType, sizeBytes: bytes.byteLength, contentBase64: input.attachment.contentBase64, storageKey: null, storageUrl: null, uploadedByProfileId: input.profileId });
 }
 
 export async function getInternalMailFolderCounts(userId: number) {
