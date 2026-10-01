@@ -2453,7 +2453,7 @@ export async function createTask(input: { title: string; unitId?: number; assign
   if (input.assigneeProfileId) {
     const assignee = (await db.select({ status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.assigneeProfileId)).limit(1))[0];
     const blocked = assignmentBlockReason(assignee?.status);
-    if (blocked) throw new Error(blocked);
+    if (blocked) throw new TRPCError({ code: "CONFLICT", message: blocked });
   }
   const { traineeCopyProfileId, specificDays, ...taskInput } = input;
   const specificDaysJson = input.recurrence === "specific_days" && specificDays && specificDays.length ? JSON.stringify(specificDays) : null;
@@ -2464,27 +2464,39 @@ export async function createTask(input: { title: string; unitId?: number; assign
     specificDays: specificDaysJson,
   });
   const id = Number(result[0].insertId);
-  if (input.recurrence && input.recurrence !== "none") {
-    const existingTemplate = (await db.select({ id: taskTemplates.id }).from(taskTemplates).where(and(eq(taskTemplates.title, input.title), input.unitId ? eq(taskTemplates.unitId, input.unitId) : isNull(taskTemplates.unitId))).limit(1))[0];
-    let templateId = existingTemplate?.id ?? null;
-    if (templateId) {
-      await db.update(taskTemplates).set({ frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, specificDays: specificDaysJson, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, updatedAt: new Date() }).where(eq(taskTemplates.id, templateId));
-    } else {
-      const templateResult = await db.insert(taskTemplates).values({ unitId: input.unitId ?? null, title: input.title, frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, specificDays: specificDaysJson, workdayOnly: true, dueHourLocal: input.dueAt ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", hour12: false }).format(new Date(input.dueAt))) : 13, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, createdByUserId: input.assignedByUserId });
-      templateId = Number(templateResult[0].insertId);
+  try {
+    if (input.recurrence && input.recurrence !== "none") {
+      const existingTemplate = (await db.select({ id: taskTemplates.id }).from(taskTemplates).where(and(eq(taskTemplates.title, input.title), input.unitId ? eq(taskTemplates.unitId, input.unitId) : isNull(taskTemplates.unitId))).limit(1))[0];
+      let templateId = existingTemplate?.id ?? null;
+      if (templateId) {
+        await db.update(taskTemplates).set({ frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, specificDays: specificDaysJson, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, updatedAt: new Date() }).where(eq(taskTemplates.id, templateId));
+      } else {
+        const templateResult = await db.insert(taskTemplates).values({ unitId: input.unitId ?? null, title: input.title, frequency: input.recurrence, intervalDays: input.recurrence === "custom" ? input.recurrenceInterval ?? 1 : null, specificDays: specificDaysJson, workdayOnly: true, dueHourLocal: input.dueAt ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", hour12: false }).format(new Date(input.dueAt))) : 13, defaultAssigneeProfileId: input.assigneeProfileId ?? null, isActive: true, createdByUserId: input.assignedByUserId });
+        templateId = Number(templateResult[0].insertId);
+      }
+      await db.update(tasks).set({ templateId }).where(eq(tasks.id, id));
     }
-    await db.update(tasks).set({ templateId }).where(eq(tasks.id, id));
+  } catch (error) {
+    console.warn("[Tasks] فشل مزامنة قالب التكرار دون تعطيل الإنشاء", { taskId: id, error });
   }
-  await createTaskConversation({ db, taskId: id, title: input.title, creatorUserId: input.assignedByUserId, assigneeProfileId: input.assigneeProfileId, watcherProfileId: input.watcherProfileId });
+  try {
+    await createTaskConversation({ db, taskId: id, title: input.title, creatorUserId: input.assignedByUserId, assigneeProfileId: input.assigneeProfileId, watcherProfileId: input.watcherProfileId });
+  } catch (error) {
+    console.warn("[Tasks] فشل إنشاء محادثة المهمة دون تعطيل الإنشاء", { taskId: id, error });
+  }
   for (const notification of taskAssignmentNotifications({ taskId: id, title: input.title, assigneeProfileId: input.assigneeProfileId, traineeCopyProfileId })) {
-    await db.insert(notifications).values(notification);
     try {
+      await db.insert(notifications).values(notification);
       await sendPushForNotification(notification.profileId, { title: notification.title, body: notification.body, url: `/tasks?taskId=${id}`, tag: notification.dedupeKey ?? `task-${id}` });
     } catch (error) {
       console.warn("[WebPush] فشل إرسال إشعار إسناد المهمة دون تعطيل الإنشاء", { taskId: id, error });
     }
   }
-  await logAudit({ actorUserId: input.assignedByUserId, action: "task.created", entityType: "task", entityId: id, metadata: { traineeCopyProfileId: traineeCopyProfileId ?? null } });
+  try {
+    await logAudit({ actorUserId: input.assignedByUserId, action: "task.created", entityType: "task", entityId: id, metadata: { traineeCopyProfileId: traineeCopyProfileId ?? null } });
+  } catch (error) {
+    console.warn("[Audit] فشل تسجيل أثر إنشاء المهمة دون تعطيل الإنشاء", { taskId: id, error });
+  }
   return id;
 }
 
@@ -2874,7 +2886,7 @@ export async function updateTaskStatus(input: { taskId: number; status: "new" | 
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
-  if (!task) throw new Error("المهمة المطلوبة غير موجودة.");
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
   await db.update(tasks).set({ status: input.status, completedAt: input.status === "completed" ? new Date() : null, completionNote: input.note ?? null }).where(eq(tasks.id, input.taskId));
   if (input.status === "completed" || input.status === "cancelled") await markTaskNotificationsRead(input.taskId);
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: input.note ?? `تم تغيير الحالة إلى ${input.status}` });
@@ -2909,7 +2921,7 @@ export async function updateTask(input: {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
-  if (!task) throw new Error("المهمة المطلوبة غير موجودة.");
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
 
   const patch: Partial<typeof tasks.$inferInsert> = {};
   if (input.title !== undefined) patch.title = input.title.trim();
@@ -2966,7 +2978,7 @@ export async function cancelTask(input: { taskId: number; actorUserId: number; c
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
-  if (!task) throw new Error("المهمة المطلوبة غير موجودة.");
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
   const reason = input.cancellationReason.trim();
   if (!reason) throw new Error("يجب كتابة سبب إلغاء المهمة.");
 
@@ -3004,7 +3016,7 @@ export async function markTaskAsProcessed(input: { taskId: number; actorUserId: 
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
-  if (!task) throw new Error("المهمة المطلوبة غير موجودة.");
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
   if (task.status === "cancelled") throw new Error("لا يمكن إتمام مهمة ملغاة.");
   if (task.status === "completed") throw new Error("المهمة مكتملة مسبقاً.");
   const completedAt = new Date();
