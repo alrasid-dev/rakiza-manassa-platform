@@ -1574,6 +1574,7 @@ export async function pauseTask(input: { taskId: number; actorUserId: number; re
     await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "تم إيقاف مهمة مؤقتاً", body: `أُوقفت مهمتك "${task.title}"${input.reason ? ` — السبب: ${input.reason}` : ""}${input.expiresAt ? ` حتى ${input.expiresAt.toLocaleDateString("ar-SA")}` : ""}.`, dedupeKey: `task-paused-${input.taskId}` });
   }
   await logAudit({ actorUserId: input.actorUserId, action: "task.paused", entityType: "task", entityId: input.taskId, metadata: { reason: input.reason ?? null, type: input.type ?? "temporary", expiresAt: input.expiresAt ?? null } });
+  if (task.assigneeProfileId) await notifyDirectManagerForPause(task.assigneeProfileId, input.actorUserId, "إيقاف مهمة", `أُوقفت مهمة "${task.title}"${input.reason ? ` — السبب: ${input.reason}` : ""}.`, `task-paused-manager-${input.taskId}`);
   return { success: true as const };
 }
 
@@ -1588,6 +1589,7 @@ export async function resumeTask(input: { taskId: number; actorUserId: number })
     await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "تم تفعيل مهمة موقوفة", body: `أُعيد تفعيل مهمتك "${task.title}".`, dedupeKey: `task-resumed-${input.taskId}` });
   }
   await logAudit({ actorUserId: input.actorUserId, action: "task.resumed", entityType: "task", entityId: input.taskId });
+  if (task.assigneeProfileId) await notifyDirectManagerForPause(task.assigneeProfileId, input.actorUserId, "تفعيل مهمة", `أُعيد تفعيل مهمة "${task.title}".`, `task-resumed-manager-${input.taskId}`);
   return { success: true as const };
 }
 
@@ -1598,6 +1600,7 @@ export async function pauseOpenTasksForProfile(input: { profileId: number; actor
   const count = Number(result[0]?.affectedRows ?? 0);
   await db.insert(notifications).values({ profileId: input.profileId, category: "task_due", title: "تم إيقاف مهامك مؤقتاً", body: `أُوقفت مهامك المفتوحة${input.reason ? ` — السبب: ${input.reason}` : ""}${input.expiresAt ? ` حتى ${input.expiresAt.toLocaleDateString("ar-SA")}` : ""}.`, dedupeKey: `task-paused-all-${input.profileId}-${Date.now()}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.pausedAll", entityType: "person_profile", entityId: input.profileId, metadata: { count, reason: input.reason ?? null, type: input.type ?? "temporary", expiresAt: input.expiresAt ?? null } });
+  await notifyDirectManagerForPause(input.profileId, input.actorUserId, "إيقاف مهام موظف", `أُوقفت المهام المفتوحة${input.reason ? ` — السبب: ${input.reason}` : ""}.`, `task-paused-all-manager-${input.profileId}-${Date.now()}`);
   return { count };
 }
 
@@ -1608,7 +1611,24 @@ export async function resumeOpenTasksForProfile(input: { profileId: number; acto
   const count = Number(result[0]?.affectedRows ?? 0);
   await db.insert(notifications).values({ profileId: input.profileId, category: "task_due", title: "تم تفعيل مهامك", body: "أُعيد تفعيل مهامك الموقوفة.", dedupeKey: `task-resumed-all-${input.profileId}-${Date.now()}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.resumedAll", entityType: "person_profile", entityId: input.profileId, metadata: { count } });
+  await notifyDirectManagerForPause(input.profileId, input.actorUserId, "تفعيل مهام موظف", "أُعيد تفعيل المهام الموقوفة.", `task-resumed-all-manager-${input.profileId}-${Date.now()}`);
   return { count };
+}
+
+/** يُرسل إشعاراً للمدير المباشر للموظف إن لم يكن هو المنفّذ نفسه. */
+async function notifyDirectManagerForPause(profileId: number, actorUserId: number, title: string, body: string, dedupeKey: string) {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    const target = (await db.select({ directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, profileId)).limit(1))[0];
+    const managerProfileId = target?.directManagerProfileId;
+    if (!managerProfileId) return;
+    const actorProfile = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, actorUserId)).limit(1))[0];
+    if (actorProfile && actorProfile.id === managerProfileId) return;
+    await db.insert(notifications).values({ profileId: managerProfileId, category: "security_alert", title, body, dedupeKey });
+  } catch {
+    /* تجاهل أخطاء الإشعار */
+  }
 }
 
 /** يفعّل تلقائياً المهام الموقوفة مؤقتاً التي انتهت مدة إيقافها. */
