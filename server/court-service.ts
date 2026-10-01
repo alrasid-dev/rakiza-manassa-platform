@@ -3238,6 +3238,10 @@ export function formatMinutesOfDay(minutes: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
+export function formatRiyadhTime(date: Date): string {
+  return new Intl.DateTimeFormat("ar-SA", { timeZone: "Asia/Riyadh", hour: "numeric", minute: "2-digit", hour12: true }).format(date);
+}
+
 /** يتحقق أن التسجيل يقع ضمن نافذة الوردية الافتراضية (قراءة من work_shifts). */
 export async function checkAttendanceWindow(now: Date, kind: "check_in" | "check_out") {
   if (!isSaudiWorkday(now)) return { allowed: false as const, reason: "اليوم يوم عطلة (الجمعة أو السبت)." };
@@ -3282,6 +3286,10 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
   // تطبيع recordDate إلى بداية اليوم UTC حتى يعمل الـ unique index (profileId, recordDate) فعلياً
   // ويمنع تكرار سجلات نفس الموظف في نفس اليوم (كان يخزّن timestamp كاملاً بثوانٍ مختلفة فلا يلتقط التكرار).
   const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
+  if (existing?.checkInAt) {
+    throw new TRPCError({ code: "CONFLICT", message: `تم تسجيل حضورك مسبقاً الساعة ${formatRiyadhTime(existing.checkInAt)}` });
+  }
   await db.insert(attendanceRecords).values({ ...attendanceInput, recordDate: dayStart, status, checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, note: input.note ?? null, createdByUserId: input.actorUserId }).onDuplicateKeyUpdate({ set: { checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, status, note: input.note ?? null, createdByUserId: input.actorUserId, updatedAt: new Date() } });
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.recorded", entityType: "attendance", entityId: input.profileId, metadata: { status } });
   await notifyPlatformOwnerSecurityAlert({ actorUserId: input.actorUserId, action: "attendance.recorded", entityType: "attendance", entityId: input.profileId, details: { status } });
@@ -3294,10 +3302,10 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   if (!window.allowed) throw new TRPCError({ code: "BAD_REQUEST", message: window.reason });
   const dayStart = new Date(Date.UTC(input.checkOutAt.getUTCFullYear(), input.checkOutAt.getUTCMonth(), input.checkOutAt.getUTCDate()));
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).orderBy(desc(attendanceRecords.recordDate)).limit(1))[0];
+  const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).orderBy(asc(attendanceRecords.id)).limit(1))[0];
   if (!existing) throw new Error("لا يوجد سجل حضور مفتوح لهذا اليوم؛ أكد بدء العمل أولاً.");
   if (!existing.checkInAt) throw new Error("لا يوجد بصمة دخول لهذا السجل.");
-  if (existing.checkOutAt) throw new Error("تم تسجيل الانصراف لهذا السجل مسبقاً.");
+  if (existing.checkOutAt) throw new TRPCError({ code: "CONFLICT", message: `تم تسجيل انصرافك مسبقاً الساعة ${formatRiyadhTime(existing.checkOutAt)}` });
 
   const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes, eveningCompensationDeadlineMinutes: workShifts.eveningCompensationDeadlineMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
 
