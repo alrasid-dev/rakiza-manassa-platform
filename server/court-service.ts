@@ -3129,6 +3129,15 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
   const approvalId = Number(result[0].insertId);
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "submitted", note: input.note ?? null });
   await logAudit({ actorUserId: input.actorUserId, action: "task.submitted_for_approval", entityType: "task_approval", entityId: approvalId, metadata: { taskId: input.taskId } });
+
+  // إشعار المدير المباشر بوجود مهمة بانتظار اعتماده.
+  const assignee = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, input.submittedByProfileId)).limit(1))[0];
+  if (assignee?.directManagerProfileId) {
+    const notification = { profileId: assignee.directManagerProfileId, category: "task_due" as const, title: "مهمة بانتظار اعتمادك", body: `${assignee.fullName}: ${task.title}`, dedupeKey: `task-approval-pending-${approvalId}` };
+    await db.insert(notifications).values(notification).onDuplicateKeyUpdate({ set: { title: "مهمة بانتظار اعتمادك" } });
+    try { await sendPushForNotification(assignee.directManagerProfileId, { title: "مهمة بانتظار اعتمادك", body: `${assignee.fullName}: ${task.title}`, url: "/tasks?tab=approvals", tag: notification.dedupeKey }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار اعتماد المهمة", { taskId: input.taskId, error }); }
+  }
+
   return approvalId;
 }
 
