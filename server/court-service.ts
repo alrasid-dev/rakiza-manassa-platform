@@ -1272,7 +1272,7 @@ export async function listProfilesForUnits(unitIds: number[], personType?: "admi
   return rows.map(row => ({ ...row.profile, unitName: row.unitName })).sort((a, b) => a.fullName.localeCompare(b.fullName, "ar"));
 }
 
-export async function createProfile(input: { unitId?: number; personType: "administrative" | "trainee" | "judge"; fullName: string; email?: string; nationalId?: string; phone?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review"; sourceReference?: string; reason?: string; actorUserId: number }) {
+export async function createProfile(input: { unitId?: number; personType: "administrative" | "trainee" | "judge"; fullName: string; email?: string; nationalId?: string; phone?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review" | "pending_start"; sourceReference?: string; reason?: string; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const [defaultShift] = await db.select({ id: workShifts.id }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
@@ -1405,7 +1405,7 @@ export async function archiveProfile(profileId: number, actorUserId: number, rea
   await logAudit({ actorUserId, action: "profile.archived", entityType: "person_profile", entityId: profileId, metadata: { reason: reason ?? null } });
 }
 
-export async function updateJudgeProfile(input: { judgeId: number; fullName: string; email?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review"; actorUserId: number }) {
+export async function updateJudgeProfile(input: { judgeId: number; fullName: string; email?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review" | "pending_start"; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const judge = (await db.select({ id: personProfiles.id }).from(personProfiles).where(and(eq(personProfiles.id, input.judgeId), eq(personProfiles.personType, "judge"))).limit(1))[0];
@@ -1422,7 +1422,7 @@ export async function updateJudgeProfile(input: { judgeId: number; fullName: str
   await logAudit({ actorUserId: input.actorUserId, action: "judge.updated", entityType: "person_profile", entityId: input.judgeId });
 }
 
-export async function updateOperationalProfile(input: { profileId: number; unitId?: number | null; directManagerProfileId?: number | null; fullName: string; email?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review"; reason?: string; actorUserId: number }) {
+export async function updateOperationalProfile(input: { profileId: number; unitId?: number | null; directManagerProfileId?: number | null; fullName: string; email?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review" | "pending_start"; reason?: string; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const profile = (await db.select({ id: personProfiles.id, unitId: personProfiles.unitId, directManagerProfileId: personProfiles.directManagerProfileId, status: personProfiles.status }).from(personProfiles).where(and(eq(personProfiles.id, input.profileId), inArray(personProfiles.personType, ["administrative", "trainee"]))).limit(1))[0];
@@ -1462,7 +1462,7 @@ export async function updateOperationalProfile(input: { profileId: number; unitI
 }
 
 /** يغيّر المدير/القيادة حالة الموظف مع سبب إلزامي، ويوقف أو يفعّل مهامه تلقائياً. */
-export async function setStatusByManager(input: { profileId: number; newStatus: "active" | "on_leave" | "inactive" | "pending_review"; reason: string; actorUserId: number; startDate?: Date; endDate?: Date }) {
+export async function setStatusByManager(input: { profileId: number; newStatus: "active" | "on_leave" | "inactive" | "pending_review" | "pending_start"; reason: string; actorUserId: number; startDate?: Date; endDate?: Date }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const profile = (await db.select({ id: personProfiles.id, status: personProfiles.status, fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
