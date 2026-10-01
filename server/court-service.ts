@@ -4250,7 +4250,7 @@ export async function listRemoteAttendanceReport(input: { unitIds?: number[]; st
   if (input.unitIds?.length) conditions.push(inArray(personProfiles.unitId, input.unitIds));
   if (input.startAt) conditions.push(gte(attendanceRecords.recordDate, input.startAt));
   if (input.endAt) conditions.push(lt(attendanceRecords.recordDate, input.endAt));
-  return db.select({ attendance: attendanceRecords, profileId: personProfiles.id, profileName: personProfiles.fullName, personType: personProfiles.personType, attendanceMode: personProfiles.attendanceMode, unitId: personProfiles.unitId }).from(attendanceRecords).innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId)).where(and(...conditions)).orderBy(desc(attendanceRecords.recordDate)).limit(1000);
+  return db.select({ attendance: attendanceRecords, profileId: personProfiles.id, profileName: personProfiles.fullName, personType: personProfiles.personType, attendanceMode: personProfiles.attendanceMode, unitId: personProfiles.unitId, unitName: organizationUnits.name }).from(attendanceRecords).innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId)).leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId)).where(and(...conditions)).orderBy(desc(attendanceRecords.recordDate)).limit(1000);
 }
 
 export async function getMyPermissionUsage(profileId: number) {
