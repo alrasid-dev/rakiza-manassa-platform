@@ -1603,6 +1603,21 @@ export async function resumeOpenTasksForProfile(input: { profileId: number; acto
   return { count };
 }
 
+/** يفعّل تلقائياً المهام الموقوفة مؤقتاً التي انتهت مدة إيقافها. */
+export async function autoResumeExpiredPausedTasks(now = new Date()) {
+  const db = await getDb();
+  if (!db) return { resumed: 0 };
+  const expired = await db.select().from(tasks).where(and(eq(tasks.status, "paused"), isNotNull(tasks.pauseExpiresAt), lte(tasks.pauseExpiresAt, now)));
+  for (const task of expired) {
+    await db.update(tasks).set({ status: "in_progress", pausedAt: null, pausedReason: null, pauseExpiresAt: null, pauseType: null, updatedAt: new Date() }).where(eq(tasks.id, task.id));
+    await logAudit({ actorUserId: task.pausedByUserId ?? undefined, action: "task.auto_resumed", entityType: "task", entityId: task.id, metadata: { reason: "expired" } });
+    if (task.assigneeProfileId) {
+      await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "تم تفعيل مهمة موقوفة تلقائياً", body: `انتهت مدة الإيقاف المؤقت للمهمة: ${task.title} وتم تفعيلها تلقائياً.`, dedupeKey: `task-auto-resumed-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "تم تفعيل مهمة موقوفة تلقائياً" } });
+    }
+  }
+  return { resumed: expired.length };
+}
+
 export async function listTaskAttachments(taskId: number) {
   const db = await getDb();
   if (!db) return [];

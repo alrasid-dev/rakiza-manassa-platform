@@ -34,6 +34,7 @@ jobs:
             "trainee-excel-sync"
             "internal-mail-dispatch"
             "smart-notifications"
+            "auto-resume-tasks"
           )
 
           for JOB in "${JOBS[@]}"; do
