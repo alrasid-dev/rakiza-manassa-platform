@@ -609,6 +609,7 @@ export const systemConfigs = mysqlTable("system_configs", {
   id: int("id").autoincrement().primaryKey(),
   confirmationEnabledGlobal: boolean("confirmationEnabledGlobal").default(true).notNull(),
   confirmationEnabledPerDept: json("confirmationEnabledPerDept").$type<Record<string, boolean>>(),
+  confirmationAudienceUnitIds: json("confirmationAudienceUnitIds").$type<number[]>(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

@@ -4046,9 +4046,9 @@ export async function confirmAttendance(input: { assignmentId: number; profileId
 /** قراءة إعدادات نظام تأكيد الحضور (عام + لكل قسم). */
 export async function getConfirmationSettingsService() {
   const db = await getDb();
-  if (!db) return { globalEnabled: true, perDept: {} as Record<string, boolean> };
+  if (!db) return { globalEnabled: true, perDept: {} as Record<string, boolean>, audienceUnitIds: [] as number[] };
   const [row] = await db.select().from(systemConfigs).limit(1);
-  return { globalEnabled: row?.confirmationEnabledGlobal ?? true, perDept: (row?.confirmationEnabledPerDept ?? {}) as Record<string, boolean> };
+  return { globalEnabled: row?.confirmationEnabledGlobal ?? true, perDept: (row?.confirmationEnabledPerDept ?? {}) as Record<string, boolean>, audienceUnitIds: (row?.confirmationAudienceUnitIds ?? []) as number[] };
 }
 
 /** تفعيل/إيقاف نظام التأكيد عاماً. */
@@ -4075,6 +4075,19 @@ export async function setDepartmentConfirmation(unitId: number, enabled: boolean
     await db.update(systemConfigs).set({ confirmationEnabledPerDept: current, updatedAt: new Date() }).where(eq(systemConfigs.id, row.id));
   } else {
     await db.insert(systemConfigs).values({ confirmationEnabledGlobal: true, confirmationEnabledPerDept: current });
+  }
+  return getConfirmationSettingsService();
+}
+
+/** تعيين قائمة أقسام مسموح لها بتأكيد الحضور (allowlist). */
+export async function setConfirmationAudienceUnitIds(unitIds: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [row] = await db.select().from(systemConfigs).limit(1);
+  if (row) {
+    await db.update(systemConfigs).set({ confirmationAudienceUnitIds: unitIds, updatedAt: new Date() }).where(eq(systemConfigs.id, row.id));
+  } else {
+    await db.insert(systemConfigs).values({ confirmationEnabledGlobal: true, confirmationEnabledPerDept: {}, confirmationAudienceUnitIds: unitIds });
   }
   return getConfirmationSettingsService();
 }

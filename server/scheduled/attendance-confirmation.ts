@@ -302,9 +302,9 @@ async function getExcludedProfileIds(): Promise<Set<number>> {
 
 async function getConfirmationSettings() {
   const db = await getDb();
-  if (!db) return { globalEnabled: true, perDept: {} as Record<string, boolean> };
+  if (!db) return { globalEnabled: true, perDept: {} as Record<string, boolean>, audienceUnitIds: [] as number[] };
   const [row] = await db.select().from(systemConfigs).limit(1);
-  return { globalEnabled: row?.confirmationEnabledGlobal ?? true, perDept: (row?.confirmationEnabledPerDept ?? {}) as Record<string, boolean> };
+  return { globalEnabled: row?.confirmationEnabledGlobal ?? true, perDept: (row?.confirmationEnabledPerDept ?? {}) as Record<string, boolean>, audienceUnitIds: (row?.confirmationAudienceUnitIds ?? []) as number[] };
 }
 
 /** عدد أيام العمل المتواصلة المنجزة (done) — عند أي تخلف (missed) يتوقف العد. */
@@ -358,12 +358,17 @@ export async function generateConfirmationAssignments(now = new Date()): Promise
   const excluded = await getExcludedProfileIds();
   const weekday = riyadhWeekday(now);
   const profiles = await db.select().from(personProfiles).where(eq(personProfiles.status, "active"));
+  const allowlist = settings.audienceUnitIds?.length ? new Set(settings.audienceUnitIds) : null;
 
   let generated = 0;
   for (const profile of profiles) {
     if (excluded.has(profile.id)) continue;
     if (profile.attendanceMode === "in_person") continue;
-    if (profile.unitId != null && settings.perDept[String(profile.unitId)] === false) continue;
+    if (allowlist) {
+      if (profile.unitId == null || !allowlist.has(profile.unitId)) continue;
+    } else if (profile.unitId != null && settings.perDept[String(profile.unitId)] === false) {
+      continue;
+    }
     const consecutive = await consecutiveDoneWorkdays(profile.id, now);
     const cadence = confirmationCadence(consecutive);
     const daysSinceLastDone = await daysSinceLastDoneFor(profile.id, now);
