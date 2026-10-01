@@ -84,6 +84,7 @@ import {
   taskUpdateAttachments,
   taskUpdateMentions,
   taskExceptionRequests,
+  taskModificationRequests,
   taskTemplates,
   taskUpdates,
   traineeAssignments,
@@ -2990,6 +2991,88 @@ export async function updateTask(input: {
   await logAudit({ actorUserId: input.actorUserId, action: "task.updated", entityType: "task", entityId: input.taskId, metadata: { fields: Object.keys(patch) } });
 
   return getTaskById(input.taskId);
+}
+
+/** الحقول القابلة للتعديل عبر طلب تعديل المهمة. */
+export interface TaskModificationProposedChanges {
+  title?: string;
+  taskNotes?: string | null;
+  priority?: "normal" | "high" | "critical";
+  scheduledFor?: Date;
+  dueAt?: Date;
+}
+
+/** يقدم الموظف طلب تعديل مهمة بدل التعديل المباشر؛ يُعرض على المدير للبت فيه. */
+export async function createTaskModificationRequest(input: { taskId: number; requestedByProfileId: number; proposedChanges: TaskModificationProposedChanges; reason: string; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+  if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لا يمكن طلب تعديل مهمة مكتملة أو ملغاة." });
+  if (task.assigneeProfileId !== input.requestedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "طلب التعديل متاح للمكلف الحالي بالمهمة فقط." });
+  const proposed = input.proposedChanges ?? {};
+  if (Object.keys(proposed).length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "حدد تعديلاً واحداً على الأقل." });
+  const currentData = { title: task.title, taskNotes: task.taskNotes, priority: task.priority, scheduledFor: task.scheduledFor, dueAt: task.dueAt };
+  const existing = await db.select({ id: taskModificationRequests.id }).from(taskModificationRequests).where(and(eq(taskModificationRequests.taskId, input.taskId), eq(taskModificationRequests.status, "pending"))).limit(1);
+  if (existing[0]) throw new TRPCError({ code: "CONFLICT", message: "يوجد طلب تعديل معلق لهذه المهمة بانتظار قرار المدير." });
+  const proposedData = {
+    title: proposed.title,
+    taskNotes: proposed.taskNotes ?? null,
+    priority: proposed.priority,
+    scheduledFor: proposed.scheduledFor ? proposed.scheduledFor.toISOString() : undefined,
+    dueAt: proposed.dueAt ? proposed.dueAt.toISOString() : undefined,
+  };
+  const result = await db.insert(taskModificationRequests).values({ taskId: input.taskId, requestedByProfileId: input.requestedByProfileId, currentData, proposedData, reason: input.reason.trim() });
+  const requestId = Number(result[0].insertId);
+  await logAudit({ actorUserId: input.actorUserId, action: "task.modification_requested", entityType: "task_modification_request", entityId: requestId, metadata: { taskId: input.taskId, requestedByProfileId: input.requestedByProfileId } });
+  return requestId;
+}
+
+/** يوافق المدير على طلب تعديل المهمة فيُطبَّق التعديل، أو يرفضه. */
+export async function reviewTaskModification(input: { requestId: number; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const request = (await db.select().from(taskModificationRequests).where(eq(taskModificationRequests.id, input.requestId)).limit(1))[0];
+  if (!request) throw new TRPCError({ code: "NOT_FOUND", message: "طلب التعديل غير موجود." });
+  if (request.status !== "pending") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "تم البت في هذا الطلب مسبقاً." });
+  const task = await getTaskById(request.taskId);
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المرتبطة غير موجودة." });
+  if (input.decision === "approved" && task.status !== "completed" && task.status !== "cancelled") {
+    const proposed = (request.proposedData ?? {}) as TaskModificationProposedChanges & { scheduledFor?: string; dueAt?: string };
+    await updateTask({
+      taskId: request.taskId,
+      actorUserId: input.reviewerUserId,
+      title: proposed.title,
+      taskNotes: proposed.taskNotes ?? null,
+      priority: proposed.priority,
+      scheduledFor: proposed.scheduledFor ? new Date(proposed.scheduledFor) : undefined,
+      dueAt: proposed.dueAt ? new Date(proposed.dueAt) : undefined,
+    });
+  }
+  await db.update(taskModificationRequests).set({ status: input.decision, reviewedByProfileId: input.reviewerProfileId, reviewedAt: new Date(), reviewNote: input.note.trim() }).where(eq(taskModificationRequests.id, request.id));
+  await db.insert(taskUpdates).values({ taskId: request.taskId, actorUserId: input.reviewerUserId, updateType: "approved", note: `طلب تعديل المهمة ${input.decision === "approved" ? "معتمد" : "مرفوض"}. ${input.note.trim()}` });
+  await logAudit({ actorUserId: input.reviewerUserId, action: `task.modification_${input.decision}`, entityType: "task_modification_request", entityId: request.id, metadata: { taskId: request.taskId } });
+  return { success: true, requestId: request.id };
+}
+
+/** قائمة طلبات تعديل المهام (مُثراة باسم المهمة ومقدم الطلب) مع إمكانية التصفية. */
+export async function listTaskModificationRequests(options: { status?: "pending" | "approved" | "rejected"; requesterProfileId?: number; unitIds?: number[] } = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conds = [];
+  if (options.status) conds.push(eq(taskModificationRequests.status, options.status));
+  if (options.requesterProfileId) conds.push(eq(taskModificationRequests.requestedByProfileId, options.requesterProfileId));
+  const requests = await db.select().from(taskModificationRequests).where(conds.length ? and(...conds) : undefined).orderBy(desc(taskModificationRequests.createdAt)).limit(200);
+  if (!requests.length) return [];
+  const taskIds = requests.map(r => r.taskId);
+  const taskRows = await db.select({ id: tasks.id, title: tasks.title, unitId: tasks.unitId, status: tasks.status }).from(tasks).where(inArray(tasks.id, taskIds));
+  const taskMap = new Map(taskRows.map(t => [t.id, t]));
+  const requesterIds = [...new Set(requests.map(r => r.requestedByProfileId))];
+  const requesterRows = await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(inArray(personProfiles.id, requesterIds));
+  const requesterMap = new Map(requesterRows.map(p => [p.id, p.fullName]));
+  let result = requests.map(r => ({ request: r, task: taskMap.get(r.taskId) ?? null, requesterName: requesterMap.get(r.requestedByProfileId) ?? null }));
+  if (options.unitIds?.length) result = result.filter(item => item.task && item.task.unitId !== null && options.unitIds!.includes(item.task.unitId));
+  return result;
 }
 
 /**

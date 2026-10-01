@@ -828,6 +828,24 @@ export const taskExceptionRequests = mysqlTable("task_exception_requests", {
   index("task_exception_requests_requester_status_idx").on(table.requesterProfileId, table.status),
 ]);
 
+/** طلبات تعديل مهمة يقدمها الموظف ويعتمدها المدير بدل التعديل المباشر. */
+export const taskModificationRequests = mysqlTable("task_modification_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  requestedByProfileId: int("requestedByProfileId").notNull(),
+  currentData: json("currentData"),
+  proposedData: json("proposedData"),
+  reason: text("reason").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  reviewedByProfileId: int("reviewedByProfileId"),
+  reviewedAt: timestamp("reviewedAt"),
+  reviewNote: text("reviewNote"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => [
+  index("task_modification_requests_task_status_idx").on(table.taskId, table.status),
+  index("task_modification_requests_requester_idx").on(table.requestedByProfileId, table.status),
+]);
+
 export const delayRecords = mysqlTable("delay_records", {
   id: int("id").autoincrement().primaryKey(),
   unitId: int("unitId"),
