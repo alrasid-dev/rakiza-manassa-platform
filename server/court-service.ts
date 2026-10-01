@@ -2478,7 +2478,11 @@ export type TaskExceptionDecision = "approved" | "rejected";
 async function sendTaskExceptionNotification(input: { profileId: number; title: string; body: string; taskId: number; tag: string }) {
   const db = await getDb();
   if (!db) return;
-  await db.insert(notifications).values({ profileId: input.profileId, category: "task_due", title: input.title, body: input.body, dedupeKey: input.tag });
+  try {
+    await db.insert(notifications).values({ profileId: input.profileId, category: "task_due", title: input.title, body: input.body, dedupeKey: input.tag });
+  } catch (error) {
+    console.warn("[Notification] فشل إدراج إشعار استثناء المهمة دون تعطيل المسار", { taskId: input.taskId, error });
+  }
   try {
     await sendPushForNotification(input.profileId, { title: input.title, body: input.body, url: `/tasks?taskId=${input.taskId}`, tag: input.tag });
   } catch (error) {
@@ -2494,33 +2498,54 @@ export async function createTaskExceptionRequest(input: { taskId: number; kind: 
     db.select({ id: personProfiles.id, fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId })
       .from(personProfiles).where(and(eq(personProfiles.id, input.requesterProfileId), eq(personProfiles.status, "active"))).limit(1).then(rows => rows[0]),
   ]);
-  if (!task) throw new Error("المهمة غير موجودة.");
-  if (!requester) throw new Error("ملف مقدم الطلب غير نشط أو غير موجود.");
-  if (task.status === "completed" || task.status === "cancelled") throw new Error("لا يمكن تقديم طلب على مهمة مكتملة أو ملغاة.");
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+  if (!requester) throw new TRPCError({ code: "FORBIDDEN", message: "ملف مقدم الطلب غير نشط أو غير موجود." });
+  if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لا يمكن تقديم طلب على مهمة مكتملة أو ملغاة." });
   const isAssignee = task.assigneeProfileId === requester.id;
   const isWatcher = task.watcherProfileId === requester.id;
-  if (input.kind === "reassignment" && !isAssignee) throw new Error("طلب إعادة الإسناد متاح للمكلف الحالي بالمهمة فقط.");
-  if (input.kind === "obstacle" && !isAssignee && !isWatcher) throw new Error("بلاغ العائق متاح للمكلف أو المتابع المخول بالمهمة فقط.");
-  if (input.kind === "reassignment" && (task.status !== "new" || task.scheduledFor.getTime() > Date.now())) throw new Error("يظهر طلب إعادة الإسناد عند حلول وقت البدء وبقاء المهمة دون بدء التنفيذ.");
-  if (!requester.directManagerProfileId) throw new Error("لا يوجد مدير مباشر محدد في ملف الموظف لإحالة الطلب إليه.");
-  const existing = await db.select({ id: taskExceptionRequests.id }).from(taskExceptionRequests).where(and(eq(taskExceptionRequests.taskId, input.taskId), eq(taskExceptionRequests.kind, input.kind), eq(taskExceptionRequests.status, "pending"))).limit(1);
-  if (existing[0]) throw new Error("يوجد طلب معلق من النوع نفسه لهذه المهمة بانتظار قرار المدير.");
+  if (input.kind === "reassignment" && !isAssignee) throw new TRPCError({ code: "FORBIDDEN", message: "طلب إعادة الإسناد متاح للمكلف الحالي بالمهمة فقط." });
+  if (input.kind === "obstacle" && !isAssignee && !isWatcher) throw new TRPCError({ code: "FORBIDDEN", message: "بلاغ العائق متاح للمكلف أو المتابع المخول بالمهمة فقط." });
+  if (input.kind === "reassignment" && (task.status !== "new" || task.scheduledFor.getTime() > Date.now())) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "يظهر طلب إعادة الإسناد عند حلول وقت البدء وبقاء المهمة دون بدء التنفيذ." });
+  if (!requester.directManagerProfileId) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لا يوجد مدير مباشر محدد في ملف الموظف لإحالة الطلب إليه." });
+  const managerProfileId = requester.directManagerProfileId;
   const automaticDeduction = input.kind === "reassignment" ? automaticUnstartedTaskScore() : 0;
   const existingPenalty = automaticDeduction < 0 ? await db.select({ id: scoreEvents.id }).from(scoreEvents).where(and(eq(scoreEvents.profileId, requester.id), eq(scoreEvents.taskId, task.id), lt(scoreEvents.points, 0))).limit(1) : [];
-  const result = await db.insert(taskExceptionRequests).values({ taskId: input.taskId, kind: input.kind, requesterProfileId: requester.id, managerProfileId: requester.directManagerProfileId, reason: input.reason.trim(), deductionPoints: automaticDeduction });
+  // الإدراج الرئيسي مع فحص محكم داخل transaction لمنع تكرار الطلب المعلق.
+  const result = await db.transaction(async tx => {
+    const [existing] = await tx.select({ id: taskExceptionRequests.id }).from(taskExceptionRequests).where(and(eq(taskExceptionRequests.taskId, input.taskId), eq(taskExceptionRequests.kind, input.kind), eq(taskExceptionRequests.status, "pending"))).limit(1);
+    if (existing) throw new TRPCError({ code: "CONFLICT", message: "يوجد طلب معلق من النوع نفسه لهذه المهمة بانتظار قرار المدير." });
+    return tx.insert(taskExceptionRequests).values({ taskId: input.taskId, kind: input.kind, requesterProfileId: requester.id, managerProfileId, reason: input.reason.trim(), deductionPoints: automaticDeduction });
+  });
   const requestId = Number(result[0].insertId);
+  // خطوات ثانوية — أي فشل فيها لا يعطّل نجاح العملية الأساسية.
   if (automaticDeduction < 0 && !existingPenalty[0]) {
-    const scoreResult = await db.insert(scoreEvents).values({ profileId: requester.id, taskId: task.id, points: automaticDeduction, reason: "خصم تلقائي لعدم بدء المهمة قبل طلب إعادة إسناد", createdByUserId: SYSTEM_ACTOR_ID });
-    await logAudit({ actorUserId: SYSTEM_ACTOR_ID, action: "score.task_reassignment_automatic_deduction", entityType: "score_event", entityId: Number(scoreResult[0].insertId), metadata: { requestId, taskId: task.id, requesterProfileId: requester.id, deductionPoints: automaticDeduction } });
+    try {
+      const scoreResult = await db.insert(scoreEvents).values({ profileId: requester.id, taskId: task.id, points: automaticDeduction, reason: "خصم تلقائي لعدم بدء المهمة قبل طلب إعادة إسناد", createdByUserId: SYSTEM_ACTOR_ID });
+      await logAudit({ actorUserId: SYSTEM_ACTOR_ID, action: "score.task_reassignment_automatic_deduction", entityType: "score_event", entityId: Number(scoreResult[0].insertId), metadata: { requestId, taskId: task.id, requesterProfileId: requester.id, deductionPoints: automaticDeduction } });
+    } catch (error) {
+      console.warn("[Score] فشل خصم نقاط إعادة الإسناد دون تعطيل الطلب", { requestId, error });
+    }
   }
   const updateType = input.kind === "reassignment" ? "reassignment_requested" : "obstacle_reported";
   const updateNote = input.kind === "reassignment" ? `طلب إعادة إسناد: ${input.reason.trim()}` : `بلاغ عائق: ${input.reason.trim()}`;
-  await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType, note: updateNote });
+  try {
+    await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType, note: updateNote });
+  } catch (error) {
+    console.warn("[TaskUpdate] فشل تسجيل تحديث المهمة دون تعطيل الطلب", { requestId, error });
+  }
   const title = input.kind === "reassignment" ? "طلب إعادة إسناد بانتظار قرارك" : "بلاغ عائق بانتظار قرارك";
   const body = `${requester.fullName} قدّم ${input.kind === "reassignment" ? "طلب إعادة إسناد" : "بلاغ عائق"} على المهمة: ${task.title}.`;
-  await sendTaskExceptionNotification({ profileId: requester.directManagerProfileId, title, body, taskId: input.taskId, tag: `task-exception-${requestId}` });
-  await logAudit({ actorUserId: input.actorUserId, action: `task_exception.${input.kind}_requested`, entityType: "task_exception_request", entityId: requestId, metadata: { taskId: input.taskId, requesterProfileId: requester.id, managerProfileId: requester.directManagerProfileId, automaticDeduction, existingPenalty: Boolean(existingPenalty[0]) } });
-  return { id: requestId, managerProfileId: requester.directManagerProfileId, deductionPoints: automaticDeduction };
+  try {
+    await sendTaskExceptionNotification({ profileId: managerProfileId, title, body, taskId: input.taskId, tag: `task-exception-${requestId}` });
+  } catch (error) {
+    console.warn("[Notification] فشل إرسال إشعار استثناء المهمة دون تعطيل الطلب", { requestId, error });
+  }
+  try {
+    await logAudit({ actorUserId: input.actorUserId, action: `task_exception.${input.kind}_requested`, entityType: "task_exception_request", entityId: requestId, metadata: { taskId: input.taskId, requesterProfileId: requester.id, managerProfileId, automaticDeduction, existingPenalty: Boolean(existingPenalty[0]) } });
+  } catch (error) {
+    console.warn("[Audit] فشل تسجيل تدقيق استثناء المهمة دون تعطيل الطلب", { requestId, error });
+  }
+  return { id: requestId, managerProfileId, deductionPoints: automaticDeduction };
 }
 
 export async function listTaskExceptionRequestsForManager(managerProfileId: number, status?: "pending" | "approved" | "rejected" | "cancelled") {
