@@ -103,7 +103,7 @@ export default function PersonnelWorkspaceContent() {
     setEditing(profile);
     setEditForm({ unitId: profile.unitId, directManagerProfileId: profile.directManagerProfileId ?? null, fullName: profile.fullName, email: profile.email || "", employeeNumber: profile.employeeNumber || "", jobTitle: profile.jobTitle || "", judicialFormation: profile.judicialFormation || "", attendanceMode: profile.attendanceMode || "in_person", status: profile.status, reason: "" });
   };
-  const submitCreate = (event: FormEvent) => { event.preventDefault(); create.mutate({ ...createForm, unitId: createForm.unitId ? Number(createForm.unitId) : undefined, email: createForm.email || undefined, reason: createForm.reason || undefined, status: "active" }); };
+  const submitCreate = (event: FormEvent) => { event.preventDefault(); create.mutate({ ...createForm, unitId: createForm.unitId ? Number(createForm.unitId) : undefined, email: createForm.email || undefined, reason: createForm.reason || undefined, status: createForm.email ? "active" : "pending_start" }); };
   const submitEdit = (event: FormEvent) => {
     event.preventDefault();
     if (!editing) return;

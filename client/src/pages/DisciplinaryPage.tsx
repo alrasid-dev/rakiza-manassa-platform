@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { useMemo, useState } from "react";
 
 const statusLabels: Record<string, string> = {
-  pending: "بانتظار ردك",
+  pending: "قيد الانتظار",
   under_review: "بانتظار قرار المدير",
   escalated: "مُصعَّد للأمين",
   approved: "محفوظ في السجل",
@@ -175,7 +175,7 @@ export default function DisciplinaryPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="h-4 w-4 accent-[#2f7653]" />
-                    <span className="font-bold text-[#29463b]">{c.employeeName}</span>
+                    <span className="font-bold text-[#29463b]">طلب إجراء تأديبي — {c.employeeName}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {c.source && <span className="rounded bg-[#eef4f0] px-2 py-1 text-xs text-[#2f7653]">{typeLabels[c.source] || c.source}</span>}
