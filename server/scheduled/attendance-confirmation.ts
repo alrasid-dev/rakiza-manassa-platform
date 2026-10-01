@@ -355,6 +355,7 @@ export async function generateConfirmationAssignments(now = new Date()): Promise
   let generated = 0;
   for (const profile of profiles) {
     if (excluded.has(profile.id)) continue;
+    if (profile.attendanceMode === "in_person") continue;
     if (profile.unitId != null && settings.perDept[String(profile.unitId)] === false) continue;
     const consecutive = await consecutiveDoneWorkdays(profile.id, now);
     const cadence = confirmationCadence(consecutive);
