@@ -206,6 +206,7 @@ import {
   setGlobalConfirmation,
   setDepartmentConfirmation,
   setConfirmationAudienceUnitIds,
+  setConfirmationSettings,
   notifyPlatformOwnerSecurityAlert,
   renewTraineeAssignment,
   resolveSupportTicket,
@@ -2251,6 +2252,10 @@ export const courtRouter = router({
     setConfirmationAudience: protectedProcedure.input(z.object({ unitIds: z.array(z.number().int().positive()) })).mutation(async ({ ctx, input }) => {
       await requireAttendancePolicyAccess(ctx.user);
       return setConfirmationAudienceUnitIds(input.unitIds);
+    }),
+    setConfirmationSettings: protectedProcedure.input(z.object({ enabledGlobal: z.boolean(), audienceUnitIds: z.array(z.number().int().positive()) })).mutation(async ({ ctx, input }) => {
+      await requireAttendancePolicyAccess(ctx.user);
+      return setConfirmationSettings(input);
     }),
     currentWindow: protectedProcedure.query(async ({ ctx }) => {
       const { profile } = await requireSelfAttendanceProfile(ctx.user);

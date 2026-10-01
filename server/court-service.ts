@@ -2503,8 +2503,10 @@ export async function bulkReviewDisciplinary(input: { caseIds: number[]; decisio
 export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [eq(approvalRequests.entityType, "disciplinary_action"), eq(approvalRequests.status, "under_review")];
+  const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
   if (managedUnitIds !== null) {
+    // المدير يرى فقط المساءلات التي تنتظر قراره.
+    conditions.push(eq(approvalRequests.status, "under_review"));
     // تشمل مساءلات الحضور (entityId = profileId) ومساءلات المهام (entityId = taskId) لموظفي وحدات المدير.
     const profiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
     const profileIds = profiles.map(p => p.id);
@@ -4226,6 +4228,19 @@ export async function setDepartmentConfirmation(unitId: number, enabled: boolean
     await db.update(systemConfigs).set({ confirmationEnabledPerDept: current, updatedAt: new Date() }).where(eq(systemConfigs.id, row.id));
   } else {
     await db.insert(systemConfigs).values({ confirmationEnabledGlobal: true, confirmationEnabledPerDept: current });
+  }
+  return getConfirmationSettingsService();
+}
+
+/** تعيين إعدادات التأكيد دفعة واحدة (تفعيل عام + قائمة الأقسام المسموح بها). */
+export async function setConfirmationSettings(input: { enabledGlobal: boolean; audienceUnitIds: number[] }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [row] = await db.select().from(systemConfigs).limit(1);
+  if (row) {
+    await db.update(systemConfigs).set({ confirmationEnabledGlobal: input.enabledGlobal, confirmationAudienceUnitIds: input.audienceUnitIds, updatedAt: new Date() }).where(eq(systemConfigs.id, row.id));
+  } else {
+    await db.insert(systemConfigs).values({ confirmationEnabledGlobal: input.enabledGlobal, confirmationEnabledPerDept: {}, confirmationAudienceUnitIds: input.audienceUnitIds });
   }
   return getConfirmationSettingsService();
 }
