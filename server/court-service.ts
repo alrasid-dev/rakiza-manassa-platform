@@ -1422,7 +1422,7 @@ export async function updateJudgeProfile(input: { judgeId: number; fullName: str
 export async function updateOperationalProfile(input: { profileId: number; unitId?: number | null; directManagerProfileId?: number | null; fullName: string; email?: string; employeeNumber?: string; jobTitle?: string; judicialFormation?: string; attendanceMode?: "in_person" | "remote" | "mixed"; status: "active" | "on_leave" | "inactive" | "pending_review"; reason?: string; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const profile = (await db.select({ id: personProfiles.id, unitId: personProfiles.unitId, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(and(eq(personProfiles.id, input.profileId), inArray(personProfiles.personType, ["administrative", "trainee"]))).limit(1))[0];
+  const profile = (await db.select({ id: personProfiles.id, unitId: personProfiles.unitId, directManagerProfileId: personProfiles.directManagerProfileId, status: personProfiles.status }).from(personProfiles).where(and(eq(personProfiles.id, input.profileId), inArray(personProfiles.personType, ["administrative", "trainee"]))).limit(1))[0];
   if (!profile) throw new Error("ملف الموظف أو الملازم غير موجود ضمن الإدارة التشغيلية.");
   if (input.directManagerProfileId === input.profileId) throw new Error("لا يمكن تعيين الملف نفسه مديراً مباشراً.");
   if (input.directManagerProfileId !== undefined && input.directManagerProfileId !== null) {
@@ -1440,6 +1440,19 @@ export async function updateOperationalProfile(input: { profileId: number; unitI
     attendanceMode: input.attendanceMode ?? null,
     status: input.status,
   }).where(eq(personProfiles.id, input.profileId));
+  if (input.status === "on_leave") {
+    try {
+      await pauseOpenTasksForProfile({ profileId: input.profileId, actorUserId: input.actorUserId, reason: "تغيير الحالة إلى إجازة", type: "temporary" });
+    } catch (error) {
+      console.warn("[Profiles] فشل إيقاف مهام الموظف عند تغيير الحالة إلى إجازة", { profileId: input.profileId, error });
+    }
+  } else if (profile.status === "on_leave") {
+    try {
+      await resumeOpenTasksForProfile({ profileId: input.profileId, actorUserId: input.actorUserId });
+    } catch (error) {
+      console.warn("[Profiles] فشل تفعيل مهام الموظف عند العودة من الإجازة", { profileId: input.profileId, error });
+    }
+  }
   const unitChanged = input.unitId !== undefined && input.unitId !== profile.unitId;
   const managerChanged = input.directManagerProfileId !== undefined && input.directManagerProfileId !== profile.directManagerProfileId;
   await logAudit({ actorUserId: input.actorUserId, action: unitChanged ? "profile.unit_changed" : managerChanged ? "profile.manager_changed" : "profile.updated", entityType: "person_profile", entityId: input.profileId, metadata: { ...(unitChanged || managerChanged ? { previousUnitId: profile.unitId, newUnitId: input.unitId === undefined ? profile.unitId : input.unitId, previousManagerProfileId: profile.directManagerProfileId, newManagerProfileId: input.directManagerProfileId === undefined ? profile.directManagerProfileId : input.directManagerProfileId } : {}), reason: input.reason ?? null } });
@@ -4121,6 +4134,11 @@ export async function activateScheduledLeaveStatuses(now = new Date()) {
   for (const leave of toActivate) {
     await db.update(leaveRequests).set({ status: "active" }).where(eq(leaveRequests.id, leave.id));
     await db.update(personProfiles).set({ status: "on_leave" }).where(eq(personProfiles.id, leave.profileId));
+    try {
+      await pauseOpenTasksForProfile({ profileId: leave.profileId, actorUserId: 0, reason: "إجازة معتمدة", type: "temporary", expiresAt: leave.endAt });
+    } catch (error) {
+      console.warn("[Leave] فشل إيقاف المهام عند تفعيل الإجازة", { profileId: leave.profileId, error });
+    }
   }
   const toComplete = await db.select().from(leaveRequests).where(and(eq(leaveRequests.status, "active"), lt(leaveRequests.endAt, now)));
   for (const leave of toComplete) {
