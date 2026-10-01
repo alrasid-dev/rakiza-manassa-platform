@@ -1562,6 +1562,14 @@ export async function markOverdueTasks(now = new Date()) {
   return { marked: Number(result[0]?.affectedRows ?? 0) };
 }
 
+/** عدد الملفات الشخصية التي حالتها "on_leave" (لإظهارها ضمن إجازات ملخص الحضور). */
+export async function countOnLeaveProfiles() {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.status, "on_leave"));
+  return rows.length;
+}
+
 export async function getTaskById(taskId: number) {
   const db = await getDb();
   if (!db) return undefined;

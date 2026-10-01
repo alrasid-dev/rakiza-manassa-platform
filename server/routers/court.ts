@@ -150,6 +150,7 @@ import {
   listNotificationsForProfile,
   listOrganizationUnits,
   listRemoteAttendanceReport,
+  countOnLeaveProfiles,
   listPlatformUsersForRoleAssignment,
   listPersonalDisciplinaryActions,
   respondToDisciplinaryCase,
@@ -2450,7 +2451,12 @@ export const courtRouter = router({
   attendanceSummary: protectedProcedure.input(z.object({ period: z.enum(["daily", "weekly", "monthly"]).default("daily") }).optional()).query(async ({ ctx, input }) => {
     const permission = await requirePermission(ctx.user, "view");
     const period = input?.period ?? "daily";
-    const records = await hasLeadershipPlatformScope(ctx.user, permission) ? await listAttendance() : await listAttendanceForProfile((await requireSelfAttendanceProfile(ctx.user)).profile.id);
-    return summarizeAttendanceRecords(records.map(item => ({ status: item.attendance.status, recordDate: item.attendance.recordDate })), period);
+    const leadership = await hasLeadershipPlatformScope(ctx.user, permission);
+    const records = leadership ? await listAttendance() : await listAttendanceForProfile((await requireSelfAttendanceProfile(ctx.user)).profile.id);
+    const summary = summarizeAttendanceRecords(records.map(item => ({ status: item.attendance.status, recordDate: item.attendance.recordDate })), period);
+    // عدّ الموظفين في إجازة (status=on_leave) ضمن ملخص الحضور حتى لو لم يكن لهم سجل بصمة.
+    const onLeaveCount = leadership ? await countOnLeaveProfiles() : ((await requireSelfAttendanceProfile(ctx.user)).profile.status === "on_leave" ? 1 : 0);
+    summary.onLeave += onLeaveCount;
+    return summary;
   }),
 });
