@@ -258,6 +258,9 @@ export default function TasksWorkspaceContent() {
       setExceptionReason("");
       toast.success(input.kind === "reassignment" ? "أُحيل طلب إعادة الإسناد إلى المدير المباشر." : "أُحيل بلاغ العائق إلى المدير المباشر.");
     },
+    onError: (error: { message?: string }) => {
+      toast.error(error?.message || "تعذر إرسال البلاغ. حاول مرة أخرى.");
+    },
   });
   const decideException = trpc.court.tasks.exceptions.decide.useMutation({
     onSuccess: () => {
