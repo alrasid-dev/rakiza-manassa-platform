@@ -1540,6 +1540,69 @@ export async function getTaskById(taskId: number) {
   return rows[0];
 }
 
+const OPEN_TASK_STATUSES = new Set<string>(["new", "in_progress", "under_review", "overdue"]);
+
+/** صلاحية الإيقاف الشامل (دائم): المالك/الرئيس/الأمين/المساعد (full_control). */
+export async function canPausePermanentForUser(actor: { id: number; role: "user" | "admin"; email?: string | null }): Promise<boolean> {
+  if (actor.role === "admin") return true;
+  const permission = await getAccessPermission(actor.email ?? null);
+  if (permission === "full_control") return true;
+  const roles = await getEffectiveRoles(actor.id, false);
+  return roles.some(role => role === "court_president" || role === "court_secretary");
+}
+
+/** صلاحية الإيقاف (دائم أو مؤقت): القيادة للجميع، والمدير لموظفي قسمه فقط. */
+export async function canPauseTaskForUser(actor: { id: number; role: "user" | "admin"; email?: string | null }, targetProfileId: number): Promise<boolean> {
+  if (await canPausePermanentForUser(actor)) return true;
+  const assignments = await getActiveCourtRoleAssignments(actor.id, actor.role === "admin");
+  const managedUnitIds = assignments.filter(a => (a.role === "department_manager" || a.role === "trainee_affairs_manager") && a.unitId !== null).map(a => a.unitId as number);
+  if (!managedUnitIds.length) return false;
+  const db = await getDb();
+  if (!db) return false;
+  const target = (await db.select({ unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, targetProfileId)).limit(1))[0];
+  return Boolean(target?.unitId && managedUnitIds.includes(target.unitId));
+}
+
+export async function pauseTask(input: { taskId: number; actorUserId: number; reason?: string; expiresAt?: Date; type?: "permanent" | "temporary" }) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة." });
+  const task = (await db.select().from(tasks).where(eq(tasks.id, input.taskId)).limit(1))[0];
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+  if (!OPEN_TASK_STATUSES.has(task.status)) throw new TRPCError({ code: "CONFLICT", message: "لا يمكن إيقاف مهمة غير مفتوحة." });
+  await db.update(tasks).set({ status: "paused", pausedAt: new Date(), pausedReason: input.reason?.slice(0, 200) ?? null, pausedByUserId: input.actorUserId, pauseExpiresAt: input.expiresAt ?? null, pauseType: input.type ?? "temporary", updatedAt: new Date() }).where(eq(tasks.id, input.taskId));
+  await logAudit({ actorUserId: input.actorUserId, action: "task.paused", entityType: "task", entityId: input.taskId, metadata: { reason: input.reason ?? null, type: input.type ?? "temporary", expiresAt: input.expiresAt ?? null } });
+  return { success: true as const };
+}
+
+export async function resumeTask(input: { taskId: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة." });
+  const task = (await db.select().from(tasks).where(eq(tasks.id, input.taskId)).limit(1))[0];
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+  if (task.status !== "paused") throw new TRPCError({ code: "CONFLICT", message: "المهمة ليست موقوفة." });
+  await db.update(tasks).set({ status: "in_progress", pausedAt: null, pausedReason: null, pauseExpiresAt: null, pauseType: null, updatedAt: new Date() }).where(eq(tasks.id, input.taskId));
+  await logAudit({ actorUserId: input.actorUserId, action: "task.resumed", entityType: "task", entityId: input.taskId });
+  return { success: true as const };
+}
+
+export async function pauseOpenTasksForProfile(input: { profileId: number; actorUserId: number; reason?: string; expiresAt?: Date; type?: "permanent" | "temporary" }) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة." });
+  const result = await db.update(tasks).set({ status: "paused", pausedAt: new Date(), pausedReason: input.reason?.slice(0, 200) ?? null, pausedByUserId: input.actorUserId, pauseExpiresAt: input.expiresAt ?? null, pauseType: input.type ?? "temporary", updatedAt: new Date() }).where(and(eq(tasks.assigneeProfileId, input.profileId), inArray(tasks.status, ["new", "in_progress", "under_review", "overdue"])));
+  const count = Number(result[0]?.affectedRows ?? 0);
+  await logAudit({ actorUserId: input.actorUserId, action: "task.pausedAll", entityType: "person_profile", entityId: input.profileId, metadata: { count, reason: input.reason ?? null, type: input.type ?? "temporary", expiresAt: input.expiresAt ?? null } });
+  return { count };
+}
+
+export async function resumeOpenTasksForProfile(input: { profileId: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة." });
+  const result = await db.update(tasks).set({ status: "in_progress", pausedAt: null, pausedReason: null, pauseExpiresAt: null, pauseType: null, updatedAt: new Date() }).where(and(eq(tasks.assigneeProfileId, input.profileId), eq(tasks.status, "paused")));
+  const count = Number(result[0]?.affectedRows ?? 0);
+  await logAudit({ actorUserId: input.actorUserId, action: "task.resumedAll", entityType: "person_profile", entityId: input.profileId, metadata: { count } });
+  return { count };
+}
+
 export async function listTaskAttachments(taskId: number) {
   const db = await getDb();
   if (!db) return [];

@@ -10,6 +10,12 @@ import {
   addCorrespondenceAttachment,
   addTaskAttachment,
   getTaskAttachmentContent,
+  canPausePermanentForUser,
+  canPauseTaskForUser,
+  pauseTask,
+  resumeTask,
+  pauseOpenTasksForProfile,
+  resumeOpenTasksForProfile,
   addTaskCommentAndEscalate,
   addTaskComment,
   markTaskAsProcessed,
@@ -1324,6 +1330,32 @@ export const courtRouter = router({
       if (managedUnitIds.length) { const viewerProfile = await getProfileForUser(ctx.user.id); const unitIds = input?.unitId && managedUnitIds.includes(input.unitId) ? [input.unitId] : managedUnitIds; return listTasksForUnits(unitIds, input?.status, viewerProfile?.id, input?.assigneeProfileId); }
       const { profile } = await requirePersonalWorkspace(ctx.user);
       return listTasksForProfile(profile.id, input?.status);
+    }),
+    pause: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), reason: z.string().trim().max(200).optional(), expiresAt: z.date().optional(), type: z.enum(["permanent", "temporary"]).optional() })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "edit");
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+      if (input.type === "permanent" && !(await canPausePermanentForUser(ctx.user))) throw new TRPCError({ code: "FORBIDDEN", message: "الإيقاف الشامل متاح للقيادة فقط." });
+      if (task.assigneeProfileId && !(await canPauseTaskForUser(ctx.user, task.assigneeProfileId))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إيقاف مهام خارج نطاقك." });
+      return pauseTask({ taskId: input.taskId, actorUserId: ctx.user.id, reason: input.reason, expiresAt: input.expiresAt, type: input.type });
+    }),
+    resume: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "edit");
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+      if (task.assigneeProfileId && !(await canPauseTaskForUser(ctx.user, task.assigneeProfileId))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تفعيل مهام خارج نطاقك." });
+      return resumeTask({ taskId: input.taskId, actorUserId: ctx.user.id });
+    }),
+    pauseAllForProfile: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), reason: z.string().trim().max(200).optional(), expiresAt: z.date().optional(), type: z.enum(["permanent", "temporary"]).optional() })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "edit");
+      if (input.type === "permanent" && !(await canPausePermanentForUser(ctx.user))) throw new TRPCError({ code: "FORBIDDEN", message: "الإيقاف الشامل متاح للقيادة فقط." });
+      if (!(await canPauseTaskForUser(ctx.user, input.profileId))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إيقاف مهام خارج نطاقك." });
+      return pauseOpenTasksForProfile({ profileId: input.profileId, actorUserId: ctx.user.id, reason: input.reason, expiresAt: input.expiresAt, type: input.type });
+    }),
+    resumeAllForProfile: protectedProcedure.input(z.object({ profileId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "edit");
+      if (!(await canPauseTaskForUser(ctx.user, input.profileId))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تفعيل مهام خارج نطاقك." });
+      return resumeOpenTasksForProfile({ profileId: input.profileId, actorUserId: ctx.user.id });
     }),
     routeTargets: protectedProcedure.query(async ({ ctx }) => {
       const permission = await requirePermission(ctx.user, "view");
