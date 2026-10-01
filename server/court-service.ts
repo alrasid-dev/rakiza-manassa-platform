@@ -3542,7 +3542,8 @@ export async function checkAttendanceWindow(now: Date, kind: "check_in" | "check
 export async function recordAttendance(input: { profileId: number; recordDate: Date; checkInAt?: Date; checkOutAt?: Date; status: "present" | "late" | "absent" | "excused" | "on_leave"; note?: string; actorUserId: number; autoClassify?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const attendanceProfile = (await db.select({ attendanceMode: personProfiles.attendanceMode }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  const attendanceProfile = (await db.select({ attendanceMode: personProfiles.attendanceMode, status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  if (attendanceProfile?.status === "on_leave") throw new TRPCError({ code: "FORBIDDEN", message: "أنت في إجازة." });
   if (attendanceProfile?.attendanceMode === "in_person") throw new TRPCError({ code: "BAD_REQUEST", message: "سجلات الحضور والانصراف للعاملين عن بعد فقط. أنت مسجل كحضوري." });
   let status = input.status;
   if (input.autoClassify && input.checkInAt && (status === "present" || status === "late")) {
@@ -3570,7 +3571,8 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
 export async function recordAttendanceCheckout(input: { profileId: number; checkOutAt: Date; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const attendanceProfile = (await db.select({ attendanceMode: personProfiles.attendanceMode }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  const attendanceProfile = (await db.select({ attendanceMode: personProfiles.attendanceMode, status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  if (attendanceProfile?.status === "on_leave") throw new TRPCError({ code: "FORBIDDEN", message: "أنت في إجازة." });
   if (attendanceProfile?.attendanceMode === "in_person") throw new TRPCError({ code: "BAD_REQUEST", message: "سجلات الحضور والانصراف للعاملين عن بعد فقط. أنت مسجل كحضوري." });
   const window = await checkAttendanceWindow(input.checkOutAt, "check_out");
   if (!window.allowed) throw new TRPCError({ code: "BAD_REQUEST", message: window.reason });

@@ -1,6 +1,6 @@
 import { and, eq, gte } from "drizzle-orm";
 import type { Request, Response } from "express";
-import { attendanceRecords, monthlyBalances, notifications } from "../../drizzle/schema";
+import { attendanceRecords, monthlyBalances, notifications, personProfiles } from "../../drizzle/schema";
 import { getDb } from "../db";
 import { sdk } from "../_core/sdk";
 import { sendSafeScheduledFailure } from "./safe-scheduled-failure";
@@ -36,6 +36,9 @@ export async function runMonthlySettlement(now = new Date()) {
 
   let settled = 0;
   for (const profileId of profileIds) {
+    // لا خصم دقائق لموظف في إجازة.
+    const onLeave = await db.select({ id: personProfiles.id }).from(personProfiles).where(and(eq(personProfiles.id, profileId), eq(personProfiles.status, "on_leave"))).limit(1);
+    if (onLeave[0]) continue;
     await recomputeMonthlyBalance(profileId, monthToSettle);
     await db.update(monthlyBalances).set({ isSettled: true, settledAt: now, updatedAt: now }).where(and(eq(monthlyBalances.profileId, profileId), eq(monthlyBalances.hijriMonthKey, monthToSettle)));
     await db.insert(notifications).values({

@@ -208,6 +208,10 @@ export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ che
       continue;
     }
 
+    // تخطي الموظف الذي حالته "on_leave" (لا يُحاسب أثناء الإجازة).
+    const onLeaveProfile = await db.select({ id: personProfiles.id }).from(personProfiles).where(and(eq(personProfiles.id, record.profileId), eq(personProfiles.status, "on_leave"))).limit(1);
+    if (onLeaveProfile[0]) continue;
+
     // idempotent: لا تطبّق العقوبة مرتين.
     if (record.penaltyMinutes > 0) continue;
 
@@ -290,6 +294,8 @@ async function getExcludedProfileIds(): Promise<Set<number>> {
     const leaderProfiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.userId, leaderUserIds));
     leaderProfiles.forEach(r => excluded.add(r.id));
   }
+  const onLeave = await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.status, "on_leave"));
+  onLeave.forEach(r => excluded.add(r.id));
   return excluded;
 }
 
