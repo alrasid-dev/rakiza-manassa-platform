@@ -4391,6 +4391,12 @@ export async function submitLeaveRequest(input: { profileId: number; requestType
   const result = await db.insert(leaveRequests).values({ profileId: input.profileId, requestType: input.requestType, startAt: input.startAt, endAt: input.endAt, durationMinutes, substituteProfileId: input.substituteProfileId ?? null, handoverConfirmed: openTasks.length === 0 || Boolean(input.substituteProfileId), status: "pending", hijriMonthKey: hijriMonthKeyValue, requestSequenceInMonth, note: input.note ?? null, requestedByUserId: input.requestedByUserId });
   const id = Number(result[0].insertId);
   await logAudit({ actorUserId: input.requestedByUserId, action: "leave.submitted", entityType: "leave_request", entityId: id, metadata: { openTaskCount: openTasks.length, substituteProfileId: input.substituteProfileId ?? null, hijriMonthKey: hijriMonthKeyValue, requestSequenceInMonth } });
+  // توجيه الطلب للمدير المباشر للبت فيه (وليس للمالك مباشرة).
+  const submitterProfile = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  if (submitterProfile?.directManagerProfileId) {
+    const kindLabel = input.requestType === "leave" ? "إجازة" : "استئذان";
+    await db.insert(notifications).values({ profileId: submitterProfile.directManagerProfileId, category: "security_alert", title: "طلب إجازة/استئذان بانتظار اعتمادك", body: `قدّم ${submitterProfile.fullName} طلب ${kindLabel} بانتظار قرارك.`, dedupeKey: `leave-review-${id}` }).onDuplicateKeyUpdate({ set: { title: "طلب إجازة/استئذان بانتظار اعتمادك" } });
+  }
   return id;
 }
 
