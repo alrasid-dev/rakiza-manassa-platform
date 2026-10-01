@@ -2538,13 +2538,14 @@ export async function bulkReviewDisciplinary(input: { caseIds: number[]; decisio
   return { processed, failed };
 }
 
-export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null) {
+export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null, filters?: { unitId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
+  if (filters?.status) conditions.push(eq(approvalRequests.status, filters.status));
   if (managedUnitIds !== null) {
-    // المدير يرى فقط المساءلات التي تنتظر قراره.
-    conditions.push(eq(approvalRequests.status, "under_review"));
+    // المدير يرى فقط المساءلات التي تنتظر قراره (ما لم يحدد حالة أخرى صراحة).
+    if (!filters?.status) conditions.push(eq(approvalRequests.status, "under_review"));
     // تشمل مساءلات الحضور (entityId = profileId) ومساءلات المهام (entityId = taskId) لموظفي وحدات المدير.
     const profiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
     const profileIds = profiles.map(p => p.id);
@@ -2554,16 +2555,23 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null)
     conditions.push(inArray(approvalRequests.entityId, entityIds)!);
   }
   const cases = await db.select().from(approvalRequests).where(and(...conditions)).orderBy(desc(approvalRequests.createdAt));
-  return Promise.all(cases.map(async (c) => {
+  const rows = await Promise.all(cases.map(async (c) => {
     let source: "attendance" | "task" = "attendance";
-    let employee = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, c.entityId)).limit(1))[0];
+    let employee = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId, attendanceMode: personProfiles.attendanceMode }).from(personProfiles).where(eq(personProfiles.id, c.entityId)).limit(1))[0];
     if (!employee) {
       source = "task";
       const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, c.entityId)).limit(1))[0];
-      if (task?.assigneeProfileId) employee = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
+      if (task?.assigneeProfileId) employee = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId, attendanceMode: personProfiles.attendanceMode }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
     }
-    return { ...c, employeeName: employee?.fullName || "غير معروف", employeeUnitId: employee?.unitId ?? null, source };
+    return { ...c, employeeName: employee?.fullName || "غير معروف", employeeUnitId: employee?.unitId ?? null, attendanceMode: employee?.attendanceMode ?? null, source };
   }));
+  // فلاتر إضافية تُطبق بعد حل اسم الموظف وقسمه (قسم/نوع/بحث).
+  return rows.filter(row => {
+    if (filters?.type && row.source !== filters.type) return false;
+    if (filters?.unitId && row.employeeUnitId !== filters.unitId) return false;
+    if (filters?.searchQuery && !(row.employeeName || "").includes(filters.searchQuery)) return false;
+    return true;
+  });
 }
 
 async function createTaskConversation(input: { db: any; taskId: number; title: string; creatorUserId: number; assigneeProfileId?: number; watcherProfileId?: number }) {
@@ -4373,13 +4381,14 @@ export async function setConfirmationAudienceUnitIds(unitIds: number[]) {
   return getConfirmationSettingsService();
 }
 
-export async function listRemoteAttendanceReport(input: { unitIds?: number[]; startAt?: Date; endAt?: Date }) {
+export async function listRemoteAttendanceReport(input: { unitIds?: number[]; startAt?: Date; endAt?: Date; searchQuery?: string }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [inArray(personProfiles.attendanceMode, ["remote", "mixed"]), eq(personProfiles.status, "active")];
   if (input.unitIds?.length) conditions.push(inArray(personProfiles.unitId, input.unitIds));
   if (input.startAt) conditions.push(gte(attendanceRecords.recordDate, input.startAt));
   if (input.endAt) conditions.push(lt(attendanceRecords.recordDate, input.endAt));
+  if (input.searchQuery) conditions.push(like(personProfiles.fullName, `%${input.searchQuery}%`));
   return db.select({ attendance: attendanceRecords, profileId: personProfiles.id, profileName: personProfiles.fullName, personType: personProfiles.personType, attendanceMode: personProfiles.attendanceMode, unitId: personProfiles.unitId, unitName: organizationUnits.name }).from(attendanceRecords).innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId)).leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId)).where(and(...conditions)).orderBy(desc(attendanceRecords.recordDate)).limit(1000);
 }
 

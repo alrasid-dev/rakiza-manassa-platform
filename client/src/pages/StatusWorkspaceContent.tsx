@@ -60,7 +60,10 @@ export default function StatusWorkspaceContent() {
   const achievements = trpc.court.achievements.mine.useQuery(undefined, { enabled: permission.data === "employee" || permission.data === "trainee" });
   const disciplinary = trpc.court.disciplinary.mine.useQuery(undefined, { enabled: permission.data === "employee" || permission.data === "trainee" });
   const canViewRemoteReport = permission.data === "full_control" || permission.data === "general_view" || Boolean(roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "department_manager"));
-  const remoteReport = trpc.court.attendance.remoteReport.useQuery(undefined, { enabled: canViewRemoteReport });
+  const [remoteUnitFilter, setRemoteUnitFilter] = useState("all");
+  const [remoteSearch, setRemoteSearch] = useState("");
+  const units = trpc.court.units.list.useQuery();
+  const remoteReport = trpc.court.attendance.remoteReport.useQuery({ unitId: remoteUnitFilter !== "all" ? Number(remoteUnitFilter) : undefined, searchQuery: remoteSearch.trim() || undefined }, { enabled: canViewRemoteReport });
   const leaveRequests = trpc.court.leave.list.useQuery();
   const substitutes = trpc.court.leave.substitutes.useQuery(undefined, { enabled: permission.data === "employee" });
   const permissionUsageApi = (trpc.court.leave as any).myPermissionUsage;
@@ -151,12 +154,10 @@ export default function StatusWorkspaceContent() {
     if (item.status === "late") return "late";
     return "present";
   };
-  const [remoteUnitFilter, setRemoteUnitFilter] = useState("all");
-  const [remoteSearch, setRemoteSearch] = useState("");
   const [remotePage, setRemotePage] = useState(0);
   const remoteRows = (remoteReport.data ?? []) as Array<{ attendance: { id: number; recordDate: Date | string; status: string; checkInAt?: Date | string | null; checkOutAt?: Date | string | null }; profileName: string; attendanceMode: string; unitId: number | null; unitName?: string | null }>;
-  const remoteUnits = useMemo(() => { const m = new Map<number, string>(); for (const r of remoteRows) if (r.unitId != null && !m.has(r.unitId)) m.set(r.unitId, r.unitName ?? ""); return Array.from(m.entries()); }, [remoteReport.data]);
-  const filteredRemoteRows = useMemo(() => remoteRows.filter(r => (remoteUnitFilter === "all" ? true : String(r.unitId ?? "") === remoteUnitFilter)).filter(r => (remoteSearch.trim() ? (r.profileName || "").includes(remoteSearch.trim()) : true)), [remoteRows, remoteUnitFilter, remoteSearch]);
+  const remoteUnits = useMemo(() => (units.data ?? []).map(unit => [unit.id, unit.name] as [number, string]), [units.data]);
+  const filteredRemoteRows = remoteRows;
   const REMOTE_PAGE_SIZE = 15;
   const remotePageCount = Math.max(1, Math.ceil(filteredRemoteRows.length / REMOTE_PAGE_SIZE));
   const pagedRemoteRows = filteredRemoteRows.slice(remotePage * REMOTE_PAGE_SIZE, (remotePage + 1) * REMOTE_PAGE_SIZE);

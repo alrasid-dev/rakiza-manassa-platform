@@ -2205,11 +2205,11 @@ export const courtRouter = router({
         throw new TRPCError({ code, message });
       }
     }),
-    myTeam: protectedProcedure.query(async ({ ctx }) => {
+    myTeam: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional(), type: z.enum(["attendance", "task"]).optional(), status: z.enum(["pending", "returned", "approved", "rejected", "cancelled", "under_review", "escalated"]).optional(), searchQuery: z.string().trim().max(100).optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await permissionForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
-      return listTeamDisciplinaryCases(managedUnitIds);
+      return listTeamDisciplinaryCases(managedUnitIds, input ? { unitId: input.unitId, type: input.type, status: input.status || undefined, searchQuery: input.searchQuery || undefined } : undefined);
     }),
     bulkReview: protectedProcedure.input(z.object({ caseIds: z.array(z.number().int().positive()).min(1).max(100), decision: z.enum(["save", "cancel", "escalate"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await permissionForUser(ctx.user);
@@ -2278,14 +2278,14 @@ export const courtRouter = router({
       return getAttendanceWindowForProfile(profile.id);
     }),
     serverClock: protectedProcedure.query(() => ({ now: new Date() })),
-    remoteReport: protectedProcedure.input(z.object({ startAt: z.date().optional(), endAt: z.date().optional(), unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
+    remoteReport: protectedProcedure.input(z.object({ startAt: z.date().optional(), endAt: z.date().optional(), unitId: z.number().int().positive().optional(), searchQuery: z.string().trim().max(100).optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
-      if (await hasLeadershipPlatformScope(ctx.user, permission)) return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : undefined });
+      if (await hasLeadershipPlatformScope(ctx.user, permission)) return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : undefined, searchQuery: input?.searchQuery });
       const roles = await rolesForUser(ctx.user);
-      if (roles.includes("court_president") || roles.includes("assistant_president") || roles.includes("court_secretary")) return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : undefined });
+      if (roles.includes("court_president") || roles.includes("assistant_president") || roles.includes("court_secretary")) return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : undefined, searchQuery: input?.searchQuery });
       const managedUnitIds = await managedUnitIdsForUser(ctx.user);
       if (!managedUnitIds.length || (input?.unitId && !managedUnitIds.includes(input.unitId))) throw new TRPCError({ code: "FORBIDDEN", message: "تقرير حضور العاملين عن بعد متاح لمدير الوحدة أو المفوض منه داخل نطاقه فقط." });
-      return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : managedUnitIds });
+      return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : managedUnitIds, searchQuery: input?.searchQuery });
     }),
     record: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), recordDate: z.date(), checkInAt: z.date().optional(), checkOutAt: z.date().optional(), status: z.enum(["present", "late", "absent", "excused", "on_leave"]), note: z.string().trim().max(2000).optional() })).mutation(async ({ ctx, input }) => {
       try {

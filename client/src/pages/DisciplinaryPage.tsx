@@ -27,21 +27,29 @@ type CaseRow = {
 };
 
 export default function DisciplinaryPage() {
+  const utils = trpc.useUtils();
+
+  // فلاتر التصنيف (تُمرر للخادم لتصفية مساءلات الفريق)
+  const [typeFilter, setTypeFilter] = useState<"all" | "attendance" | "task">("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [unitFilter, setUnitFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [sortDir, setSortDir] = useState<"newest" | "oldest">("newest");
+  const units = trpc.court.units.list.useQuery();
+
   const myCases = trpc.court.disciplinary.mine.useQuery();
-  const teamCases = trpc.court.disciplinary.myTeam.useQuery();
+  const teamCases = trpc.court.disciplinary.myTeam.useQuery({
+    unitId: unitFilter !== "all" ? Number(unitFilter) : undefined,
+    type: typeFilter !== "all" ? typeFilter : undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+    searchQuery: search.trim() || undefined,
+  });
   const respond = trpc.court.disciplinary.respond.useMutation();
   const decide = trpc.court.disciplinary.managerDecision.useMutation();
   const bulkReview = trpc.court.disciplinary.bulkReview.useMutation();
-  const utils = trpc.useUtils();
 
   const [responses, setResponses] = useState<Record<number, string>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
-
-  // فلاتر التصنيف
-  const [typeFilter, setTypeFilter] = useState<"all" | "attendance" | "task">("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [search, setSearch] = useState("");
-  const [sortDir, setSortDir] = useState<"newest" | "oldest">("newest");
 
   // اعتماد مجمّع
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -53,16 +61,12 @@ export default function DisciplinaryPage() {
 
   const filteredTeam = useMemo(() => {
     const rows = (teamCases.data ?? []) as CaseRow[];
-    return rows
-      .filter(c => (typeFilter === "all" ? true : c.source === typeFilter))
-      .filter(c => (statusFilter === "all" ? true : c.status === statusFilter))
-      .filter(c => (search.trim() ? (c.employeeName || "").includes(search.trim()) : true))
-      .sort((a, b) => {
-        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return sortDir === "newest" ? tb - ta : ta - tb;
-      });
-  }, [teamCases.data, typeFilter, statusFilter, search, sortDir]);
+    return [...rows].sort((a, b) => {
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return sortDir === "newest" ? tb - ta : ta - tb;
+    });
+  }, [teamCases.data, sortDir]);
 
   const filteredMine = useMemo(() => {
     const rows = (myCases.data ?? []) as CaseRow[];
@@ -94,6 +98,10 @@ export default function DisciplinaryPage() {
 
         {/* شريط التصنيف */}
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[#e7e0d4] bg-[#fbf6ec] p-3">
+          <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+            <option value="all">القسم: الكل</option>
+            {(units.data ?? []).map(unit => <option key={unit.id} value={String(unit.id)}>{unit.name}</option>)}
+          </select>
           <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as typeof typeFilter)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
             <option value="all">النوع: الكل</option>
             <option value="attendance">حضور</option>
