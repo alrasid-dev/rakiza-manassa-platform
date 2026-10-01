@@ -1594,8 +1594,17 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
   return db.select().from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
+/** نافذة التصعيد الآلي: يوم عمل سعودي، ليس إجازة رسمية، وخلال دوام 07:00–14:59 بتوقيت الرياض. */
+export function isAutomationEscalationWindow(now: Date): boolean {
+  if (!isSaudiWorkday(now)) return false;
+  if (isOfficialHoliday(now)) return false;
+  const minutes = riyadhMinutesOfDay(now);
+  return minutes >= 420 && minutes <= 899;
+}
+
 /** تحويل المهام المتجاوزة لموعدها (غير المكتملة/الملغاة/الموقوفة/المرفوعة للاعتماد) إلى حالة overdue. */
 export async function markOverdueTasks(now = new Date()) {
+  if (!isAutomationEscalationWindow(now)) return { marked: 0 };
   const db = await getDb();
   if (!db) return { marked: 0 };
   const result = await db.update(tasks).set({ status: "overdue", updatedAt: now }).where(and(inArray(tasks.status, ["new", "in_progress"]), lt(tasks.dueAt, now), isNull(tasks.archivedAt)));
@@ -4782,6 +4791,7 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
 }
 
 export async function escalateOverdueTasks(now = new Date()) {
+  if (!isAutomationEscalationWindow(now)) return { escalated: 0, skipped: 0, nudged24h: 0, nudged12h: 0 };
   const db = await getDb();
   if (!db) return { escalated: 0, skipped: 0, nudged24h: 0, nudged12h: 0 };
   const candidates = await db.select().from(tasks).where(inArray(tasks.status, ["new", "in_progress"]));

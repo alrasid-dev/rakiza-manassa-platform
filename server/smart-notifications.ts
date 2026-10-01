@@ -61,6 +61,7 @@ async function profileIdsWithCheckIn(start: Date, end: Date): Promise<Set<number
 
 /** موظف نشط غير مجاز وبدون بصمة دخول لآخر 3 أيام عمل (عادي) أو 5 أيام (عاجل). */
 export async function detectAbsentEmployees(now = new Date()): Promise<SmartFinding[]> {
+  if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return [];
   const last3 = recentSaudiWorkdays(now, 3);
   const last5 = recentSaudiWorkdays(now, 5);
   if (last3.length < 3) return [];
