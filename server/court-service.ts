@@ -1460,6 +1460,43 @@ export async function updateOperationalProfile(input: { profileId: number; unitI
   await logAudit({ actorUserId: input.actorUserId, action: unitChanged ? "profile.unit_changed" : managerChanged ? "profile.manager_changed" : "profile.updated", entityType: "person_profile", entityId: input.profileId, metadata: { ...(unitChanged || managerChanged ? { previousUnitId: profile.unitId, newUnitId: input.unitId === undefined ? profile.unitId : input.unitId, previousManagerProfileId: profile.directManagerProfileId, newManagerProfileId: input.directManagerProfileId === undefined ? profile.directManagerProfileId : input.directManagerProfileId } : {}), reason: input.reason ?? null } });
 }
 
+/** يغيّر المدير/القيادة حالة الموظف مع سبب إلزامي، ويوقف أو يفعّل مهامه تلقائياً. */
+export async function setStatusByManager(input: { profileId: number; newStatus: "active" | "on_leave" | "inactive" | "pending_review"; reason: string; actorUserId: number; startDate?: Date; endDate?: Date }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const profile = (await db.select({ id: personProfiles.id, status: personProfiles.status, fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "ملف الموظف غير موجود." });
+  const from = profile.status;
+  await db.update(personProfiles).set({ status: input.newStatus }).where(eq(personProfiles.id, input.profileId));
+  if (input.newStatus === "on_leave") {
+    try {
+      await pauseOpenTasksForProfile({ profileId: input.profileId, actorUserId: input.actorUserId, reason: input.reason, expiresAt: input.endDate, type: "temporary" });
+    } catch (error) {
+      console.warn("[Profiles] فشل إيقاف المهام عند تغيير الحالة من المدير", { profileId: input.profileId, error });
+    }
+  } else if (from === "on_leave") {
+    try {
+      await resumeOpenTasksForProfile({ profileId: input.profileId, actorUserId: input.actorUserId });
+    } catch (error) {
+      console.warn("[Profiles] فشل تفعيل المهام عند العودة من الإجازة", { profileId: input.profileId, error });
+    }
+  }
+  await logAudit({ actorUserId: input.actorUserId, action: "profile.status_changed", entityType: "person_profile", entityId: input.profileId, metadata: { from, to: input.newStatus, reason: input.reason, startDate: input.startDate ?? null, endDate: input.endDate ?? null } });
+  return { success: true, profileId: input.profileId, from, to: input.newStatus };
+}
+
+/** سجل تغييرات حالة الموظف (من سجل التدقيق). */
+export async function listProfileStatusHistory(profileId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(auditLogs).where(and(eq(auditLogs.entityType, "person_profile"), eq(auditLogs.entityId, profileId), eq(auditLogs.action, "profile.status_changed"))).orderBy(desc(auditLogs.createdAt)).limit(limit);
+  return rows.map(row => {
+    let metadata: Record<string, unknown> | null = null;
+    if (row.metadata) { try { metadata = JSON.parse(row.metadata); } catch { metadata = { raw: row.metadata }; } }
+    return { id: row.id, metadata, createdAt: row.createdAt };
+  });
+}
+
 export async function listProfileDelegations(filters?: { profileId?: number; unitId?: number; status?: "planned" | "active" | "ended" | "cancelled" }) {
   const db = await getDb();
   if (!db) return [];

@@ -52,6 +52,7 @@ import DepartmentDocumentsPage from "./pages/DepartmentDocumentsPage";
 import TaskTemplatesPage from "./pages/TaskTemplatesPage";
 import DepartmentTasksPage from "./pages/DepartmentTasksPage";
 import DisciplinaryPage from "./pages/DisciplinaryPage";
+import TeamStatusPage from "./pages/TeamStatusPage";
 
 const routerBase = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -87,6 +88,7 @@ function Router() {
       <Route path="/rakiza-mail" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="tasks" /> : RakizaMailPage} />
       <Route path="/correspondence" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="tasks" /> : CorrespondenceWorkspaceContent} />
       <Route path="/people" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : PersonnelAdminPage} />
+      <Route path="/team-status" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : TeamStatusPage} />
       <Route path="/personnel" component={() => <Redirect to="/people" />} />
       <Route path="/trainees" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : TraineeManagementPage} />
       <Route path="/judges" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : JudgesPage} />

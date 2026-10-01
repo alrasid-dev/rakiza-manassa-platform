@@ -87,6 +87,8 @@ import {
   getJudicialFormationReport,
   getPersonalDashboard,
   getProfileById,
+  setStatusByManager,
+  listProfileStatusHistory,
   getProfileForUser,
   getMyPermissionUsage,
   getMonthlyBalance,
@@ -1213,6 +1215,22 @@ export const courtRouter = router({
       const { profile } = await requirePersonalWorkspace(ctx.user);
       // الموظف الإداري يرى ملفه فقط؛ عرض ملفات الوحدة مخصص للمديرين أو الصلاحيات القيادية.
       return [profile];
+    }),
+    setStatusByManager: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), newStatus: z.enum(["active", "on_leave", "inactive", "pending_review"]), reason: z.string().trim().min(10).max(2000), startDate: z.date().optional(), endDate: z.date().optional() })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      const roles = await rolesForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const managedUnits = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+      if (!isLeadership && (!managedUnits || !managedUnits.length)) throw new TRPCError({ code: "FORBIDDEN", message: "تغيير حالة الموظف متاح للمدير والقيادة فقط." });
+      if (!isLeadership) {
+        const target = await getProfileById(input.profileId);
+        if (!target || !target.unitId || !managedUnits!.includes(target.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تغيير حالة موظف خارج قسمك." });
+      }
+      return setStatusByManager({ ...input, actorUserId: ctx.user.id });
+    }),
+    statusHistory: protectedProcedure.input(z.object({ profileId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      return listProfileStatusHistory(input.profileId);
     }),
     listDepartmentManagers: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "manage_access");
