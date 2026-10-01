@@ -4507,10 +4507,25 @@ export async function submitLeaveRequest(input: { profileId: number; requestType
   const id = Number(result[0].insertId);
   await logAudit({ actorUserId: input.requestedByUserId, action: "leave.submitted", entityType: "leave_request", entityId: id, metadata: { openTaskCount: openTasks.length, substituteProfileId: input.substituteProfileId ?? null, hijriMonthKey: hijriMonthKeyValue, requestSequenceInMonth } });
   // توجيه الطلب للمدير المباشر للبت فيه (وليس للمالك مباشرة).
-  const submitterProfile = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
-  if (submitterProfile?.directManagerProfileId) {
-    const kindLabel = input.requestType === "leave" ? "إجازة" : "استئذان";
-    await db.insert(notifications).values({ profileId: submitterProfile.directManagerProfileId, category: "security_alert", title: "طلب إجازة/استئذان بانتظار اعتمادك", body: `قدّم ${submitterProfile.fullName} طلب ${kindLabel} بانتظار قرارك.`, dedupeKey: `leave-review-${id}` }).onDuplicateKeyUpdate({ set: { title: "طلب إجازة/استئذان بانتظار اعتمادك" } });
+  const submitterProfile = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  const kindLabel = input.requestType === "leave" ? "إجازة" : "استئذان";
+  let reviewerProfileId = submitterProfile?.directManagerProfileId ?? null;
+  if (!reviewerProfileId && submitterProfile?.unitId) {
+    // احسب المدير ديناميكياً من تكليف إدارة القسم إن لم يكن المدير المباشر معبأً.
+    const managerAssignment = (await db.select({ userId: courtRoleAssignments.userId }).from(courtRoleAssignments).where(and(eq(courtRoleAssignments.unitId, submitterProfile.unitId), eq(courtRoleAssignments.isActive, true), inArray(courtRoleAssignments.role, ["department_manager", "trainee_affairs_manager"]))).limit(1))[0];
+    if (managerAssignment) {
+      const manager = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, managerAssignment.userId)).limit(1))[0];
+      reviewerProfileId = manager?.id ?? null;
+    }
+  }
+  if (reviewerProfileId) {
+    await db.insert(notifications).values({ profileId: reviewerProfileId, category: "security_alert", title: "طلب إجازة/استئذان بانتظار اعتمادك", body: `قدّم ${submitterProfile.fullName} طلب ${kindLabel} بانتظار قرارك.`, dedupeKey: `leave-review-${id}` }).onDuplicateKeyUpdate({ set: { title: "طلب إجازة/استئذان بانتظار اعتمادك" } });
+  } else {
+    // استثناء: لا يوجد مدير مباشر ولا مدير قسم → إشعار للمالك.
+    const owner = (await db.select({ id: personProfiles.id }).from(personProfiles).innerJoin(users, eq(users.id, personProfiles.userId)).where(eq(users.role, "admin")).limit(1))[0];
+    if (owner) {
+      await db.insert(notifications).values({ profileId: owner.id, category: "security_alert", title: "طلب إجازة/استئذان بدون مدير مباشر", body: `قدّم ${submitterProfile?.fullName ?? "موظف"} طلب ${kindLabel} ولا يوجد مدير مباشر لقسمه، بانتظار اعتمادك.`, dedupeKey: `leave-review-${id}` }).onDuplicateKeyUpdate({ set: { title: "طلب إجازة/استئذان بدون مدير مباشر" } });
+    }
   }
   return id;
 }
