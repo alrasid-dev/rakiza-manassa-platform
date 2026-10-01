@@ -2965,8 +2965,9 @@ export async function listCorrespondencesForProfile(profileId: number) {
     .limit(200);
 }
 
-export function buildOwnerSecurityNotification(input: { ownerProfileId: number; actorUserId: number; action: string; entityType: string; entityId?: number }) {
-  return { profileId: input.ownerProfileId, category: "security_alert" as const, title: "تنبيه أمني لمالك رَكيزة", body: `تمت محاولة/عملية حساسة: ${input.action} · النوع: ${input.entityType} · المنفذ: ${input.actorUserId}`, dedupeKey: `security-alert-${input.action}-${input.entityType}-${input.entityId ?? "none"}-${Date.now()}` };
+export function buildOwnerSecurityNotification(input: { ownerProfileId: number; actorUserId: number; actorName?: string | null; action: string; entityType: string; entityId?: number }) {
+  const actorLabel = input.actorName ? `${input.actorName} (${input.actorUserId})` : `غير معروف (${input.actorUserId})`;
+  return { profileId: input.ownerProfileId, category: "security_alert" as const, title: "تنبيه أمني لمالك رَكيزة", body: `تمت محاولة/عملية حساسة: ${input.action} · النوع: ${input.entityType} · الموظف: ${actorLabel}`, dedupeKey: `security-alert-${input.action}-${input.entityType}-${input.entityId ?? "none"}-${Date.now()}` };
 }
 
 export async function notifyPlatformOwnerSecurityAlert(input: { actorUserId: number; action: string; entityType: string; entityId?: number; details?: Record<string, unknown> }) {
@@ -2976,7 +2977,8 @@ export async function notifyPlatformOwnerSecurityAlert(input: { actorUserId: num
   if (!owner) return;
   const ownerProfile = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, owner.id)).limit(1))[0];
   if (!ownerProfile) return;
-  await db.insert(notifications).values(buildOwnerSecurityNotification({ ownerProfileId: ownerProfile.id, actorUserId: input.actorUserId, action: input.action, entityType: input.entityType, entityId: input.entityId }));
+  const actor = (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.userId, input.actorUserId)).limit(1))[0];
+  await db.insert(notifications).values(buildOwnerSecurityNotification({ ownerProfileId: ownerProfile.id, actorUserId: input.actorUserId, actorName: actor?.fullName ?? null, action: input.action, entityType: input.entityType, entityId: input.entityId }));
   await logAudit({ actorUserId: input.actorUserId, action: "security_alert.owner_notified", entityType: input.entityType, entityId: input.entityId, metadata: { action: input.action, ownerProfileId: ownerProfile.id, details: input.details ?? null } });
 }
 
@@ -3292,7 +3294,6 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
   }
   await db.insert(attendanceRecords).values({ ...attendanceInput, recordDate: dayStart, status, checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, note: input.note ?? null, createdByUserId: input.actorUserId }).onDuplicateKeyUpdate({ set: { checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, status, note: input.note ?? null, createdByUserId: input.actorUserId, updatedAt: new Date() } });
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.recorded", entityType: "attendance", entityId: input.profileId, metadata: { status } });
-  await notifyPlatformOwnerSecurityAlert({ actorUserId: input.actorUserId, action: "attendance.recorded", entityType: "attendance", entityId: input.profileId, details: { status } });
 }
 
 export async function recordAttendanceCheckout(input: { profileId: number; checkOutAt: Date; actorUserId: number }) {
@@ -3325,7 +3326,6 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
     await db.insert(scoreEvents).values({ profileId: input.profileId, points: 1, reason: "تسجيل الانصراف في الموعد", createdByUserId: input.actorUserId });
   }
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, negativeMinutes } });
-  await notifyPlatformOwnerSecurityAlert({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, details: { profileId: input.profileId } });
   await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
   return { success: true, attendanceId: existing.id };
 }
