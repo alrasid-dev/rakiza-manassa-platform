@@ -1626,6 +1626,28 @@ export async function autoResumeExpiredPausedTasks(now = new Date()) {
   return { resumed: expired.length };
 }
 
+/** يُنذر الموظف قبل 24 ساعة من انتهاء الإيقاف المؤقت (مرة واحدة فقط). */
+export async function checkExpiringPauses(now = new Date()) {
+  const db = await getDb();
+  if (!db) return { warned: 0 };
+  const soon = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const expiring = await db.select().from(tasks).where(and(
+    eq(tasks.status, "paused"),
+    eq(tasks.pauseType, "temporary"),
+    isNotNull(tasks.pauseExpiresAt),
+    gte(tasks.pauseExpiresAt, now),
+    lte(tasks.pauseExpiresAt, soon),
+    isNull(tasks.pauseWarningSentAt),
+  ));
+  for (const task of expiring) {
+    if (task.assigneeProfileId) {
+      await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "سيتم تفعيل مهامك قريباً", body: `سيتم تفعيل مهمتك "${task.title}" الموقوفة مؤقتاً خلال 24 ساعة.`, dedupeKey: `task-pause-warning-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "سيتم تفعيل مهامك قريباً" } });
+    }
+    await db.update(tasks).set({ pauseWarningSentAt: now, updatedAt: new Date() }).where(eq(tasks.id, task.id));
+  }
+  return { warned: expiring.length };
+}
+
 export async function listTaskAttachments(taskId: number) {
   const db = await getDb();
   if (!db) return [];

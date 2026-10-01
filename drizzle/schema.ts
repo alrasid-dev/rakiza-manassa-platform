@@ -742,6 +742,7 @@ export const tasks = mysqlTable("tasks", {
   pausedByUserId: int("pausedByUserId"),
   pauseExpiresAt: timestamp("pauseExpiresAt"),
   pauseType: varchar("pauseType", { length: 20 }),
+  pauseWarningSentAt: timestamp("pauseWarningSentAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => [
