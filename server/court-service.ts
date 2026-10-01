@@ -1668,6 +1668,87 @@ export async function checkExpiringPauses(now = new Date()) {
   return { warned: expiring.length };
 }
 
+const PAUSE_AUDIT_ACTIONS = ["task.paused", "task.resumed", "task.pausedAll", "task.resumedAll", "task.auto_resumed"];
+
+/** المهام الموقوفة الحالية لملف موظف معين. */
+export async function listPausedTasksForProfile(profileId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(tasks).where(and(eq(tasks.assigneeProfileId, profileId), eq(tasks.status, "paused"))).orderBy(desc(tasks.pausedAt));
+  const pausedByUserIds = Array.from(new Set(rows.map(t => t.pausedByUserId).filter((id): id is number => id != null)));
+  const usersById = new Map<number, string | null>();
+  if (pausedByUserIds.length) {
+    const uRows = await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, pausedByUserIds));
+    for (const u of uRows) usersById.set(u.id, u.name);
+  }
+  return rows.map(t => ({
+    id: t.id,
+    title: t.title,
+    pausedAt: t.pausedAt,
+    pausedReason: t.pausedReason,
+    pausedByName: t.pausedByUserId != null ? (usersById.get(t.pausedByUserId) ?? null) : null,
+    pauseType: t.pauseType,
+    pauseExpiresAt: t.pauseExpiresAt,
+  }));
+}
+
+/** ملخص إيقاف المهام لملف موظف (للشارة التفصيلية). */
+export async function getPauseSummary(profileId: number) {
+  const db = await getDb();
+  if (!db) return { pausedCount: 0, byUser: null, lastPausedAt: null, lastReason: null, lastType: null, lastExpiresAt: null };
+  const rows = await db.select().from(tasks).where(and(eq(tasks.assigneeProfileId, profileId), eq(tasks.status, "paused"))).orderBy(desc(tasks.pausedAt));
+  if (!rows.length) return { pausedCount: 0, byUser: null, lastPausedAt: null, lastReason: null, lastType: null, lastExpiresAt: null };
+  const last = rows[0];
+  let byUser: string | null = null;
+  if (last.pausedByUserId != null) {
+    const u = (await db.select({ name: users.name }).from(users).where(eq(users.id, last.pausedByUserId)).limit(1))[0];
+    byUser = u?.name ?? null;
+  }
+  return { pausedCount: rows.length, byUser, lastPausedAt: last.pausedAt, lastReason: last.pausedReason, lastType: last.pauseType, lastExpiresAt: last.pauseExpiresAt };
+}
+
+/** سجل أحداث الإيقاف/التفعيل (من audit_logs) مع إثراء اسم الفاعل وعنوان المهمة. */
+export async function listTaskPauseEvents(input: { profileId?: number; limit?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  const limit = input.limit ?? 50;
+  const rows = await db.select().from(auditLogs).where(inArray(auditLogs.action, PAUSE_AUDIT_ACTIONS)).orderBy(desc(auditLogs.createdAt)).limit(500);
+  const taskIds = rows.filter(r => r.entityType === "task").map(r => r.entityId).filter((id): id is number => id != null);
+  const tasksById = new Map<number, { title: string; assigneeProfileId: number | null }>();
+  if (taskIds.length) {
+    const tRows = await db.select({ id: tasks.id, title: tasks.title, assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(inArray(tasks.id, taskIds));
+    for (const t of tRows) tasksById.set(t.id, t);
+  }
+  const filtered = rows.filter(r => {
+    if (input.profileId == null) return true;
+    if (r.entityType === "person_profile") return r.entityId === input.profileId;
+    if (r.entityType === "task") return tasksById.get(r.entityId ?? 0)?.assigneeProfileId === input.profileId;
+    return false;
+  }).slice(0, limit);
+  const actorUserIds = Array.from(new Set(filtered.map(r => r.actorUserId).filter((id): id is number => id != null)));
+  const usersById = new Map<number, string | null>();
+  if (actorUserIds.length) {
+    const uRows = await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, actorUserIds));
+    for (const u of uRows) usersById.set(u.id, u.name);
+  }
+  return filtered.map(r => {
+    let meta: Record<string, unknown> = {};
+    try { meta = r.metadata ? JSON.parse(r.metadata) : {}; } catch { /* ignore */ }
+    const task = r.entityType === "task" ? tasksById.get(r.entityId ?? 0) : undefined;
+    return {
+      id: r.id,
+      action: r.action,
+      createdAt: r.createdAt,
+      actorName: r.actorUserId != null ? (usersById.get(r.actorUserId) ?? null) : null,
+      taskTitle: task?.title ?? null,
+      reason: typeof meta.reason === "string" ? meta.reason : null,
+      type: typeof meta.type === "string" ? meta.type : null,
+      expiresAt: meta.expiresAt ?? null,
+      count: typeof meta.count === "number" ? meta.count : null,
+    };
+  });
+}
+
 export async function listTaskAttachments(taskId: number) {
   const db = await getDb();
   if (!db) return [];

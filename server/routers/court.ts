@@ -16,6 +16,9 @@ import {
   resumeTask,
   pauseOpenTasksForProfile,
   resumeOpenTasksForProfile,
+  listPausedTasksForProfile,
+  getPauseSummary,
+  listTaskPauseEvents,
   addTaskCommentAndEscalate,
   addTaskComment,
   markTaskAsProcessed,
@@ -1356,6 +1359,18 @@ export const courtRouter = router({
       await requirePermission(ctx.user, "edit");
       if (!(await canPauseTaskForUser(ctx.user, input.profileId))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تفعيل مهام خارج نطاقك." });
       return resumeOpenTasksForProfile({ profileId: input.profileId, actorUserId: ctx.user.id });
+    }),
+    listPausedForProfile: protectedProcedure.input(z.object({ profileId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      return listPausedTasksForProfile(input.profileId);
+    }),
+    pauseSummary: protectedProcedure.input(z.object({ profileId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      return getPauseSummary(input.profileId);
+    }),
+    listPauseEvents: protectedProcedure.input(z.object({ profileId: z.number().int().positive().optional(), limit: z.number().int().min(1).max(100).optional() }).optional()).query(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      return listTaskPauseEvents({ profileId: input?.profileId, limit: input?.limit });
     }),
     routeTargets: protectedProcedure.query(async ({ ctx }) => {
       const permission = await requirePermission(ctx.user, "view");

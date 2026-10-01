@@ -30,6 +30,9 @@ vi.mock("@/lib/trpc", () => ({
       tasks: {
         pauseAllForProfile: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
         resumeAllForProfile: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
+        pauseSummary: { useQuery: () => ({ data: { pausedCount: 0, byUser: null, lastPausedAt: null, lastReason: null, lastType: null, lastExpiresAt: null }, isLoading: false, error: null }) },
+        listPausedForProfile: { useQuery: () => ({ data: [], isLoading: false, error: null }) },
+        listPauseEvents: { useQuery: () => ({ data: [], isLoading: false, error: null }) },
       },
     },
   },
