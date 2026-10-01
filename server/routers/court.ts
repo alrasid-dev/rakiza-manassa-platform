@@ -215,6 +215,7 @@ import {
   listDepartmentManagerAssignments,
   assignDepartmentManager,
   endDepartmentManagerAssignment,
+  syncDirectManagers,
   listDepartmentTaskTemplates,
   getTaskTemplateUnitId,
   setDepartmentTaskTemplateActive,
@@ -1240,6 +1241,10 @@ export const courtRouter = router({
     statusHistory: protectedProcedure.input(z.object({ profileId: z.number().int().positive() })).query(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "view");
       return listProfileStatusHistory(input.profileId);
+    }),
+    syncDirectManagers: protectedProcedure.mutation(async ({ ctx }) => {
+      await requireHumanResourcesOrLeadership(ctx.user);
+      return syncDirectManagers();
     }),
     setAttendanceModePeriod: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), mode: z.enum(["in_person", "remote", "mixed"]), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(), reason: z.string().trim().max(200).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");

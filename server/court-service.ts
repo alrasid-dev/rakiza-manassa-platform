@@ -650,15 +650,23 @@ export async function assignCourtRole(input: { userId: number; role: CourtRole; 
   const id = Number(result[0].insertId);
   await logAudit({ actorUserId: input.delegatedByUserId, action: "court_role.assigned", entityType: "court_role_assignment", entityId: id, metadata: { userId: input.userId, role: input.role, unitId: input.unitId ?? null } });
   await notifyPlatformOwnerSecurityAlert({ actorUserId: input.delegatedByUserId, action: "court_role.assigned", entityType: "court_role_assignment", entityId: id, details: { userId: input.userId, role: input.role, unitId: input.unitId ?? null } });
+  if (input.role === "department_manager" || input.role === "trainee_affairs_manager") {
+    await syncDirectManagers();
+  }
   return id;
 }
 
 export async function revokeCourtRole(assignmentId: number, actorUserId: number) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [assignment] = await db.select().from(courtRoleAssignments).where(eq(courtRoleAssignments.id, assignmentId)).limit(1);
   await db.update(courtRoleAssignments).set({ isActive: false, endsAt: new Date() }).where(eq(courtRoleAssignments.id, assignmentId));
   await logAudit({ actorUserId, action: "court_role.revoked", entityType: "court_role_assignment", entityId: assignmentId });
   await notifyPlatformOwnerSecurityAlert({ actorUserId, action: "court_role.revoked", entityType: "court_role_assignment", entityId: assignmentId });
+  if (assignment && (assignment.role === "department_manager" || assignment.role === "trainee_affairs_manager") && assignment.unitId != null) {
+    await db.update(personProfiles).set({ directManagerProfileId: null, updatedAt: new Date() }).where(eq(personProfiles.unitId, assignment.unitId));
+    await syncDirectManagers();
+  }
 }
 
 /** قائمة تكليفات إدارة الأقسام النشطة (دور مدير قسم) لاستخدامها في واجهة «تكليف بإدارة إدارة». */
@@ -682,6 +690,32 @@ export async function listDepartmentManagerAssignments() {
       or(isNull(courtRoleAssignments.endsAt), gt(courtRoleAssignments.endsAt, now)),
     ))
     .orderBy(asc(organizationUnits.name));
+}
+
+/** مزامنة المدير المباشر ديناميكياً: يملأ directManagerProfileId لكل موظف من مدير قسمه النشط. */
+export async function syncDirectManagers() {
+  const db = await getDb();
+  if (!db) return { syncedUnits: 0, syncedProfiles: 0 };
+  const assignments = await db.select({ userId: courtRoleAssignments.userId, unitId: courtRoleAssignments.unitId })
+    .from(courtRoleAssignments)
+    .where(and(
+      eq(courtRoleAssignments.isActive, true),
+      inArray(courtRoleAssignments.role, ["department_manager", "trainee_affairs_manager"]),
+      isNotNull(courtRoleAssignments.unitId),
+    ));
+  let syncedUnits = 0;
+  let syncedProfiles = 0;
+  for (const assignment of assignments) {
+    if (assignment.unitId == null) continue;
+    const manager = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, assignment.userId)).limit(1))[0];
+    if (!manager) continue;
+    const result = await db.update(personProfiles)
+      .set({ directManagerProfileId: manager.id, updatedAt: new Date() })
+      .where(and(eq(personProfiles.unitId, assignment.unitId), ne(personProfiles.id, manager.id)));
+    syncedUnits += 1;
+    syncedProfiles += Number(result[0].affectedRows);
+  }
+  return { syncedUnits, syncedProfiles };
 }
 
 /** تكليف حساب بإدارة قسم (مدير قسم) مع إنهاء أي تكليف نشط سابق على نفس القسم تلقائياً. */
