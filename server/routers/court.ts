@@ -188,6 +188,7 @@ import {
   listScoreEvents,
   listScoreEventsForProfile,
   listOperationalReportsForProfile,
+  summarizeAchievementsByUnit,
   listPerformanceReportEvaluations,
   listSupportTickets,
   markDecisionCircularRead,
@@ -1788,19 +1789,22 @@ export const courtRouter = router({
   }),
 
   delays: router({
-    list: protectedProcedure.input(z.object({ status: z.enum(["under_follow_up", "overdue", "resolved", "archived"]).optional() }).optional()).query(async ({ ctx, input }) => {
+    list: protectedProcedure.input(z.object({ status: z.enum(["under_follow_up", "overdue", "resolved", "archived"]).optional(), unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
-      if (await hasLeadershipPlatformScope(ctx.user, permission)) return listDelays(input?.status);
+      if (await hasLeadershipPlatformScope(ctx.user, permission)) return listDelays(input?.status, input?.unitId);
       const roles = await rolesForUser(ctx.user);
       if (roles.includes("judge")) {
         const judgeProfile = await getProfileForUser(ctx.user.id);
         if (!judgeProfile || judgeProfile.personType !== "judge") throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط حساب القاضي بملف قاضٍ فعال." });
         const assignedTrainees = await listTraineesForJudge(judgeProfile.id);
         const delayGroups = await Promise.all(assignedTrainees.map(profile => listDelaysForProfile(profile.id)));
-        return delayGroups.flat().filter(delay => !input?.status || delay.status === input.status);
+        return delayGroups.flat().filter(delay => (!input?.status || delay.status === input.status) && (!input?.unitId || delay.unitId === input.unitId));
       }
       const managedUnitIds = await managedUnitIdsForUser(ctx.user);
-      if (managedUnitIds.length) return listDelaysForUnits(managedUnitIds, input?.status);
+      if (managedUnitIds.length) {
+        const unitIds = input?.unitId ? managedUnitIds.filter(id => id === input.unitId) : managedUnitIds;
+        return listDelaysForUnits(unitIds, input?.status);
+      }
       const { profile } = await requirePersonalWorkspace(ctx.user);
       return listDelaysForProfile(profile.id);
     }),
@@ -1881,6 +1885,11 @@ export const courtRouter = router({
       }), { positive: 0, negative: 0, positiveEventCount: 0, negativeEventCount: 0 });
       const balance = summary.positive - summary.negative;
       return { profile: { id: profile.id, fullName: profile.fullName, personType: profile.personType }, events, reports: await listOperationalReportsForProfile(profile.id), summary: { positive: summary.positive, negative: summary.negative, balance }, performance: evaluatePerformance({ ...summary, balance }), weightedPerformance: calculateWeightedPerformance({}) };
+    }),
+    departments: protectedProcedure.query(async ({ ctx }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      if (!(await hasLeadershipPlatformScope(ctx.user, permission))) throw new TRPCError({ code: "FORBIDDEN", message: "عرض تقارير إنجاز الأقسام والموظفين متاح للقيادة فقط." });
+      return summarizeAchievementsByUnit();
     }),
   }),
 

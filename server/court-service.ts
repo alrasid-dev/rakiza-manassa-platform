@@ -124,6 +124,7 @@ import { OFFICIAL_MOJ_EMAIL_PATTERN, isAllowedLoginEmail as sharedIsAllowedLogin
 import { distributeAcrossAvailableStaff, extractPerformanceTasksFromExcel, extractPerformanceTasksFromWordText, type PerformanceReportTaskCandidate } from "./performance-report-task-extractor";
 import { assignmentBlockReason, assignPerformanceTasksByNameOrEvenly, deadlineNudgeKind, evaluatePerformanceReportIntegrity } from "./platform-completion";
 import { buildReportEvaluationProposal, type ReportAnalysisStatus } from "./performance-report-evaluation-policy";
+import { evaluatePerformance } from "./performance-evaluation";
 
 const SYSTEM_ACTOR_ID = 0;
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -2239,11 +2240,14 @@ export async function recordUserActivity(input: { userId: number; activityState:
   return { success: true as const, profileId: profile.id, activityState: input.activityState };
 }
 
-export async function listDelays(status?: "under_follow_up" | "overdue" | "resolved" | "archived") {
+export async function listDelays(status?: "under_follow_up" | "overdue" | "resolved" | "archived", unitId?: number) {
   const db = await getDb();
   if (!db) return [];
-  return status
-    ? db.select().from(delayRecords).where(eq(delayRecords.status, status)).orderBy(desc(delayRecords.createdAt))
+  const conditions = [];
+  if (status) conditions.push(eq(delayRecords.status, status));
+  if (unitId) conditions.push(eq(delayRecords.unitId, unitId));
+  return conditions.length
+    ? db.select().from(delayRecords).where(and(...conditions)).orderBy(desc(delayRecords.createdAt))
     : db.select().from(delayRecords).orderBy(desc(delayRecords.createdAt));
 }
 
@@ -3383,6 +3387,78 @@ export async function listScoreEventsForProfile(profileId: number, limit = 100) 
     .where(eq(scoreEvents.profileId, profileId))
     .orderBy(desc(scoreEvents.createdAt))
     .limit(limit);
+}
+
+export async function summarizeAchievementsByUnit() {
+  const db = await getDb();
+  if (!db) return { departments: [], employees: [] };
+  const rows = await db.select({
+    profileId: scoreEvents.profileId,
+    points: scoreEvents.points,
+    fullName: personProfiles.fullName,
+    personType: personProfiles.personType,
+    unitId: personProfiles.unitId,
+    unitName: organizationUnits.name,
+  })
+    .from(scoreEvents)
+    .innerJoin(personProfiles, eq(personProfiles.id, scoreEvents.profileId))
+    .leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId));
+
+  const profileMap = new Map<number, { profileId: number; fullName: string; personType: string; unitId: number | null; unitName: string | null; positive: number; negative: number; positiveEventCount: number; negativeEventCount: number }>();
+  for (const row of rows) {
+    const existing = profileMap.get(row.profileId);
+    const agg = existing ?? { profileId: row.profileId, fullName: row.fullName, personType: row.personType, unitId: row.unitId, unitName: row.unitName ?? null, positive: 0, negative: 0, positiveEventCount: 0, negativeEventCount: 0 };
+    if (row.points > 0) { agg.positive += row.points; agg.positiveEventCount += 1; }
+    else if (row.points < 0) { agg.negative += Math.abs(row.points); agg.negativeEventCount += 1; }
+    profileMap.set(row.profileId, agg);
+  }
+
+  const employees = [...profileMap.values()].map(profile => {
+    const balance = profile.positive - profile.negative;
+    return {
+      profileId: profile.profileId,
+      fullName: profile.fullName,
+      personType: profile.personType,
+      unitId: profile.unitId,
+      unitName: profile.unitName,
+      positive: profile.positive,
+      negative: profile.negative,
+      positiveEventCount: profile.positiveEventCount,
+      negativeEventCount: profile.negativeEventCount,
+      balance,
+      performance: evaluatePerformance({ positive: profile.positive, negative: profile.negative, balance, positiveEventCount: profile.positiveEventCount, negativeEventCount: profile.negativeEventCount }),
+    };
+  }).sort((a, b) => b.balance - a.balance);
+
+  const unitMap = new Map<string, { unitId: number | null; unitName: string; positive: number; negative: number; employeeCount: number; positiveEventCount: number; negativeEventCount: number }>();
+  for (const employee of employees) {
+    const key = employee.unitId != null ? `unit-${employee.unitId}` : `none-${employee.unitName ?? "غير مصنف"}`;
+    const existing = unitMap.get(key);
+    const agg = existing ?? { unitId: employee.unitId, unitName: employee.unitName ?? "غير مصنف في قسم", positive: 0, negative: 0, employeeCount: 0, positiveEventCount: 0, negativeEventCount: 0 };
+    agg.positive += employee.positive;
+    agg.negative += employee.negative;
+    agg.positiveEventCount += employee.positiveEventCount;
+    agg.negativeEventCount += employee.negativeEventCount;
+    agg.employeeCount += 1;
+    unitMap.set(key, agg);
+  }
+
+  const departments = [...unitMap.values()].map(unit => {
+    const balance = unit.positive - unit.negative;
+    return {
+      unitId: unit.unitId,
+      unitName: unit.unitName,
+      positive: unit.positive,
+      negative: unit.negative,
+      employeeCount: unit.employeeCount,
+      positiveEventCount: unit.positiveEventCount,
+      negativeEventCount: unit.negativeEventCount,
+      balance,
+      performance: evaluatePerformance({ positive: unit.positive, negative: unit.negative, balance, positiveEventCount: unit.positiveEventCount, negativeEventCount: unit.negativeEventCount }),
+    };
+  }).sort((a, b) => (b.unitName ?? "").localeCompare(a.unitName ?? "", "ar"));
+
+  return { departments, employees };
 }
 
 export async function listOrganizationUnits() {
