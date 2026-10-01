@@ -3748,6 +3748,8 @@ export async function reviewLeaveRequest(input: { leaveRequestId: number; decisi
         }
       }
     }
+  } else if (input.decision === "approved") {
+    await pauseOpenTasksForProfile({ profileId: request.profileId, actorUserId: input.reviewedByUserId, reason: "إجازة معتمدة", expiresAt: request.endAt, type: "temporary" });
   }
   await logAudit({ actorUserId: input.reviewedByUserId, action: `leave.${input.decision}`, entityType: "leave_request", entityId: request.id, metadata: { substituteProfileId: request.substituteProfileId } });
 }
@@ -3928,6 +3930,7 @@ export async function activateScheduledLeaveStatuses(now = new Date()) {
   for (const leave of toComplete) {
     await db.update(leaveRequests).set({ status: "completed" }).where(eq(leaveRequests.id, leave.id));
     await db.update(personProfiles).set({ status: "active" }).where(eq(personProfiles.id, leave.profileId));
+    await resumeOpenTasksForProfile({ profileId: leave.profileId, actorUserId: 0 });
   }
   return { activated: toActivate.length, completed: toComplete.length };
 }
