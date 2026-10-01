@@ -1520,11 +1520,12 @@ export async function archiveTask(input: { taskId: number; actorUserId: number }
   return { success: true as const };
 }
 
-export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number) {
+export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number, assigneeProfileId?: number) {
   const db = await getDb();
   if (!db || !unitIds.length) return [];
   const conditions = [inArray(tasks.unitId, unitIds), isNull(tasks.archivedAt)];
   if (status) conditions.push(eq(tasks.status, status));
+  if (assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, assigneeProfileId));
   if (visibleProfileId) {
     const now = new Date();
     conditions.push(or(eq(tasks.isConfidential, false), and(isNotNull(tasks.confidentialityExpiresAt), lte(tasks.confidentialityExpiresAt, now)), eq(tasks.assigneeProfileId, visibleProfileId), eq(tasks.watcherProfileId, visibleProfileId))!);
