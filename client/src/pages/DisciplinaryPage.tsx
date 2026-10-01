@@ -34,14 +34,22 @@ export default function DisciplinaryPage() {
         <h1 className="text-2xl font-bold text-[#12352f]">المساءلات</h1>
 
         <section className="mt-6">
-          <h2 className="text-lg font-bold text-[#12352f]">مساءلاتي</h2>
+          <h2 className="text-lg font-bold text-[#12352f]">مساءلاتي{myCases.data?.length ? ` (${myCases.data.length})` : ""}</h2>
+          {myCases.isLoading && <p className="mt-2 text-gray-500">جارٍ تحميل مساءلاتك…</p>}
+          {myCases.error && (
+            <p className="mt-2 rounded-lg border border-[#e7d9c4] bg-[#fbf6ec] px-3 py-2 text-sm text-[#8a6d20]">
+              {myCases.error.data?.code === "FORBIDDEN"
+                ? "سجل المساءلات الشخصي متاح للموظفين والملازمين فقط. تُعرض مساءلات فريقك أدناه (إن وُجدت)."
+                : myCases.error.message || "تعذر تحميل مساءلاتك."}
+            </p>
+          )}
           {myCases.data?.map(c => (
             <div key={c.id} className="mt-3 rounded-lg border border-[#e7e0d4] bg-white p-4">
               <div className="flex justify-between">
-                <span className="font-bold text-[#29463b]">{c.sourceLabel}</span>
-                <span className="text-sm text-gray-500">{new Date(c.createdAt).toLocaleDateString("ar-SA")}</span>
+                <span className="font-bold text-[#29463b]">{c.sourceLabel || (c.source === "attendance" ? "مساءلة حضور" : "مساءلة مهمة")}</span>
+                <span className="text-sm text-gray-500">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA") : ""}</span>
               </div>
-              <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote}</p>
+              <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote || "—"}</p>
               <span className="mt-2 inline-block rounded bg-gray-100 px-2 py-1 text-xs">{statusLabels[c.status] || c.status}</span>
               {c.status === "pending" && (
                 <div className="mt-3">
@@ -63,7 +71,7 @@ export default function DisciplinaryPage() {
               )}
             </div>
           ))}
-          {!myCases.data?.length && <p className="mt-2 text-gray-500">لا توجد مساءلات.</p>}
+          {!myCases.isLoading && !myCases.error && !myCases.data?.length && <p className="mt-2 text-gray-500">لا توجد مساءلات شخصية ضمن سجلك حتى الآن.</p>}
         </section>
 
         {teamCases.data && teamCases.data.length > 0 && (
