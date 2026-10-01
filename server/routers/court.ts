@@ -2137,7 +2137,7 @@ export const courtRouter = router({
         throw new TRPCError({ code: message.includes("غير موجودة") ? "NOT_FOUND" : "FORBIDDEN", message });
       }
     }),
-    managerDecision: protectedProcedure.input(z.object({ caseId: z.number().int().positive(), decision: z.enum(["escalate", "save"]), note: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
+    managerDecision: protectedProcedure.input(z.object({ caseId: z.number().int().positive(), decision: z.enum(["escalate", "save", "cancel"]), note: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await permissionForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);

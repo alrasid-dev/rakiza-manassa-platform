@@ -76,7 +76,7 @@ export default function DisciplinaryPage() {
 
         {teamCases.data && teamCases.data.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-lg font-bold text-[#12352f]">مساءلات فريقي</h2>
+            <h2 className="text-lg font-bold text-[#12352f]">قرارات بانتظار عنايتك{teamCases.data?.length ? ` (${teamCases.data.length})` : ""}</h2>
             {teamCases.data.map(c => (
               <div key={c.id} className="mt-3 rounded-lg border border-[#e7e0d4] bg-white p-4">
                 <div className="flex justify-between">
@@ -84,15 +84,19 @@ export default function DisciplinaryPage() {
                   <span className="text-sm text-gray-500">{new Date(c.createdAt).toLocaleDateString("ar-SA")}</span>
                 </div>
                 <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote}</p>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}
+                    className="rounded bg-[#006c35] px-3 py-2 text-white text-sm"
+                  >✅ حفظ</button>
+                  <button
+                    onClick={() => decide.mutate({ caseId: c.id, decision: "cancel", note: notes[c.id] }, { onSuccess: refresh })}
+                    className="rounded bg-gray-600 px-3 py-2 text-white text-sm"
+                  >❌ إلغاء</button>
                   <button
                     onClick={() => decide.mutate({ caseId: c.id, decision: "escalate", note: notes[c.id] }, { onSuccess: refresh })}
                     className="rounded bg-amber-600 px-3 py-2 text-white text-sm"
-                  >تصعيد للأمين</button>
-                  <button
-                    onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}
-                    className="rounded bg-gray-600 px-3 py-2 text-white text-sm"
-                  >حفظ في السجل</button>
+                  >⬆️ تصعيد</button>
                 </div>
                 <input
                   type="text"

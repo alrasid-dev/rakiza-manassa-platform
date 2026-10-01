@@ -2425,18 +2425,14 @@ export async function respondToDisciplinaryCase(input: { caseId: number; profile
 
   const profile = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
   if (profile?.directManagerProfileId) {
-    await db.insert(notifications).values({
-      profileId: profile.directManagerProfileId,
-      category: "security_alert",
-      title: "رد موظف على مساءلة",
-      body: `قدّم ${profile.fullName} رده على المساءلة. يرجى المراجعة.`,
-      dedupeKey: `disciplinary-response-${input.caseId}`,
-    });
+    const notification = { profileId: profile.directManagerProfileId, category: "security_alert" as const, title: "رد موظف على مساءلة — يحتاج قرارك", body: `قدّم ${profile.fullName} رده على المساءلة. يرجى فتح صفحة المساءلات واتخاذ قرارك.`, dedupeKey: `disciplinary-response-${input.caseId}` };
+    await db.insert(notifications).values(notification).onDuplicateKeyUpdate({ set: { title: "رد موظف على مساءلة — يحتاج قرارك" } });
+    try { await sendPushForNotification(profile.directManagerProfileId, { title: "رد موظف على مساءلة — يحتاج قرارك", body: `قدّم ${profile.fullName} رده على المساءلة. يرجى اتخاذ قرارك.`, url: "/disciplinary", tag: notification.dedupeKey }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار رد المساءلة", { caseId: input.caseId, error }); }
   }
   return { ok: true as const };
 }
 
-export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
+export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save" | "cancel"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const caseRow = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.caseId)).limit(1))[0];
@@ -2448,8 +2444,8 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
     if (!targetProfile || !input.managedUnitIds.includes(targetProfile.unitId!)) throw new Error("خارج نطاق وحدتك.");
   }
 
-  const newStatus = input.decision === "escalate" ? "escalated" : "approved";
-  const decisionLabel = input.decision === "escalate" ? "تصعيد للأمين" : "حفظ في السجل";
+  const newStatus = input.decision === "escalate" ? "escalated" : input.decision === "cancel" ? "cancelled" : "approved";
+  const decisionLabel = input.decision === "escalate" ? "تصعيد للأمين" : input.decision === "cancel" ? "إلغاء المساءلة" : "حفظ في السجل";
   const patch: Partial<typeof approvalRequests.$inferInsert> = {
     status: newStatus,
     requestNote: (caseRow.requestNote || "") + "\n\n--- قرار المدير ---\n" + decisionLabel + (input.note ? " - " + input.note : ""),
