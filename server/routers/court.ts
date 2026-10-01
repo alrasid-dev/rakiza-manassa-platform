@@ -204,6 +204,7 @@ import {
   getPendingConfirmationAssignment,
   confirmAttendance,
   getConfirmationSettingsService,
+  countConfirmationTargets,
   setGlobalConfirmation,
   setDepartmentConfirmation,
   setConfirmationAudienceUnitIds,
@@ -2254,6 +2255,10 @@ export const courtRouter = router({
     confirmationSettings: protectedProcedure.query(async ({ ctx }) => {
       await requireAttendancePolicyAccess(ctx.user);
       return getConfirmationSettingsService();
+    }),
+    confirmationTargetCount: protectedProcedure.input(z.object({ audienceUnitIds: z.array(z.number().int().positive()) })).query(async ({ ctx, input }) => {
+      await requireAttendancePolicyAccess(ctx.user);
+      return countConfirmationTargets(input.audienceUnitIds);
     }),
     setGlobalConfirmation: protectedProcedure.input(z.object({ enabled: z.boolean() })).mutation(async ({ ctx, input }) => {
       await requireAttendancePolicyAccess(ctx.user);

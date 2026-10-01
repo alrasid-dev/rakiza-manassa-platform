@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
+import { and, desc, eq, exists, gte, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { accessGrants, approvalRequests, attendanceRecords, confirmationAssignments, courtRoleAssignments, leaveRequests, notifications, personProfiles, scoreEvents, scheduledJobConfigs, systemConfigs, users, workShifts } from "../../drizzle/schema";
 import { getDb } from "../db";
@@ -360,7 +360,10 @@ export async function generateConfirmationAssignments(now = new Date()): Promise
 
   const excluded = await getExcludedProfileIds();
   const weekday = riyadhWeekday(now);
-  const profiles = await db.select().from(personProfiles).where(eq(personProfiles.status, "active"));
+  const profiles = await db.select().from(personProfiles).where(and(
+    eq(personProfiles.status, "active"),
+    exists(db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, personProfiles.id), isNotNull(attendanceRecords.checkInAt)))),
+  ));
   const allowlist = settings.audienceUnitIds?.length ? new Set(settings.audienceUnitIds) : null;
   const currentModes = await getCurrentAttendanceModes(profiles.map(p => p.id), now);
 

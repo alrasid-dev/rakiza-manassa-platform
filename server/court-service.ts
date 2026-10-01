@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, inArray, isNull, isNotNull, like, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gt, gte, inArray, isNull, isNotNull, like, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { ENV } from "./_core/env";
 import { TRPCError } from "@trpc/server";
 
@@ -4322,9 +4322,26 @@ export async function confirmAttendance(input: { assignmentId: number; profileId
 /** قراءة إعدادات نظام تأكيد الحضور (عام + لكل قسم). */
 export async function getConfirmationSettingsService() {
   const db = await getDb();
-  if (!db) return { globalEnabled: true, perDept: {} as Record<string, boolean>, audienceUnitIds: [] as number[] };
+  if (!db) return { globalEnabled: true, perDept: {} as Record<string, boolean>, audienceUnitIds: [] as number[], targetCount: 0 };
   const [row] = await db.select().from(systemConfigs).limit(1);
-  return { globalEnabled: row?.confirmationEnabledGlobal ?? true, perDept: (row?.confirmationEnabledPerDept ?? {}) as Record<string, boolean>, audienceUnitIds: (row?.confirmationAudienceUnitIds ?? []) as number[] };
+  const audienceUnitIds = (row?.confirmationAudienceUnitIds ?? []) as number[];
+  const targetCount = await countConfirmationTargets(audienceUnitIds);
+  return { globalEnabled: row?.confirmationEnabledGlobal ?? true, perDept: (row?.confirmationEnabledPerDept ?? {}) as Record<string, boolean>, audienceUnitIds, targetCount };
+}
+
+/** عدد المستهدفين الفعلي لتأكيد الحضور: عن بُعد/مختلط + نشط + بصم دخولاً فعلياً ضمن الأقسام المفعّلة. */
+export async function countConfirmationTargets(audienceUnitIds: number[]) {
+  const db = await getDb();
+  if (!db || !audienceUnitIds.length) return 0;
+  const [row] = await db.select({ count: sql<number>`count(distinct ${personProfiles.id})` })
+    .from(personProfiles)
+    .where(and(
+      inArray(personProfiles.unitId, audienceUnitIds),
+      inArray(personProfiles.attendanceMode, ["remote", "mixed"]),
+      eq(personProfiles.status, "active"),
+      exists(db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, personProfiles.id), isNotNull(attendanceRecords.checkInAt)))),
+    ));
+  return Number(row?.count ?? 0);
 }
 
 /** تفعيل/إيقاف نظام التأكيد عاماً. */
