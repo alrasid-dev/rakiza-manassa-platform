@@ -12,6 +12,7 @@ import { handleMonthlySettlementSchedule } from "../scheduled/monthly-settlement
 import { handleInternalMailSchedule } from "../scheduled/internal-mail";
 import { handleSmartNotificationsSchedule } from "../scheduled/smart-notifications-cron";
 import { handleAutoResumeTasksSchedule } from "../scheduled/auto-resume-tasks";
+import { handleMarkOverdueTasksSchedule } from "../scheduled/mark-overdue-tasks";
 import { trpcMutationOriginGuard } from "./originGuard";
 import { securityHeaders } from "./securityHeaders";
 import { dataConnectionsStatus } from "./data-connections";
@@ -38,6 +39,7 @@ export function createExpressApp() {
   app.post("/api/scheduled/internal-mail-dispatch", handleInternalMailSchedule);
   app.post("/api/scheduled/smart-notifications", handleSmartNotificationsSchedule);
   app.post("/api/scheduled/auto-resume-tasks", handleAutoResumeTasksSchedule);
+  app.post("/api/scheduled/mark-overdue-tasks", handleMarkOverdueTasksSchedule);
   app.use(
     "/api/trpc",
     trpcMutationOriginGuard,

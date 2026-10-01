@@ -35,6 +35,7 @@ jobs:
             "internal-mail-dispatch"
             "smart-notifications"
             "auto-resume-tasks"
+            "mark-overdue-tasks"
           )
 
           for JOB in "${JOBS[@]}"; do

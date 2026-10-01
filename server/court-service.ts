@@ -1497,7 +1497,11 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
   const db = await getDb();
   if (!db) return [];
   const conditions = [isNull(tasks.archivedAt)];
-  if (filters?.status) conditions.push(eq(tasks.status, filters.status));
+  if (filters?.status === "overdue") {
+    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled", "paused"]), lt(tasks.dueAt, new Date()))!);
+  } else if (filters?.status) {
+    conditions.push(eq(tasks.status, filters.status));
+  }
   if (filters?.assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, filters.assigneeProfileId));
   if (filters?.visibleProfileId) {
     const now = new Date();
@@ -1524,13 +1528,25 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
   const db = await getDb();
   if (!db || !unitIds.length) return [];
   const conditions = [inArray(tasks.unitId, unitIds), isNull(tasks.archivedAt)];
-  if (status) conditions.push(eq(tasks.status, status));
+  if (status === "overdue") {
+    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled", "paused"]), lt(tasks.dueAt, new Date()))!);
+  } else if (status) {
+    conditions.push(eq(tasks.status, status));
+  }
   if (assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, assigneeProfileId));
   if (visibleProfileId) {
     const now = new Date();
     conditions.push(or(eq(tasks.isConfidential, false), and(isNotNull(tasks.confidentialityExpiresAt), lte(tasks.confidentialityExpiresAt, now)), eq(tasks.assigneeProfileId, visibleProfileId), eq(tasks.watcherProfileId, visibleProfileId))!);
   }
   return db.select().from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
+}
+
+/** تحويل المهام المتجاوزة لموعدها (غير المكتملة/الملغاة/الموقوفة) إلى حالة overdue. */
+export async function markOverdueTasks(now = new Date()) {
+  const db = await getDb();
+  if (!db) return { marked: 0 };
+  const result = await db.update(tasks).set({ status: "overdue", updatedAt: now }).where(and(inArray(tasks.status, ["new", "in_progress", "under_review"]), lt(tasks.dueAt, now), isNull(tasks.archivedAt)));
+  return { marked: Number(result[0]?.affectedRows ?? 0) };
 }
 
 export async function getTaskById(taskId: number) {
