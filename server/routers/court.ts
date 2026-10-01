@@ -237,6 +237,9 @@ import {
   createTaskModificationRequest,
   reviewTaskModification,
   listTaskModificationRequests,
+  submitTaskForApproval,
+  reviewTaskApproval,
+  listPendingTaskApprovals,
   requestOtpCode,
   verifyOtpCode,
   issueAuthActivationToken,
@@ -1496,6 +1499,30 @@ export const courtRouter = router({
       const profile = await getProfileForUser(ctx.user.id);
       if (!profile) return [];
       return listTaskModificationRequests({ status: input?.status, requesterProfileId: profile.id });
+    }),
+    submitForApproval: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف موظف لرفع المهمة للاعتماد." });
+      return submitTaskForApproval({ taskId: input.taskId, submittedByProfileId: profile.id, actorUserId: ctx.user.id, note: input.note });
+    }),
+    reviewApproval: protectedProcedure.input(z.object({ approvalId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), note: z.string().trim().min(3).max(4000) })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      const roles = await rolesForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+      if (!isLeadership && !isManager) throw new TRPCError({ code: "FORBIDDEN", message: "اعتماد المهام متاح للمدير والقيادة فقط." });
+      const reviewer = await getProfileForUser(ctx.user.id);
+      return reviewTaskApproval({ approvalId: input.approvalId, decision: input.decision, note: input.note, reviewerProfileId: reviewer?.id ?? 0, reviewerUserId: ctx.user.id });
+    }),
+    listPendingApprovals: protectedProcedure.input(z.object({}).optional()).query(async ({ ctx }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      const roles = await rolesForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+      if (!isLeadership && !isManager) throw new TRPCError({ code: "FORBIDDEN", message: "عرض الاعتمادات متاح للمدير والقيادة فقط." });
+      if (isLeadership) return listPendingTaskApprovals();
+      const unitIds = await managedUnitIdsForUser(ctx.user);
+      return listPendingTaskApprovals({ unitIds });
     }),
     cancel: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), cancellationReason: z.string().trim().min(3).max(2000) })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);

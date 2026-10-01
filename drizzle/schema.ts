@@ -846,6 +846,23 @@ export const taskModificationRequests = mysqlTable("task_modification_requests",
   index("task_modification_requests_requester_idx").on(table.requestedByProfileId, table.status),
 ]);
 
+/** اعتمادات المدير على المهام المرفوعة من الموظف بعد الإنجاز. */
+export const taskApprovals = mysqlTable("task_approvals", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  submittedByProfileId: int("submittedByProfileId").notNull(),
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  reviewedByProfileId: int("reviewedByProfileId"),
+  reviewedAt: timestamp("reviewedAt"),
+  reviewNote: text("reviewNote"),
+  pointsAwarded: int("pointsAwarded").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => [
+  index("task_approvals_task_status_idx").on(table.taskId, table.status),
+  index("task_approvals_submitter_idx").on(table.submittedByProfileId, table.status),
+]);
+
 export const delayRecords = mysqlTable("delay_records", {
   id: int("id").autoincrement().primaryKey(),
   unitId: int("unitId"),

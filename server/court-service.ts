@@ -85,6 +85,7 @@ import {
   taskUpdateMentions,
   taskExceptionRequests,
   taskModificationRequests,
+  taskApprovals,
   taskTemplates,
   taskUpdates,
   traineeAssignments,
@@ -3071,6 +3072,67 @@ export async function listTaskModificationRequests(options: { status?: "pending"
   const requesterRows = await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(inArray(personProfiles.id, requesterIds));
   const requesterMap = new Map(requesterRows.map(p => [p.id, p.fullName]));
   let result = requests.map(r => ({ request: r, task: taskMap.get(r.taskId) ?? null, requesterName: requesterMap.get(r.requestedByProfileId) ?? null }));
+  if (options.unitIds?.length) result = result.filter(item => item.task && item.task.unitId !== null && options.unitIds!.includes(item.task.unitId));
+  return result;
+}
+
+/** يرفع الموظف مهمة مكتملة لاعتماد المدير؛ تُعلَّق حالتها على under_review. */
+export async function submitTaskForApproval(input: { taskId: number; submittedByProfileId: number; actorUserId: number; note?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+  if (task.assigneeProfileId !== input.submittedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "رفع الاعتماد متاح للمكلف الحالي بالمهمة فقط." });
+  if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "المهمة مكتملة أو ملغاة." });
+  const existing = await db.select({ id: taskApprovals.id }).from(taskApprovals).where(and(eq(taskApprovals.taskId, input.taskId), eq(taskApprovals.status, "pending"))).limit(1);
+  if (existing[0]) throw new TRPCError({ code: "CONFLICT", message: "يوجد اعتماد معلق لهذه المهمة بانتظار قرار المدير." });
+  await db.update(tasks).set({ status: "under_review", completedAt: null, completionNote: input.note ?? null }).where(eq(tasks.id, input.taskId));
+  await markTaskNotificationsRead(input.taskId);
+  const result = await db.insert(taskApprovals).values({ taskId: input.taskId, submittedByProfileId: input.submittedByProfileId });
+  const approvalId = Number(result[0].insertId);
+  await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "submitted", note: input.note ?? null });
+  await logAudit({ actorUserId: input.actorUserId, action: "task.submitted_for_approval", entityType: "task_approval", entityId: approvalId, metadata: { taskId: input.taskId } });
+  return approvalId;
+}
+
+/** يوافق المدير على المهمة المرفوعة فيُحسب النقاط وتكتمل، أو يرفضها فتعود للتنفيذ. */
+export async function reviewTaskApproval(input: { approvalId: number; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const approval = (await db.select().from(taskApprovals).where(eq(taskApprovals.id, input.approvalId)).limit(1))[0];
+  if (!approval) throw new TRPCError({ code: "NOT_FOUND", message: "طلب الاعتماد غير موجود." });
+  if (approval.status !== "pending") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "تم البت في هذا الاعتماد مسبقاً." });
+  const task = await getTaskById(approval.taskId);
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المرتبطة غير موجودة." });
+  let pointsAwarded = 0;
+  if (input.decision === "approved") {
+    await db.update(tasks).set({ status: "completed", completedAt: new Date() }).where(eq(tasks.id, approval.taskId));
+    await awardTaskCompletionPoints(approval.taskId, input.reviewerUserId);
+    pointsAwarded = taskApprovalScore();
+  } else {
+    await db.update(tasks).set({ status: "in_progress", completedAt: null }).where(eq(tasks.id, approval.taskId));
+  }
+  await db.update(taskApprovals).set({ status: input.decision, reviewedByProfileId: input.reviewerProfileId, reviewedAt: new Date(), reviewNote: input.note.trim(), pointsAwarded }).where(eq(taskApprovals.id, approval.id));
+  await db.insert(taskUpdates).values({ taskId: approval.taskId, actorUserId: input.reviewerUserId, updateType: "approved", note: `قرار الاعتماد: ${input.decision === "approved" ? "معتمد" : "مرفوض"}. ${input.note.trim()}` });
+  await logAudit({ actorUserId: input.reviewerUserId, action: `task.approval_${input.decision}`, entityType: "task_approval", entityId: approval.id, metadata: { taskId: approval.taskId, pointsAwarded } });
+  return { success: true, approvalId: approval.id, pointsAwarded };
+}
+
+/** قائمة اعتمادات المهام المعلقة (مُثراة باسم المهمة ومقدمها). */
+export async function listPendingTaskApprovals(options: { unitIds?: number[]; submittedByProfileId?: number } = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conds = [eq(taskApprovals.status, "pending")];
+  if (options.submittedByProfileId) conds.push(eq(taskApprovals.submittedByProfileId, options.submittedByProfileId));
+  const approvals = await db.select().from(taskApprovals).where(and(...conds)).orderBy(desc(taskApprovals.createdAt)).limit(200);
+  if (!approvals.length) return [];
+  const taskIds = approvals.map(a => a.taskId);
+  const taskRows = await db.select({ id: tasks.id, title: tasks.title, unitId: tasks.unitId, status: tasks.status, taskNotes: tasks.taskNotes }).from(tasks).where(inArray(tasks.id, taskIds));
+  const taskMap = new Map(taskRows.map(t => [t.id, t]));
+  const submitterIds = [...new Set(approvals.map(a => a.submittedByProfileId))];
+  const submitterRows = await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(inArray(personProfiles.id, submitterIds));
+  const submitterMap = new Map(submitterRows.map(p => [p.id, p.fullName]));
+  let result = approvals.map(a => ({ approval: a, task: taskMap.get(a.taskId) ?? null, submitterName: submitterMap.get(a.submittedByProfileId) ?? null }));
   if (options.unitIds?.length) result = result.filter(item => item.task && item.task.unitId !== null && options.unitIds!.includes(item.task.unitId));
   return result;
 }
