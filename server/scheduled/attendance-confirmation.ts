@@ -8,7 +8,7 @@ import { isValidCronSecret } from "./cron-auth";
 import { attendanceConfirmationCadence, attendanceConfirmationPolicyDefaults, shouldRequestAttendanceConfirmation, calculateComplianceRate, COMPLIANCE_EXEMPTION_THRESHOLD, COMPLIANCE_MANDATORY_THRESHOLD, EXEMPTION_WINDOW_DAYS, type AttendanceConfirmationCadence } from "../attendance-confirmation-policy";
 import { dateRangeForSaudiDay, isSaudiWorkday } from "../task-automation";
 import { isOfficialHoliday, workHoursFor } from "../holidays";
-import { MISSING_CHECKOUT_PENALTY_MINUTES, MISSING_CHECKOUT_PENALTY_POINTS } from "../court-service";
+import { getCurrentAttendanceModes, MISSING_CHECKOUT_PENALTY_MINUTES, MISSING_CHECKOUT_PENALTY_POINTS } from "../court-service";
 import { CONFIRMATION_RANDOM_END_MINUTES, CONFIRMATION_RANDOM_START_MINUTES, CONFIRMATION_WINDOW_MINUTES, confirmationCadence, shouldConfirmOnWorkday } from "../confirmation-cadence";
 import { sendPushForNotification } from "../push-service";
 
@@ -191,8 +191,11 @@ export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ che
       isNull(attendanceRecords.checkOutAt),
     ));
 
+  const recordModes = await getCurrentAttendanceModes([...new Set(records.map(r => r.profileId))]);
   let penalized = 0;
   for (const record of records) {
+    // الحالة الحالية للحضور: الموظف الحضوري لا يُطالَب بالانصراف.
+    if ((recordModes.get(record.profileId) ?? "in_person") === "in_person") continue;
     // الشرط 4: لا توجد إجازة معتمدة تغطي اليوم.
     const approvedLeave = await db
       .select({ id: leaveRequests.id })
@@ -359,11 +362,12 @@ export async function generateConfirmationAssignments(now = new Date()): Promise
   const weekday = riyadhWeekday(now);
   const profiles = await db.select().from(personProfiles).where(eq(personProfiles.status, "active"));
   const allowlist = settings.audienceUnitIds?.length ? new Set(settings.audienceUnitIds) : null;
+  const currentModes = await getCurrentAttendanceModes(profiles.map(p => p.id), now);
 
   let generated = 0;
   for (const profile of profiles) {
     if (excluded.has(profile.id)) continue;
-    if (profile.attendanceMode === "in_person") continue;
+    if ((currentModes.get(profile.id) ?? "in_person") === "in_person") continue;
     if (allowlist) {
       if (profile.unitId == null || !allowlist.has(profile.unitId)) continue;
     } else if (profile.unitId != null && settings.perDept[String(profile.unitId)] === false) {

@@ -8,7 +8,7 @@ import { getDb } from "./db";
 import { ENV } from "./_core/env";
 import { dateRangeForSaudiDay, isSaudiWorkday } from "./task-automation";
 import { isOfficialHoliday } from "./holidays";
-import { sendBrevoTransactionalEmail } from "./court-service";
+import { getCurrentAttendanceModes, sendBrevoTransactionalEmail } from "./court-service";
 
 export type SmartNotificationType = "absent" | "urgent_absent" | "missing_checkout" | "chronic_late" | "late_task";
 
@@ -34,9 +34,11 @@ function recentSaudiWorkdays(now: Date, count: number): Date[] {
 async function activeAdministrativeProfiles() {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ id: personProfiles.id, fullName: personProfiles.fullName })
+  const profiles = await db.select({ id: personProfiles.id, fullName: personProfiles.fullName })
     .from(personProfiles)
     .where(and(eq(personProfiles.status, "active"), eq(personProfiles.personType, "administrative")));
+  const modes = await getCurrentAttendanceModes(profiles.map(p => p.id));
+  return profiles.filter(p => modes.get(p.id) === "remote" || modes.get(p.id) === "mixed");
 }
 
 async function profilesOnApprovedLeave(start: Date, end: Date): Promise<Set<number>> {
@@ -91,8 +93,10 @@ export async function detectMissingCheckouts(now = new Date()): Promise<SmartFin
     .from(attendanceRecords)
     .innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId))
     .where(and(gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end), isNotNull(attendanceRecords.checkInAt), isNull(attendanceRecords.checkOutAt)));
+  const modes = await getCurrentAttendanceModes([...new Set(rows.map(r => r.profileId))]);
+  const remoteRows = rows.filter(r => modes.get(r.profileId) === "remote" || modes.get(r.profileId) === "mixed");
   const counts = new Map<number, { fullName: string; n: number }>();
-  for (const r of rows) {
+  for (const r of remoteRows) {
     const cur = counts.get(r.profileId) ?? { fullName: r.fullName ?? "", n: 0 };
     cur.n += 1;
     counts.set(r.profileId, cur);
