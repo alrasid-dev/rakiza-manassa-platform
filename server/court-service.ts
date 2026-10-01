@@ -1593,11 +1593,11 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
   return db.select().from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
-/** تحويل المهام المتجاوزة لموعدها (غير المكتملة/الملغاة/الموقوفة) إلى حالة overdue. */
+/** تحويل المهام المتجاوزة لموعدها (غير المكتملة/الملغاة/الموقوفة/المرفوعة للاعتماد) إلى حالة overdue. */
 export async function markOverdueTasks(now = new Date()) {
   const db = await getDb();
   if (!db) return { marked: 0 };
-  const result = await db.update(tasks).set({ status: "overdue", updatedAt: now }).where(and(inArray(tasks.status, ["new", "in_progress", "under_review"]), lt(tasks.dueAt, now), isNull(tasks.archivedAt)));
+  const result = await db.update(tasks).set({ status: "overdue", updatedAt: now }).where(and(inArray(tasks.status, ["new", "in_progress"]), lt(tasks.dueAt, now), isNull(tasks.archivedAt)));
   return { marked: Number(result[0]?.affectedRows ?? 0) };
 }
 
