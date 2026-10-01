@@ -39,6 +39,7 @@ import {
   administrativeLevels,
   authActivationTokens,
   announcements,
+  attendanceModePeriods,
   attendanceRecords,
   approvalRequests,
   auditLogs,
@@ -3775,12 +3776,65 @@ export async function checkAttendanceWindow(now: Date, kind: "check_in" | "check
   return { allowed: true as const };
 }
 
+/** الحالة الحالية لحضور ملف في تاريخ معيّن، من فترات attendance_mode_periods مع fallback لحقل الملف. */
+export async function getCurrentAttendanceMode(profileId: number, date?: Date): Promise<"in_person" | "remote" | "mixed"> {
+  const db = await getDb();
+  if (!db) return "in_person";
+  const targetDate = date ?? new Date();
+  const dayStart = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate()));
+  const [period] = await db.select({ mode: attendanceModePeriods.mode })
+    .from(attendanceModePeriods)
+    .where(and(
+      eq(attendanceModePeriods.profileId, profileId),
+      lte(attendanceModePeriods.startDate, dayStart),
+      or(isNull(attendanceModePeriods.endDate), gte(attendanceModePeriods.endDate, dayStart)),
+    ))
+    .orderBy(desc(attendanceModePeriods.startDate))
+    .limit(1);
+  if (period?.mode) return period.mode;
+  const [profile] = await db.select({ mode: personProfiles.attendanceMode })
+    .from(personProfiles)
+    .where(eq(personProfiles.id, profileId))
+    .limit(1);
+  return (profile?.mode as "in_person" | "remote" | "mixed" | null) ?? "in_person";
+}
+
+/** الحالات الحالية (جماعيًا) لعدة ملفات — استعلام واحد + الفترات النشطة. */
+export async function getCurrentAttendanceModes(profileIds: number[], date?: Date): Promise<Map<number, "in_person" | "remote" | "mixed">> {
+  const db = await getDb();
+  const result = new Map<number, "in_person" | "remote" | "mixed">();
+  if (!db || profileIds.length === 0) return result;
+  const targetDate = date ?? new Date();
+  const dayStart = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate()));
+  const profiles = await db.select({ id: personProfiles.id, mode: personProfiles.attendanceMode })
+    .from(personProfiles)
+    .where(inArray(personProfiles.id, profileIds));
+  for (const p of profiles) result.set(p.id, (p.mode as "in_person" | "remote" | "mixed" | null) ?? "in_person");
+  const periods = await db.select({ profileId: attendanceModePeriods.profileId, mode: attendanceModePeriods.mode, startDate: attendanceModePeriods.startDate })
+    .from(attendanceModePeriods)
+    .where(and(
+      inArray(attendanceModePeriods.profileId, profileIds),
+      lte(attendanceModePeriods.startDate, dayStart),
+      or(isNull(attendanceModePeriods.endDate), gte(attendanceModePeriods.endDate, dayStart)),
+    ))
+    .orderBy(desc(attendanceModePeriods.startDate));
+  const seen = new Set<number>();
+  for (const p of periods) {
+    if (seen.has(p.profileId)) continue;
+    seen.add(p.profileId);
+    result.set(p.profileId, p.mode);
+  }
+  return result;
+}
+
+
 export async function recordAttendance(input: { profileId: number; recordDate: Date; checkInAt?: Date; checkOutAt?: Date; status: "present" | "late" | "absent" | "excused" | "on_leave"; note?: string; actorUserId: number; autoClassify?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const attendanceProfile = (await db.select({ attendanceMode: personProfiles.attendanceMode, status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  const currentMode = await getCurrentAttendanceMode(input.profileId);
+  if (currentMode === "in_person") throw new TRPCError({ code: "FORBIDDEN", message: "سجلات الحضور والانصراف للعاملين عن بعد فقط. أنت مسجل كحضوري خلال هذه الفترة." });
+  const attendanceProfile = (await db.select({ status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
   if (attendanceProfile?.status === "on_leave") throw new TRPCError({ code: "FORBIDDEN", message: "أنت في إجازة." });
-  if (attendanceProfile?.attendanceMode === "in_person") throw new TRPCError({ code: "BAD_REQUEST", message: "سجلات الحضور والانصراف للعاملين عن بعد فقط. أنت مسجل كحضوري." });
   let status = input.status;
   if (input.autoClassify && input.checkInAt && (status === "present" || status === "late")) {
     const window = await checkAttendanceWindow(input.checkInAt, "check_in");
@@ -3807,9 +3861,10 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
 export async function recordAttendanceCheckout(input: { profileId: number; checkOutAt: Date; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const attendanceProfile = (await db.select({ attendanceMode: personProfiles.attendanceMode, status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  const currentMode = await getCurrentAttendanceMode(input.profileId);
+  if (currentMode === "in_person") throw new TRPCError({ code: "FORBIDDEN", message: "سجلات الحضور والانصراف للعاملين عن بعد فقط. أنت مسجل كحضوري خلال هذه الفترة." });
+  const attendanceProfile = (await db.select({ status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
   if (attendanceProfile?.status === "on_leave") throw new TRPCError({ code: "FORBIDDEN", message: "أنت في إجازة." });
-  if (attendanceProfile?.attendanceMode === "in_person") throw new TRPCError({ code: "BAD_REQUEST", message: "سجلات الحضور والانصراف للعاملين عن بعد فقط. أنت مسجل كحضوري." });
   const window = await checkAttendanceWindow(input.checkOutAt, "check_out");
   if (!window.allowed) throw new TRPCError({ code: "BAD_REQUEST", message: window.reason });
   const dayStart = new Date(Date.UTC(input.checkOutAt.getUTCFullYear(), input.checkOutAt.getUTCMonth(), input.checkOutAt.getUTCDate()));
