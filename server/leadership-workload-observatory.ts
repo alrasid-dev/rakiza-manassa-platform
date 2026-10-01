@@ -2,7 +2,7 @@ export type WorkloadTaskSnapshot = {
   id: number;
   unitId: number | null;
   assigneeProfileId: number | null;
-  status: "new" | "in_progress" | "under_review" | "overdue" | "completed" | "cancelled";
+  status: "new" | "in_progress" | "under_review" | "overdue" | "completed" | "cancelled" | "paused";
   priority: "normal" | "high" | "critical";
   dueAt: Date | null;
 };
