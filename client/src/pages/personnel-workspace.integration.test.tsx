@@ -13,7 +13,7 @@ vi.mock("@/components/ui/dialog", () => ({
 }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    useUtils: () => ({ court: { people: { list: { invalidate: vi.fn() }, delegations: { invalidate: vi.fn() } } } }),
+    useUtils: () => ({ court: { people: { list: { invalidate: vi.fn() }, delegations: { invalidate: vi.fn() }, listAttendanceModePeriods: { invalidate: vi.fn() } } } }),
     court: {
       registration: { myPermission: { useQuery: () => ({ data: state.permission, isLoading: false, error: null }) } },
       myRoles: { useQuery: () => ({ data: [] }) },
@@ -26,6 +26,9 @@ vi.mock("@/lib/trpc", () => ({
         delegations: { useQuery: () => ({ data: [], isLoading: false, error: null }) },
         createDelegation: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
         updateDelegationStatus: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
+        listAttendanceModePeriods: { useQuery: () => ({ data: [], isLoading: false, error: null }) },
+        setAttendanceModePeriod: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
+        cancelAttendanceModePeriod: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
       },
       tasks: {
         pauseAllForProfile: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
@@ -47,10 +50,10 @@ describe("إدارة الملفات التشغيلية", () => {
   it("تعرض الموظفين والملازمين فقط وتستدعي تعديل الملف من الواجهة", () => {
     render(<PersonnelWorkspaceContent />);
     fireEvent.click(screen.getByRole("button", { name: /غير مصنف في قسم/ }));
-    expect(screen.getByText("موظف مختبر")).toBeTruthy();
-    expect(screen.getByText("ملازم مختبر")).toBeTruthy();
-    expect(screen.getByText("حضوري")).toBeTruthy();
-    expect(screen.getByText("هجين")).toBeTruthy();
+    expect(screen.getAllByText("موظف مختبر").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("ملازم مختبر").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("حضوري").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("هجين").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("رفع تقرير لـ موظف مختبر")).toBeTruthy();
     expect(screen.getByLabelText("رفع تقرير لـ ملازم مختبر")).toBeTruthy();
     expect(screen.queryByText("قاضٍ منفصل")).toBeNull();

@@ -3827,6 +3827,63 @@ export async function getCurrentAttendanceModes(profileIds: number[], date?: Dat
   return result;
 }
 
+function attendanceModeLabel(mode: string): string {
+  return mode === "remote" ? "عن بُعد" : mode === "mixed" ? "مختلط" : "حضوري";
+}
+
+/** إضافة فترة حضور (متغيرة) لملف مع إشعار الموظف. */
+export async function setAttendanceModePeriod(input: { profileId: number; mode: "in_person" | "remote" | "mixed"; startDate: Date; endDate?: Date | null; reason?: string | null; setByUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [profile] = await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1);
+  if (!profile) throw new Error("الملف الشخصي غير موجود.");
+  const result = await db.insert(attendanceModePeriods).values({
+    profileId: input.profileId,
+    mode: input.mode,
+    startDate: input.startDate,
+    endDate: input.endDate ?? null,
+    reason: input.reason ?? null,
+    setByUserId: input.setByUserId,
+  });
+  const periodId = Number(result[0].insertId);
+  const startLabel = input.startDate.toISOString().slice(0, 10);
+  const endLabel = input.endDate ? input.endDate.toISOString().slice(0, 10) : null;
+  const notification = { profileId: input.profileId, category: "attendance_confirmation" as const, title: "تحديث نمط الحضور", body: `تم ضبط نمط حضورك إلى «${attendanceModeLabel(input.mode)}» بدءاً من ${startLabel}${endLabel ? ` حتى ${endLabel}` : ""}.`, dedupeKey: `attendance-mode-period-${periodId}` };
+  await db.insert(notifications).values(notification).onDuplicateKeyUpdate({ set: { title: "تحديث نمط الحضور" } });
+  try { await sendPushForNotification(input.profileId, { title: "تحديث نمط الحضور", body: `تم ضبط نمط حضورك إلى «${attendanceModeLabel(input.mode)}» بدءاً من ${startLabel}.`, url: "/status", tag: notification.dedupeKey }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار نمط الحضور", { profileId: input.profileId, error }); }
+  await logAudit({ actorUserId: input.setByUserId, action: "attendance_mode.period_set", entityType: "attendance_mode_period", entityId: periodId, metadata: { profileId: input.profileId, mode: input.mode } });
+  return { periodId };
+}
+
+/** قائمة فترات الحضور لملف. */
+export async function listAttendanceModePeriods(profileId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(attendanceModePeriods).where(eq(attendanceModePeriods.profileId, profileId)).orderBy(desc(attendanceModePeriods.startDate)).limit(100);
+  const now = new Date();
+  const fmt = (d: Date | string | null) => {
+    if (!d) return null;
+    const value = d instanceof Date ? d : new Date(d);
+    return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+  };
+  return rows.map(r => {
+    const end = fmt(r.endDate as Date | string | null);
+    const active = !end || new Date(`${end}T23:59:59Z`).getTime() >= now.getTime();
+    return { id: r.id, mode: r.mode, startDate: fmt(r.startDate as Date | string), endDate: end, reason: r.reason, createdAt: r.createdAt, active };
+  });
+}
+
+/** إنهاء فترة حضور (تحديد endDate بتاريخ اليوم إن لم تكن محددة). */
+export async function cancelAttendanceModePeriod(input: { periodId: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const [period] = await db.select().from(attendanceModePeriods).where(eq(attendanceModePeriods.id, input.periodId)).limit(1);
+  if (!period) throw new Error("الفترة غير موجودة.");
+  await db.update(attendanceModePeriods).set({ endDate: new Date(), updatedAt: new Date() }).where(eq(attendanceModePeriods.id, input.periodId));
+  await logAudit({ actorUserId: input.actorUserId, action: "attendance_mode.period_cancelled", entityType: "attendance_mode_period", entityId: input.periodId, metadata: { profileId: period.profileId } });
+  return { ok: true as const };
+}
+
 
 export async function recordAttendance(input: { profileId: number; recordDate: Date; checkInAt?: Date; checkOutAt?: Date; status: "present" | "late" | "absent" | "excused" | "on_leave"; note?: string; actorUserId: number; autoClassify?: boolean }) {
   const db = await getDb();

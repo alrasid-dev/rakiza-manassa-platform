@@ -89,6 +89,9 @@ import {
   getProfileById,
   setStatusByManager,
   listProfileStatusHistory,
+  setAttendanceModePeriod,
+  listAttendanceModePeriods,
+  cancelAttendanceModePeriod,
   getProfileForUser,
   getMyPermissionUsage,
   getMonthlyBalance,
@@ -1233,6 +1236,32 @@ export const courtRouter = router({
     statusHistory: protectedProcedure.input(z.object({ profileId: z.number().int().positive() })).query(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "view");
       return listProfileStatusHistory(input.profileId);
+    }),
+    setAttendanceModePeriod: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), mode: z.enum(["in_person", "remote", "mixed"]), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(), reason: z.string().trim().max(200).optional() })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      const roles = await rolesForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const isHr = roles.includes("human_resources_manager");
+      const managedUnits = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+      if (!isLeadership && !isHr && (!managedUnits || !managedUnits.length)) throw new TRPCError({ code: "FORBIDDEN", message: "ضبط فترات الحضور متاح للموارد البشرية والقيادة ومدير القسم فقط." });
+      if (!isLeadership) {
+        const target = await getProfileById(input.profileId);
+        if (!target || !target.unitId || (!isHr && !managedUnits!.includes(target.unitId))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك ضبط فترات حضور موظف خارج نطاقك." });
+      }
+      const parseDate = (s: string) => new Date(Date.UTC(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10))));
+      return setAttendanceModePeriod({ profileId: input.profileId, mode: input.mode, startDate: parseDate(input.startDate), endDate: input.endDate ? parseDate(input.endDate) : null, reason: input.reason ?? null, setByUserId: ctx.user.id });
+    }),
+    listAttendanceModePeriods: protectedProcedure.input(z.object({ profileId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      return listAttendanceModePeriods(input.profileId);
+    }),
+    cancelAttendanceModePeriod: protectedProcedure.input(z.object({ periodId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      const roles = await rolesForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const isHr = roles.includes("human_resources_manager");
+      if (!isLeadership && !isHr) throw new TRPCError({ code: "FORBIDDEN", message: "إلغاء فترات الحضور متاح للموارد البشرية والقيادة فقط." });
+      return cancelAttendanceModePeriod({ periodId: input.periodId, actorUserId: ctx.user.id });
     }),
     listDepartmentManagers: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "manage_access");
