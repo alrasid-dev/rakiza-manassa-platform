@@ -160,6 +160,7 @@ import {
   listPersonalDisciplinaryActions,
   respondToDisciplinaryCase,
   decideDisciplinaryCase,
+  bulkReviewDisciplinary,
   listTeamDisciplinaryCases,
   listPendingApprovals,
   listProfiles,
@@ -2183,6 +2184,12 @@ export const courtRouter = router({
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
       return listTeamDisciplinaryCases(managedUnitIds);
+    }),
+    bulkReview: protectedProcedure.input(z.object({ caseIds: z.array(z.number().int().positive()).min(1).max(100), decision: z.enum(["save", "cancel", "escalate"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
+      const permission = await permissionForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+      return bulkReviewDisciplinary({ caseIds: input.caseIds, decision: input.decision, note: input.note, actorUserId: ctx.user.id, managedUnitIds });
     }),
   }),
 

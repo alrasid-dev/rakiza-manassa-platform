@@ -2480,8 +2480,24 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
       body: decisionLabel,
       dedupeKey: `disciplinary-decision-${input.caseId}`,
     });
+    try { await sendPushForNotification(targetProfileId, { title: "قرار على المساءلة", body: decisionLabel, url: "/disciplinary", tag: `disciplinary-decision-${input.caseId}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار قرار المساءلة", { caseId: input.caseId, error }); }
   }
   return { ok: true as const };
+}
+
+/** اعتماد/رفض/تصعيد مجمّع لمساءلات بانتظار قرار المدير. */
+export async function bulkReviewDisciplinary(input: { caseIds: number[]; decision: "save" | "cancel" | "escalate"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
+  let processed = 0;
+  let failed = 0;
+  for (const caseId of input.caseIds) {
+    try {
+      await decideDisciplinaryCase({ caseId, decision: input.decision, note: input.note, actorUserId: input.actorUserId, managedUnitIds: input.managedUnitIds });
+      processed += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return { processed, failed };
 }
 
 export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null) {
@@ -2489,15 +2505,24 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null)
   if (!db) return [];
   const conditions = [eq(approvalRequests.entityType, "disciplinary_action"), eq(approvalRequests.status, "under_review")];
   if (managedUnitIds !== null) {
+    // تشمل مساءلات الحضور (entityId = profileId) ومساءلات المهام (entityId = taskId) لموظفي وحدات المدير.
     const profiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
     const profileIds = profiles.map(p => p.id);
     if (profileIds.length === 0) return [];
-    conditions.push(inArray(approvalRequests.entityId, profileIds)!);
+    const teamTasks = await db.select({ id: tasks.id }).from(tasks).where(inArray(tasks.assigneeProfileId, profileIds));
+    const entityIds = [...profileIds, ...teamTasks.map(t => t.id)];
+    conditions.push(inArray(approvalRequests.entityId, entityIds)!);
   }
   const cases = await db.select().from(approvalRequests).where(and(...conditions)).orderBy(desc(approvalRequests.createdAt));
   return Promise.all(cases.map(async (c) => {
-    const profile = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, c.entityId)).limit(1))[0];
-    return { ...c, employeeName: profile?.fullName || "غير معروف", employeeUnitId: profile?.unitId ?? null };
+    let source: "attendance" | "task" = "attendance";
+    let employee = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, c.entityId)).limit(1))[0];
+    if (!employee) {
+      source = "task";
+      const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, c.entityId)).limit(1))[0];
+      if (task?.assigneeProfileId) employee = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
+    }
+    return { ...c, employeeName: employee?.fullName || "غير معروف", employeeUnitId: employee?.unitId ?? null, source };
   }));
 }
 
