@@ -1570,6 +1570,9 @@ export async function pauseTask(input: { taskId: number; actorUserId: number; re
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
   if (!OPEN_TASK_STATUSES.has(task.status)) throw new TRPCError({ code: "CONFLICT", message: "لا يمكن إيقاف مهمة غير مفتوحة." });
   await db.update(tasks).set({ status: "paused", pausedAt: new Date(), pausedReason: input.reason?.slice(0, 200) ?? null, pausedByUserId: input.actorUserId, pauseExpiresAt: input.expiresAt ?? null, pauseType: input.type ?? "temporary", updatedAt: new Date() }).where(eq(tasks.id, input.taskId));
+  if (task.assigneeProfileId) {
+    await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "تم إيقاف مهمة مؤقتاً", body: `أُوقفت مهمتك "${task.title}"${input.reason ? ` — السبب: ${input.reason}` : ""}${input.expiresAt ? ` حتى ${input.expiresAt.toLocaleDateString("ar-SA")}` : ""}.`, dedupeKey: `task-paused-${input.taskId}` });
+  }
   await logAudit({ actorUserId: input.actorUserId, action: "task.paused", entityType: "task", entityId: input.taskId, metadata: { reason: input.reason ?? null, type: input.type ?? "temporary", expiresAt: input.expiresAt ?? null } });
   return { success: true as const };
 }
@@ -1581,6 +1584,9 @@ export async function resumeTask(input: { taskId: number; actorUserId: number })
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
   if (task.status !== "paused") throw new TRPCError({ code: "CONFLICT", message: "المهمة ليست موقوفة." });
   await db.update(tasks).set({ status: "in_progress", pausedAt: null, pausedReason: null, pauseExpiresAt: null, pauseType: null, updatedAt: new Date() }).where(eq(tasks.id, input.taskId));
+  if (task.assigneeProfileId) {
+    await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "تم تفعيل مهمة موقوفة", body: `أُعيد تفعيل مهمتك "${task.title}".`, dedupeKey: `task-resumed-${input.taskId}` });
+  }
   await logAudit({ actorUserId: input.actorUserId, action: "task.resumed", entityType: "task", entityId: input.taskId });
   return { success: true as const };
 }
@@ -1590,6 +1596,7 @@ export async function pauseOpenTasksForProfile(input: { profileId: number; actor
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة." });
   const result = await db.update(tasks).set({ status: "paused", pausedAt: new Date(), pausedReason: input.reason?.slice(0, 200) ?? null, pausedByUserId: input.actorUserId, pauseExpiresAt: input.expiresAt ?? null, pauseType: input.type ?? "temporary", updatedAt: new Date() }).where(and(eq(tasks.assigneeProfileId, input.profileId), inArray(tasks.status, ["new", "in_progress", "under_review", "overdue"])));
   const count = Number(result[0]?.affectedRows ?? 0);
+  await db.insert(notifications).values({ profileId: input.profileId, category: "task_due", title: "تم إيقاف مهامك مؤقتاً", body: `أُوقفت مهامك المفتوحة${input.reason ? ` — السبب: ${input.reason}` : ""}${input.expiresAt ? ` حتى ${input.expiresAt.toLocaleDateString("ar-SA")}` : ""}.`, dedupeKey: `task-paused-all-${input.profileId}-${Date.now()}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.pausedAll", entityType: "person_profile", entityId: input.profileId, metadata: { count, reason: input.reason ?? null, type: input.type ?? "temporary", expiresAt: input.expiresAt ?? null } });
   return { count };
 }
@@ -1599,6 +1606,7 @@ export async function resumeOpenTasksForProfile(input: { profileId: number; acto
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة." });
   const result = await db.update(tasks).set({ status: "in_progress", pausedAt: null, pausedReason: null, pauseExpiresAt: null, pauseType: null, updatedAt: new Date() }).where(and(eq(tasks.assigneeProfileId, input.profileId), eq(tasks.status, "paused")));
   const count = Number(result[0]?.affectedRows ?? 0);
+  await db.insert(notifications).values({ profileId: input.profileId, category: "task_due", title: "تم تفعيل مهامك", body: "أُعيد تفعيل مهامك الموقوفة.", dedupeKey: `task-resumed-all-${input.profileId}-${Date.now()}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.resumedAll", entityType: "person_profile", entityId: input.profileId, metadata: { count } });
   return { count };
 }
