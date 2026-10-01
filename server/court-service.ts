@@ -4253,6 +4253,83 @@ export async function listRemoteAttendanceReport(input: { unitIds?: number[]; st
   return db.select({ attendance: attendanceRecords, profileId: personProfiles.id, profileName: personProfiles.fullName, personType: personProfiles.personType, attendanceMode: personProfiles.attendanceMode, unitId: personProfiles.unitId, unitName: organizationUnits.name }).from(attendanceRecords).innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId)).leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId)).where(and(...conditions)).orderBy(desc(attendanceRecords.recordDate)).limit(1000);
 }
 
+function formatMinutesToHHMM(minutes: number): string {
+  const safe = Math.max(0, Math.round(minutes));
+  const h = Math.floor(safe / 60) % 24;
+  const m = safe % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function smartReportRange(now: Date, period: "daily" | "weekly" | "monthly"): { start: Date; end: Date; label: string } {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const day = now.getUTCDate();
+  if (period === "daily") {
+    const start = new Date(Date.UTC(y, m, day));
+    return { start, end: new Date(start.getTime() + 86400000), label: "يومي" };
+  }
+  if (period === "weekly") {
+    const weekday = now.getUTCDay(); // 0=الأحد ... 6=السبت
+    const start = new Date(Date.UTC(y, m, day - weekday));
+    return { start, end: new Date(start.getTime() + 7 * 86400000), label: "أسبوعي" };
+  }
+  const start = new Date(Date.UTC(y, m, 1));
+  return { start, end: new Date(Date.UTC(y, m + 1, 1)), label: "شهري" };
+}
+
+/** تقرير ذكي لعامل عن بُعد: إحصاءات الحضور والنقاط والتفصيل اليومي. */
+export async function getSmartReport(input: { profileId: number; period: "daily" | "weekly" | "monthly"; date?: Date }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const { start, end, label } = smartReportRange(input.date ?? new Date(), input.period);
+  const [records, scores] = await Promise.all([
+    db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end))).orderBy(asc(attendanceRecords.recordDate)),
+    db.select().from(scoreEvents).where(and(eq(scoreEvents.profileId, input.profileId), gte(scoreEvents.createdAt, start), lt(scoreEvents.createdAt, end))),
+  ]);
+  let daysPresent = 0;
+  let daysAbsent = 0;
+  let daysLate = 0;
+  let daysLeave = 0;
+  let sumCheckIn = 0;
+  let checkInCount = 0;
+  let sumCheckOut = 0;
+  let checkOutCount = 0;
+  let negativeMinutes = 0;
+  let positiveMinutes = 0;
+  const dailyBreakdown = records.map(r => {
+    if (r.status === "present") daysPresent += 1;
+    else if (r.status === "late") daysLate += 1;
+    else if (r.status === "absent") daysAbsent += 1;
+    else if (r.status === "on_leave") daysLeave += 1;
+    if (r.checkInAt) { sumCheckIn += riyadhMinutesOfDay(r.checkInAt); checkInCount += 1; }
+    if (r.checkOutAt) { sumCheckOut += riyadhMinutesOfDay(r.checkOutAt); checkOutCount += 1; }
+    negativeMinutes += r.negativeMinutes ?? 0;
+    positiveMinutes += r.positiveMinutes ?? 0;
+    const dayKey = r.recordDate.toISOString().slice(0, 10);
+    const dayPoints = scores.filter(s => s.createdAt.toISOString().slice(0, 10) === dayKey).reduce((sum, x) => sum + x.points, 0);
+    return { date: dayKey, status: r.status, checkIn: r.checkInAt ? r.checkInAt.toISOString() : null, checkOut: r.checkOutAt ? r.checkOutAt.toISOString() : null, points: dayPoints };
+  });
+  const pointsEarned = scores.filter(s => s.points > 0).reduce((sum, x) => sum + x.points, 0);
+  const pointsDeducted = scores.filter(s => s.points < 0).reduce((sum, x) => sum + Math.abs(x.points), 0);
+  return {
+    periodLabel: label,
+    daysPresent,
+    daysAbsent,
+    daysLate,
+    daysLeave,
+    avgCheckInTime: checkInCount ? formatMinutesToHHMM(sumCheckIn / checkInCount) : null,
+    avgCheckOutTime: checkOutCount ? formatMinutesToHHMM(sumCheckOut / checkOutCount) : null,
+    confirmationsCompleted: daysPresent + daysLate,
+    confirmationsMissed: daysAbsent,
+    negativeMinutes,
+    positiveMinutes,
+    netBalance: positiveMinutes - negativeMinutes,
+    pointsEarned,
+    pointsDeducted,
+    dailyBreakdown,
+  };
+}
+
 export async function getMyPermissionUsage(profileId: number) {
   const db = await getDb();
   if (!db) {

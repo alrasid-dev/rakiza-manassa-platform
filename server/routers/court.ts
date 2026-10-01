@@ -85,6 +85,7 @@ import {
   evaluateLoginAllowance,
   getOperationalReport,
   getJudicialFormationReport,
+  getSmartReport,
   getPersonalDashboard,
   getProfileById,
   setStatusByManager,
@@ -1926,6 +1927,16 @@ export const courtRouter = router({
   }),
 
   reports: router({
+    smartReport: protectedProcedure.input(z.object({ profileId: z.number().int().positive().optional(), period: z.enum(["daily", "weekly", "monthly"]), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })).query(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      let profileId = input.profileId;
+      if (!profileId) {
+        const profile = await getProfileForUser(ctx.user.id);
+        if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف شخصي لعرض التقرير الذكي." });
+        profileId = profile.id;
+      }
+      return getSmartReport({ profileId, period: input.period, date: input.date ? new Date(input.date + "T00:00:00Z") : undefined });
+    }),
     mine: protectedProcedure.query(async ({ ctx }) => {
       await requirePermission(ctx.user, "view");
       const profile = await getProfileForUser(ctx.user.id);
