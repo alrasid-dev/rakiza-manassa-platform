@@ -4679,7 +4679,7 @@ export async function escalateOverdueTasks(now = new Date()) {
           await db.insert(approvalRequests).values({ entityType: "disciplinary_action", entityId: task.id, requestedByUserId: SYSTEM_ACTOR_ID, currentRole: "trainee_affairs_manager", requestNote: `إحالة تلقائية للمشرف بعد استمرار تعثر المهمة ست ساعات إضافية: ${task.title}` });
           if (task.assigneeProfileId) {
             await db.insert(scoreEvents).values({ profileId: task.assigneeProfileId, taskId: task.id, delayRecordId: existingDelay[0].id, points: newDelayScore(), reason: "إحالة إشرافية ومساءلة آلية بعد 12 ساعة", createdByUserId: SYSTEM_ACTOR_ID });
-            await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "delay_alert", title: "إحالة للمشرف ومساءلة آلية", body: `استمر تعثر المهمة: ${task.title} بعد المهلة الإضافية، وتمت إحالتها للمشرف وفق التسلسل الإداري.`, dedupeKey: `task-supervisory-${task.assigneeProfileId}-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "إحالة للمشرف ومساءلة آلية" } });
+            await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "security_alert", title: "مساءلة آلية: مطلوب ردك", body: `سُجّلت مساءلة تلقائية عليك لاستمرار تعثر المهمة «${task.title}» بعد المهلة الإضافية. يرجى فتح صفحة «المساءلات» وتقديم ردك.`, dedupeKey: `task-supervisory-${task.assigneeProfileId}-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "مساءلة آلية: مطلوب ردك" } });
           }
           supervisoryReferrals += 1;
         }
