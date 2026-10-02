@@ -97,6 +97,7 @@ export default function MyRequestsPage() {
   const canReject = isOwner || isLeadership || isManager;
   const canEscalate = isOwner || isLeadership || isSecretary || isManager;
   const canReturn = isOwner || isLeadership || isManager;
+  const canActOnItem = (item: Item) => !isOwner || item.status === "escalated" || roleList.includes("court_secretary") || roleList.includes("court_president");
 
   const tabs = [
     { key: "submitted" as const, label: "📤 طلباتي" },
@@ -147,7 +148,7 @@ export default function MyRequestsPage() {
           ))}
         </div>
         <div className="mt-4 space-y-3">
-          {dash.isLoading ? <p className="text-gray-500">جارٍ التحميل…</p> : list.length ? list.map((item: Item) => <Card key={`${item.type}-${item.id}`} item={item} reviewable={tab === "toReview"} canApprove={canApprove} canReject={canReject} canEscalate={canEscalate} canReturn={canReturn} onAction={openDialog} />) : <p className="text-gray-500">لا توجد عناصر في هذا التبويب.</p>}
+          {dash.isLoading ? <p className="text-gray-500">جارٍ التحميل…</p> : list.length ? list.map((item: Item) => { const actionable = canActOnItem(item); return <Card key={`${item.type}-${item.id}`} item={item} reviewable={tab === "toReview"} canApprove={canApprove && actionable} canReject={canReject && actionable} canEscalate={canEscalate && actionable} canReturn={canReturn && actionable} onAction={openDialog} />; }) : <p className="text-gray-500">لا توجد عناصر في هذا التبويب.</p>}
         </div>
       </section>
 
