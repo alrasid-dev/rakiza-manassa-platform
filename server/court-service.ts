@@ -3720,6 +3720,60 @@ export async function summarizeAchievementsByUnit() {
   return { departments, employees };
 }
 
+/** مقارنة الأقسام: ملخص قابل للترتيب لكل قسم مع مؤشر أداء ملوّن. */
+export async function compareDepartments(input: { sortBy?: "net" | "positive" | "negative" | "activeEmployees" | "avgPoints"; order?: "asc" | "desc"; filter?: "all" | "enabled_only" } = {}) {
+  const { departments } = await summarizeAchievementsByUnit();
+  const sortBy = input.sortBy ?? "net";
+  const order = input.order ?? "desc";
+  const enabledUnitIds = [2, 5];
+
+  let rows = departments.map(d => {
+    const totalEmployees = d.totalEmployees;
+    const activeEmployees = d.activeEmployees;
+    const dormantEmployees = Math.max(0, totalEmployees - activeEmployees);
+    const avgPointsPerEmployee = activeEmployees > 0 ? Math.round((d.net / activeEmployees) * 10) / 10 : 0;
+    const totalMagnitude = d.positive + d.negative;
+    const positiveRatio = totalMagnitude > 0 ? d.positive / totalMagnitude : 0.5;
+    let performanceLabel = "متوسط";
+    let performanceColor = "yellow";
+    if (positiveRatio >= 0.9) { performanceLabel = "ممتاز"; performanceColor = "green"; }
+    else if (positiveRatio >= 0.75) { performanceLabel = "جيد"; performanceColor = "blue"; }
+    else if (positiveRatio >= 0.6) { performanceLabel = "متوسط"; performanceColor = "yellow"; }
+    else { performanceLabel = "ضعيف"; performanceColor = "red"; }
+    return {
+      unitId: d.unitId,
+      unitName: d.unitName,
+      totalEmployees,
+      activeEmployees,
+      dormantEmployees,
+      positive: d.positive,
+      negative: d.negative,
+      net: d.net,
+      eventsCount: d.eventsCount,
+      avgPointsPerEmployee,
+      performanceLabel,
+      performanceColor,
+    };
+  });
+
+  if (input.filter === "enabled_only") {
+    rows = rows.filter(r => r.unitId != null && enabledUnitIds.includes(r.unitId));
+  }
+
+  const valueFor = (r: (typeof rows)[number]) => {
+    switch (sortBy) {
+      case "positive": return r.positive;
+      case "negative": return r.negative;
+      case "activeEmployees": return r.activeEmployees;
+      case "avgPoints": return r.avgPointsPerEmployee;
+      default: return r.net;
+    }
+  };
+  rows.sort((a, b) => (order === "asc" ? valueFor(a) - valueFor(b) : valueFor(b) - valueFor(a)));
+
+  return rows;
+}
+
 export async function listOrganizationUnits() {
   const db = await getDb();
   if (!db) return [];

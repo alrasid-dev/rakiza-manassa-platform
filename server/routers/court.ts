@@ -191,6 +191,7 @@ import {
   listScoreEventsForProfile,
   listOperationalReportsForProfile,
   summarizeAchievementsByUnit,
+  compareDepartments,
   listPerformanceReportEvaluations,
   listSupportTickets,
   markDecisionCircularRead,
@@ -1903,6 +1904,11 @@ export const courtRouter = router({
       const permission = await requirePermission(ctx.user, "view");
       if (!(await hasLeadershipPlatformScope(ctx.user, permission))) throw new TRPCError({ code: "FORBIDDEN", message: "عرض تقارير إنجاز الأقسام والموظفين متاح للقيادة فقط." });
       return summarizeAchievementsByUnit();
+    }),
+    compareDepartments: protectedProcedure.input(z.object({ sortBy: z.enum(["net", "positive", "negative", "activeEmployees", "avgPoints"]).optional(), order: z.enum(["asc", "desc"]).optional(), filter: z.enum(["all", "enabled_only"]).optional() }).optional()).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      if (!(await hasLeadershipPlatformScope(ctx.user, permission))) throw new TRPCError({ code: "FORBIDDEN", message: "مقارنة الأقسام متاحة للقيادة فقط." });
+      return compareDepartments(input ?? {});
     }),
   }),
 
