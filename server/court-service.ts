@@ -3380,6 +3380,8 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
   if (approval.status !== "pending") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "تم البت في هذا الاعتماد مسبقاً." });
   const task = await getTaskById(approval.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المرتبطة غير موجودة." });
+  // منع الاعتماد الذاتي: لا يجوز لمن قدّم المهمة أن يعتمدها بنفسه.
+  if (input.reviewerProfileId && input.reviewerProfileId === approval.submittedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن اعتماد مهمة قدمتها بنفسك." });
   let pointsAwarded = 0;
   if (input.decision === "approved") {
     await db.update(tasks).set({ status: "completed", completedAt: new Date() }).where(eq(tasks.id, approval.taskId));
@@ -3395,12 +3397,13 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
 }
 
 /** قائمة اعتمادات المهام المعلقة (مُثراة باسم المهمة ومقدمها). */
-export async function listPendingTaskApprovals(options: { unitIds?: number[]; submittedByProfileId?: number } = {}) {
+export async function listPendingTaskApprovals(options: { unitIds?: number[]; submittedByProfileId?: number; excludeSubmittedByProfileId?: number } = {}) {
   const db = await getDb();
   if (!db) return [];
   const conds = [eq(taskApprovals.status, "pending")];
   if (options.submittedByProfileId) conds.push(eq(taskApprovals.submittedByProfileId, options.submittedByProfileId));
-  const approvals = await db.select().from(taskApprovals).where(and(...conds)).orderBy(desc(taskApprovals.createdAt)).limit(200);
+  let approvals = await db.select().from(taskApprovals).where(and(...conds)).orderBy(desc(taskApprovals.createdAt)).limit(200);
+  if (options.excludeSubmittedByProfileId) approvals = approvals.filter(a => a.submittedByProfileId !== options.excludeSubmittedByProfileId);
   if (!approvals.length) return [];
   const taskIds = approvals.map(a => a.taskId);
   const taskRows = await db.select({ id: tasks.id, title: tasks.title, unitId: tasks.unitId, status: tasks.status, taskNotes: tasks.taskNotes }).from(tasks).where(inArray(tasks.id, taskIds));

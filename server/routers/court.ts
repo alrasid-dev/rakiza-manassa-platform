@@ -1581,9 +1581,10 @@ export const courtRouter = router({
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
       if (!isLeadership && !isManager) throw new TRPCError({ code: "FORBIDDEN", message: "عرض الاعتمادات متاح للمدير والقيادة فقط." });
-      if (isLeadership) return listPendingTaskApprovals();
+      const selfProfile = await getProfileForUser(ctx.user.id);
+      if (isLeadership) return listPendingTaskApprovals({ excludeSubmittedByProfileId: selfProfile?.id });
       const unitIds = await managedUnitIdsForUser(ctx.user);
-      return listPendingTaskApprovals({ unitIds });
+      return listPendingTaskApprovals({ unitIds, excludeSubmittedByProfileId: selfProfile?.id });
     }),
     bulkReviewApprovals: protectedProcedure.input(z.object({ approvalIds: z.array(z.number().int().positive()).min(1).max(100), decision: z.enum(["approved", "rejected"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
