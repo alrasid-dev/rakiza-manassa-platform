@@ -2589,8 +2589,10 @@ async function createTaskConversation(input: { db: any; taskId: number; title: s
 export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom" | "specific_days"; recurrenceInterval?: number; recurrenceEndAt?: Date; specificDays?: number[]; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  let assigneeStatus: string | undefined;
   if (input.assigneeProfileId) {
     const assignee = (await db.select({ status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.assigneeProfileId)).limit(1))[0];
+    assigneeStatus = assignee?.status;
     const blocked = assignmentBlockReason(assignee?.status);
     if (blocked) throw new TRPCError({ code: "CONFLICT", message: blocked });
   }
@@ -2603,6 +2605,11 @@ export async function createTask(input: { title: string; unitId?: number; assign
     specificDays: specificDaysJson,
   });
   const id = Number(result[0].insertId);
+  // تفعيل الملف عند إسناد أول مهمة بعد حالة السكون (dormant).
+  if (input.assigneeProfileId && assigneeStatus === "dormant") {
+    await db.update(personProfiles).set({ status: "active", updatedAt: new Date() }).where(eq(personProfiles.id, input.assigneeProfileId));
+    await logAudit({ actorUserId: input.assignedByUserId, action: "status.reactivated_dormant", entityType: "person_profile", entityId: input.assigneeProfileId, metadata: { from: "dormant", to: "active", reason: "task_assigned" } });
+  }
   try {
     if (input.recurrence && input.recurrence !== "none") {
       const existingTemplate = (await db.select({ id: taskTemplates.id }).from(taskTemplates).where(and(eq(taskTemplates.title, input.title), input.unitId ? eq(taskTemplates.unitId, input.unitId) : isNull(taskTemplates.unitId))).limit(1))[0];
