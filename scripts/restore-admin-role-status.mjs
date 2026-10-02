@@ -1,6 +1,6 @@
-// scripts/set-dormant-comprehensive.mjs
-// تحويل الموظفين النشطين (active) إلى dormant عند غياب أي نشاط:
-// لا بصمة دخول فعلية (checkInAt) ولا أي مهام مسندة (tasks).
+// scripts/restore-admin-role-status.mjs
+// يعيد الحالة active للملفات التي تحمل دوراً إدارياً نشطاً (court_role_assignments.isActive = 1)
+// لكنها أصبحت dormant بفعل تنظيف سابق — لأن dormant يجب ألا يُسقط الصلاحيات الإدارية.
 // يقرأ DATABASE_URL من .env.production.local دون طباعة أي أسرار.
 
 import fs from "node:fs";
@@ -23,16 +23,6 @@ function readEnvValue(filePath, key) {
   return null;
 }
 
-// معيار dormant الشامل: active + لا بصمة دخول فعلية + لا مهام.
-// يُستثنى أصحاب الأدوار الإدارية النشطة (court_role_assignments.isActive = 1)
-// لأن dormant يجب ألا يُسقط الصلاحيات الإدارية.
-const CRITERIA = `
-  status = 'active'
-  AND NOT EXISTS (SELECT 1 FROM attendance_records a WHERE a.profileId = person_profiles.id AND a.checkInAt IS NOT NULL)
-  AND NOT EXISTS (SELECT 1 FROM tasks t WHERE t.assigneeProfileId = person_profiles.id)
-  AND NOT EXISTS (SELECT 1 FROM court_role_assignments cra WHERE cra.userId = person_profiles.userId AND cra.isActive = 1)
-`;
-
 async function main() {
   const rawUrl = readEnvValue(path.resolve(".env.production.local"), "DATABASE_URL") || "";
   if (!rawUrl) { console.error("DATABASE_URL not found in .env.production.local"); process.exit(1); }
@@ -49,18 +39,33 @@ async function main() {
     bigNumberStrings: true,
   });
 
-  const [before] = await connection.query(`SELECT COUNT(*) AS cnt FROM person_profiles WHERE ${CRITERIA}`);
-  const [sample] = await connection.query(`SELECT id, fullName, personType, unitId, userId FROM person_profiles WHERE ${CRITERIA} ORDER BY id LIMIT 10`);
+  // القائمة قبل التنفيذ.
+  const [before] = await connection.query(
+    `SELECT cra.role, p.id AS profileId, p.fullName
+     FROM court_role_assignments cra
+     JOIN person_profiles p ON p.userId = cra.userId
+     WHERE cra.isActive = 1 AND p.status = 'dormant'
+     ORDER BY cra.role, p.id`
+  );
 
-  const [result] = await connection.query(`UPDATE person_profiles SET status = 'dormant', updatedAt = NOW() WHERE ${CRITERIA}`);
+  const [result] = await connection.query(
+    `UPDATE person_profiles SET status = 'active', updatedAt = NOW()
+     WHERE status = 'dormant'
+       AND userId IN (SELECT userId FROM court_role_assignments WHERE isActive = 1)`
+  );
 
-  const [after] = await connection.query(`SELECT status, COUNT(*) AS cnt FROM person_profiles GROUP BY status ORDER BY status`);
+  const [after] = await connection.query(
+    `SELECT cra.role, COUNT(*) AS total, SUM(CASE WHEN p.status = 'dormant' THEN 1 ELSE 0 END) AS dormant_count
+     FROM court_role_assignments cra
+     JOIN person_profiles p ON p.userId = cra.userId
+     WHERE cra.isActive = 1
+     GROUP BY cra.role`
+  );
 
   console.log(JSON.stringify({
-    beforeCount: Number(before[0].cnt),
-    sampleBefore: sample,
+    restoredBefore: before,
     affectedRows: Number(result.affectedRows),
-    statusAfter: after,
+    rolesAfter: after,
   }));
 
   await connection.end();
