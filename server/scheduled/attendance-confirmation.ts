@@ -124,7 +124,7 @@ export async function runAttendanceAccountabilityCycle(now = new Date()): Promis
       entityType: "disciplinary_action",
       entityId: profileId,
       requestedByUserId: SYSTEM_ACTOR_ID,
-      currentRole: "human_resources_manager",
+      currentRole: "court_secretary",
       requestNote: `عدم تأكيد بدء العمل خلال ${policy.confirmationWindowMinutes} دقيقة (${dayRange.start.toISOString().slice(0, 10)})`,
     });
 
@@ -138,7 +138,7 @@ export async function runAttendanceAccountabilityCycle(now = new Date()): Promis
     if (profile.directManagerProfileId) {
       await db.insert(notifications).values({
         profileId: profile.directManagerProfileId,
-        category: "security_alert",
+        category: "disciplinary_team",
         title: "مساءلة تأكيد حضور",
         body: `${profile.fullName} لم يؤكد بدء العمل خلال ${policy.confirmationWindowMinutes} دقيقة.`,
         dedupeKey: `attendance-accountability-${profileId}-${dayRange.start.toISOString().slice(0, 10)}`,
@@ -241,7 +241,7 @@ export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ che
       entityType: "disciplinary_action",
       entityId: record.profileId,
       requestedByUserId: 0,
-      currentRole: "human_resources_manager",
+      currentRole: "court_secretary",
       requestNote: "عقوبة: عدم تسجيل الانصراف → -4 نقاط + -240 دقيقة",
     });
 
@@ -405,7 +405,12 @@ export async function dispatchConfirmationAssignments(now = new Date()): Promise
     if (now > deadline) {
       await db.update(confirmationAssignments).set({ status: "missed" }).where(eq(confirmationAssignments.id, assignment.id));
       await db.insert(scoreEvents).values({ profileId: assignment.profileId, points: -1, reason: "التخلف عن تأكيد الحضور", createdByUserId: SYSTEM_ACTOR_ID });
-      await db.insert(approvalRequests).values({ entityType: "disciplinary_action", entityId: assignment.profileId, requestedByUserId: SYSTEM_ACTOR_ID, currentRole: "human_resources_manager", requestNote: "التخلف عن تأكيد الحضور خلال النافذة المحددة" });
+      await db.insert(approvalRequests).values({ entityType: "disciplinary_action", entityId: assignment.profileId, requestedByUserId: SYSTEM_ACTOR_ID, currentRole: "court_secretary", requestNote: "التخلف عن تأكيد الحضور خلال النافذة المحددة" });
+      const missedProfile = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, assignment.profileId)).limit(1))[0];
+      if (missedProfile?.directManagerProfileId) {
+        await db.insert(notifications).values({ profileId: missedProfile.directManagerProfileId, category: "disciplinary_team", title: "مساءلة جديدة لموظف في قسمك", body: `${missedProfile.fullName}: تخلف عن تأكيد الحضور خلال النافذة المحددة`, dedupeKey: `confirmation-missed-manager-${assignment.id}` }).onDuplicateKeyUpdate({ set: { title: "مساءلة جديدة لموظف في قسمك" } });
+        try { await sendPushForNotification(missedProfile.directManagerProfileId, { title: "مساءلة جديدة لموظف في قسمك", body: `${missedProfile.fullName}: تخلف عن تأكيد الحضور`, url: "/disciplinary", tag: `confirmation-missed-manager-${assignment.id}` }); } catch (error) { console.warn("[WebPush] فشل إشعار مدير القسم بمساءلة تخلف التأكيد", { assignmentId: assignment.id, error }); }
+      }
       await db.insert(notifications).values({ profileId: assignment.profileId, category: "attendance_confirmation", title: "فاتتك نافذة تأكيد الحضور", body: "انتهت نافذة تأكيد الحضور دون تأكيد، وسُجّلت مساءلة.", dedupeKey: `confirmation-missed-${assignment.id}` }).onDuplicateKeyUpdate({ set: { title: "فاتتك نافذة تأكيد الحضور" } });
       try { await sendPushForNotification(assignment.profileId, { title: "فاتتك نافذة تأكيد الحضور", body: "انتهت نافذة تأكيد الحضور دون تأكيد، وسُجّلت مساءلة.", url: "/disciplinary", tag: `confirmation-missed-${assignment.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار تخلف تأكيد الحضور", { assignmentId: assignment.id, error }); }
       missed += 1;

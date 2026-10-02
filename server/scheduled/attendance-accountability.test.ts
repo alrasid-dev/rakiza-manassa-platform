@@ -127,10 +127,10 @@ describe("مساءلة عدم تأكيد الحضور (المسار الثاني
     expect(result.checked).toBe(1);
     expect(result.penalized).toBe(1);
     const discipline = db.state.inserts.find((i) => i.entityType === "disciplinary_action");
-    expect(discipline).toMatchObject({ entityId: 7, currentRole: "human_resources_manager" });
+    expect(discipline).toMatchObject({ entityId: 7, currentRole: "court_secretary" });
     const penalty = db.state.inserts.find((i) => i.points === -1);
     expect(penalty).toMatchObject({ profileId: 7, points: -1 });
-    const alert = db.state.inserts.find((i) => i.category === "security_alert");
+    const alert = db.state.inserts.find((i) => i.category === "disciplinary_team");
     expect(alert).toMatchObject({ profileId: 3 });
   });
 

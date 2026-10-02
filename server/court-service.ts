@@ -2548,7 +2548,7 @@ export async function bulkReviewDisciplinary(input: { caseIds: number[]; decisio
   return { processed, failed };
 }
 
-export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }) {
+export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }, managerProfileId?: number | null) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
@@ -2560,9 +2560,11 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null,
   if (managedUnitIds !== null) {
     // المدير يرى فقط المساءلات التي تنتظر قراره (ما لم يحدد حالة أخرى صراحة).
     if (!filters?.status) conditions.push(eq(approvalRequests.status, "under_review"));
-    // تشمل مساءلات الحضور (entityId = profileId) ومساءلات المهام (entityId = taskId) لموظفي وحدات المدير.
-    const profiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
-    const profileIds = profiles.map(p => p.id);
+    // تشمل مساءلات الحضور (entityId = profileId) ومساءلات المهام (entityId = taskId) لموظفي وحدات المدير،
+    // بالإضافة إلى أي موظف يكون هذا المدير هو مديره المباشر.
+    const unitProfiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
+    const directProfiles = managerProfileId ? await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.directManagerProfileId, managerProfileId)) : [];
+    const profileIds = Array.from(new Set([...unitProfiles.map(p => p.id), ...directProfiles.map(p => p.id)]));
     if (profileIds.length === 0) return [];
     const teamTasks = await db.select({ id: tasks.id }).from(tasks).where(inArray(tasks.assigneeProfileId, profileIds));
     const entityIds = [...profileIds, ...teamTasks.map(t => t.id)];
@@ -2588,7 +2590,7 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null,
   });
 }
 
-export async function listTeamDisciplinaryLog(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }) {
+export async function listTeamDisciplinaryLog(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }, managerProfileId?: number | null) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
@@ -2598,8 +2600,9 @@ export async function listTeamDisciplinaryLog(managedUnitIds: number[] | null, f
     conditions.push(inArray(approvalRequests.entityId, [filters.assigneeProfileId, ...assigneeTasks.map(t => t.id)])!);
   }
   if (managedUnitIds !== null) {
-    const profiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
-    const profileIds = profiles.map(p => p.id);
+    const unitProfiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
+    const directProfiles = managerProfileId ? await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.directManagerProfileId, managerProfileId)) : [];
+    const profileIds = Array.from(new Set([...unitProfiles.map(p => p.id), ...directProfiles.map(p => p.id)]));
     if (profileIds.length === 0) return [];
     const teamTasks = await db.select({ id: tasks.id }).from(tasks).where(inArray(tasks.assigneeProfileId, profileIds));
     const entityIds = [...profileIds, ...teamTasks.map(t => t.id)];
@@ -5312,7 +5315,7 @@ export async function escalateOverdueTasks(now = new Date()) {
       if (stage === "supervisory") {
         const existingDiscipline = await db.select({ id: approvalRequests.id }).from(approvalRequests).where(and(eq(approvalRequests.entityType, "disciplinary_action"), eq(approvalRequests.entityId, task.id), eq(approvalRequests.status, "pending"))).limit(1);
         if (!existingDiscipline[0]) {
-          await db.insert(approvalRequests).values({ entityType: "disciplinary_action", entityId: task.id, requestedByUserId: SYSTEM_ACTOR_ID, currentRole: "trainee_affairs_manager", requestNote: `إحالة تلقائية للمشرف بعد استمرار تعثر المهمة ست ساعات إضافية: ${task.title}` });
+          await db.insert(approvalRequests).values({ entityType: "disciplinary_action", entityId: task.id, requestedByUserId: SYSTEM_ACTOR_ID, currentRole: "court_secretary", requestNote: `إحالة تلقائية للمشرف بعد استمرار تعثر المهمة ست ساعات إضافية: ${task.title}` });
           if (task.assigneeProfileId) {
             const assignee = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
             if (assignee?.directManagerProfileId) {
