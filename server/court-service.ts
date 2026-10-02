@@ -3372,7 +3372,7 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
 }
 
 /** يوافق المدير على المهمة المرفوعة فيُحسب النقاط وتكتمل، أو يرفضها فتعود للتنفيذ. */
-export async function reviewTaskApproval(input: { approvalId: number; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number }) {
+export async function reviewTaskApproval(input: { approvalId: number; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number; managerRating?: "excellent" | "good" | "acceptable"; ratingNote?: string }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const approval = (await db.select().from(taskApprovals).where(eq(taskApprovals.id, input.approvalId)).limit(1))[0];
@@ -3383,16 +3383,22 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
   // منع الاعتماد الذاتي: لا يجوز لمن قدّم المهمة أن يعتمدها بنفسه.
   if (input.reviewerProfileId && input.reviewerProfileId === approval.submittedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن اعتماد مهمة قدمتها بنفسك." });
   let pointsAwarded = 0;
+  const rating = input.managerRating ?? "good";
   if (input.decision === "approved") {
+    pointsAwarded = rating === "excellent" ? 5 : rating === "acceptable" ? 1 : 3;
     await db.update(tasks).set({ status: "completed", completedAt: new Date() }).where(eq(tasks.id, approval.taskId));
-    await awardTaskCompletionPoints(approval.taskId, input.reviewerUserId);
-    pointsAwarded = taskApprovalScore();
+    if (task.assigneeProfileId) {
+      const existing = await db.select({ id: scoreEvents.id }).from(scoreEvents).where(and(eq(scoreEvents.taskId, approval.taskId), gt(scoreEvents.points, 0))).limit(1);
+      if (!existing[0]) {
+        await db.insert(scoreEvents).values({ profileId: task.assigneeProfileId, taskId: approval.taskId, points: pointsAwarded, reason: `تقييم مهمة: ${rating === "excellent" ? "ممتاز" : rating === "acceptable" ? "مقبول" : "متوسط"}`, createdByUserId: input.reviewerUserId });
+      }
+    }
   } else {
     await db.update(tasks).set({ status: "in_progress", completedAt: null }).where(eq(tasks.id, approval.taskId));
   }
-  await db.update(taskApprovals).set({ status: input.decision, reviewedByProfileId: input.reviewerProfileId, reviewedAt: new Date(), reviewNote: input.note.trim(), pointsAwarded }).where(eq(taskApprovals.id, approval.id));
+  await db.update(taskApprovals).set({ status: input.decision, reviewedByProfileId: input.reviewerProfileId, reviewedAt: new Date(), reviewNote: input.note.trim(), pointsAwarded, managerRating: input.decision === "approved" ? rating : null, ratingNote: input.ratingNote ?? null }).where(eq(taskApprovals.id, approval.id));
   await db.insert(taskUpdates).values({ taskId: approval.taskId, actorUserId: input.reviewerUserId, updateType: "approved", note: `قرار الاعتماد: ${input.decision === "approved" ? "معتمد" : "مرفوض"}. ${input.note.trim()}` });
-  await logAudit({ actorUserId: input.reviewerUserId, action: `task.approval_${input.decision}`, entityType: "task_approval", entityId: approval.id, metadata: { taskId: approval.taskId, pointsAwarded } });
+  await logAudit({ actorUserId: input.reviewerUserId, action: `task.approval_${input.decision}`, entityType: "task_approval", entityId: approval.id, metadata: { taskId: approval.taskId, pointsAwarded, managerRating: input.decision === "approved" ? rating : null } });
   return { success: true, approvalId: approval.id, pointsAwarded };
 }
 

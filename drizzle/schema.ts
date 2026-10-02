@@ -874,6 +874,8 @@ export const taskApprovals = mysqlTable("task_approvals", {
   reviewedAt: timestamp("reviewedAt"),
   reviewNote: text("reviewNote"),
   pointsAwarded: int("pointsAwarded").default(0).notNull(),
+  managerRating: varchar("managerRating", { length: 20 }),
+  ratingNote: varchar("ratingNote", { length: 500 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, table => [
   index("task_approvals_task_status_idx").on(table.taskId, table.status),

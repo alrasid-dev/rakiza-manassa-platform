@@ -1566,14 +1566,14 @@ export const courtRouter = router({
       if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف موظف لرفع المهمة للاعتماد." });
       return submitTaskForApproval({ taskId: input.taskId, submittedByProfileId: profile.id, actorUserId: ctx.user.id, note: input.note });
     }),
-    reviewApproval: protectedProcedure.input(z.object({ approvalId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), note: z.string().trim().min(3).max(4000) })).mutation(async ({ ctx, input }) => {
+    reviewApproval: protectedProcedure.input(z.object({ approvalId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), note: z.string().trim().min(3).max(4000), managerRating: z.enum(["excellent", "good", "acceptable"]).optional(), ratingNote: z.string().trim().max(500).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
       const roles = await rolesForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
       if (!isLeadership && !isManager) throw new TRPCError({ code: "FORBIDDEN", message: "اعتماد المهام متاح للمدير والقيادة فقط." });
       const reviewer = await getProfileForUser(ctx.user.id);
-      return reviewTaskApproval({ approvalId: input.approvalId, decision: input.decision, note: input.note, reviewerProfileId: reviewer?.id ?? 0, reviewerUserId: ctx.user.id });
+      return reviewTaskApproval({ approvalId: input.approvalId, decision: input.decision, note: input.note, reviewerProfileId: reviewer?.id ?? 0, reviewerUserId: ctx.user.id, managerRating: input.managerRating, ratingNote: input.ratingNote });
     }),
     listPendingApprovals: protectedProcedure.input(z.object({}).optional()).query(async ({ ctx }) => {
       const permission = await requirePermission(ctx.user, "view");
