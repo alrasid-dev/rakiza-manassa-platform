@@ -2574,6 +2574,96 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null,
   });
 }
 
+const DISCIPLINARY_ROLE_LABELS: Record<string, string> = {
+  trainee_affairs_manager: "شؤون الملازمين",
+  human_resources_manager: "الموارد البشرية",
+  court_secretary: "أمين المحكمة",
+  assistant_president: "مساعد الرئيس",
+  court_president: "رئيس المحكمة",
+};
+
+export type RequestRouteStep = {
+  step: "submitted" | "manager_review" | "escalated" | "decision";
+  label: string;
+  by: string;
+  at: string | null;
+  status: "done" | "current" | "pending";
+  decision?: string | null;
+};
+
+export type RequestRoute = {
+  requestId: number;
+  requestType: string;
+  submitterName: string;
+  submittedAt: string;
+  steps: RequestRouteStep[];
+  currentStep: number;
+  availableActions: string[];
+};
+
+/** يبني المسار الزمني (Timeline) لطلب مساءلة أو إجازة/استئذان لعرضه في الواجهة. */
+export async function getRequestRoute(input: { requestId: number; requestType: "leave" | "permission" | "disciplinary" }): Promise<RequestRoute | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  if (input.requestType === "disciplinary") {
+    const c = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.requestId)).limit(1))[0];
+    if (!c) return null;
+    let submitterName = "غير معروف";
+    const profile = (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, c.entityId)).limit(1))[0];
+    if (profile) submitterName = profile.fullName;
+    else {
+      const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, c.entityId)).limit(1))[0];
+      if (task?.assigneeProfileId) {
+        const p2 = (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
+        if (p2) submitterName = p2.fullName;
+      }
+    }
+    let deciderName = "—";
+    if (c.decidedByUserId) {
+      const u = (await db.select({ name: users.name }).from(users).where(eq(users.id, c.decidedByUserId)).limit(1))[0];
+      deciderName = u?.name ?? "—";
+    }
+    const managerLabel = DISCIPLINARY_ROLE_LABELS[c.currentRole] ?? c.currentRole;
+    const decided = ["approved", "cancelled", "returned", "rejected"].includes(c.status);
+    const steps: RequestRouteStep[] = [
+      { step: "submitted", label: "قدّمه", by: submitterName, at: c.createdAt.toISOString(), status: "done" },
+      { step: "manager_review", label: "لدى المدير", by: managerLabel, at: null, status: c.status === "pending" || c.status === "under_review" ? "current" : "done" },
+      { step: "escalated", label: "التصعيد", by: "أمين المحكمة", at: null, status: c.status === "escalated" ? "current" : decided ? "done" : "pending" },
+      { step: "decision", label: "القرار", by: deciderName, at: c.decidedAt?.toISOString() ?? null, status: decided ? "done" : "pending", decision: decided ? c.status : null },
+    ];
+    const currentIdx = steps.findIndex(s => s.status === "current");
+    const availableActions = decided || c.status === "escalated" ? [] : ["approve", "reject", "escalate", "return"];
+    return { requestId: c.id, requestType: "disciplinary", submitterName, submittedAt: c.createdAt.toISOString(), steps, currentStep: currentIdx, availableActions };
+  }
+
+  // إجازة / استئذان
+  const lr = (await db.select().from(leaveRequests).where(eq(leaveRequests.id, input.requestId)).limit(1))[0];
+  if (!lr) return null;
+  const profile = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, lr.profileId)).limit(1))[0];
+  const submitterName = profile?.fullName ?? "غير معروف";
+  let managerName = "المدير المباشر";
+  if (profile?.directManagerProfileId) {
+    const m = (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, profile.directManagerProfileId)).limit(1))[0];
+    if (m) managerName = m.fullName;
+  }
+  let deciderName = "—";
+  if (lr.reviewedByUserId) {
+    const u = (await db.select({ name: users.name }).from(users).where(eq(users.id, lr.reviewedByUserId)).limit(1))[0];
+    deciderName = u?.name ?? "—";
+  }
+  const decided = ["approved", "rejected"].includes(lr.status);
+  const steps: RequestRouteStep[] = [
+    { step: "submitted", label: "قدّمه", by: submitterName, at: lr.createdAt.toISOString(), status: "done" },
+    { step: "manager_review", label: "لدى المدير", by: managerName, at: null, status: lr.status === "pending" ? "current" : "done" },
+    { step: "escalated", label: "الأمين", by: "أمين المحكمة", at: null, status: lr.status === "pending_owner_approval" ? "current" : lr.status === "pending" ? "pending" : "done" },
+    { step: "decision", label: "القرار", by: deciderName, at: lr.reviewedAt?.toISOString() ?? null, status: decided ? "done" : "pending", decision: decided ? lr.status : null },
+  ];
+  const currentIdx = steps.findIndex(s => s.status === "current");
+  const availableActions = decided ? [] : lr.status === "pending" || lr.status === "pending_owner_approval" ? ["approve", "reject"] : [];
+  return { requestId: lr.id, requestType: lr.requestType, submitterName, submittedAt: lr.createdAt.toISOString(), steps, currentStep: currentIdx, availableActions };
+}
+
 async function createTaskConversation(input: { db: any; taskId: number; title: string; creatorUserId: number; assigneeProfileId?: number; watcherProfileId?: number }) {
   // إنشاء غرفة الفريق تحسين اختياري؛ لا ينبغي أن يمنع إنشاء المهمة في محاكاة أو قاعدة قديمة.
   if (typeof input.db.select !== "function") return null;

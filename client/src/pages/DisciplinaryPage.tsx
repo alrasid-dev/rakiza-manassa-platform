@@ -2,6 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import TeamBalancesTable from "@/components/TeamBalancesTable";
 import { trpc } from "@/lib/trpc";
 import { useMemo, useState } from "react";
+import RequestRouteTimeline from "@/components/RequestRouteTimeline";
 
 const statusLabels: Record<string, string> = {
   pending: "قيد الانتظار",
@@ -139,6 +140,7 @@ export default function DisciplinaryPage() {
                 </div>
               </div>
               <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote || "—"}</p>
+              <RequestRouteTimeline requestId={c.id} requestType="disciplinary" />
               {c.status === "pending" && (
                 <div className="mt-3">
                   <textarea
@@ -192,6 +194,7 @@ export default function DisciplinaryPage() {
                   </div>
                 </div>
                 <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote}</p>
+                <RequestRouteTimeline requestId={c.id} requestType="disciplinary" />
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}

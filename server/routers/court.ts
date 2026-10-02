@@ -161,6 +161,7 @@ import {
   listPersonalDisciplinaryActions,
   respondToDisciplinaryCase,
   decideDisciplinaryCase,
+  getRequestRoute,
   bulkReviewDisciplinary,
   listTeamDisciplinaryCases,
   listPendingApprovals,
@@ -2217,6 +2218,12 @@ export const courtRouter = router({
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
       return bulkReviewDisciplinary({ caseIds: input.caseIds, decision: input.decision, note: input.note, actorUserId: ctx.user.id, managedUnitIds });
+    }),
+  }),
+  requests: router({
+    route: protectedProcedure.input(z.object({ requestId: z.number().int().positive(), requestType: z.enum(["leave", "permission", "disciplinary"]) })).query(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      return getRequestRoute(input);
     }),
   }),
 
