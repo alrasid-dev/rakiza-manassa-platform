@@ -4516,6 +4516,27 @@ export async function getMyPermissionUsage(profileId: number) {
   };
 }
 
+/** يعيد معرف ملف المدير المباشر للقسم (معرّف ملف، وليس معرّف حساب). */
+async function findManagerProfileIdForUnit(unitId: number): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const role = unitId === 2 ? "trainee_affairs_manager" : "department_manager";
+  const assignment = (await db.select({ userId: courtRoleAssignments.userId }).from(courtRoleAssignments).where(and(eq(courtRoleAssignments.unitId, unitId), eq(courtRoleAssignments.role, role), eq(courtRoleAssignments.isActive, true))).limit(1))[0];
+  if (!assignment) return null;
+  const manager = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, assignment.userId)).limit(1))[0];
+  return manager?.id ?? null;
+}
+
+/** يعيد معرف ملف أمين المحكمة (court_secretary) النشط. */
+async function findSecretaryProfileId(): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const assignment = (await db.select({ userId: courtRoleAssignments.userId }).from(courtRoleAssignments).where(and(eq(courtRoleAssignments.role, "court_secretary"), eq(courtRoleAssignments.isActive, true))).limit(1))[0];
+  if (!assignment) return null;
+  const secretary = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, assignment.userId)).limit(1))[0];
+  return secretary?.id ?? null;
+}
+
 export async function submitLeaveRequest(input: { profileId: number; requestType: "leave" | "permission"; startAt: Date; endAt: Date; substituteProfileId?: number; note?: string; requestedByUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
@@ -4542,22 +4563,27 @@ export async function submitLeaveRequest(input: { profileId: number; requestType
   // توجيه الطلب للمدير المباشر للبت فيه (وليس للمالك مباشرة).
   const submitterProfile = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
   const kindLabel = input.requestType === "leave" ? "إجازة" : "استئذان";
-  let reviewerProfileId = submitterProfile?.directManagerProfileId ?? null;
-  if (!reviewerProfileId && submitterProfile?.unitId) {
-    // احسب المدير ديناميكياً من تكليف إدارة القسم إن لم يكن المدير المباشر معبأً.
-    const managerAssignment = (await db.select({ userId: courtRoleAssignments.userId }).from(courtRoleAssignments).where(and(eq(courtRoleAssignments.unitId, submitterProfile.unitId), eq(courtRoleAssignments.isActive, true), inArray(courtRoleAssignments.role, ["department_manager", "trainee_affairs_manager"]))).limit(1))[0];
-    if (managerAssignment) {
-      const manager = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, managerAssignment.userId)).limit(1))[0];
-      reviewerProfileId = manager?.id ?? null;
-    }
-  }
+  const submitterName = submitterProfile?.fullName ?? "موظف";
+  const reviewerProfileId = submitterProfile?.directManagerProfileId ?? (submitterProfile?.unitId != null ? await findManagerProfileIdForUnit(submitterProfile.unitId) : null);
   if (reviewerProfileId) {
-    await db.insert(notifications).values({ profileId: reviewerProfileId, category: "security_alert", title: "طلب إجازة/استئذان بانتظار اعتمادك", body: `قدّم ${submitterProfile.fullName} طلب ${kindLabel} بانتظار قرارك.`, dedupeKey: `leave-review-${id}` }).onDuplicateKeyUpdate({ set: { title: "طلب إجازة/استئذان بانتظار اعتمادك" } });
+    await db.insert(notifications).values({ profileId: reviewerProfileId, category: "security_alert", title: "طلب إجازة/استئذان بانتظار اعتمادك", body: `قدّم ${submitterName} طلب ${kindLabel} بانتظار قرارك.`, dedupeKey: `leave-review-${id}` }).onDuplicateKeyUpdate({ set: { title: "طلب إجازة/استئذان بانتظار اعتمادك" } });
+    try {
+      await sendPushForNotification(reviewerProfileId, { title: "طلب إجازة/استئذان بانتظار اعتمادك", body: `قدّم ${submitterName} طلب ${kindLabel} بانتظار قرارك.`, url: "/status", tag: `leave-review-${id}` });
+    } catch (error) {
+      console.warn("[WebPush] فشل إرسال إشعار طلب الإجازة للمدير", { leaveRequestId: id, error });
+    }
   } else {
-    // استثناء: لا يوجد مدير مباشر ولا مدير قسم → إشعار للمالك.
+    // استثناء: لا يوجد مدير مباشر ولا مدير قسم → إشعار لأمين المحكمة (أو المالك كملاذ أخير).
+    const secretaryProfileId = await findSecretaryProfileId();
     const owner = (await db.select({ id: personProfiles.id }).from(personProfiles).innerJoin(users, eq(users.id, personProfiles.userId)).where(eq(users.role, "admin")).limit(1))[0];
-    if (owner) {
-      await db.insert(notifications).values({ profileId: owner.id, category: "security_alert", title: "طلب إجازة/استئذان بدون مدير مباشر", body: `قدّم ${submitterProfile?.fullName ?? "موظف"} طلب ${kindLabel} ولا يوجد مدير مباشر لقسمه، بانتظار اعتمادك.`, dedupeKey: `leave-review-${id}` }).onDuplicateKeyUpdate({ set: { title: "طلب إجازة/استئذان بدون مدير مباشر" } });
+    const fallbackProfileId = secretaryProfileId ?? owner?.id ?? null;
+    if (fallbackProfileId) {
+      await db.insert(notifications).values({ profileId: fallbackProfileId, category: "security_alert", title: "طلب إجازة/استئذان بدون مدير مباشر", body: `قدّم ${submitterName} طلب ${kindLabel} ولا يوجد مدير مباشر لقسمه، بانتظار اعتمادك.`, dedupeKey: `leave-review-${id}` }).onDuplicateKeyUpdate({ set: { title: "طلب إجازة/استئذان بدون مدير مباشر" } });
+      try {
+        await sendPushForNotification(fallbackProfileId, { title: "طلب إجازة/استئذان بدون مدير مباشر", body: `قدّم ${submitterName} طلب ${kindLabel} بانتظار اعتمادك.`, url: "/status", tag: `leave-review-${id}` });
+      } catch (error) {
+        console.warn("[WebPush] فشل إرسال إشعار طلب الإجازة للأمين", { leaveRequestId: id, error });
+      }
     }
   }
   return id;
