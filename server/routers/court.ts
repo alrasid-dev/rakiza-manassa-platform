@@ -2253,12 +2253,12 @@ export const courtRouter = router({
       const submitted = [...myLeave.map(leaveItem), ...myDisciplinary.map(discItem)].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       const pendingLeave = isLeadership ? await listLeaveRequests() : (managedUnitIds?.length ? await listLeaveRequestsForUnits(managedUnitIds) : []);
-      const pendingDisciplinary = isLeadership ? await listTeamDisciplinaryLog(null) : (managedUnitIds?.length ? await listTeamDisciplinaryLog(managedUnitIds) : []);
+      const pendingDisciplinary = isLeadership ? await listTeamDisciplinaryLog(null, undefined, profile?.id) : (managedUnitIds?.length ? await listTeamDisciplinaryLog(managedUnitIds, undefined, profile?.id) : []);
       const pendingTaskApprovals = profile ? (isLeadership ? await listPendingTaskApprovals({ excludeSubmittedByProfileId: profile.id }) : await listPendingTaskApprovals({ unitIds: managedUnitIds ?? [], excludeSubmittedByProfileId: profile.id })) : [];
 
       const toReview = [
         ...pendingLeave.filter((l: any) => l.request.status === "pending").map(leaveItem),
-        ...pendingDisciplinary.filter((d: any) => d.status === "under_review").map(discItem),
+        ...pendingDisciplinary.filter((d: any) => d.status === "pending" || d.status === "under_review").map(discItem),
         ...pendingTaskApprovals.map((a: any) => ({ id: a.approval.id, type: "task_approval" as const, requestType: "task" as const, status: "pending" as const, createdAt: a.approval.createdAt, title: a.task?.title ?? "مهمة", submitterName: a.submitterName ?? "" })),
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
