@@ -2473,7 +2473,7 @@ export async function respondToDisciplinaryCase(input: { caseId: number; profile
 
   const profile = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
   if (profile?.directManagerProfileId) {
-    const notification = { profileId: profile.directManagerProfileId, category: "security_alert" as const, title: "رد موظف على مساءلة — يحتاج قرارك", body: `قدّم ${profile.fullName} رده على المساءلة. يرجى فتح صفحة المساءلات واتخاذ قرارك.`, dedupeKey: `disciplinary-response-${input.caseId}` };
+    const notification = { profileId: profile.directManagerProfileId, category: "disciplinary_team" as const, title: "ردّ موظفك على مساءلة", body: `قدّم ${profile.fullName} رده على المساءلة. يرجى فتح صفحة المساءلات واتخاذ قرارك.`, dedupeKey: `disciplinary-response-${input.caseId}` };
     await db.insert(notifications).values(notification).onDuplicateKeyUpdate({ set: { title: "رد موظف على مساءلة — يحتاج قرارك" } });
     try { await sendPushForNotification(profile.directManagerProfileId, { title: "رد موظف على مساءلة — يحتاج قرارك", body: `قدّم ${profile.fullName} رده على المساءلة. يرجى اتخاذ قرارك.`, url: "/disciplinary", tag: notification.dedupeKey }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار رد المساءلة", { caseId: input.caseId, error }); }
   }
@@ -5264,7 +5264,7 @@ export async function escalateOverdueTasks(now = new Date()) {
           }
           if (task.assigneeProfileId) {
             await db.insert(scoreEvents).values({ profileId: task.assigneeProfileId, taskId: task.id, delayRecordId: existingDelay[0].id, points: newDelayScore(), reason: "إحالة إشرافية ومساءلة آلية بعد 12 ساعة", createdByUserId: SYSTEM_ACTOR_ID });
-            await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "security_alert", title: "مساءلة آلية: مطلوب ردك", body: `سُجّلت مساءلة تلقائية عليك لاستمرار تعثر المهمة «${task.title}» بعد المهلة الإضافية. يرجى فتح صفحة «المساءلات» وتقديم ردك.`, dedupeKey: `task-supervisory-${task.assigneeProfileId}-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "مساءلة آلية: مطلوب ردك" } });
+            await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "disciplinary_employee", title: "لديك مساءلة جديدة — بانتظار ردك", body: `سُجّلت مساءلة تلقائية عليك لاستمرار تعثر المهمة «${task.title}» بعد المهلة الإضافية. يرجى فتح صفحة «المساءلات» وتقديم ردك.`, dedupeKey: `task-supervisory-${task.assigneeProfileId}-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "لديك مساءلة جديدة — بانتظار ردك" } });
             try { await sendPushForNotification(task.assigneeProfileId, { title: "مساءلة آلية: مطلوب ردك", body: `سُجّلت مساءلة تلقائية عليك لاستمرار تعثر المهمة «${task.title}». يرجى فتح صفحة «المساءلات» وتقديم ردك.`, url: "/disciplinary", tag: `task-supervisory-${task.assigneeProfileId}-${task.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار المساءلة", { taskId: task.id, error }); }
           }
           supervisoryReferrals += 1;

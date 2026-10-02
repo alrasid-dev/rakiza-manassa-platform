@@ -30,7 +30,7 @@ async function main() {
     password: decodeURIComponent(url.password), database: db,
     ssl: { rejectUnauthorized: false, minVersion: "TLSv1.2" },
   });
-  await c.query("ALTER TABLE notifications MODIFY COLUMN category ENUM('trainee_due_soon','task_due','delay_alert','access_request','support_ticket','attendance_confirmation','security_alert','performance_recommendation','chat_message','report_review','correspondence_update','disciplinary_team') NOT NULL");
+  await c.query("ALTER TABLE notifications MODIFY COLUMN category ENUM('trainee_due_soon','task_due','delay_alert','access_request','support_ticket','attendance_confirmation','security_alert','performance_recommendation','chat_message','report_review','correspondence_update','disciplinary_team','disciplinary_employee') NOT NULL");
   console.log("ALTER OK");
   await c.end();
 }

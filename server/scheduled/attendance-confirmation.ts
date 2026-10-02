@@ -248,11 +248,11 @@ export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ che
     const dayKey = dayRange.start.toISOString().slice(0, 10);
     await db.insert(notifications).values({
       profileId: record.profileId,
-      category: "security_alert",
-      title: "عقوبة عدم تسجيل الانصراف",
+      category: "disciplinary_employee",
+      title: "لديك مساءلة جديدة — بانتظار ردك",
       body: "لم تسجل انصرافك اليوم، وطُبّقت عقوبة: -4 نقاط + خصم 240 دقيقة. يمكنك تقديم استئذان متأخر للمدير المباشر.",
       dedupeKey: `missing-checkout-${record.profileId}-${dayKey}`,
-    }).onDuplicateKeyUpdate({ set: { title: "عقوبة عدم تسجيل الانصراف" } });
+    }).onDuplicateKeyUpdate({ set: { title: "لديك مساءلة جديدة — بانتظار ردك" } });
 
     const profile = (await db
       .select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId })
