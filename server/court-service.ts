@@ -2640,7 +2640,7 @@ const DISCIPLINARY_ROLE_LABELS: Record<string, string> = {
 };
 
 export type RequestRouteStep = {
-  step: "submitted" | "manager_review" | "escalated" | "decision";
+  step: "submitted" | "employee_response" | "manager_review" | "escalated" | "decision";
   label: string;
   by: string;
   at: string | null;
@@ -2666,14 +2666,14 @@ export async function getRequestRoute(input: { requestId: number; requestType: "
   if (input.requestType === "disciplinary") {
     const c = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.requestId)).limit(1))[0];
     if (!c) return null;
-    let submitterName = "غير معروف";
+    let employeeName = "الموظف";
     const profile = (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, c.entityId)).limit(1))[0];
-    if (profile) submitterName = profile.fullName;
+    if (profile) employeeName = profile.fullName;
     else {
       const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, c.entityId)).limit(1))[0];
       if (task?.assigneeProfileId) {
         const p2 = (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
-        if (p2) submitterName = p2.fullName;
+        if (p2) employeeName = p2.fullName;
       }
     }
     let deciderName = "—";
@@ -2684,14 +2684,15 @@ export async function getRequestRoute(input: { requestId: number; requestType: "
     const managerLabel = DISCIPLINARY_ROLE_LABELS[c.currentRole] ?? c.currentRole;
     const decided = ["approved", "cancelled", "returned", "rejected"].includes(c.status);
     const steps: RequestRouteStep[] = [
-      { step: "submitted", label: "قدّمه", by: submitterName, at: c.createdAt.toISOString(), status: "done" },
-      { step: "manager_review", label: "لدى المدير", by: managerLabel, at: null, status: c.status === "pending" || c.status === "under_review" ? "current" : "done" },
-      { step: "escalated", label: "التصعيد", by: "أمين المحكمة", at: null, status: c.status === "escalated" ? "current" : decided ? "done" : "pending" },
-      { step: "decision", label: "القرار", by: deciderName, at: c.decidedAt?.toISOString() ?? null, status: decided ? "done" : "pending", decision: decided ? c.status : null },
+      { step: "submitted", label: "قدّمه النظام (آلياً)", by: "النظام", at: c.createdAt.toISOString(), status: "done" },
+      { step: "employee_response", label: "جواب الموظف", by: employeeName, at: null, status: c.status === "pending" ? "current" : "done" },
+      { step: "manager_review", label: "قرار المدير المباشر", by: managerLabel, at: null, status: c.status === "pending" ? "pending" : c.status === "under_review" ? "current" : "done" },
+      { step: "escalated", label: "التصعيد (الأمين + المالك)", by: "أمين المحكمة", at: null, status: c.status === "escalated" ? "current" : decided ? "done" : "pending" },
+      { step: "decision", label: "القرار النهائي", by: deciderName, at: c.decidedAt?.toISOString() ?? null, status: decided ? "done" : "pending", decision: decided ? c.status : null },
     ];
     const currentIdx = steps.findIndex(s => s.status === "current");
     const availableActions = decided || c.status === "escalated" ? [] : ["approve", "reject", "escalate", "return"];
-    return { requestId: c.id, requestType: "disciplinary", submitterName, submittedAt: c.createdAt.toISOString(), steps, currentStep: currentIdx, availableActions };
+    return { requestId: c.id, requestType: "disciplinary", submitterName: employeeName, submittedAt: c.createdAt.toISOString(), steps, currentStep: currentIdx, availableActions };
   }
 
   // إجازة / استئذان

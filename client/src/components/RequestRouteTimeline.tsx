@@ -1,7 +1,8 @@
 import { trpc } from "@/lib/trpc";
 
 const stepIcons: Record<string, string> = {
-  submitted: "📩",
+  submitted: "🤖",
+  employee_response: "💬",
   manager_review: "👤",
   escalated: "⬆️",
   decision: "✅",
@@ -15,7 +16,7 @@ const decisionLabels: Record<string, string> = {
 };
 
 type RouteStep = {
-  step: "submitted" | "manager_review" | "escalated" | "decision";
+  step: "submitted" | "employee_response" | "manager_review" | "escalated" | "decision";
   label: string;
   by: string;
   at: string | null;
@@ -29,6 +30,7 @@ function approvalHint(steps: RouteStep[]) {
     const decision = steps.find(s => s.step === "decision" && s.decision);
     return decision ? `تم اتخاذ القرار: ${decisionLabels[decision.decision ?? ""] ?? decision.decision}` : "";
   }
+  if (current.step === "employee_response") return "بانتظار جواب الموظف";
   if (current.step === "manager_review") return "بانتظار اعتماد المدير المباشر";
   if (current.step === "escalated") return "مصعَّد للأمين/الرئيس";
   return "قيد المعالجة";
