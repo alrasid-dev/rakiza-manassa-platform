@@ -203,7 +203,7 @@ export default function DisciplinaryPage() {
               <div key={c.id} className="mt-3 rounded-lg border border-[#e7e0d4] bg-white p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="h-4 w-4 accent-[#2f7653]" />
+                    {c.status !== "pending" && <input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="h-4 w-4 accent-[#2f7653]" />}
                     <span className="font-bold text-[#29463b]">طلب إجراء تأديبي — {c.employeeName}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -214,6 +214,7 @@ export default function DisciplinaryPage() {
                 </div>
                 <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote}</p>
                 <RequestRouteTimeline requestId={c.id} requestType="disciplinary" />
+                {c.status !== "pending" ? <>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}
@@ -243,6 +244,7 @@ export default function DisciplinaryPage() {
                   placeholder="ملاحظة (اختياري)"
                   className="mt-2 w-full rounded border p-2 text-sm"
                 />
+                </> : <p className="mt-2 rounded bg-[#f7ecd1] px-3 py-2 text-xs font-bold text-[#805d27]">بانتظار رد الموظف قبل اتخاذ القرار.</p>}
               </div>
             ))}
           </section>

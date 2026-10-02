@@ -2558,8 +2558,8 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null,
     conditions.push(inArray(approvalRequests.entityId, [filters.assigneeProfileId, ...assigneeTasks.map(t => t.id)])!);
   }
   if (managedUnitIds !== null) {
-    // المدير يرى فقط المساءلات التي تنتظر قراره (ما لم يحدد حالة أخرى صراحة).
-    if (!filters?.status) conditions.push(eq(approvalRequests.status, "under_review"));
+    // المدير يرى المساءلات التي تنتظر قراره أو التي تنتظر رد الموظف (ما لم يحدد حالة أخرى صراحة).
+    if (!filters?.status) conditions.push(inArray(approvalRequests.status, ["pending", "under_review"]));
     // تشمل مساءلات الحضور (entityId = profileId) ومساءلات المهام (entityId = taskId) لموظفي وحدات المدير،
     // بالإضافة إلى أي موظف يكون هذا المدير هو مديره المباشر.
     const unitProfiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
