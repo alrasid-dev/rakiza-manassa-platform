@@ -43,6 +43,7 @@ import MinimalJusticePreviewPage from "./pages/MinimalJusticePreviewPage";
 import EmeraldGlassPreviewPage from "./pages/EmeraldGlassPreviewPage";
 import ExecutivePaperPreviewPage from "./pages/ExecutivePaperPreviewPage";
 import PlatformSettingsPage from "./pages/PlatformSettingsPage";
+import MyRequestsPage from "./pages/MyRequestsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import LeadershipWorkloadPage from "./pages/LeadershipWorkloadPage";
 import PerformanceReportEvaluationsPage from "./pages/PerformanceReportEvaluationsPage";
@@ -70,6 +71,7 @@ function Router() {
       <Route path="/rotation" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : RotationPage} />
       <Route path="/personal-settings" component={PersonalSettingsPage} />
       <Route path="/disciplinary" component={DisciplinaryPage} />
+      <Route path="/my-requests" component={MyRequestsPage} />
       <Route path="/design-preview" component={MinimalJusticePreviewPage} />
       <Route path="/emerald-glass-preview" component={EmeraldGlassPreviewPage} />
       <Route path="/executive-paper-preview" component={ExecutivePaperPreviewPage} />
