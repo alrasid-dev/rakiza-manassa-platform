@@ -975,9 +975,10 @@ export async function resolveSupportTicket(input: { ticketId: number; actorProfi
 }
 
 export async function escalateOverdueSupportTickets() {
+  const now = new Date();
+  if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return { managerEscalated: 0, presidentEscalated: 0 };
   const db = await getDb();
   if (!db) return { managerEscalated: 0, presidentEscalated: 0 };
-  const now = new Date();
   const awaitingAgent = await db.select().from(supportTickets).where(and(inArray(supportTickets.status, ["open", "in_progress"]), lte(supportTickets.dueAt, now)));
   let managerEscalated = 0;
   for (const ticket of awaitingAgent) {
@@ -1779,6 +1780,7 @@ export async function autoResumeExpiredPausedTasks(now = new Date()) {
 
 /** يُنذر الموظف قبل 24 ساعة من انتهاء الإيقاف المؤقت (مرة واحدة فقط). */
 export async function checkExpiringPauses(now = new Date()) {
+  if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return { warned: 0 };
   const db = await getDb();
   if (!db) return { warned: 0 };
   const soon = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -5252,6 +5254,7 @@ export async function renewTraineeAssignment(input: { profileId: number; startAt
 }
 
 export async function createDueSoonNotifications(now = new Date()) {
+  if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return { created: 0, skipped: 0 };
   const db = await getDb();
   if (!db) return { created: 0, skipped: 0 };
   const candidates = await db.select({ profile: personProfiles, assignment: traineeAssignments }).from(traineeAssignments).innerJoin(personProfiles, eq(personProfiles.id, traineeAssignments.profileId)).where(and(eq(traineeAssignments.status, "active"), gte(traineeAssignments.expectedEndAt, now), lt(traineeAssignments.expectedEndAt, addDays(now, 8))));
@@ -5273,6 +5276,7 @@ export async function createDueSoonNotifications(now = new Date()) {
 }
 
 export async function createRecurringTasksAndNotifications(now = new Date()) {
+  if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return { createdTasks: 0, createdNotifications: 0, emailNotifications: 0, skipped: 0 };
   const db = await getDb();
   if (!db) return { createdTasks: 0, createdNotifications: 0, skipped: 0 };
   await activateScheduledLeaveStatuses(now);
