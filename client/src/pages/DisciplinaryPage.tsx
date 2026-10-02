@@ -47,6 +47,7 @@ export default function DisciplinaryPage() {
   const isLeadership = permission.data === "full_control" || roleList.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
   const isOwner = permission.data === "full_control";
   const canDecideCase = (c: CaseRow) => !isOwner || c.status === "escalated" || roleList.includes("court_secretary") || roleList.includes("court_president");
+  const showDecisionActions = (c: CaseRow) => (c.status === "under_review" || c.status === "escalated") && canDecideCase(c);
 
   const myCases = trpc.court.disciplinary.mine.useQuery();
   const teamCases = trpc.court.disciplinary.myTeam.useQuery({
@@ -98,7 +99,7 @@ export default function DisciplinaryPage() {
       });
   }, [myCases.data, typeFilter, statusFilter, sortDir]);
 
-  const selectableTeam = filteredTeam.filter(c => c.status !== "pending" && canDecideCase(c));
+  const selectableTeam = filteredTeam.filter(c => showDecisionActions(c));
   const allTeamSelected = selectableTeam.length > 0 && selectableTeam.every(c => selectedIds.includes(c.id));
   const toggleSelect = (id: number) => setSelectedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
   const toggleSelectAll = () => setSelectedIds(allTeamSelected ? [] : selectableTeam.map(c => c.id));
@@ -206,7 +207,7 @@ export default function DisciplinaryPage() {
               <div key={c.id} className="mt-3 rounded-lg border border-[#e7e0d4] bg-white p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {c.status !== "pending" && canDecideCase(c) && <input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="h-4 w-4 accent-[#2f7653]" />}
+                    {showDecisionActions(c) && <input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="h-4 w-4 accent-[#2f7653]" />}
                     <span className="font-bold text-[#29463b]">طلب إجراء تأديبي — {c.employeeName}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -217,7 +218,7 @@ export default function DisciplinaryPage() {
                 </div>
                 <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote}</p>
                 <RequestRouteTimeline requestId={c.id} requestType="disciplinary" />
-                {c.status !== "pending" && canDecideCase(c) ? <>
+                {showDecisionActions(c) ? <>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}
@@ -247,7 +248,7 @@ export default function DisciplinaryPage() {
                   placeholder="ملاحظة (اختياري)"
                   className="mt-2 w-full rounded border p-2 text-sm"
                 />
-                </> : c.status === "pending" ? <p className="mt-2 rounded bg-[#f7ecd1] px-3 py-2 text-xs font-bold text-[#805d27]">بانتظار رد الموظف قبل اتخاذ القرار.</p> : <p className="mt-2 rounded bg-[#eef4f0] px-3 py-2 text-xs font-bold text-[#2f7653]">أنت في وضع الاطلاع فقط — القرار بيد المسؤول المختص.</p>}
+                </> : c.status === "pending" ? <p className="mt-2 rounded bg-[#f7ecd1] px-3 py-2 text-xs font-bold text-[#805d27]">بانتظار رد الموظف قبل اتخاذ القرار.</p> : <p className="mt-2 rounded bg-[#eef4f0] px-3 py-2 text-xs font-bold text-[#2f7653]">أنت في وضع الاطلاع فقط — هذه المساءلة ليست بانتظار قرارك.</p>}
               </div>
             ))}
           </section>
