@@ -262,11 +262,12 @@ export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ che
     if (profile?.directManagerProfileId) {
       await db.insert(notifications).values({
         profileId: profile.directManagerProfileId,
-        category: "security_alert",
-        title: "مساءلة عدم انصراف",
-        body: `${profile.fullName} لم يسجل انصرافه اليوم وطُبّقت عليه العقوبة.`,
+        category: "disciplinary_team",
+        title: "مساءلة جديدة لموظف في قسمك",
+        body: `${profile.fullName}: عقوبة عدم تسجيل الانصراف`,
         dedupeKey: `missing-checkout-manager-${record.profileId}-${dayKey}`,
-      }).onDuplicateKeyUpdate({ set: { title: "مساءلة عدم انصراف" } });
+      }).onDuplicateKeyUpdate({ set: { title: "مساءلة جديدة لموظف في قسمك" } });
+      try { await sendPushForNotification(profile.directManagerProfileId, { title: "مساءلة جديدة لموظف في قسمك", body: `${profile.fullName}: عقوبة عدم تسجيل الانصراف`, url: "/disciplinary", tag: `missing-checkout-manager-${record.profileId}-${dayKey}` }); } catch (error) { console.warn("[WebPush] فشل إشعار مدير القسم بالمساءلة", { profileId: record.profileId, error }); }
     }
 
     penalized += 1;

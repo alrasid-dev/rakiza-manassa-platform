@@ -2195,7 +2195,7 @@ export const courtRouter = router({
         throw new TRPCError({ code: message.includes("غير موجودة") ? "NOT_FOUND" : "FORBIDDEN", message });
       }
     }),
-    managerDecision: protectedProcedure.input(z.object({ caseId: z.number().int().positive(), decision: z.enum(["escalate", "save", "cancel"]), note: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
+    managerDecision: protectedProcedure.input(z.object({ caseId: z.number().int().positive(), decision: z.enum(["escalate", "save", "cancel", "reject", "return"]), note: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await permissionForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
@@ -2213,7 +2213,7 @@ export const courtRouter = router({
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
       return listTeamDisciplinaryCases(managedUnitIds, input ? { unitId: input.unitId, type: input.type, status: input.status || undefined, searchQuery: input.searchQuery || undefined } : undefined);
     }),
-    bulkReview: protectedProcedure.input(z.object({ caseIds: z.array(z.number().int().positive()).min(1).max(100), decision: z.enum(["save", "cancel", "escalate"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
+    bulkReview: protectedProcedure.input(z.object({ caseIds: z.array(z.number().int().positive()).min(1).max(100), decision: z.enum(["save", "cancel", "escalate", "reject", "return"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await permissionForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);

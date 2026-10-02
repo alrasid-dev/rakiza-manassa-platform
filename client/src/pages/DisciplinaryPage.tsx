@@ -85,7 +85,7 @@ export default function DisciplinaryPage() {
   const toggleSelect = (id: number) => setSelectedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
   const toggleSelectAll = () => setSelectedIds(allTeamSelected ? [] : filteredTeam.map(c => c.id));
 
-  const runBulk = (decision: "save" | "cancel" | "escalate") => {
+  const runBulk = (decision: "save" | "cancel" | "escalate" | "reject" | "return") => {
     bulkReview.mutate({ caseIds: selectedIds, decision }, {
       onSuccess: () => { setSelectedIds([]); refresh(); },
       onError: e => alert(e.message || "تعذر التنفيذ المجمّع."),
@@ -199,11 +199,15 @@ export default function DisciplinaryPage() {
                   <button
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}
                     className="rounded bg-[#006c35] px-3 py-2 text-white text-sm"
-                  >✅ حفظ</button>
+                  >✅ اعتماد</button>
                   <button
-                    onClick={() => decide.mutate({ caseId: c.id, decision: "cancel", note: notes[c.id] }, { onSuccess: refresh })}
-                    className="rounded bg-gray-600 px-3 py-2 text-white text-sm"
-                  >❌ إلغاء</button>
+                    onClick={() => decide.mutate({ caseId: c.id, decision: "reject", note: notes[c.id] }, { onSuccess: refresh })}
+                    className="rounded bg-[#b3412e] px-3 py-2 text-white text-sm"
+                  >❌ رفض</button>
+                  <button
+                    onClick={() => decide.mutate({ caseId: c.id, decision: "return", note: notes[c.id] }, { onSuccess: refresh })}
+                    className="rounded bg-[#8a6d20] px-3 py-2 text-white text-sm"
+                  >🔄 عودة للتصحيح</button>
                   <button
                     onClick={() => decide.mutate({ caseId: c.id, decision: "escalate", note: notes[c.id] }, { onSuccess: refresh })}
                     className="rounded bg-amber-600 px-3 py-2 text-white text-sm"

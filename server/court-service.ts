@@ -2480,7 +2480,7 @@ export async function respondToDisciplinaryCase(input: { caseId: number; profile
   return { ok: true as const };
 }
 
-export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save" | "cancel"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
+export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save" | "cancel" | "reject" | "return"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const caseRow = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.caseId)).limit(1))[0];
@@ -2492,8 +2492,8 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
     if (!targetProfile || !input.managedUnitIds.includes(targetProfile.unitId!)) throw new Error("خارج نطاق وحدتك.");
   }
 
-  const newStatus = input.decision === "escalate" ? "escalated" : input.decision === "cancel" ? "cancelled" : "approved";
-  const decisionLabel = input.decision === "escalate" ? "تصعيد للأمين" : input.decision === "cancel" ? "إلغاء المساءلة" : "حفظ في السجل";
+  const newStatus = input.decision === "escalate" ? "escalated" : input.decision === "cancel" ? "cancelled" : input.decision === "reject" ? "rejected" : input.decision === "return" ? "returned" : "approved";
+  const decisionLabel = input.decision === "escalate" ? "تصعيد للأمين" : input.decision === "cancel" ? "إلغاء المساءلة" : input.decision === "reject" ? "رفض المساءلة" : input.decision === "return" ? "عودة للتصحيح" : "حفظ في السجل";
   const patch: Partial<typeof approvalRequests.$inferInsert> = {
     status: newStatus,
     requestNote: (caseRow.requestNote || "") + "\n\n--- قرار المدير ---\n" + decisionLabel + (input.note ? " - " + input.note : ""),
@@ -2524,7 +2524,7 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
 }
 
 /** اعتماد/رفض/تصعيد مجمّع لمساءلات بانتظار قرار المدير. */
-export async function bulkReviewDisciplinary(input: { caseIds: number[]; decision: "save" | "cancel" | "escalate"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
+export async function bulkReviewDisciplinary(input: { caseIds: number[]; decision: "save" | "cancel" | "escalate" | "reject" | "return"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
   let processed = 0;
   let failed = 0;
   for (const caseId of input.caseIds) {
@@ -5219,6 +5219,13 @@ export async function escalateOverdueTasks(now = new Date()) {
         const existingDiscipline = await db.select({ id: approvalRequests.id }).from(approvalRequests).where(and(eq(approvalRequests.entityType, "disciplinary_action"), eq(approvalRequests.entityId, task.id), eq(approvalRequests.status, "pending"))).limit(1);
         if (!existingDiscipline[0]) {
           await db.insert(approvalRequests).values({ entityType: "disciplinary_action", entityId: task.id, requestedByUserId: SYSTEM_ACTOR_ID, currentRole: "trainee_affairs_manager", requestNote: `إحالة تلقائية للمشرف بعد استمرار تعثر المهمة ست ساعات إضافية: ${task.title}` });
+          if (task.assigneeProfileId) {
+            const assignee = (await db.select({ fullName: personProfiles.fullName, directManagerProfileId: personProfiles.directManagerProfileId }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
+            if (assignee?.directManagerProfileId) {
+              await db.insert(notifications).values({ profileId: assignee.directManagerProfileId, category: "disciplinary_team", title: "مساءلة جديدة لموظف في قسمك", body: `${assignee.fullName}: إحالة إشرافية ومساءلة آلية لتعثر المهمة «${task.title}»`, dedupeKey: `task-supervisory-manager-${task.assigneeProfileId}-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "مساءلة جديدة لموظف في قسمك" } });
+              try { await sendPushForNotification(assignee.directManagerProfileId, { title: "مساءلة جديدة لموظف في قسمك", body: `${assignee.fullName}: إحالة إشرافية ومساءلة آلية لتعثر المهمة «${task.title}»`, url: "/disciplinary", tag: `task-supervisory-manager-${task.assigneeProfileId}-${task.id}` }); } catch (error) { console.warn("[WebPush] فشل إشعار مدير القسم بالمساءلة", { taskId: task.id, error }); }
+            }
+          }
           if (task.assigneeProfileId) {
             await db.insert(scoreEvents).values({ profileId: task.assigneeProfileId, taskId: task.id, delayRecordId: existingDelay[0].id, points: newDelayScore(), reason: "إحالة إشرافية ومساءلة آلية بعد 12 ساعة", createdByUserId: SYSTEM_ACTOR_ID });
             await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "security_alert", title: "مساءلة آلية: مطلوب ردك", body: `سُجّلت مساءلة تلقائية عليك لاستمرار تعثر المهمة «${task.title}» بعد المهلة الإضافية. يرجى فتح صفحة «المساءلات» وتقديم ردك.`, dedupeKey: `task-supervisory-${task.assigneeProfileId}-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "مساءلة آلية: مطلوب ردك" } });

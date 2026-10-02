@@ -527,7 +527,7 @@ export const internalMailRecurringScheduleRuns = mysqlTable("internal_mail_recur
 export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),
   profileId: int("profileId"),
-  category: mysqlEnum("category", ["trainee_due_soon", "task_due", "delay_alert", "access_request", "support_ticket", "attendance_confirmation", "security_alert", "performance_recommendation", "chat_message", "report_review", "correspondence_update"]).notNull(),
+  category: mysqlEnum("category", ["trainee_due_soon", "task_due", "delay_alert", "access_request", "support_ticket", "attendance_confirmation", "security_alert", "performance_recommendation", "chat_message", "report_review", "correspondence_update", "disciplinary_team"]).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body").notNull(),
   dedupeKey: varchar("dedupeKey", { length: 255 }),
