@@ -28,6 +28,20 @@ const statusLabels: Record<string, string> = {
 type Item = { id: number; type: string; requestType: string; status: string; createdAt: string; title: string; submitterName: string };
 type DecisionAction = "approve" | "reject" | "escalate" | "return";
 
+const isActionable = (item: Item) => {
+  if (item.status === "pending" && item.type === "disciplinary") return false;
+  if (item.status === "pending" && (item.type === "leave" || item.type === "permission")) return true;
+  if (["approved", "rejected", "closed", "saved"].includes(item.status)) return false;
+  return true;
+};
+
+const disabledReason = (item: Item) => {
+  if (item.status === "pending" && item.type === "disciplinary") return "بانتظار رد الموظف";
+  if (["approved", "rejected", "closed"].includes(item.status)) return "تم البت في الطلب";
+  if (item.status === "saved") return "محفوظ";
+  return "";
+};
+
 function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn, onAction }: {
   item: Item;
   reviewable: boolean;
@@ -56,22 +70,21 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
       {item.type === "task_approval" && <a href="/tasks?tab=approvals" className="mt-2 inline-block text-xs font-bold text-[#2f7653] underline">فتح الاعتماد</a>}
       {reviewable && item.type === "task_approval" && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {canApprove && <>
-            <button type="button" onClick={() => onAction(item, "approve", "excellent")} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700">🟢 ممتاز</button>
-            <button type="button" onClick={() => onAction(item, "approve", "good")} className="rounded-lg bg-yellow-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-yellow-600">🟡 متوسط</button>
-            <button type="button" onClick={() => onAction(item, "approve", "acceptable")} className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-600">🔴 مقبول</button>
-          </>}
-          {canReject && <button type="button" onClick={() => onAction(item, "reject")} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700">❌ رفض</button>}
+          <button type="button" onClick={() => onAction(item, "approve", "excellent")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>🟢 ممتاز</button>
+          <button type="button" onClick={() => onAction(item, "approve", "good")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-yellow-500 text-white hover:bg-yellow-600" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>🟡 متوسط</button>
+          <button type="button" onClick={() => onAction(item, "approve", "acceptable")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-red-500 text-white hover:bg-red-600" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>🔴 مقبول</button>
+          <button type="button" onClick={() => onAction(item, "reject")} disabled={!isActionable(item) || !canReject} title={disabledReason(item) || (!canReject ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canReject ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>❌ رفض</button>
         </div>
       )}
       {reviewable && item.type !== "task_approval" && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {canApprove && <button type="button" onClick={() => onAction(item, "approve")} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700">✅ اعتماد</button>}
-          {canReject && <button type="button" onClick={() => onAction(item, "reject")} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700">❌ رفض</button>}
-          {canEscalate && <button type="button" onClick={() => onAction(item, "escalate")} className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600">⬆️ تصعيد</button>}
-          {canReturn && <button type="button" onClick={() => onAction(item, "return")} className="rounded-lg bg-gray-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-700">🔄 عودة للتصحيح</button>}
+          <button type="button" onClick={() => onAction(item, "approve")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>✅ اعتماد</button>
+          <button type="button" onClick={() => onAction(item, "reject")} disabled={!isActionable(item) || !canReject} title={disabledReason(item) || (!canReject ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canReject ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>❌ رفض</button>
+          <button type="button" onClick={() => onAction(item, "escalate")} disabled={!isActionable(item) || !canEscalate} title={disabledReason(item) || (!canEscalate ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canEscalate ? "bg-orange-500 text-white hover:bg-orange-600" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>⬆️ تصعيد</button>
+          <button type="button" onClick={() => onAction(item, "return")} disabled={!isActionable(item) || !canReturn} title={disabledReason(item) || (!canReturn ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canReturn ? "bg-gray-600 text-white hover:bg-gray-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>🔄 عودة للتصحيح</button>
         </div>
       )}
+      {reviewable && !isActionable(item) && <p className="mt-2 text-sm text-gray-500">{disabledReason(item)}</p>}
     </div>
   );
 }
