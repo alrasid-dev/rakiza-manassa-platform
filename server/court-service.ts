@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, gt, gte, inArray, isNull, isNotNull, like, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, getTableColumns, gt, gte, inArray, isNull, isNotNull, like, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { ENV } from "./_core/env";
 import { TRPCError } from "@trpc/server";
 
@@ -1600,7 +1600,7 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
     const now = new Date();
     conditions.push(or(eq(tasks.isConfidential, false), and(isNotNull(tasks.confidentialityExpiresAt), lte(tasks.confidentialityExpiresAt, now)), eq(tasks.assigneeProfileId, filters.visibleProfileId), eq(tasks.watcherProfileId, filters.visibleProfileId))!);
   }
-  return db.select().from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
+  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
 export async function listTasksForProfile(profileId: number, status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled") {
@@ -1636,7 +1636,7 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
     const now = new Date();
     conditions.push(or(eq(tasks.isConfidential, false), and(isNotNull(tasks.confidentialityExpiresAt), lte(tasks.confidentialityExpiresAt, now)), eq(tasks.assigneeProfileId, visibleProfileId), eq(tasks.watcherProfileId, visibleProfileId))!);
   }
-  return db.select().from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
+  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
 /** نافذة التصعيد الآلي: يوم عمل سعودي، ليس إجازة رسمية، وخلال دوام 07:00–14:59 بتوقيت الرياض. */
@@ -3395,6 +3395,11 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
     }
   } else {
     await db.update(tasks).set({ status: "in_progress", completedAt: null }).where(eq(tasks.id, approval.taskId));
+    // إشعار الموظف برفض مهمته وإعادتها للتنفيذ.
+    if (task.assigneeProfileId) {
+      await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "رُفضت مهمتك", body: `تم رفض المهمة «${task.title}» وإعادتها للتنفيذ. ${input.note.trim()}`, dedupeKey: `task-rejected-${approval.id}` }).onDuplicateKeyUpdate({ set: { title: "رُفضت مهمتك" } });
+      try { await sendPushForNotification(task.assigneeProfileId, { title: "رُفضت مهمتك", body: `تم رفض المهمة «${task.title}» وإعادتها للتنفيذ.`, url: "/tasks", tag: `task-rejected-${approval.id}` }); } catch (error) { console.warn("[WebPush] فشل إشعار رفض المهمة", { taskId: approval.taskId, error }); }
+    }
   }
   await db.update(taskApprovals).set({ status: input.decision, reviewedByProfileId: input.reviewerProfileId, reviewedAt: new Date(), reviewNote: input.note.trim(), pointsAwarded, managerRating: input.decision === "approved" ? rating : null, ratingNote: input.ratingNote ?? null }).where(eq(taskApprovals.id, approval.id));
   await db.insert(taskUpdates).values({ taskId: approval.taskId, actorUserId: input.reviewerUserId, updateType: "approved", note: `قرار الاعتماد: ${input.decision === "approved" ? "معتمد" : "مرفوض"}. ${input.note.trim()}` });
