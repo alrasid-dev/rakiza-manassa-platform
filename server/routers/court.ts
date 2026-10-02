@@ -1403,7 +1403,7 @@ export const courtRouter = router({
         return taskGroups.flat();
       }
       const managedUnitIds = await managedUnitIdsForUser(ctx.user);
-      if (managedUnitIds.length) { const viewerProfile = await getProfileForUser(ctx.user.id); const unitIds = input?.unitId && managedUnitIds.includes(input.unitId) ? [input.unitId] : managedUnitIds; return listTasksForUnits(unitIds, input?.status, viewerProfile?.id, input?.assigneeProfileId); }
+      if (managedUnitIds.length) { const viewerProfile = await getProfileForUser(ctx.user.id); const unitIds = input?.unitId && managedUnitIds.includes(input.unitId) ? [input.unitId] : managedUnitIds; return listTasksForUnits(unitIds, input?.status, viewerProfile?.id, input?.assigneeProfileId, input?.dueFilter); }
       const { profile } = await requirePersonalWorkspace(ctx.user);
       return listTasksForProfile(profile.id, input?.status);
     }),

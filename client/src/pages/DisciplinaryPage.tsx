@@ -124,10 +124,10 @@ export default function DisciplinaryPage() {
 
         {/* شريط التصنيف */}
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[#e7e0d4] bg-[#fbf6ec] p-3">
-          <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+          {(isManager || isLeadership) && <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
             <option value="all">القسم: الكل</option>
             {(units.data ?? []).map(unit => <option key={unit.id} value={String(unit.id)}>{unit.name}</option>)}
-          </select>
+          </select>}
           <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as typeof typeFilter)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
             <option value="all">النوع: الكل</option>
             <option value="attendance">حضور</option>
@@ -138,10 +138,10 @@ export default function DisciplinaryPage() {
             {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث بالاسم…" className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm" />
-          <select value={employeeFilter} onChange={e => setEmployeeFilter(e.target.value)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+          {(isManager || isLeadership) && <select value={employeeFilter} onChange={e => setEmployeeFilter(e.target.value)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
             <option value="all">الموظف: الكل</option>
             {(people.data ?? []).map(person => <option key={person.id} value={String(person.id)}>{person.fullName}</option>)}
-          </select>
+          </select>}
           <select value={sortDir} onChange={e => setSortDir(e.target.value as typeof sortDir)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
             <option value="newest">الأحدث أولاً</option>
             <option value="oldest">الأقدم أولاً</option>
