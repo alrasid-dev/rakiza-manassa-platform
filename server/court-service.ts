@@ -1581,14 +1581,19 @@ export function isTaskVisibleToProfile(task: { isConfidential: boolean; confiden
   return !task.isConfidential || confidentialityExpired || task.assigneeProfileId === profileId || task.watcherProfileId === profileId;
 }
 
-export async function listTasks(filters?: { status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; assigneeProfileId?: number; visibleProfileId?: number }) {
+export async function listTasks(filters?: { status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; assigneeProfileId?: number; visibleProfileId?: number; dueFilter?: "overdue" | "dueSoon" | "completed" }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [isNull(tasks.archivedAt)];
-  if (filters?.status === "overdue") {
-    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled", "paused"]), lt(tasks.dueAt, new Date()))!);
+  if (filters?.status === "overdue" || filters?.dueFilter === "overdue") {
+    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), lt(tasks.dueAt, new Date()))!);
   } else if (filters?.status) {
     conditions.push(eq(tasks.status, filters.status));
+  } else if (filters?.dueFilter === "dueSoon") {
+    const now = new Date();
+    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000)))!);
+  } else if (filters?.dueFilter === "completed") {
+    conditions.push(eq(tasks.status, "completed"));
   }
   if (filters?.assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, filters.assigneeProfileId));
   if (filters?.visibleProfileId) {
@@ -1612,14 +1617,19 @@ export async function archiveTask(input: { taskId: number; actorUserId: number }
   return { success: true as const };
 }
 
-export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number, assigneeProfileId?: number) {
+export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number, assigneeProfileId?: number, dueFilter?: "overdue" | "dueSoon" | "completed") {
   const db = await getDb();
   if (!db || !unitIds.length) return [];
   const conditions = [inArray(tasks.unitId, unitIds), isNull(tasks.archivedAt)];
-  if (status === "overdue") {
-    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled", "paused"]), lt(tasks.dueAt, new Date()))!);
+  if (status === "overdue" || dueFilter === "overdue") {
+    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), lt(tasks.dueAt, new Date()))!);
   } else if (status) {
     conditions.push(eq(tasks.status, status));
+  } else if (dueFilter === "dueSoon") {
+    const now = new Date();
+    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000)))!);
+  } else if (dueFilter === "completed") {
+    conditions.push(eq(tasks.status, "completed"));
   }
   if (assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, assigneeProfileId));
   if (visibleProfileId) {

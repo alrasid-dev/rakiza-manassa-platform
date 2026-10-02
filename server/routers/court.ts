@@ -1388,9 +1388,9 @@ export const courtRouter = router({
       await requireOperationsManager(ctx.user);
       return restoreArchivedOperationalWork({ ...input, actorUserId: ctx.user.id });
     }),
-    list: protectedProcedure.input(z.object({ status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]).optional(), assigneeProfileId: z.number().int().positive().optional(), unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
+    list: protectedProcedure.input(z.object({ status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]).optional(), assigneeProfileId: z.number().int().positive().optional(), unitId: z.number().int().positive().optional(), dueFilter: z.enum(["overdue", "dueSoon", "completed"]).optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
-      if (await hasLeadershipPlatformScope(ctx.user, permission)) { const viewerProfile = await getProfileForUser(ctx.user.id); if (input?.unitId) return listTasksForUnits([input.unitId], input?.status, viewerProfile?.id); return listTasks({ status: input?.status, assigneeProfileId: input?.assigneeProfileId, visibleProfileId: viewerProfile?.id }); }
+      if (await hasLeadershipPlatformScope(ctx.user, permission)) { const viewerProfile = await getProfileForUser(ctx.user.id); if (input?.unitId) return listTasksForUnits([input.unitId], input?.status, viewerProfile?.id, undefined, input?.dueFilter); return listTasks({ status: input?.status, assigneeProfileId: input?.assigneeProfileId, visibleProfileId: viewerProfile?.id, dueFilter: input?.dueFilter }); }
       const roles = await rolesForUser(ctx.user);
       if (roles.includes("judge")) {
         const judgeProfile = await getProfileForUser(ctx.user.id);
