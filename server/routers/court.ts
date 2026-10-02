@@ -2267,6 +2267,41 @@ export const courtRouter = router({
 
       return { submitted, toReview, returned, disciplinary: myDisciplinary.map(discItem) };
     }),
+    review: protectedProcedure.input(z.object({ requestId: z.number().int().positive(), requestType: z.enum(["leave", "permission", "disciplinary", "task"]), decision: z.enum(["approve", "reject"]), reason: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
+      await requireOperationsManager(ctx.user);
+      const permission = await permissionForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const profile = await getProfileForUser(ctx.user.id);
+      const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+      if (input.requestType === "task") {
+        return reviewTaskApproval({ approvalId: input.requestId, decision: input.decision === "approve" ? "approved" : "rejected", note: input.reason?.trim() || (input.decision === "approve" ? "اعتماد" : "رفض"), reviewerProfileId: profile?.id ?? 0, reviewerUserId: ctx.user.id });
+      }
+      if (input.requestType === "disciplinary") {
+        return decideDisciplinaryCase({ caseId: input.requestId, decision: input.decision === "approve" ? "save" : "reject", note: input.reason, actorUserId: ctx.user.id, managedUnitIds });
+      }
+      await reviewLeaveRequest({ leaveRequestId: input.requestId, decision: input.decision === "approve" ? "approved" : "rejected", reviewedByUserId: ctx.user.id });
+      return { success: true };
+    }),
+    escalate: protectedProcedure.input(z.object({ requestId: z.number().int().positive(), requestType: z.enum(["disciplinary", "leave", "permission", "task"]), comment: z.string().trim().min(3).max(1000) })).mutation(async ({ ctx, input }) => {
+      await requireOperationsManager(ctx.user);
+      if (input.requestType === "disciplinary") {
+        const permission = await permissionForUser(ctx.user);
+        const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+        const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+        return decideDisciplinaryCase({ caseId: input.requestId, decision: "escalate", note: input.comment, actorUserId: ctx.user.id, managedUnitIds });
+      }
+      throw new TRPCError({ code: "BAD_REQUEST", message: "التصعيد متاح للمساءلات فقط." });
+    }),
+    returnForFix: protectedProcedure.input(z.object({ requestId: z.number().int().positive(), requestType: z.enum(["disciplinary", "task"]), reason: z.string().trim().min(3).max(1000) })).mutation(async ({ ctx, input }) => {
+      await requireOperationsManager(ctx.user);
+      if (input.requestType === "disciplinary") {
+        const permission = await permissionForUser(ctx.user);
+        const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+        const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+        return decideDisciplinaryCase({ caseId: input.requestId, decision: "return", note: input.reason, actorUserId: ctx.user.id, managedUnitIds });
+      }
+      throw new TRPCError({ code: "BAD_REQUEST", message: "عودة التصحيح متاحة للمساءلات فقط." });
+    }),
   }),
 
   shifts: router({
