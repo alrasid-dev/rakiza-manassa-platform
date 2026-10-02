@@ -2292,22 +2292,37 @@ export async function listDelays(status?: "under_follow_up" | "overdue" | "resol
   const conditions = [];
   if (status) conditions.push(eq(delayRecords.status, status));
   if (unitId) conditions.push(eq(delayRecords.unitId, unitId));
-  return conditions.length
-    ? db.select().from(delayRecords).where(and(...conditions)).orderBy(desc(delayRecords.createdAt))
-    : db.select().from(delayRecords).orderBy(desc(delayRecords.createdAt));
+  const base = db.select({ delay: delayRecords, relatedProfileName: personProfiles.fullName, unitName: organizationUnits.name })
+    .from(delayRecords)
+    .leftJoin(personProfiles, eq(personProfiles.id, delayRecords.relatedProfileId))
+    .leftJoin(organizationUnits, eq(organizationUnits.id, delayRecords.unitId));
+  const rows = await (conditions.length ? base.where(and(...conditions)) : base).orderBy(desc(delayRecords.createdAt));
+  return rows.map(row => ({ ...row.delay, relatedProfileName: row.relatedProfileName ?? null, unitName: row.unitName ?? null }));
 }
 
 export async function listDelaysForProfile(profileId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(delayRecords).where(eq(delayRecords.relatedProfileId, profileId)).orderBy(desc(delayRecords.createdAt));
+  const rows = await db.select({ delay: delayRecords, relatedProfileName: personProfiles.fullName, unitName: organizationUnits.name })
+    .from(delayRecords)
+    .leftJoin(personProfiles, eq(personProfiles.id, delayRecords.relatedProfileId))
+    .leftJoin(organizationUnits, eq(organizationUnits.id, delayRecords.unitId))
+    .where(eq(delayRecords.relatedProfileId, profileId))
+    .orderBy(desc(delayRecords.createdAt));
+  return rows.map(row => ({ ...row.delay, relatedProfileName: row.relatedProfileName ?? null, unitName: row.unitName ?? null }));
 }
 
 export async function listDelaysForUnits(unitIds: number[], status?: "under_follow_up" | "overdue" | "resolved" | "archived") {
   const db = await getDb();
   if (!db || !unitIds.length) return [];
   const condition = status ? and(inArray(delayRecords.unitId, unitIds), eq(delayRecords.status, status)) : inArray(delayRecords.unitId, unitIds);
-  return db.select().from(delayRecords).where(condition).orderBy(desc(delayRecords.createdAt));
+  const rows = await db.select({ delay: delayRecords, relatedProfileName: personProfiles.fullName, unitName: organizationUnits.name })
+    .from(delayRecords)
+    .leftJoin(personProfiles, eq(personProfiles.id, delayRecords.relatedProfileId))
+    .leftJoin(organizationUnits, eq(organizationUnits.id, delayRecords.unitId))
+    .where(condition)
+    .orderBy(desc(delayRecords.createdAt));
+  return rows.map(row => ({ ...row.delay, relatedProfileName: row.relatedProfileName ?? null, unitName: row.unitName ?? null }));
 }
 
 export async function listTraineeDelays(status?: "under_follow_up" | "overdue" | "resolved" | "archived") {
