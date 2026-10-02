@@ -2574,6 +2574,42 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null,
   });
 }
 
+export async function listTeamDisciplinaryLog(managedUnitIds: number[] | null, filters?: { unitId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
+  if (filters?.status) conditions.push(eq(approvalRequests.status, filters.status));
+  if (managedUnitIds !== null) {
+    const profiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
+    const profileIds = profiles.map(p => p.id);
+    if (profileIds.length === 0) return [];
+    const teamTasks = await db.select({ id: tasks.id }).from(tasks).where(inArray(tasks.assigneeProfileId, profileIds));
+    const entityIds = [...profileIds, ...teamTasks.map(t => t.id)];
+    conditions.push(inArray(approvalRequests.entityId, entityIds)!);
+  }
+  const cases = await db.select().from(approvalRequests).where(and(...conditions)).orderBy(desc(approvalRequests.createdAt));
+  const rows = await Promise.all(cases.map(async (c) => {
+    let source: "attendance" | "task" = "attendance";
+    let employee = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, c.entityId)).limit(1))[0];
+    if (!employee) {
+      source = "task";
+      const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, c.entityId)).limit(1))[0];
+      if (task?.assigneeProfileId) employee = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
+    }
+    let unitName: string | null = null;
+    if (employee?.unitId != null) {
+      unitName = (await db.select({ name: organizationUnits.name }).from(organizationUnits).where(eq(organizationUnits.id, employee.unitId)).limit(1))[0]?.name ?? null;
+    }
+    return { ...c, employeeName: employee?.fullName || "غير معروف", unitId: employee?.unitId ?? null, unitName, type: source, reason: c.requestNote };
+  }));
+  return rows.filter(row => {
+    if (filters?.type && row.type !== filters.type) return false;
+    if (filters?.unitId && row.unitId !== filters.unitId) return false;
+    if (filters?.searchQuery && !(row.employeeName || "").includes(filters.searchQuery)) return false;
+    return true;
+  });
+}
+
 const DISCIPLINARY_ROLE_LABELS: Record<string, string> = {
   trainee_affairs_manager: "شؤون الملازمين",
   human_resources_manager: "الموارد البشرية",

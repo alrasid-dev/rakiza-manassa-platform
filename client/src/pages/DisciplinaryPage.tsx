@@ -48,6 +48,7 @@ export default function DisciplinaryPage() {
   const respond = trpc.court.disciplinary.respond.useMutation();
   const decide = trpc.court.disciplinary.managerDecision.useMutation();
   const bulkReview = trpc.court.disciplinary.bulkReview.useMutation();
+  const teamLog = trpc.court.disciplinary.teamLog.useQuery();
 
   const [responses, setResponses] = useState<Record<number, string>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
@@ -230,6 +231,30 @@ export default function DisciplinaryPage() {
             <div className="mt-3"><TeamBalancesTable /></div>
           </section>
         )}
+        <section className="mt-8">
+          <h2 className="text-lg font-bold text-[#12352f]">سجل مساءلات فريقي</h2>
+          {teamLog.isLoading ? <p className="mt-2 text-gray-500">جارٍ التحميل…</p> : teamLog.data?.length ? (
+            <div className="mt-3 overflow-x-auto rounded-xl border border-[#e7e0d4] bg-white">
+              <table className="w-full min-w-[760px] text-right text-sm">
+                <thead className="bg-[#12352f] text-xs text-white">
+                  <tr><th className="px-3 py-2">الموظف</th><th className="px-3 py-2">القسم</th><th className="px-3 py-2">النوع</th><th className="px-3 py-2">السبب</th><th className="px-3 py-2">الحالة</th><th className="px-3 py-2">التاريخ</th></tr>
+                </thead>
+                <tbody className="divide-y divide-[#f2eee7]">
+                  {teamLog.data.map((row: any) => (
+                    <tr key={row.id}>
+                      <td className="px-3 py-2 font-bold text-[#29463b]">{row.employeeName}</td>
+                      <td className="px-3 py-2 text-xs">{row.unitName ?? "—"}</td>
+                      <td className="px-3 py-2 text-xs">{row.type === "attendance" ? "حضور" : "مهمة"}</td>
+                      <td className="px-3 py-2 text-xs">{row.reason ?? "—"}</td>
+                      <td className="px-3 py-2"><span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">{statusLabels[row.status] ?? row.status}</span></td>
+                      <td className="px-3 py-2 text-xs">{row.createdAt ? new Date(row.createdAt).toLocaleDateString("ar-SA") : ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="mt-2 text-gray-500">لا توجد مساءلات ضمن سجل فريقك.</p>}
+        </section>
       </section>
     </DashboardLayout>
   );

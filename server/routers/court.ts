@@ -164,6 +164,7 @@ import {
   getRequestRoute,
   bulkReviewDisciplinary,
   listTeamDisciplinaryCases,
+  listTeamDisciplinaryLog,
   listPendingApprovals,
   listProfiles,
   listProfilesForUnits,
@@ -2212,6 +2213,12 @@ export const courtRouter = router({
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
       return listTeamDisciplinaryCases(managedUnitIds, input ? { unitId: input.unitId, type: input.type, status: input.status || undefined, searchQuery: input.searchQuery || undefined } : undefined);
+    }),
+    teamLog: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional(), type: z.enum(["attendance", "task"]).optional(), status: z.enum(["pending", "returned", "approved", "rejected", "cancelled", "under_review", "escalated"]).optional(), searchQuery: z.string().trim().max(100).optional() }).optional()).query(async ({ ctx, input }) => {
+      const permission = await permissionForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
+      return listTeamDisciplinaryLog(managedUnitIds, input ? { unitId: input.unitId, type: input.type, status: input.status || undefined, searchQuery: input.searchQuery || undefined } : undefined);
     }),
     bulkReview: protectedProcedure.input(z.object({ caseIds: z.array(z.number().int().positive()).min(1).max(100), decision: z.enum(["save", "cancel", "escalate", "reject", "return"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await permissionForUser(ctx.user);
