@@ -1612,7 +1612,9 @@ export const courtRouter = router({
     markAsProcessed: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
-      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إتمام مهمة غير مسندة إليك." });
+      const profile = await getProfileForUser(ctx.user.id);
+      if (profile && task.assigneeProfileId === profile.id) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن إتمام مهمة مسندة إليك بنفسك — ارفعها لمديرك للاعتماد." });
+      await requireOperationsManager(ctx.user);
       return markTaskAsProcessed({ taskId: input.taskId, actorUserId: ctx.user.id, note: input.note });
     }),
     addComment: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), comment: z.string().trim().min(2).max(4000) })).mutation(async ({ ctx, input }) => {
