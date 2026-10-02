@@ -34,7 +34,7 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
   canReject: boolean;
   canEscalate: boolean;
   canReturn: boolean;
-  onAction: (item: Item, action: DecisionAction) => void;
+  onAction: (item: Item, action: DecisionAction, rating?: "excellent" | "good" | "acceptable") => void;
 }) {
   const showTimeline = item.type !== "task_approval";
   const isDisciplinary = item.type === "disciplinary";
@@ -53,7 +53,17 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
       <p className="mt-1 text-xs text-[#75837c]">مقدم الطلب: {item.submitterName}</p>
       {showTimeline && <RequestRouteTimeline requestId={item.id} requestType={item.requestType as "leave" | "permission" | "disciplinary"} />}
       {item.type === "task_approval" && <a href="/tasks?tab=approvals" className="mt-2 inline-block text-xs font-bold text-[#2f7653] underline">فتح الاعتماد</a>}
-      {reviewable && (
+      {reviewable && item.type === "task_approval" && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {canApprove && <>
+            <button type="button" onClick={() => onAction(item, "approve", "excellent")} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700">🟢 ممتاز</button>
+            <button type="button" onClick={() => onAction(item, "approve", "good")} className="rounded-lg bg-yellow-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-yellow-600">🟡 متوسط</button>
+            <button type="button" onClick={() => onAction(item, "approve", "acceptable")} className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-600">🔴 مقبول</button>
+          </>}
+          {canReject && <button type="button" onClick={() => onAction(item, "reject")} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700">❌ رفض</button>}
+        </div>
+      )}
+      {reviewable && item.type !== "task_approval" && (
         <div className="mt-3 flex flex-wrap gap-2">
           {canApprove && <button type="button" onClick={() => onAction(item, "approve")} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700">✅ اعتماد</button>}
           {canReject && <button type="button" onClick={() => onAction(item, "reject")} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700">❌ رفض</button>}
@@ -67,9 +77,9 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
 
 export default function MyRequestsPage() {
   const [tab, setTab] = useState<"submitted" | "toReview" | "returned" | "disciplinary">("submitted");
-  const [dialog, setDialog] = useState<{ item: Item; action: DecisionAction } | null>(null);
+  const [dialog, setDialog] = useState<{ item: Item; action: DecisionAction; rating?: "excellent" | "good" | "acceptable" } | null>(null);
   const [reason, setReason] = useState("");
-  const dash = trpc.court.requests.myDashboard.useQuery();
+  const dash = trpc.court.requests.myDashboard.useQuery(undefined, { refetchInterval: 30000 });
   const permission = trpc.court.registration.myPermission.useQuery();
   const roles = trpc.court.myRoles.useQuery();
 
@@ -96,18 +106,18 @@ export default function MyRequestsPage() {
 
   const list = dash.data?.[tab] ?? [];
 
-  const openDialog = (item: Item, action: DecisionAction) => {
+  const openDialog = (item: Item, action: DecisionAction, rating?: "excellent" | "good" | "acceptable") => {
     setReason("");
-    setDialog({ item, action });
+    setDialog({ item, action, rating });
   };
 
   const submitDecision = () => {
     if (!dialog) return;
-    const { item, action } = dialog;
+    const { item, action, rating } = dialog;
     const onSuccess = () => { toast.success("تم تنفيذ الإجراء بنجاح."); setDialog(null); setReason(""); void dash.refetch(); };
     const onError = (error: { message?: string }) => toast.error(error.message || "تعذر تنفيذ الإجراء.");
     if (action === "approve" || action === "reject") {
-      reviewMutation.mutate({ requestId: item.id, requestType: item.requestType as "leave" | "permission" | "disciplinary" | "task", decision: action === "approve" ? "approve" : "reject", reason: reason.trim() || undefined }, { onSuccess, onError });
+      reviewMutation.mutate({ requestId: item.id, requestType: item.requestType as "leave" | "permission" | "disciplinary" | "task", decision: action === "approve" ? "approve" : "reject", reason: reason.trim() || undefined, managerRating: action === "approve" ? rating : undefined, ratingNote: action === "approve" ? (reason.trim() || undefined) : undefined }, { onSuccess, onError });
     } else if (action === "escalate") {
       escalateMutation.mutate({ requestId: item.id, requestType: item.requestType as "leave" | "permission" | "disciplinary" | "task", comment: reason.trim() }, { onSuccess, onError });
     } else {
@@ -121,6 +131,8 @@ export default function MyRequestsPage() {
     escalate: { title: "تصعيد الطلب", hint: "تعليق التصعيد (إلزامي)", required: true },
     return: { title: "عودة للتصحيح", hint: "سبب العودة (إلزامي)", required: true },
   };
+
+  const ratingLabels: Record<string, string> = { excellent: "🟢 ممتاز", good: "🟡 متوسط", acceptable: "🔴 مقبول" };
 
   const requireReason = dialog ? dialogLabels[dialog.action].required : false;
 
@@ -141,9 +153,9 @@ export default function MyRequestsPage() {
       {dialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" dir="rtl">
           <div className="w-full max-w-md rounded-2xl border border-[#e7e0d4] bg-white p-5 shadow-xl">
-            <h2 className="text-lg font-bold text-[#12352f]">{dialogLabels[dialog.action].title}</h2>
+            <h2 className="text-lg font-bold text-[#12352f]">{dialog.action === "approve" && dialog.rating ? `اعتماد المهمة (${ratingLabels[dialog.rating]})` : dialogLabels[dialog.action].title}</h2>
             <p className="mt-1 text-xs text-[#75837c]">{dialog.item.title} — {dialog.item.submitterName}</p>
-            <label className="mt-4 block text-xs font-bold text-[#65766d]">{dialogLabels[dialog.action].hint}</label>
+            <label className="mt-4 block text-xs font-bold text-[#65766d]">{dialog.action === "approve" && dialog.rating ? "ملاحظة التقييم (اختياري)" : dialogLabels[dialog.action].hint}</label>
             <textarea value={reason} onChange={e => setReason(e.target.value)} className="mt-1 w-full rounded-lg border border-[#d8d1c5] p-2 text-sm" rows={3} maxLength={1000} />
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setDialog(null)} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold text-[#53675d]">إلغاء</button>

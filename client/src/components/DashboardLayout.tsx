@@ -164,9 +164,9 @@ export function normalizeQuickActionIds(value: unknown): QuickActionId[] {
   return value.filter((item): item is QuickActionId => typeof item === "string" && knownIds.includes(item));
 }
 
-export function navigationBadgeForItem(label: string, counts: { mail: number; chat: number; taskAttention: number; pendingApprovals: number; taskApprovals: number }) {
-  const count = label === "بريد ركيزة" ? counts.mail : label === "الدردشات" ? counts.chat : label === "مهامي" ? counts.taskAttention : label === "طلبات الاعتماد" ? counts.pendingApprovals : label === "الاعتمادات" ? counts.taskApprovals : 0;
-  const accessibleLabel = label === "الدردشات" ? `${count} رسالة دردشة غير مقروءة` : label === "مهامي" ? `${count} مهام تتطلب متابعة` : label === "طلبات الاعتماد" ? `${count} طلبات اعتماد معلقة` : label === "الاعتمادات" ? `${count} مهمة بانتظار اعتمادك` : `${count} رسالة غير مقروءة`;
+export function navigationBadgeForItem(label: string, counts: { mail: number; chat: number; taskAttention: number; pendingApprovals: number; taskApprovals: number; myRequests: number }) {
+  const count = label === "بريد ركيزة" ? counts.mail : label === "الدردشات" ? counts.chat : label === "مهامي" ? counts.taskAttention : label === "طلبات الاعتماد" ? counts.pendingApprovals : label === "الاعتمادات" ? counts.taskApprovals : label === "طلباتي واعتماداتي" ? counts.myRequests : 0;
+  const accessibleLabel = label === "الدردشات" ? `${count} رسالة دردشة غير مقروءة` : label === "مهامي" ? `${count} مهام تتطلب متابعة` : label === "طلبات الاعتماد" ? `${count} طلبات اعتماد معلقة` : label === "الاعتمادات" ? `${count} مهمة بانتظار اعتمادك` : label === "طلباتي واعتماداتي" ? `${count} طلب بانتظار قرارك` : `${count} رسالة غير مقروءة`;
   return { count, accessibleLabel };
 }
 
@@ -215,7 +215,7 @@ function CourtMark() {
   );
 }
 
-function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, variant = "light", navigationPreferences, mailUnreadCount = 0, chatUnreadCount = 0, taskAttentionCount = 0, pendingApprovalCount = 0, taskApprovalCount = 0, leadershipRoles = [], workMode = "manager" }: { onNavigate?: () => void; permission: WorkspacePermission; isOwner: boolean; unitName?: string | null; unitCode?: string | null; variant?: "light" | "dark"; navigationPreferences?: { navigationOrder: string[]; hiddenNavigationLabels: string[] }; mailUnreadCount?: number; chatUnreadCount?: number; taskAttentionCount?: number; pendingApprovalCount?: number; taskApprovalCount?: number; leadershipRoles?: string[]; workMode?: "employee" | "manager" }) {
+function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, variant = "light", navigationPreferences, mailUnreadCount = 0, chatUnreadCount = 0, taskAttentionCount = 0, pendingApprovalCount = 0, taskApprovalCount = 0, myRequestsCount = 0, leadershipRoles = [], workMode = "manager" }: { onNavigate?: () => void; permission: WorkspacePermission; isOwner: boolean; unitName?: string | null; unitCode?: string | null; variant?: "light" | "dark"; navigationPreferences?: { navigationOrder: string[]; hiddenNavigationLabels: string[] }; mailUnreadCount?: number; chatUnreadCount?: number; taskAttentionCount?: number; pendingApprovalCount?: number; taskApprovalCount?: number; myRequestsCount?: number; leadershipRoles?: string[]; workMode?: "employee" | "manager" }) {
   const [location, setLocation] = useLocation();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ "لوحة القيادة": true, "العمل والتقارير": true, "الموارد البشرية": true, "تسلسل الأقسام": true });
 
@@ -244,7 +244,7 @@ function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, v
             {visibleItems.map(item => {
               const active = isNavigationPathActive(location, item.path);
               const tone = navigationIconTone(section.heading, item.label);
-              const { count: unreadCount, accessibleLabel: unreadLabel } = navigationBadgeForItem(item.label, { mail: mailUnreadCount, chat: chatUnreadCount, taskAttention: taskAttentionCount, pendingApprovals: pendingApprovalCount, taskApprovals: taskApprovalCount });
+              const { count: unreadCount, accessibleLabel: unreadLabel } = navigationBadgeForItem(item.label, { mail: mailUnreadCount, chat: chatUnreadCount, taskAttention: taskAttentionCount, pendingApprovals: pendingApprovalCount, taskApprovals: taskApprovalCount, myRequests: myRequestsCount });
               const iconSize = item.label === "بريد ركيزة" ? "h-5 w-5" : "h-[1.15rem] w-[1.15rem]";
               return (
                 <button key={`${item.path}-${item.label}`} type="button" onClick={() => { setLocation(item.path); onNavigate?.(); }} className={["group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-right text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]", variant === "dark" ? (active ? "border-r-2 border-[#a8c98f] bg-[#1f6147] text-white shadow-[0_6px_16px_rgba(20,69,48,0.2)" : "text-white/85 hover:bg-[#214c3d] hover:text-white") : (active ? "border-r-2 border-[#7faa82] bg-[#e0ecdf] text-[#245f43] shadow-[0_5px_14px_rgba(50,94,68,0.09)]" : "text-[#4f6258] hover:bg-[#e9eee7] hover:text-[#245f43]")].join(" ")}>
@@ -294,6 +294,9 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   const taskApprovalsProcedure = (trpc.court as any).tasks?.listPendingApprovals;
   const taskApprovals = taskApprovalsProcedure?.useQuery ? taskApprovalsProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 30_000, retry: false }) : { data: [] };
   const taskApprovalCount = (taskApprovals.data ?? []).length;
+  const myDashboardProcedure = (trpc.court as any).requests?.myDashboard;
+  const myDashboard = myDashboardProcedure?.useQuery ? myDashboardProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 30_000 }) : { data: { counts: { total: 0 } } };
+  const myRequestsCount = Number(myDashboard.data?.counts?.total || 0);
   const taskAttentionCount = (assignedTasks.data || []).filter((task: { status?: string }) => ["new", "in_progress", "under_review", "overdue"].includes(task.status || "")).length;
   const overdueTaskCount = (assignedTasks.data || []).filter((task: { status?: string; dueAt?: Date | string | number }) => task.status === "overdue" || Boolean(task.dueAt && new Date(task.dueAt).getTime() < Date.now())).length;
   const acknowledgeTaskProcedure = (trpc.court as any).tasks?.acknowledge;
@@ -491,7 +494,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
               <div className="flex flex-wrap items-center gap-1.5 text-[#eaf2e6]"><BackButton /></div>
               {departmentIdentity.data?.identities.length ? <label className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-1.5 text-[10px] font-bold text-white/85"><Building className="h-3.5 w-3.5 shrink-0 text-[#a8c98f]" /><span className="sr-only">الهوية الفعالة</span><select aria-label="الهوية الفعالة" disabled={switchDepartmentIdentity.isPending} value={departmentIdentity.data.activeAccountId?.toString() ?? "personal"} onChange={event => switchDepartmentIdentity.mutate({ departmentAccountId: event.target.value === "personal" ? null : Number(event.target.value) })} className="min-w-0 bg-transparent text-[10px] font-bold text-white/90 outline-none"><option className="text-[#12352f]" value="personal">هويتي الشخصية</option>{departmentIdentity.data.identities.map((identity: { account: { id: number; displayName: string } }) => <option className="text-[#12352f]" key={identity.account.id} value={identity.account.id}>{identity.account.displayName}</option>)}</select></label> : null}
             </div>
-            <div className="mt-6"><NavigationMenu variant="dark" permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} taskApprovalCount={taskApprovalCount} leadershipRoles={roles.data ?? []} workMode={workMode} /></div>
+            <div className="mt-6"><NavigationMenu variant="dark" permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} taskApprovalCount={taskApprovalCount} myRequestsCount={myRequestsCount} leadershipRoles={roles.data ?? []} workMode={workMode} /></div>
             <DepartmentManagementActions variant="dark" />
             <DepartmentManagerMenu variant="dark" />
             <div className="mt-auto border-t border-white/10 pt-4">
@@ -514,7 +517,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
             </div>
             {dashboardCustomization && <div className="mt-7">{dashboardCustomization}</div>}
             <div className="mt-4 flex flex-wrap items-center gap-1.5"><BackButton /></div>
-            <div className="mt-7"><NavigationMenu onNavigate={() => setMobileOpen(false)} permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} taskApprovalCount={taskApprovalCount} leadershipRoles={roles.data ?? []} workMode={workMode} /></div>
+            <div className="mt-7"><NavigationMenu onNavigate={() => setMobileOpen(false)} permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} taskApprovalCount={taskApprovalCount} myRequestsCount={myRequestsCount} leadershipRoles={roles.data ?? []} workMode={workMode} /></div>
             <DepartmentManagementActions variant="light" />
             {!IS_PREVIEW_MODE && <button type="button" onClick={logout} className="mt-8 flex w-full items-center gap-2 rounded-xl bg-[#f4ede6] px-3 py-3 text-sm font-bold text-[#784b3f]"><Building2 className="h-4 w-4" /> تسجيل الخروج</button>}
           </aside>
