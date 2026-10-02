@@ -3606,13 +3606,33 @@ export async function summarizeAchievementsByUnit() {
     personType: personProfiles.personType,
     unitId: personProfiles.unitId,
     unitName: organizationUnits.name,
+    status: personProfiles.status,
   })
     .from(scoreEvents)
     .innerJoin(personProfiles, eq(personProfiles.id, scoreEvents.profileId))
     .leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId));
 
-  const profileMap = new Map<number, { profileId: number; fullName: string; personType: string; unitId: number | null; unitName: string | null; positive: number; negative: number; positiveEventCount: number; negativeEventCount: number }>();
+  // استثناء حركات الموظفين غير الفعّالين (بدون حذف — فقط استثناء من التجميع).
+  const ACTIVE_STATUSES = new Set(["active"]);
+  const activeRows = rows.filter(r => ACTIVE_STATUSES.has(r.status));
+
+  const unitKey = (unitId: number | null, unitName: string | null) => (unitId != null ? `unit-${unitId}` : `none-${unitName ?? "غير مصنف"}`);
+
+  // عدد الموظفين المميزين لكل قسم (كلي/فعّال).
+  const totalProfilesByUnit = new Map<string, Set<number>>();
+  const activeProfilesByUnit = new Map<string, Set<number>>();
   for (const row of rows) {
+    const key = unitKey(row.unitId, row.unitName);
+    if (!totalProfilesByUnit.has(key)) totalProfilesByUnit.set(key, new Set());
+    totalProfilesByUnit.get(key)!.add(row.profileId);
+    if (ACTIVE_STATUSES.has(row.status)) {
+      if (!activeProfilesByUnit.has(key)) activeProfilesByUnit.set(key, new Set());
+      activeProfilesByUnit.get(key)!.add(row.profileId);
+    }
+  }
+
+  const profileMap = new Map<number, { profileId: number; fullName: string; personType: string; unitId: number | null; unitName: string | null; positive: number; negative: number; positiveEventCount: number; negativeEventCount: number }>();
+  for (const row of activeRows) {
     const existing = profileMap.get(row.profileId);
     const agg = existing ?? { profileId: row.profileId, fullName: row.fullName, personType: row.personType, unitId: row.unitId, unitName: row.unitName ?? null, positive: 0, negative: 0, positiveEventCount: 0, negativeEventCount: 0 };
     if (row.points > 0) { agg.positive += row.points; agg.positiveEventCount += 1; }
@@ -3637,16 +3657,18 @@ export async function summarizeAchievementsByUnit() {
     };
   }).sort((a, b) => b.balance - a.balance);
 
-  const unitMap = new Map<string, { unitId: number | null; unitName: string; positive: number; negative: number; employeeCount: number; positiveEventCount: number; negativeEventCount: number }>();
+  const unitMap = new Map<string, { unitId: number | null; unitName: string; positive: number; negative: number; employeeCount: number; totalEmployees: number; activeEmployees: number; positiveEventCount: number; negativeEventCount: number }>();
   for (const employee of employees) {
-    const key = employee.unitId != null ? `unit-${employee.unitId}` : `none-${employee.unitName ?? "غير مصنف"}`;
+    const key = unitKey(employee.unitId, employee.unitName);
     const existing = unitMap.get(key);
-    const agg = existing ?? { unitId: employee.unitId, unitName: employee.unitName ?? "غير مصنف في قسم", positive: 0, negative: 0, employeeCount: 0, positiveEventCount: 0, negativeEventCount: 0 };
+    const agg = existing ?? { unitId: employee.unitId, unitName: employee.unitName ?? "غير مصنف في قسم", positive: 0, negative: 0, employeeCount: 0, totalEmployees: 0, activeEmployees: 0, positiveEventCount: 0, negativeEventCount: 0 };
     agg.positive += employee.positive;
     agg.negative += employee.negative;
     agg.positiveEventCount += employee.positiveEventCount;
     agg.negativeEventCount += employee.negativeEventCount;
     agg.employeeCount += 1;
+    agg.totalEmployees = totalProfilesByUnit.get(key)?.size ?? 0;
+    agg.activeEmployees = activeProfilesByUnit.get(key)?.size ?? 0;
     unitMap.set(key, agg);
   }
 
@@ -3658,9 +3680,13 @@ export async function summarizeAchievementsByUnit() {
       positive: unit.positive,
       negative: unit.negative,
       employeeCount: unit.employeeCount,
+      totalEmployees: unit.totalEmployees,
+      activeEmployees: unit.activeEmployees,
       positiveEventCount: unit.positiveEventCount,
       negativeEventCount: unit.negativeEventCount,
       balance,
+      net: balance,
+      eventsCount: unit.positiveEventCount + unit.negativeEventCount,
       performance: evaluatePerformance({ positive: unit.positive, negative: unit.negative, balance, positiveEventCount: unit.positiveEventCount, negativeEventCount: unit.negativeEventCount }),
     };
   }).sort((a, b) => (b.unitName ?? "").localeCompare(a.unitName ?? "", "ar"));
