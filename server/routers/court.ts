@@ -2316,7 +2316,11 @@ export const courtRouter = router({
       if (input.requestType === "leave" || input.requestType === "permission") {
         return returnLeaveRequestForFix({ leaveRequestId: input.requestId, reason: input.reason, actorUserId: ctx.user.id });
       }
-      throw new TRPCError({ code: "BAD_REQUEST", message: "عودة التصحيح متاحة للمساءلات والإجازات فقط." });
+      if (input.requestType === "task") {
+        const profile = await getProfileForUser(ctx.user.id);
+        return reviewTaskApproval({ approvalId: input.requestId, decision: "rejected", note: input.reason, reviewerProfileId: profile?.id ?? 0, reviewerUserId: ctx.user.id });
+      }
+      throw new TRPCError({ code: "BAD_REQUEST", message: "نوع الطلب غير مدعوم للإعادة للتصحيح." });
     }),
   }),
 
