@@ -47,7 +47,13 @@ export default function DisciplinaryPage() {
   const isLeadership = permission.data === "full_control" || roleList.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
   const isOwner = permission.data === "full_control";
   const canDecideCase = (c: CaseRow) => !isOwner || c.status === "escalated" || roleList.includes("court_secretary") || roleList.includes("court_president");
-  const showDecisionActions = (c: CaseRow) => (c.status === "under_review" || c.status === "escalated") && canDecideCase(c);
+  const isActionable = (c: CaseRow) => (c.status === "under_review" || c.status === "escalated") && canDecideCase(c);
+  const disabledReason = (c: CaseRow) => {
+    if (c.status === "pending") return "بانتظار رد الموظف";
+    if (["approved", "rejected", "closed", "returned", "cancelled"].includes(c.status)) return "تم البت في هذه المساءلة";
+    if (!canDecideCase(c)) return "ليس لديك صلاحية";
+    return "";
+  };
 
   const myCases = trpc.court.disciplinary.mine.useQuery();
   const teamCases = trpc.court.disciplinary.myTeam.useQuery({
@@ -99,7 +105,7 @@ export default function DisciplinaryPage() {
       });
   }, [myCases.data, typeFilter, statusFilter, sortDir]);
 
-  const selectableTeam = filteredTeam.filter(c => showDecisionActions(c));
+  const selectableTeam = filteredTeam.filter(c => isActionable(c));
   const allTeamSelected = selectableTeam.length > 0 && selectableTeam.every(c => selectedIds.includes(c.id));
   const toggleSelect = (id: number) => setSelectedIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
   const toggleSelectAll = () => setSelectedIds(allTeamSelected ? [] : selectableTeam.map(c => c.id));
@@ -207,7 +213,7 @@ export default function DisciplinaryPage() {
               <div key={c.id} className="mt-3 rounded-lg border border-[#e7e0d4] bg-white p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {showDecisionActions(c) && <input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="h-4 w-4 accent-[#2f7653]" />}
+                    {isActionable(c) && <input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="h-4 w-4 accent-[#2f7653]" />}
                     <span className="font-bold text-[#29463b]">طلب إجراء تأديبي — {c.employeeName}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -218,37 +224,52 @@ export default function DisciplinaryPage() {
                 </div>
                 <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote}</p>
                 <RequestRouteTimeline requestId={c.id} requestType="disciplinary" />
-                {showDecisionActions(c) ? <>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
+                    type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}
-                    className="rounded bg-[#006c35] px-3 py-2 text-white text-sm"
+                    disabled={!isActionable(c)}
+                    title={disabledReason(c)}
+                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-[#006c35] text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >✅ اعتماد</button>
                   <button
+                    type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "reject", note: notes[c.id] }, { onSuccess: refresh })}
-                    className="rounded bg-[#b3412e] px-3 py-2 text-white text-sm"
+                    disabled={!isActionable(c)}
+                    title={disabledReason(c)}
+                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-[#b3412e] text-white hover:bg-red-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >❌ رفض</button>
                   <button
+                    type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "return", note: notes[c.id] }, { onSuccess: refresh })}
-                    className="rounded bg-[#8a6d20] px-3 py-2 text-white text-sm"
+                    disabled={!isActionable(c)}
+                    title={disabledReason(c)}
+                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-[#8a6d20] text-white hover:bg-amber-800" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >🔄 عودة للتصحيح</button>
                   <button
+                    type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "escalate", note: notes[c.id] }, { onSuccess: refresh })}
-                    className="rounded bg-amber-600 px-3 py-2 text-white text-sm"
+                    disabled={!isActionable(c)}
+                    title={disabledReason(c)}
+                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-amber-600 text-white hover:bg-amber-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >⬆️ تصعيد</button>
                   <button
+                    type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save_and_close", note: notes[c.id] }, { onSuccess: refresh })}
-                    className="rounded bg-[#4a5f70] px-3 py-2 text-white text-sm"
+                    disabled={!isActionable(c)}
+                    title={disabledReason(c)}
+                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-[#4a5f70] text-white hover:bg-teal-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >💾 حفظ وإغلاق</button>
                 </div>
                 <input
                   type="text"
                   value={notes[c.id] || ""}
                   onChange={e => setNotes({ ...notes, [c.id]: e.target.value })}
+                  disabled={!isActionable(c)}
                   placeholder="ملاحظة (اختياري)"
-                  className="mt-2 w-full rounded border p-2 text-sm"
+                  className="mt-2 w-full rounded border p-2 text-sm disabled:bg-gray-100 disabled:text-gray-400"
                 />
-                </> : c.status === "pending" ? <p className="mt-2 rounded bg-[#f7ecd1] px-3 py-2 text-xs font-bold text-[#805d27]">بانتظار رد الموظف قبل اتخاذ القرار.</p> : <p className="mt-2 rounded bg-[#eef4f0] px-3 py-2 text-xs font-bold text-[#2f7653]">أنت في وضع الاطلاع فقط — هذه المساءلة ليست بانتظار قرارك.</p>}
+                {!isActionable(c) && <p className="mt-2 text-sm text-gray-500">{disabledReason(c)}</p>}
               </div>
             ))}
           </section>
