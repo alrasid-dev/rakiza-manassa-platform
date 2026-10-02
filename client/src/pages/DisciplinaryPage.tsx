@@ -39,6 +39,11 @@ export default function DisciplinaryPage() {
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery();
+  const permission = trpc.court.registration.myPermission.useQuery();
+  const roles = trpc.court.myRoles.useQuery();
+  const roleList: string[] = roles.data ?? [];
+  const isManager = roleList.some(role => ["department_manager", "trainee_affairs_manager"].includes(role));
+  const isLeadership = permission.data === "full_control" || roleList.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
 
   const myCases = trpc.court.disciplinary.mine.useQuery();
   const teamCases = trpc.court.disciplinary.myTeam.useQuery({
@@ -56,7 +61,7 @@ export default function DisciplinaryPage() {
     type: typeFilter !== "all" ? typeFilter : undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
     searchQuery: search.trim() || undefined,
-  });
+  }, { enabled: isManager || isLeadership });
 
   const [responses, setResponses] = useState<Record<number, string>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
@@ -243,7 +248,7 @@ export default function DisciplinaryPage() {
             <div className="mt-3"><TeamBalancesTable /></div>
           </section>
         )}
-        <section className="mt-8">
+        {(isManager || isLeadership) && <section className="mt-8">
           <h2 className="text-lg font-bold text-[#12352f]">سجل مساءلات فريقي</h2>
           {teamLog.isLoading ? <p className="mt-2 text-gray-500">جارٍ التحميل…</p> : teamLog.data?.length ? (
             <div className="mt-3 overflow-x-auto rounded-xl border border-[#e7e0d4] bg-white">
@@ -266,7 +271,7 @@ export default function DisciplinaryPage() {
               </table>
             </div>
           ) : <p className="mt-2 text-gray-500">لا توجد مساءلات ضمن سجل فريقك.</p>}
-        </section>
+        </section>}
       </section>
     </DashboardLayout>
   );
