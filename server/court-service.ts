@@ -1604,8 +1604,8 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
   return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
-export async function listTasksForProfile(profileId: number, status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled") {
-  return listTasks({ assigneeProfileId: profileId, status });
+export async function listTasksForProfile(profileId: number, status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", dueFilter?: "overdue" | "dueSoon" | "completed") {
+  return listTasks({ assigneeProfileId: profileId, status, dueFilter });
 }
 
 export async function archiveTask(input: { taskId: number; actorUserId: number }) {

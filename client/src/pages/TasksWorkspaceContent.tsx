@@ -204,7 +204,7 @@ export default function TasksWorkspaceContent() {
   useEffect(() => {
     if (selectedUnitId) setTaskView("scope");
   }, [selectedUnitId]);
-  const taskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id } : { unitId: selectedUnitId || undefined, assigneeProfileId: selectedAssigneeProfileId || undefined, dueFilter: dueFilter !== "all" ? dueFilter : undefined };
+  const taskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id, dueFilter: dueFilter !== "all" ? dueFilter : undefined } : { unitId: selectedUnitId || undefined, assigneeProfileId: selectedAssigneeProfileId || undefined, dueFilter: dueFilter !== "all" ? dueFilter : undefined };
   const tasks = trpc.court.tasks.list.useQuery(taskQuery, { enabled: taskView === "scope" || Boolean(currentProfile.data?.id) });
   const taskGroups = useMemo(() => {
     const unitNameById = new Map<number, string>();
@@ -467,9 +467,9 @@ export default function TasksWorkspaceContent() {
   const visibleTasks = useMemo(() => {
     const filter = requestedTaskFilter as DashboardTaskFilterValue;
     let filtered = filter === "all" ? (tasks.data ?? []) : (tasks.data ?? []).filter(task => taskMatchesDashboardFilter({ status: task.status as TaskStatus, dueAt: task.dueAt, isOpen: task.isOpen, scheduledFor: task.scheduledFor }, filter));
-    if (!showCompleted) filtered = filtered.filter(task => task.status !== "completed" && task.status !== "cancelled");
+    if (!showCompleted && dueFilter !== "completed") filtered = filtered.filter(task => task.status !== "completed" && task.status !== "cancelled");
     return [...filtered].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-  }, [tasks.data, requestedTaskFilter, showCompleted]);
+  }, [tasks.data, requestedTaskFilter, showCompleted, dueFilter]);
 
   useEffect(() => {
     if (completionSuccessTaskId === null) return;

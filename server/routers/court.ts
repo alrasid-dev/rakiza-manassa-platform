@@ -1405,7 +1405,7 @@ export const courtRouter = router({
       const managedUnitIds = await managedUnitIdsForUser(ctx.user);
       if (managedUnitIds.length) { const viewerProfile = await getProfileForUser(ctx.user.id); const unitIds = input?.unitId && managedUnitIds.includes(input.unitId) ? [input.unitId] : managedUnitIds; return listTasksForUnits(unitIds, input?.status, viewerProfile?.id, input?.assigneeProfileId, input?.dueFilter); }
       const { profile } = await requirePersonalWorkspace(ctx.user);
-      return listTasksForProfile(profile.id, input?.status);
+      return listTasksForProfile(profile.id, input?.status, input?.dueFilter);
     }),
     pause: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), reason: z.string().trim().max(200).optional(), expiresAt: z.date().optional(), type: z.enum(["permanent", "temporary"]).optional() })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");
