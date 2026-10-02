@@ -230,6 +230,8 @@ import {
   reviewRegistrationRequest,
   reviewLeaveRequest,
   reviewLeaveOwnerApproval,
+  escalateLeaveRequest,
+  returnLeaveRequestForFix,
   requestLateExcuse,
   approveLateExcuse,
   routeCorrespondence,
@@ -2298,9 +2300,12 @@ export const courtRouter = router({
         const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
         return decideDisciplinaryCase({ caseId: input.requestId, decision: "escalate", note: input.comment, actorUserId: ctx.user.id, managedUnitIds });
       }
-      throw new TRPCError({ code: "BAD_REQUEST", message: "التصعيد متاح للمساءلات فقط." });
+      if (input.requestType === "leave" || input.requestType === "permission") {
+        return escalateLeaveRequest({ leaveRequestId: input.requestId, note: input.comment, actorUserId: ctx.user.id });
+      }
+      throw new TRPCError({ code: "BAD_REQUEST", message: "التصعيد متاح للمساءلات والإجازات فقط." });
     }),
-    returnForFix: protectedProcedure.input(z.object({ requestId: z.number().int().positive(), requestType: z.enum(["disciplinary", "task"]), reason: z.string().trim().min(3).max(1000) })).mutation(async ({ ctx, input }) => {
+    returnForFix: protectedProcedure.input(z.object({ requestId: z.number().int().positive(), requestType: z.enum(["disciplinary", "task", "leave", "permission"]), reason: z.string().trim().min(3).max(1000) })).mutation(async ({ ctx, input }) => {
       await requireOperationsManager(ctx.user);
       if (input.requestType === "disciplinary") {
         const permission = await permissionForUser(ctx.user);
@@ -2308,7 +2313,10 @@ export const courtRouter = router({
         const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
         return decideDisciplinaryCase({ caseId: input.requestId, decision: "return", note: input.reason, actorUserId: ctx.user.id, managedUnitIds });
       }
-      throw new TRPCError({ code: "BAD_REQUEST", message: "عودة التصحيح متاحة للمساءلات فقط." });
+      if (input.requestType === "leave" || input.requestType === "permission") {
+        return returnLeaveRequestForFix({ leaveRequestId: input.requestId, reason: input.reason, actorUserId: ctx.user.id });
+      }
+      throw new TRPCError({ code: "BAD_REQUEST", message: "عودة التصحيح متاحة للمساءلات والإجازات فقط." });
     }),
   }),
 

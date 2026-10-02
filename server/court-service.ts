@@ -4817,6 +4817,34 @@ export async function reviewLeaveOwnerApproval(input: { leaveRequestId: number; 
   await logAudit({ actorUserId: input.reviewedByUserId, action: `leave.owner_${input.decision}`, entityType: "leave_request", entityId: request.id, metadata: { substituteProfileId: request.substituteProfileId } });
 }
 
+/** تصعيد طلب إجازة/استئذان إلى أمين المحكمة للموافقة النهائية. */
+export async function escalateLeaveRequest(input: { leaveRequestId: number; note: string; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const request = (await db.select().from(leaveRequests).where(eq(leaveRequests.id, input.leaveRequestId)).limit(1))[0];
+  if (!request || request.status !== "pending") throw new Error("طلب الإجازة/الاستئذان غير موجود أو ليس بانتظار القرار.");
+  await db.update(leaveRequests).set({ status: "pending_owner_approval", note: (request.note || "") + "\n\n--- تصعيد ---\n" + input.note, updatedAt: new Date() }).where(eq(leaveRequests.id, request.id));
+  await logAudit({ actorUserId: input.actorUserId, action: "leave.escalated", entityType: "leave_request", entityId: request.id });
+  await notifyPlatformOwnerSecurityAlert({ actorUserId: input.actorUserId, action: "leave.escalated", entityType: "leave_request", entityId: request.id, details: { leaveRequestId: request.id } });
+  return { success: true as const };
+}
+
+/** إعادة طلب إجازة/استئذان للتصحيح (تُعامل كرفض مع سبب لإعادة التقديم). */
+export async function returnLeaveRequestForFix(input: { leaveRequestId: number; reason: string; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const request = (await db.select().from(leaveRequests).where(eq(leaveRequests.id, input.leaveRequestId)).limit(1))[0];
+  if (!request || request.status !== "pending") throw new Error("طلب الإجازة/الاستئذان غير موجود أو ليس بانتظار القرار.");
+  await db.update(leaveRequests).set({ status: "rejected", reviewedByUserId: input.actorUserId, reviewedAt: new Date(), note: (request.note || "") + "\n\n--- إعادة للتصحيح ---\n" + input.reason, updatedAt: new Date() }).where(eq(leaveRequests.id, request.id));
+  await logAudit({ actorUserId: input.actorUserId, action: "leave.returned_for_fix", entityType: "leave_request", entityId: request.id });
+  if (request.profileId) {
+    const notification = { profileId: request.profileId, category: "security_alert" as const, title: "أُعيد طلبك للتصحيح", body: input.reason, dedupeKey: `leave-return-${request.id}` };
+    await db.insert(notifications).values(notification).onDuplicateKeyUpdate({ set: { title: "أُعيد طلبك للتصحيح" } });
+    try { await sendPushForNotification(request.profileId, { title: "أُعيد طلبك للتصحيح", body: input.reason, url: "/my-requests", tag: notification.dedupeKey }); } catch (error) { console.warn("[WebPush] فشل إشعار إعادة طلب الإجازة", { leaveRequestId: request.id, error }); }
+  }
+  return { success: true as const };
+}
+
 /**
  * تقديم استئذان متأخر بعد عدم تسجيل الانصراف.
  * يبقى pending حتى موافقة المدير المباشر، والعقوبة تبقى مطبقة حتى الموافقة.

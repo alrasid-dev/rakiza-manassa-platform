@@ -67,8 +67,8 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
         <div className="mt-3 flex flex-wrap gap-2">
           {canApprove && <button type="button" onClick={() => onAction(item, "approve")} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-green-700">✅ اعتماد</button>}
           {canReject && <button type="button" onClick={() => onAction(item, "reject")} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700">❌ رفض</button>}
-          {isDisciplinary && canEscalate && <button type="button" onClick={() => onAction(item, "escalate")} className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600">⬆️ تصعيد</button>}
-          {isDisciplinary && canReturn && <button type="button" onClick={() => onAction(item, "return")} className="rounded-lg bg-gray-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-700">🔄 عودة للتصحيح</button>}
+          {canEscalate && <button type="button" onClick={() => onAction(item, "escalate")} className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600">⬆️ تصعيد</button>}
+          {canReturn && <button type="button" onClick={() => onAction(item, "return")} className="rounded-lg bg-gray-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-700">🔄 عودة للتصحيح</button>}
         </div>
       )}
     </div>
@@ -121,7 +121,7 @@ export default function MyRequestsPage() {
     } else if (action === "escalate") {
       escalateMutation.mutate({ requestId: item.id, requestType: item.requestType as "leave" | "permission" | "disciplinary" | "task", comment: reason.trim() }, { onSuccess, onError });
     } else {
-      returnMutation.mutate({ requestId: item.id, requestType: item.requestType as "disciplinary" | "task", reason: reason.trim() }, { onSuccess, onError });
+      returnMutation.mutate({ requestId: item.id, requestType: item.requestType as "disciplinary" | "task" | "leave" | "permission", reason: reason.trim() }, { onSuccess, onError });
     }
   };
 
