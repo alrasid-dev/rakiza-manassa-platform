@@ -2538,11 +2538,15 @@ export async function bulkReviewDisciplinary(input: { caseIds: number[]; decisio
   return { processed, failed };
 }
 
-export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null, filters?: { unitId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }) {
+export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
   if (filters?.status) conditions.push(eq(approvalRequests.status, filters.status));
+  if (filters?.assigneeProfileId) {
+    const assigneeTasks = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.assigneeProfileId, filters.assigneeProfileId));
+    conditions.push(inArray(approvalRequests.entityId, [filters.assigneeProfileId, ...assigneeTasks.map(t => t.id)])!);
+  }
   if (managedUnitIds !== null) {
     // المدير يرى فقط المساءلات التي تنتظر قراره (ما لم يحدد حالة أخرى صراحة).
     if (!filters?.status) conditions.push(eq(approvalRequests.status, "under_review"));
@@ -2574,11 +2578,15 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null,
   });
 }
 
-export async function listTeamDisciplinaryLog(managedUnitIds: number[] | null, filters?: { unitId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }) {
+export async function listTeamDisciplinaryLog(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
   if (filters?.status) conditions.push(eq(approvalRequests.status, filters.status));
+  if (filters?.assigneeProfileId) {
+    const assigneeTasks = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.assigneeProfileId, filters.assigneeProfileId));
+    conditions.push(inArray(approvalRequests.entityId, [filters.assigneeProfileId, ...assigneeTasks.map(t => t.id)])!);
+  }
   if (managedUnitIds !== null) {
     const profiles = await db.select({ id: personProfiles.id }).from(personProfiles).where(inArray(personProfiles.unitId, managedUnitIds));
     const profileIds = profiles.map(p => p.id);

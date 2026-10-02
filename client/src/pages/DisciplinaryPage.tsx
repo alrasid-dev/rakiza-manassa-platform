@@ -36,7 +36,9 @@ export default function DisciplinaryPage() {
   const [unitFilter, setUnitFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"newest" | "oldest">("newest");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const units = trpc.court.units.list.useQuery();
+  const people = trpc.court.people.list.useQuery();
 
   const myCases = trpc.court.disciplinary.mine.useQuery();
   const teamCases = trpc.court.disciplinary.myTeam.useQuery({
@@ -48,7 +50,13 @@ export default function DisciplinaryPage() {
   const respond = trpc.court.disciplinary.respond.useMutation();
   const decide = trpc.court.disciplinary.managerDecision.useMutation();
   const bulkReview = trpc.court.disciplinary.bulkReview.useMutation();
-  const teamLog = trpc.court.disciplinary.teamLog.useQuery();
+  const teamLog = trpc.court.disciplinary.teamLog.useQuery({
+    unitId: unitFilter !== "all" ? Number(unitFilter) : undefined,
+    assigneeProfileId: employeeFilter !== "all" ? Number(employeeFilter) : undefined,
+    type: typeFilter !== "all" ? typeFilter : undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+    searchQuery: search.trim() || undefined,
+  });
 
   const [responses, setResponses] = useState<Record<number, string>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
@@ -114,6 +122,10 @@ export default function DisciplinaryPage() {
             {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث بالاسم…" className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm" />
+          <select value={employeeFilter} onChange={e => setEmployeeFilter(e.target.value)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+            <option value="all">الموظف: الكل</option>
+            {(people.data ?? []).map(person => <option key={person.id} value={String(person.id)}>{person.fullName}</option>)}
+          </select>
           <select value={sortDir} onChange={e => setSortDir(e.target.value as typeof sortDir)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
             <option value="newest">الأحدث أولاً</option>
             <option value="oldest">الأقدم أولاً</option>
