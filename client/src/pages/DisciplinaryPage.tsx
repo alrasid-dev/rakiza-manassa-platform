@@ -31,7 +31,7 @@ export default function DisciplinaryPage() {
 
   // فلاتر التصنيف (تُمرر للخادم لتصفية مساءلات الفريق)
   const [typeFilter, setTypeFilter] = useState<"all" | "attendance" | "task">("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated">("all");
   const [unitFilter, setUnitFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"newest" | "oldest">("newest");
@@ -107,7 +107,7 @@ export default function DisciplinaryPage() {
             <option value="attendance">حضور</option>
             <option value="task">مهمة</option>
           </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
             <option value="all">الحالة: الكل</option>
             {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>

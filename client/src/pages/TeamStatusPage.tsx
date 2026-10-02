@@ -31,6 +31,9 @@ export default function TeamStatusPage() {
     onError: error => toast.error(error.message || "تعذر تغيير الحالة."),
   });
 
+  const units = trpc.court.units.list.useQuery();
+  const unitNameById = new Map((units.data ?? []).map(unit => [unit.id, unit.name] as [number, string]));
+
   return (
     <DashboardLayout>
       <section dir="rtl" className="mx-auto w-full max-w-5xl space-y-6 p-6">
@@ -54,7 +57,7 @@ export default function TeamStatusPage() {
               {(people.data ?? []).map(person => (
                 <tr key={person.id}>
                   <td className="px-4 py-3 font-bold text-[#314d40]">{person.fullName}</td>
-                  <td className="px-4 py-3 text-[#60736a]">{person.unitName ?? "—"}</td>
+                  <td className="px-4 py-3 text-[#60736a]">{person.unitId != null ? (unitNameById.get(person.unitId) ?? "—") : "—"}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${person.status === "on_leave" ? "bg-[#fff3d6] text-[#8a6d20]" : person.status === "active" ? "bg-[#e7f3ea] text-[#2d6b4f]" : "bg-[#f0ece6] text-[#6e7e75]"}`}>{statusLabels[person.status] ?? person.status}</span>
                   </td>
@@ -75,7 +78,7 @@ export default function TeamStatusPage() {
           <div className="rounded-2xl border border-[#d9e7dc] bg-[#f7fbf7] p-4">
             <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-[#2f7653]" /><h2 className="text-sm font-bold text-[#12352f]">سجل تغييرات الحالة</h2></div>
             <div className="mt-3 space-y-2">
-              {history.isLoading ? <p className="text-xs text-[#6e7e75]">جارٍ التحميل…</p> : history.data?.length ? history.data.map(item => <p key={item.id} className="text-xs leading-6 text-[#4c5f54]">{new Date(item.createdAt).toLocaleString("ar")} · {(item.metadata as Record<string, unknown>)?.from ?? "—"} ← {(item.metadata as Record<string, unknown>)?.to ?? "—"} · {(item.metadata as Record<string, unknown>)?.reason ?? ""}</p>) : <p className="text-xs text-[#6e7e75]">لا توجد تغييرات مسجلة.</p>}
+              {history.isLoading ? <p className="text-xs text-[#6e7e75]">جارٍ التحميل…</p> : history.data?.length ? history.data.map(item => <p key={item.id} className="text-xs leading-6 text-[#4c5f54]">{new Date(item.createdAt).toLocaleString("ar")} · {(item.metadata as Record<string, string>)?.from ?? "—"} ← {(item.metadata as Record<string, string>)?.to ?? "—"} · {(item.metadata as Record<string, string>)?.reason ?? ""}</p>) : <p className="text-xs text-[#6e7e75]">لا توجد تغييرات مسجلة.</p>}
             </div>
           </div>
         )}
