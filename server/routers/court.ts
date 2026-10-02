@@ -2201,7 +2201,7 @@ export const courtRouter = router({
         throw new TRPCError({ code: message.includes("غير موجودة") ? "NOT_FOUND" : "FORBIDDEN", message });
       }
     }),
-    managerDecision: protectedProcedure.input(z.object({ caseId: z.number().int().positive(), decision: z.enum(["escalate", "save", "cancel", "reject", "return"]), note: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
+    managerDecision: protectedProcedure.input(z.object({ caseId: z.number().int().positive(), decision: z.enum(["escalate", "save", "save_and_close", "cancel", "reject", "return"]), note: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await permissionForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
@@ -2213,14 +2213,14 @@ export const courtRouter = router({
         throw new TRPCError({ code, message });
       }
     }),
-    myTeam: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), type: z.enum(["attendance", "task"]).optional(), status: z.enum(["pending", "returned", "approved", "rejected", "cancelled", "under_review", "escalated"]).optional(), searchQuery: z.string().trim().max(100).optional() }).optional()).query(async ({ ctx, input }) => {
+    myTeam: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), type: z.enum(["attendance", "task"]).optional(), status: z.enum(["pending", "returned", "approved", "rejected", "cancelled", "under_review", "escalated", "closed"]).optional(), searchQuery: z.string().trim().max(100).optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await permissionForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
       const profile = await getProfileForUser(ctx.user.id);
       return listTeamDisciplinaryCases(managedUnitIds, input ? { unitId: input.unitId, assigneeProfileId: input.assigneeProfileId, type: input.type, status: input.status || undefined, searchQuery: input.searchQuery || undefined } : undefined, profile?.id);
     }),
-    teamLog: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), type: z.enum(["attendance", "task"]).optional(), status: z.enum(["pending", "returned", "approved", "rejected", "cancelled", "under_review", "escalated"]).optional(), searchQuery: z.string().trim().max(100).optional() }).optional()).query(async ({ ctx, input }) => {
+    teamLog: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), type: z.enum(["attendance", "task"]).optional(), status: z.enum(["pending", "returned", "approved", "rejected", "cancelled", "under_review", "escalated", "closed"]).optional(), searchQuery: z.string().trim().max(100).optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await permissionForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);

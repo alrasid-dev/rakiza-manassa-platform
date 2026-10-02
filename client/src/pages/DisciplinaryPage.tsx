@@ -12,6 +12,7 @@ const statusLabels: Record<string, string> = {
   returned: "مُعاد",
   rejected: "مرفوض",
   cancelled: "ملغاة",
+  closed: "مُغلق",
 };
 
 const typeLabels: Record<string, string> = { attendance: "حضور", task: "مهمة" };
@@ -32,7 +33,7 @@ export default function DisciplinaryPage() {
 
   // فلاتر التصنيف (تُمرر للخادم لتصفية مساءلات الفريق)
   const [typeFilter, setTypeFilter] = useState<"all" | "attendance" | "task">("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated" | "closed">("all");
   const [unitFilter, setUnitFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"newest" | "oldest">("newest");
@@ -230,6 +231,10 @@ export default function DisciplinaryPage() {
                     onClick={() => decide.mutate({ caseId: c.id, decision: "escalate", note: notes[c.id] }, { onSuccess: refresh })}
                     className="rounded bg-amber-600 px-3 py-2 text-white text-sm"
                   >⬆️ تصعيد</button>
+                  <button
+                    onClick={() => decide.mutate({ caseId: c.id, decision: "save_and_close", note: notes[c.id] }, { onSuccess: refresh })}
+                    className="rounded bg-[#4a5f70] px-3 py-2 text-white text-sm"
+                  >💾 حفظ وإغلاق</button>
                 </div>
                 <input
                   type="text"

@@ -2490,7 +2490,7 @@ export async function respondToDisciplinaryCase(input: { caseId: number; profile
   return { ok: true as const };
 }
 
-export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save" | "cancel" | "reject" | "return"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
+export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save" | "save_and_close" | "cancel" | "reject" | "return"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const caseRow = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.caseId)).limit(1))[0];
@@ -2502,8 +2502,8 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
     if (!targetProfile || !input.managedUnitIds.includes(targetProfile.unitId!)) throw new Error("خارج نطاق وحدتك.");
   }
 
-  const newStatus = input.decision === "escalate" ? "escalated" : input.decision === "cancel" ? "cancelled" : input.decision === "reject" ? "rejected" : input.decision === "return" ? "returned" : "approved";
-  const decisionLabel = input.decision === "escalate" ? "تصعيد للأمين" : input.decision === "cancel" ? "إلغاء المساءلة" : input.decision === "reject" ? "رفض المساءلة" : input.decision === "return" ? "عودة للتصحيح" : "حفظ في السجل";
+  const newStatus = input.decision === "save_and_close" ? "closed" : input.decision === "escalate" ? "escalated" : input.decision === "cancel" ? "cancelled" : input.decision === "reject" ? "rejected" : input.decision === "return" ? "returned" : "approved";
+  const decisionLabel = input.decision === "save_and_close" ? "حفظ وإغلاق" : input.decision === "escalate" ? "تصعيد للأمين" : input.decision === "cancel" ? "إلغاء المساءلة" : input.decision === "reject" ? "رفض المساءلة" : input.decision === "return" ? "عودة للتصحيح" : "حفظ في السجل";
   const patch: Partial<typeof approvalRequests.$inferInsert> = {
     status: newStatus,
     requestNote: (caseRow.requestNote || "") + "\n\n--- قرار المدير ---\n" + decisionLabel + (input.note ? " - " + input.note : ""),
@@ -2548,7 +2548,7 @@ export async function bulkReviewDisciplinary(input: { caseIds: number[]; decisio
   return { processed, failed };
 }
 
-export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }, managerProfileId?: number | null) {
+export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated" | "closed"; searchQuery?: string }, managerProfileId?: number | null) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
@@ -2590,7 +2590,7 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null,
   });
 }
 
-export async function listTeamDisciplinaryLog(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated"; searchQuery?: string }, managerProfileId?: number | null) {
+export async function listTeamDisciplinaryLog(managedUnitIds: number[] | null, filters?: { unitId?: number; assigneeProfileId?: number; type?: "attendance" | "task"; status?: "pending" | "returned" | "approved" | "rejected" | "cancelled" | "under_review" | "escalated" | "closed"; searchQuery?: string }, managerProfileId?: number | null) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(approvalRequests.entityType, "disciplinary_action")];
@@ -2682,7 +2682,7 @@ export async function getRequestRoute(input: { requestId: number; requestType: "
       deciderName = u?.name ?? "—";
     }
     const managerLabel = DISCIPLINARY_ROLE_LABELS[c.currentRole] ?? c.currentRole;
-    const decided = ["approved", "cancelled", "returned", "rejected"].includes(c.status);
+    const decided = ["approved", "cancelled", "returned", "rejected", "closed"].includes(c.status);
     const steps: RequestRouteStep[] = [
       { step: "submitted", label: "قدّمه النظام (آلياً)", by: "النظام", at: c.createdAt.toISOString(), status: "done" },
       { step: "employee_response", label: "جواب الموظف", by: employeeName, at: null, status: c.status === "pending" ? "current" : "done" },

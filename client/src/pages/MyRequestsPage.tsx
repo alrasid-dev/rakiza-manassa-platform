@@ -19,6 +19,7 @@ const statusLabels: Record<string, string> = {
   returned: "مُعاد",
   cancelled: "ملغاة",
   escalated: "مُصعَّد",
+  closed: "مُغلق",
   active: "نشطة",
   completed: "مكتملة",
   pending_owner_approval: "بانتظار الأمين",
