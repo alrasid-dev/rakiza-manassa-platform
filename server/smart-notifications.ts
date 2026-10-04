@@ -93,7 +93,7 @@ export async function detectMissingCheckouts(now = new Date()): Promise<SmartFin
   const rows = await db.select({ profileId: attendanceRecords.profileId, fullName: personProfiles.fullName })
     .from(attendanceRecords)
     .innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId))
-    .where(and(gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end), isNotNull(attendanceRecords.checkInAt), isNull(attendanceRecords.checkOutAt)));
+    .where(and(gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end), isNotNull(attendanceRecords.checkInAt), isNull(attendanceRecords.checkOutAt), eq(personProfiles.status, "active")));
   const modes = await getCurrentAttendanceModes([...new Set(rows.map(r => r.profileId))]);
   const remoteRows = rows.filter(r => modes.get(r.profileId) === "remote" || modes.get(r.profileId) === "mixed");
   const counts = new Map<number, { fullName: string; n: number }>();
@@ -116,7 +116,7 @@ export async function detectChronicLate(now = new Date()): Promise<SmartFinding[
   const rows = await db.select({ profileId: attendanceRecords.profileId, fullName: personProfiles.fullName, recordDate: attendanceRecords.recordDate })
     .from(attendanceRecords)
     .innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId))
-    .where(and(gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end), eq(attendanceRecords.status, "late")));
+    .where(and(gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end), eq(attendanceRecords.status, "late"), eq(personProfiles.status, "active")));
   const daySet = new Set(workdays.map(d => d.getTime()));
   const perProfile = new Map<number, { fullName: string; days: Set<number> }>();
   for (const r of rows) {
