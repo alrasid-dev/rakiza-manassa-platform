@@ -65,9 +65,9 @@ export function taskDeadlineText(dueAt: Date | string | number): { text: string;
     return { text: `متأخر ${mins} دقيقة`, tone: "red" };
   }
   const mins = Math.round(diff / 60000);
-  if (mins <= 60) return { text: `متبقي ${mins} دقيقة`, tone: "red" };
+  if (mins <= 60) return { text: `متبقي ${mins} دقيقة حتى الاستحقاق`, tone: "red" };
   const hours = Math.round(diff / 3600000);
-  if (hours <= 24) return { text: `متبقي ${hours} ساعة`, tone: "orange" };
+  if (hours <= 24) return { text: `متبقي ${hours} ساعة حتى الاستحقاق`, tone: "orange" };
   return null;
 }
 
