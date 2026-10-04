@@ -3266,6 +3266,14 @@ export async function updateTaskStatus(input: { taskId: number; status: "new" | 
  * تعديل بيانات مهمة موجودة (الحقول المقدمة فقط دون لمس الباقي).
  * يُنفَّذ التحقق من الصلاحيات في طبقة الراوتر (court.ts) قبل استدعاء هذه الدالة.
  */
+/** قفل العمل على المهام خارج ساعات العمل الرسمية (07:00–14:15) وأيام العمل. */
+function assertTaskWorkWindow(now = new Date()): void {
+  const nowMin = riyadhMinutesOfDay(now);
+  if (nowMin < 420 || nowMin > 855) throw new TRPCError({ code: "FORBIDDEN", message: "خارج ساعات العمل (07:00 ص – 02:15 م)." });
+  if (!isSaudiWorkday(now)) throw new TRPCError({ code: "FORBIDDEN", message: "اليوم ليس يوم عمل." });
+  if (isOfficialHoliday(now)) throw new TRPCError({ code: "FORBIDDEN", message: "اليوم إجازة رسمية." });
+}
+
 export async function updateTask(input: {
   taskId: number;
   actorUserId: number;
@@ -3291,6 +3299,7 @@ export async function updateTask(input: {
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
   if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
+  assertTaskWorkWindow();
 
   const patch: Partial<typeof tasks.$inferInsert> = {};
   if (input.title !== undefined) patch.title = input.title.trim();
@@ -3431,6 +3440,7 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
   if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
+  assertTaskWorkWindow();
   if (task.assigneeProfileId !== input.submittedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "رفع الاعتماد متاح للمكلف الحالي بالمهمة فقط." });
   if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "المهمة مكتملة أو ملغاة." });
   const existing = await db.select({ id: taskApprovals.id }).from(taskApprovals).where(and(eq(taskApprovals.taskId, input.taskId), eq(taskApprovals.status, "pending"))).limit(1);
@@ -3572,6 +3582,7 @@ export async function markTaskAsProcessed(input: { taskId: number; actorUserId: 
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
   if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
+  assertTaskWorkWindow();
   if (task.status === "cancelled") throw new Error("لا يمكن إتمام مهمة ملغاة.");
   if (task.status === "completed") throw new Error("المهمة مكتملة مسبقاً.");
   const completedAt = new Date();
