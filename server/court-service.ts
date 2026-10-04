@@ -3286,7 +3286,9 @@ export async function updateTask(input: {
     }
   }
 
-  await logAudit({ actorUserId: input.actorUserId, action: "task.updated", entityType: "task", entityId: input.taskId, metadata: { fields: Object.keys(patch) } });
+  // تسجيل التعديل في سجل التدقيق مع القيم الفعلية المتغيرة (تُسلسل التواريخ إلى ISO).
+  const changes = Object.fromEntries(Object.entries(patch).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value]));
+  await logAudit({ actorUserId: input.actorUserId, action: "task.updated", entityType: "task", entityId: input.taskId, metadata: { changes } });
 
   return getTaskById(input.taskId);
 }
