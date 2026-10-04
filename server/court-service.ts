@@ -1666,6 +1666,26 @@ export function isDueSoon(task: { dueAt?: Date | null; scheduledFor?: Date | nul
 export async function listTasks(filters?: { status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; assigneeProfileId?: number; visibleProfileId?: number; dueFilter?: "overdue" | "dueSoon" | "completed"; futureRange?: FutureRange }) {
   const db = await getDb();
   if (!db) return [];
+  // مهام المستأذن تعتمد على الحضور: استئذان معتمد اليوم + لا بصمة دخول → لا مهام ظاهرة له.
+  if (filters?.assigneeProfileId) {
+    const now = new Date();
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const [todayPermission] = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
+      eq(leaveRequests.profileId, filters.assigneeProfileId),
+      eq(leaveRequests.status, "approved"),
+      eq(leaveRequests.requestType, "permission"),
+      lt(leaveRequests.startAt, todayEnd),
+      gte(leaveRequests.endAt, todayStart),
+    )).limit(1);
+    if (todayPermission) {
+      const [todayAttendance] = await db.select({ checkInAt: attendanceRecords.checkInAt }).from(attendanceRecords).where(and(
+        eq(attendanceRecords.profileId, filters.assigneeProfileId),
+        eq(attendanceRecords.recordDate, todayStart),
+      )).limit(1);
+      if (!todayAttendance?.checkInAt) return [];
+    }
+  }
   const conditions = [isNull(tasks.archivedAt)];
   const futureWindow = filters?.futureRange ? futureRangeWindow(filters.futureRange, new Date()) : null;
   const shouldHideFuture = !futureWindow && filters?.dueFilter !== "dueSoon" && filters?.dueFilter !== "completed";
@@ -1762,11 +1782,37 @@ export function isAutomationEscalationWindow(now: Date): boolean {
 }
 
 /** تحويل المهام المتجاوزة لموعدها (غير المكتملة/الملغاة/الموقوفة/المرفوعة للاعتماد) إلى حالة overdue. */
+export function calculateWorkMinutesBetween(start: Date, end: Date): number {
+  if (start >= end) return 0;
+  let workMinutes = 0;
+  const current = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+  while (current < end) {
+    if (isSaudiWorkday(current) && !isOfficialHoliday(current)) {
+      // دوام العمل: 07:00–14:15 بتوقيت الرياض = 04:00–11:15 UTC
+      const dayStartUtc = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 4, 0, 0));
+      const dayEndUtc = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 11, 15, 0));
+      const overlapStart = new Date(Math.max(dayStartUtc.getTime(), start.getTime()));
+      const overlapEnd = new Date(Math.min(dayEndUtc.getTime(), end.getTime()));
+      if (overlapStart < overlapEnd) workMinutes += (overlapEnd.getTime() - overlapStart.getTime()) / 60000;
+    }
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return Math.floor(workMinutes);
+}
+
+/** تصبح المهمة متأخرة بعد 6 ساعات عمل من الساعة 08:00 في يوم بدئها (دون الجمعة/السبت/الإجازات الرسمية). */
 export async function markOverdueTasks(now = new Date()) {
   if (!isAutomationEscalationWindow(now)) return { marked: 0 };
   const db = await getDb();
   if (!db) return { marked: 0 };
-  const result = await db.update(tasks).set({ status: "overdue", updatedAt: now }).where(and(inArray(tasks.status, ["new", "in_progress"]), lt(tasks.dueAt, now), isNull(tasks.archivedAt)));
+  const candidates = await db.select({ id: tasks.id, scheduledFor: tasks.scheduledFor }).from(tasks).where(and(inArray(tasks.status, ["new", "in_progress"]), isNull(tasks.archivedAt)));
+  const overdueIds: number[] = [];
+  for (const task of candidates) {
+    const eightAmRiyadh = new Date(Date.UTC(task.scheduledFor.getUTCFullYear(), task.scheduledFor.getUTCMonth(), task.scheduledFor.getUTCDate(), 5, 0, 0));
+    if (calculateWorkMinutesBetween(eightAmRiyadh, now) >= 360) overdueIds.push(task.id);
+  }
+  if (!overdueIds.length) return { marked: 0 };
+  const result = await db.update(tasks).set({ status: "overdue", updatedAt: now }).where(inArray(tasks.id, overdueIds));
   return { marked: Number(result[0]?.affectedRows ?? 0) };
 }
 
@@ -4550,6 +4596,21 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   if (!existing) throw new Error("لا يوجد سجل حضور مفتوح لهذا اليوم؛ أكد بدء العمل أولاً.");
   if (!existing.checkInAt) throw new Error("لا يوجد بصمة دخول لهذا السجل.");
   if (existing.checkOutAt) throw new TRPCError({ code: "CONFLICT", message: `تم تسجيل انصرافك مسبقاً الساعة ${formatRiyadhTime(existing.checkOutAt)}` });
+
+  // منع الانصراف المبكر (قبل 14:15) مع وجود مهام مفتوحة.
+  if (riyadhMinutesOfDay(input.checkOutAt) < 855) {
+    const openTasks = await db.select({ id: tasks.id, title: tasks.title }).from(tasks).where(and(
+      eq(tasks.assigneeProfileId, input.profileId),
+      inArray(tasks.status, ["new", "in_progress", "under_review", "overdue"]),
+      isNull(tasks.archivedAt),
+    ));
+    if (openTasks.length > 0) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: `لديك ${openTasks.length} مهمة مفتوحة. اطلب إعادة إسناد من المدير قبل الانصراف المبكر.`,
+      });
+    }
+  }
 
   const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes, eveningCompensationDeadlineMinutes: workShifts.eveningCompensationDeadlineMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
 
