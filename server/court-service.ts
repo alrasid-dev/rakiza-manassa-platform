@@ -3635,7 +3635,19 @@ export async function getTaskDetails(taskId: number) {
     pointsAwarded: a.pointsAwarded,
     submittedAt: a.submittedAt,
   }));
-  return { task, assigneeName: assigneeRows[0]?.fullName ?? null, comments, timeline, attachments, approvals: approvalsWithReviewer };
+  const submission = timeline.find(u => u.updateType === "submitted");
+  const submissionAttachments = submission && submission.attachments && submission.attachments.length
+    ? submission.attachments.map(a => ({ id: a.id, fileName: a.originalName, mimeType: a.mimeType, sizeBytes: a.sizeBytes }))
+    : attachments.map(a => ({ id: a.id, fileName: a.originalName, mimeType: a.mimeType, sizeBytes: a.sizeBytes }));
+  const lastEmployeeSubmission = submission
+    ? {
+        note: submission.note ?? null,
+        submittedAt: submission.createdAt,
+        submittedByName: assigneeRows[0]?.fullName ?? null,
+        attachments: submissionAttachments,
+      }
+    : null;
+  return { task, assigneeName: assigneeRows[0]?.fullName ?? null, comments, timeline, attachments, approvals: approvalsWithReviewer, lastEmployeeSubmission };
 }
 
 export async function decideApproval(input: { approvalId: number; actorUserId: number; decision: "approved" | "returned" | "rejected"; note?: string; nextRole?: ApprovalRole | null }) {
