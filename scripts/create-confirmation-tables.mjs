@@ -43,7 +43,7 @@ await db.query(`
     profileId INT NOT NULL,
     scheduledAt TIMESTAMP NOT NULL,
     confirmedAt TIMESTAMP NULL,
-    status ENUM('pending','done','missed') DEFAULT 'pending' NOT NULL,
+    status ENUM('pending','done','missed','cancelled') DEFAULT 'pending' NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     INDEX confirmation_assignments_profile_scheduled_idx (profileId, scheduledAt)
   )

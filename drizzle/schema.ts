@@ -617,7 +617,7 @@ export const confirmationAssignments = mysqlTable("confirmation_assignments", {
   profileId: int("profileId").notNull(),
   scheduledAt: timestamp("scheduledAt").notNull(),
   confirmedAt: timestamp("confirmedAt"),
-  status: mysqlEnum("status", ["pending", "done", "missed"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "done", "missed", "cancelled"]).default("pending").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, table => [index("confirmation_assignments_profile_scheduled_idx").on(table.profileId, table.scheduledAt)]);
 
