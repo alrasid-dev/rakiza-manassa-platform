@@ -76,10 +76,10 @@ export default function StatusWorkspaceContent() {
   const [attendancePeriod, setAttendancePeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const attendanceSummaryApi = (trpc.court as any).attendanceSummary;
   const attendanceSummary = attendanceSummaryApi?.useQuery ? attendanceSummaryApi.useQuery({ period: attendancePeriod }) : { data: null };
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const statusTab = new URLSearchParams((location.split("?")[1] || window.location.search.replace(/^\?/, ""))).get("tab");
   const record = trpc.court.attendance.record.useMutation({ onSuccess: () => { utils.court.attendance.list.invalidate(); toast.success("تم حفظ سجل الحضور أو الانصراف."); }, onError: (error: any) => (error?.data?.code === "CONFLICT" ? toast.info(error.message) : toast.error(error.message)) });
-  const checkout = trpc.court.attendance.checkout.useMutation({ onSuccess: (data: any) => { utils.court.attendance.list.invalidate(); toast.success("تم تسجيل الانصراف بنجاح."); const nowMin = new Date().getHours() * 60 + new Date().getMinutes(); if ((data?.openTasksCount ?? 0) > 0 && nowMin < 855) { toast.warning(`⚠️ لديك ${data.openTasksCount} مهمة مفتوحة. يُفضّل إسنادها قبل الانصراف.`); } }, onError: (error: any) => (error?.data?.code === "CONFLICT" ? toast.info(error.message) : toast.error(error.message)) });
+  const checkout = trpc.court.attendance.checkout.useMutation({ onSuccess: (data: any) => { utils.court.attendance.list.invalidate(); toast.success("تم تسجيل الانصراف بنجاح."); const nowMin = new Date().getHours() * 60 + new Date().getMinutes(); if ((data?.openTasksCount ?? 0) > 0 && nowMin < 855) { toast.warning(`⚠️ لديك ${data.openTasksCount} مهمة مفتوحة. يُفضّل إسنادها قبل الانصراف.`, { action: { label: "🔄 طلب إعادة إسناد", onClick: () => setLocation("/tasks") } }); } }, onError: (error: any) => (error?.data?.code === "CONFLICT" ? toast.info(error.message) : toast.error(error.message)) });
   const updateAttendancePolicy = trpc.court.attendance.updateConfirmationConfig.useMutation({ onSuccess: () => { attendancePolicy.refetch(); toast.success("تم تحديث سياسة تأكيد الحضور."); } });
   const submitLeave = trpc.court.leave.submit.useMutation({ onSuccess: () => { utils.court.leave.list.invalidate(); toast.success("تم تقديم الطلب بعد تأكيد تسليم المهام للبديل."); } });
   const requestLateExcuseApi = (trpc.court.leave as any).requestLateExcuse;
