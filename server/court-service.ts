@@ -4408,7 +4408,26 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
   const currentMode = await getCurrentAttendanceMode(input.profileId);
   if (currentMode === "in_person") throw new TRPCError({ code: "FORBIDDEN", message: "سجلات الحضور والانصراف للعاملين عن بعد فقط. أنت مسجل كحضوري خلال هذه الفترة." });
   const attendanceProfile = (await db.select({ status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
-  if (attendanceProfile?.status === "on_leave") throw new TRPCError({ code: "FORBIDDEN", message: "أنت في إجازة." });
+  if (attendanceProfile?.status === "on_leave") throw new TRPCError({ code: "FORBIDDEN", message: "أنت في إجازة. لا يمكن تسجيل الحضور." });
+  if (attendanceProfile?.status === "inactive") throw new TRPCError({ code: "FORBIDDEN", message: "حسابك غير مُفعَّل." });
+
+  const recordDay = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  // إجازة معتمدة تغطي اليوم → منع البصمة.
+  const approvedLeave = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
+    eq(leaveRequests.profileId, input.profileId),
+    eq(leaveRequests.status, "approved"),
+    lte(leaveRequests.startAt, recordDay),
+    gte(leaveRequests.endAt, recordDay),
+  )).limit(1);
+  if (approvedLeave[0]) throw new TRPCError({ code: "FORBIDDEN", message: "لديك إجازة معتمدة اليوم." });
+
+  // إجازة مسجّلة في سجل الحضور اليوم → منع البصمة.
+  const existingLeaveRecord = await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(
+    eq(attendanceRecords.profileId, input.profileId),
+    eq(attendanceRecords.recordDate, recordDay),
+    eq(attendanceRecords.status, "on_leave"),
+  )).limit(1);
+  if (existingLeaveRecord[0]) throw new TRPCError({ code: "FORBIDDEN", message: "لديك إجازة مسجّلة اليوم." });
   let status = input.status;
   if (input.autoClassify && input.checkInAt && (status === "present" || status === "late")) {
     const window = await checkAttendanceWindow(input.checkInAt, "check_in");
@@ -4428,7 +4447,7 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
   if (existing?.checkInAt) {
     throw new TRPCError({ code: "CONFLICT", message: `تم تسجيل حضورك مسبقاً الساعة ${formatRiyadhTime(existing.checkInAt)}` });
   }
-  await db.insert(attendanceRecords).values({ ...attendanceInput, recordDate: dayStart, status, checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, note: input.note ?? null, createdByUserId: input.actorUserId }).onDuplicateKeyUpdate({ set: { checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, status, note: input.note ?? null, createdByUserId: input.actorUserId, updatedAt: new Date() } });
+  await db.insert(attendanceRecords).values({ ...attendanceInput, recordDate: dayStart, status, checkInAt: status === "on_leave" ? null : (input.checkInAt ?? null), checkOutAt: input.checkOutAt ?? null, note: input.note ?? null, createdByUserId: input.actorUserId }).onDuplicateKeyUpdate({ set: { checkInAt: status === "on_leave" ? null : (input.checkInAt ?? null), checkOutAt: input.checkOutAt ?? null, status, note: input.note ?? null, createdByUserId: input.actorUserId, updatedAt: new Date() } });
   // تفعيل الملف عند أول بصمة دخول فعلية بعد حالة السكون (dormant).
   if (input.checkInAt && attendanceProfile?.status === "dormant") {
     await db.update(personProfiles).set({ status: "active", updatedAt: new Date() }).where(eq(personProfiles.id, input.profileId));
