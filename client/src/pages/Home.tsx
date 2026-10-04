@@ -19,6 +19,13 @@ export function dashboardTaskVisualState(task: DashboardTask, now = Date.now()):
   const dueAt = new Date(task.dueAt).getTime();
   if (task.status === "overdue" || dueAt <= now) return "overdue";
   if (dueAt - now <= 24 * 60 * 60 * 1000) return "due_soon";
+  // مجدولة ليوم غدٍ → قريبة الموعد (توحيداً مع عدّاد لوحة القيادة وفلتر المهام).
+  if (task.scheduledFor) {
+    const scheduled = new Date(task.scheduledFor);
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (scheduled.toDateString() === tomorrow.toDateString()) return "due_soon";
+  }
   return "normal";
 }
 export function dashboardTaskMatchesFilter(task: DashboardTask, filter: DashboardTaskFilter, now = Date.now()) {
@@ -125,7 +132,7 @@ export default function Home() {
   const homeCards: HomeCardEntry[] = [
     { id: "home", label: "الرئيسية", icon: LayoutDashboard, tone: "from-[#1f6e4d] to-[#2f8a63]", sub: "نظرة عامة على عملك", path: "/", allowed: true },
     { id: "tasks-active", label: "مهام قيد التنفيذ", icon: ListChecks, tone: "from-[#0e8a6d] to-[#14a37f]", count: openTasks, sub: pendingApprovalCount > 0 ? `بانتظار اعتمادك: ${pendingApprovalCount}` : "تُنجز الآن", path: "/tasks?filter=active", allowed: true },
-    { id: "tasks-due-soon", label: "قرب موعدها", icon: Clock3, tone: "from-[#b9871f] to-[#d9a437]", count: dueTasks, sub: "استحقاق خلال 24 ساعة", path: "/tasks?filter=due_soon", allowed: true },
+    { id: "tasks-due-soon", label: "قرب موعدها", icon: Clock3, tone: "from-[#b9871f] to-[#d9a437]", count: dueTasks, sub: "استحقاق خلال 24 ساعة أو مجدولة غداً", path: "/tasks?filter=due_soon", allowed: true },
     { id: "tasks-overdue", label: "متأخرة", icon: AlertTriangle, tone: "from-[#c22b2b] to-[#e0473e]", count: overdueTasks, sub: "تتطلب تدخلاً فورياً", pulse: overdueTasks > 0, path: "/tasks?filter=overdue", allowed: true },
     { id: "tasks-completed", label: "تمت المعالجة", icon: TrendingUp, tone: "from-[#2c8f4f] to-[#3fae63]", sub: "إنجازاتك المكتملة", path: "/tasks?filter=completed", allowed: true },
     { id: "tasks-open", label: "مفتوحة", icon: Circle, tone: "from-[#2c5d77] to-[#3f7a99]", count: openFlaggedTasks, sub: "بدون تاريخ انتهاء", path: "/tasks?filter=open", allowed: true },

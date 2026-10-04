@@ -1080,13 +1080,22 @@ export async function getDashboardSummary(userId: number, isPlatformAdmin: boole
   if (!db) return { roles: [] as CourtRole[], profiles: 0, templates: 0, openDelays: 0, overdueDelays: 0, dueTasks: 0, openTasks: 0, overdueTasks: 0, unreadNotifications: 0, announcements: [] as { id: number; title: string; body: string; publishedAt: Date | null }[] };
   const profileId = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, userId)).limit(1))[0]?.id ?? null;
   const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrow = saudiTomorrowRange(now);
   const [roles, profileRows, templateRows, delayRows, overdueRows, taskRows, openTaskRows, overdueTaskRows, unreadRows, announcementRows] = await Promise.all([
     getEffectiveRoles(userId, isPlatformAdmin),
     db.select({ count: sql<number>`count(*)` }).from(personProfiles),
     db.select({ count: sql<number>`count(*)` }).from(taskTemplates).where(eq(taskTemplates.isActive, true)),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(eq(delayRecords.status, "under_follow_up")),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(eq(delayRecords.status, "overdue")),
-    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(gte(tasks.dueAt, now), eq(tasks.status, "new"))),
+    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
+      isNull(tasks.archivedAt),
+      notInArray(tasks.status, ["completed", "cancelled", "paused"]),
+      or(
+        and(gte(tasks.dueAt, now), lt(tasks.dueAt, in24h)),
+        and(gte(tasks.scheduledFor, tomorrow.start), lt(tasks.scheduledFor, tomorrow.end))
+      )
+    )),
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(inArray(tasks.status, ["new", "in_progress", "under_review", "overdue"])),
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
       isNull(tasks.archivedAt),
@@ -1124,11 +1133,22 @@ export async function listTaskTemplatesForUnit(unitId: number) {
 
 export async function getManagedUnitDashboard(unitIds: number[], userId: number) {
   const db = await getDb();
-  if (!db || !unitIds.length) return { scope: "unit" as const, profiles: 0, openTasks: 0, overdueTasks: 0, openDelays: 0, overdueDelays: 0, unreadNotifications: 0 };
+  if (!db || !unitIds.length) return { scope: "unit" as const, profiles: 0, dueTasks: 0, openTasks: 0, overdueTasks: 0, openDelays: 0, overdueDelays: 0, unreadNotifications: 0 };
   const profileId = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, userId)).limit(1))[0]?.id ?? null;
   const now = new Date();
-  const [profileRows, openTaskRows, overdueTaskRows, openDelayRows, overdueDelayRows, unreadRows] = await Promise.all([
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrow = saudiTomorrowRange(now);
+  const [profileRows, dueTaskRows, openTaskRows, overdueTaskRows, openDelayRows, overdueDelayRows, unreadRows] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(personProfiles).where(inArray(personProfiles.unitId, unitIds)),
+    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
+      inArray(tasks.unitId, unitIds),
+      isNull(tasks.archivedAt),
+      notInArray(tasks.status, ["completed", "cancelled", "paused"]),
+      or(
+        and(gte(tasks.dueAt, now), lt(tasks.dueAt, in24h)),
+        and(gte(tasks.scheduledFor, tomorrow.start), lt(tasks.scheduledFor, tomorrow.end))
+      )
+    )),
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(inArray(tasks.unitId, unitIds), inArray(tasks.status, ["new", "in_progress", "under_review"]))),
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
       inArray(tasks.unitId, unitIds),
@@ -1145,6 +1165,7 @@ export async function getManagedUnitDashboard(unitIds: number[], userId: number)
   return {
     scope: "unit" as const,
     profiles: Number(profileRows[0]?.count ?? 0),
+    dueTasks: Number(dueTaskRows[0]?.count ?? 0),
     openTasks: Number(openTaskRows[0]?.count ?? 0),
     overdueTasks: Number(overdueTaskRows[0]?.count ?? 0),
     openDelays: Number(openDelayRows[0]?.count ?? 0),
@@ -1155,14 +1176,26 @@ export async function getManagedUnitDashboard(unitIds: number[], userId: number)
 
 export async function getPersonalDashboard(profileId: number) {
   const db = await getDb();
-  if (!db) return { openTasks: 0, overdueTasks: 0, openDelays: 0, unreadNotifications: 0 };
-  const [openTasks, overdueTasks, openDelays, unreadNotifications] = await Promise.all([
+  if (!db) return { dueTasks: 0, openTasks: 0, overdueTasks: 0, openDelays: 0, unreadNotifications: 0 };
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrow = saudiTomorrowRange(now);
+  const [dueTasks, openTasks, overdueTasks, openDelays, unreadNotifications] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
+      eq(tasks.assigneeProfileId, profileId),
+      isNull(tasks.archivedAt),
+      notInArray(tasks.status, ["completed", "cancelled", "paused"]),
+      or(
+        and(gte(tasks.dueAt, now), lt(tasks.dueAt, in24h)),
+        and(gte(tasks.scheduledFor, tomorrow.start), lt(tasks.scheduledFor, tomorrow.end))
+      )
+    )),
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(eq(tasks.assigneeProfileId, profileId), inArray(tasks.status, ["new", "in_progress", "under_review"]))),
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(eq(tasks.assigneeProfileId, profileId), eq(tasks.status, "overdue"))),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(and(eq(delayRecords.relatedProfileId, profileId), inArray(delayRecords.status, ["under_follow_up", "overdue"]))),
     db.select({ count: sql<number>`count(*)` }).from(notifications).where(and(eq(notifications.profileId, profileId), eq(notifications.isRead, false))),
   ]);
-  return { openTasks: Number(openTasks[0]?.count ?? 0), overdueTasks: Number(overdueTasks[0]?.count ?? 0), openDelays: Number(openDelays[0]?.count ?? 0), unreadNotifications: Number(unreadNotifications[0]?.count ?? 0) };
+  return { dueTasks: Number(dueTasks[0]?.count ?? 0), openTasks: Number(openTasks[0]?.count ?? 0), overdueTasks: Number(overdueTasks[0]?.count ?? 0), openDelays: Number(openDelays[0]?.count ?? 0), unreadNotifications: Number(unreadNotifications[0]?.count ?? 0) };
 }
 
 export async function listVisibleAnnouncements(input: { unitIds?: number[] | null; isLeadership: boolean }) {
@@ -1609,6 +1642,27 @@ function futureRangeWindow(range: FutureRange, now: Date): { start: Date; end?: 
   }
 }
 
+/** نطاق «غداً» بتوقيت الرياض (UTC+3): بداية اليوم التالي حتى نهايته. */
+function saudiTomorrowRange(now: Date): { start: Date; end: Date } {
+  const today = dateRangeForSaudiDay(now);
+  const start = new Date(today.start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+/** تعريف موحّد لـ«قرب موعدها»: استحقاق خلال 24 ساعة أو مجدولة ليوم غدٍ، مع استثناء المنجزة/الملغاة/الموقوفة. */
+export function isDueSoon(task: { dueAt?: Date | null; scheduledFor?: Date | null; status?: string | null }, now = new Date()): boolean {
+  if (!task) return false;
+  if (["completed", "cancelled", "paused"].includes(task.status ?? "")) return false;
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  if (task.dueAt && task.dueAt >= now && task.dueAt <= in24h) return true;
+  if (task.scheduledFor) {
+    const { start, end } = saudiTomorrowRange(now);
+    const sched = new Date(task.scheduledFor).getTime();
+    if (sched >= start.getTime() && sched < end.getTime()) return true;
+  }
+  return false;
+}
+
 export async function listTasks(filters?: { status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; assigneeProfileId?: number; visibleProfileId?: number; dueFilter?: "overdue" | "dueSoon" | "completed"; futureRange?: FutureRange }) {
   const db = await getDb();
   if (!db) return [];
@@ -1628,7 +1682,14 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
     conditions.push(eq(tasks.status, filters.status));
   } else if (filters?.dueFilter === "dueSoon") {
     const now = new Date();
-    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000)))!);
+    const { start, end } = saudiTomorrowRange(now);
+    conditions.push(and(
+      notInArray(tasks.status, ["completed", "cancelled", "paused"]),
+      or(
+        and(gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000))),
+        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))
+      )
+    )!);
   } else if (filters?.dueFilter === "completed") {
     conditions.push(eq(tasks.status, "completed"));
   }
@@ -1673,7 +1734,14 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
     conditions.push(eq(tasks.status, status));
   } else if (dueFilter === "dueSoon") {
     const now = new Date();
-    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000)))!);
+    const { start, end } = saudiTomorrowRange(now);
+    conditions.push(and(
+      notInArray(tasks.status, ["completed", "cancelled", "paused"]),
+      or(
+        and(gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000))),
+        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))
+      )
+    )!);
   } else if (dueFilter === "completed") {
     conditions.push(eq(tasks.status, "completed"));
   }
