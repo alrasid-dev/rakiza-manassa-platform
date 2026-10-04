@@ -89,6 +89,7 @@ import {
   getPersonalDashboard,
   getProfileById,
   setStatusByManager,
+  cutLeave,
   listProfileStatusHistory,
   setAttendanceModePeriod,
   listAttendanceModePeriods,
@@ -1243,6 +1244,10 @@ export const courtRouter = router({
         if (!target || !target.unitId || !managedUnits!.includes(target.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تغيير حالة موظف خارج قسمك." });
       }
       return setStatusByManager({ ...input, actorUserId: ctx.user.id });
+    }),
+    cutLeave: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), reason: z.string().trim().min(10).max(500), newEndDate: z.date().optional() })).mutation(async ({ ctx, input }) => {
+      await requireHumanResourcesOrLeadership(ctx.user);
+      return cutLeave({ ...input, actorUserId: ctx.user.id });
     }),
     statusHistory: protectedProcedure.input(z.object({ profileId: z.number().int().positive() })).query(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "view");

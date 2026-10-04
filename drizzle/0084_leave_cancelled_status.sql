@@ -1,0 +1,1 @@
+ALTER TABLE `leave_requests` MODIFY COLUMN `status` enum('pending','approved','rejected','active','completed','pending_owner_approval','cancelled') NOT NULL DEFAULT 'pending';

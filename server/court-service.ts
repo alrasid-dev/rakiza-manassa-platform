@@ -1555,6 +1555,41 @@ export async function setStatusByManager(input: { profileId: number; newStatus: 
   return { success: true, profileId: input.profileId, from, to: input.newStatus };
 }
 
+/** قطع إجازة موظف (HR/القيادة): إلغاء الإجازة، تفعيل الحساب، وإعادة تفعيل المهام الموقوفة مؤقتاً. */
+export async function cutLeave(input: { profileId: number; reason: string; newEndDate?: Date; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const profile = (await db.select({ id: personProfiles.id, fullName: personProfiles.fullName, userId: personProfiles.userId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
+  if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "ملف الموظف غير موجود." });
+  const now = new Date();
+  const endAt = input.newEndDate ?? now;
+  // 1) إلغاء الإجازات/الاستئذانات النشطة أو المعتمدة لهذا الموظف.
+  await db.update(leaveRequests).set({ status: "cancelled", endAt, updatedAt: now }).where(and(
+    eq(leaveRequests.profileId, input.profileId),
+    inArray(leaveRequests.status, ["approved", "active"]),
+  ));
+  // 2) تفعيل حساب الموظف.
+  await db.update(personProfiles).set({ status: "active" }).where(eq(personProfiles.id, input.profileId));
+  // 3) إعادة تفعيل المهام الموقوفة مؤقتاً إلى حالة جديدة.
+  const resumed = await db.update(tasks).set({ status: "new", pausedAt: null, pausedReason: null, pauseExpiresAt: null, pauseType: null, updatedAt: now }).where(and(
+    eq(tasks.assigneeProfileId, input.profileId),
+    eq(tasks.status, "paused"),
+    eq(tasks.pauseType, "temporary"),
+  ));
+  const resumedCount = Number(resumed[0]?.affectedRows ?? 0);
+  // 4) أثر تدقيقي.
+  await logAudit({ actorUserId: input.actorUserId, action: "profile.leave_cut", entityType: "person_profile", entityId: input.profileId, metadata: { reason: input.reason, newEndDate: endAt, resumedTasks: resumedCount } });
+  // 5) إشعار للموظف.
+  const dedupeKey = `leave-cut-${input.profileId}-${Date.now()}`;
+  await db.insert(notifications).values({ profileId: input.profileId, category: "attendance_confirmation", title: "قُطعت إجازتك", body: input.reason, dedupeKey }).onDuplicateKeyUpdate({ set: { title: "قُطعت إجازتك", body: input.reason } });
+  try {
+    await sendPushForNotification(input.profileId, { title: "قُطعت إجازتك", body: input.reason, url: "/status", tag: dedupeKey });
+  } catch (error) {
+    console.warn("[Leave] فشل إشعار الموظف بقطع الإجازة", { profileId: input.profileId, error });
+  }
+  return { success: true, profileId: input.profileId, resumedTasks: resumedCount };
+}
+
 /** سجل تغييرات حالة الموظف (من سجل التدقيق). */
 export async function listProfileStatusHistory(profileId: number, limit = 20) {
   const db = await getDb();

@@ -657,7 +657,7 @@ export const leaveRequests = mysqlTable("leave_requests", {
   durationMinutes: int("durationMinutes").notNull(),
   substituteProfileId: int("substituteProfileId"),
   handoverConfirmed: boolean("handoverConfirmed").default(false).notNull(),
-  status: mysqlEnum("status", ["pending", "approved", "rejected", "active", "completed", "pending_owner_approval"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "active", "completed", "pending_owner_approval", "cancelled"]).default("pending").notNull(),
   hijriMonthKey: varchar("hijriMonthKey", { length: 10 }),
   requestSequenceInMonth: int("requestSequenceInMonth").default(0).notNull(),
   note: text("note"),
