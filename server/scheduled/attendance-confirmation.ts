@@ -354,6 +354,7 @@ export async function generateConfirmationAssignments(now = new Date()): Promise
   if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return 0;
   const settings = await getConfirmationSettings();
   if (!settings.globalEnabled) return 0;
+  if (riyadhMinutesOfDay(now) > CONFIRMATION_RANDOM_END_MINUTES) return 0; // لا توليد بعد نهاية النافذة (13:45)
 
   const dayRange = dateRangeForSaudiDay(now);
   const existing = await db.select({ id: confirmationAssignments.id }).from(confirmationAssignments).where(and(gte(confirmationAssignments.scheduledAt, dayRange.start), lt(confirmationAssignments.scheduledAt, dayRange.end))).limit(1);
