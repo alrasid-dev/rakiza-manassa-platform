@@ -1391,21 +1391,21 @@ export const courtRouter = router({
       await requireOperationsManager(ctx.user);
       return restoreArchivedOperationalWork({ ...input, actorUserId: ctx.user.id });
     }),
-    list: protectedProcedure.input(z.object({ status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]).optional(), assigneeProfileId: z.number().int().positive().optional(), unitId: z.number().int().positive().optional(), dueFilter: z.enum(["overdue", "dueSoon", "completed"]).optional() }).optional()).query(async ({ ctx, input }) => {
+    list: protectedProcedure.input(z.object({ status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]).optional(), assigneeProfileId: z.number().int().positive().optional(), unitId: z.number().int().positive().optional(), dueFilter: z.enum(["overdue", "dueSoon", "completed"]).optional(), futureRange: z.enum(["all", "current_week", "next_week", "end_of_month"]).optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
-      if (await hasLeadershipPlatformScope(ctx.user, permission)) { const viewerProfile = await getProfileForUser(ctx.user.id); if (input?.unitId) return listTasksForUnits([input.unitId], input?.status, viewerProfile?.id, undefined, input?.dueFilter); return listTasks({ status: input?.status, assigneeProfileId: input?.assigneeProfileId, visibleProfileId: viewerProfile?.id, dueFilter: input?.dueFilter }); }
+      if (await hasLeadershipPlatformScope(ctx.user, permission)) { const viewerProfile = await getProfileForUser(ctx.user.id); if (input?.unitId) return listTasksForUnits([input.unitId], input?.status, viewerProfile?.id, undefined, input?.dueFilter, input?.futureRange); return listTasks({ status: input?.status, assigneeProfileId: input?.assigneeProfileId, visibleProfileId: viewerProfile?.id, dueFilter: input?.dueFilter, futureRange: input?.futureRange }); }
       const roles = await rolesForUser(ctx.user);
       if (roles.includes("judge")) {
         const judgeProfile = await getProfileForUser(ctx.user.id);
         if (!judgeProfile || judgeProfile.personType !== "judge") throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط حساب القاضي بملف قاضٍ فعال." });
         const assignedTrainees = await listTraineesForJudge(judgeProfile.id);
-        const taskGroups = await Promise.all(assignedTrainees.map(profile => listTasks({ assigneeProfileId: profile.id, status: input?.status, visibleProfileId: judgeProfile.id })));
+        const taskGroups = await Promise.all(assignedTrainees.map(profile => listTasks({ assigneeProfileId: profile.id, status: input?.status, visibleProfileId: judgeProfile.id, futureRange: input?.futureRange })));
         return taskGroups.flat();
       }
       const managedUnitIds = await managedUnitIdsForUser(ctx.user);
-      if (managedUnitIds.length) { const viewerProfile = await getProfileForUser(ctx.user.id); const unitIds = input?.unitId && managedUnitIds.includes(input.unitId) ? [input.unitId] : managedUnitIds; return listTasksForUnits(unitIds, input?.status, viewerProfile?.id, input?.assigneeProfileId, input?.dueFilter); }
+      if (managedUnitIds.length) { const viewerProfile = await getProfileForUser(ctx.user.id); const unitIds = input?.unitId && managedUnitIds.includes(input.unitId) ? [input.unitId] : managedUnitIds; return listTasksForUnits(unitIds, input?.status, viewerProfile?.id, input?.assigneeProfileId, input?.dueFilter, input?.futureRange); }
       const { profile } = await requirePersonalWorkspace(ctx.user);
-      return listTasksForProfile(profile.id, input?.status, input?.dueFilter);
+      return listTasksForProfile(profile.id, input?.status, input?.dueFilter, input?.futureRange);
     }),
     pause: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), reason: z.string().trim().max(200).optional(), expiresAt: z.date().optional(), type: z.enum(["permanent", "temporary"]).optional() })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");

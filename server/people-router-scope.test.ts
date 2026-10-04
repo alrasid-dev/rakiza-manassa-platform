@@ -44,7 +44,7 @@ describe("court.people.list للموظف الإداري", () => {
     const caller = courtRouter.createCaller({ user: { id: 7, role: "user", email: "employee@court.example", name: "موظف", openId: "employee" } } as never);
     const tasks = await caller.tasks.list({ assigneeProfileId: 22 });
 
-    expect(mocks.listTasksForProfile).toHaveBeenCalledWith(9, undefined, undefined);
+    expect(mocks.listTasksForProfile).toHaveBeenCalledWith(9, undefined, undefined, undefined);
     expect(tasks).toEqual([{ id: 90, assigneeProfileId: 9 }]);
   });
 

@@ -1582,12 +1582,45 @@ export function isTaskVisibleToProfile(task: { isConfidential: boolean; confiden
   return !task.isConfidential || confidentialityExpired || task.assigneeProfileId === profileId || task.watcherProfileId === profileId;
 }
 
-export async function listTasks(filters?: { status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; assigneeProfileId?: number; visibleProfileId?: number; dueFilter?: "overdue" | "dueSoon" | "completed" }) {
+export type FutureRange = "all" | "current_week" | "next_week" | "end_of_month";
+
+/** نافذة زمنية للمهام المستقبلية وفق أسبوع العمل السعودي (الأحد بداية، الخميس نهاية). */
+function futureRangeWindow(range: FutureRange, now: Date): { start: Date; end?: Date } {
+  const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3 (السعودية، لا توقيت صيفي)
+  const riyadh = (ms: number) => new Date(ms + RIYADH_OFFSET_MS);
+  const dayStart = (() => {
+    const s = riyadh(now.getTime());
+    s.setUTCHours(0, 0, 0, 0);
+    return new Date(s.getTime() - RIYADH_OFFSET_MS);
+  })();
+  const dayOfWeek = riyadh(now.getTime()).getUTCDay(); // 0=الأحد ... 6=السبت
+  const sundayStart = new Date(dayStart.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+  const thursdayEndExclusive = new Date(sundayStart.getTime() + 5 * 24 * 60 * 60 * 1000);
+  const nextSundayStart = new Date(sundayStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const nextThursdayEndExclusive = new Date(nextSundayStart.getTime() + 5 * 24 * 60 * 60 * 1000);
+  const s = riyadh(now.getTime());
+  const nextMonthStart = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, 1) - RIYADH_OFFSET_MS);
+  switch (range) {
+    case "all": return { start: now };
+    case "current_week": return { start: now, end: thursdayEndExclusive };
+    case "next_week": return { start: nextSundayStart, end: nextThursdayEndExclusive };
+    case "end_of_month": return { start: now, end: nextMonthStart };
+    default: return { start: now };
+  }
+}
+
+export async function listTasks(filters?: { status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; assigneeProfileId?: number; visibleProfileId?: number; dueFilter?: "overdue" | "dueSoon" | "completed"; futureRange?: FutureRange }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [isNull(tasks.archivedAt)];
-  // إخفاء المهام المجدولة لوقت مستقبلي حتى يحين موعد بدئها؛ المهام بدون scheduledFor تبقى ظاهرة (توافق مع السلوك القديم).
-  conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
+  const futureWindow = filters?.futureRange ? futureRangeWindow(filters.futureRange, new Date()) : null;
+  if (futureWindow) {
+    conditions.push(gt(tasks.scheduledFor, futureWindow.start));
+    if (futureWindow.end) conditions.push(lt(tasks.scheduledFor, futureWindow.end));
+  } else {
+    // إخفاء المهام المجدولة لوقت مستقبلي حتى يحين موعد بدئها؛ المهام بدون scheduledFor تبقى ظاهرة (توافق مع السلوك القديم).
+    conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
+  }
   if (filters?.status === "overdue" || filters?.dueFilter === "overdue") {
     conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), lt(tasks.dueAt, new Date()))!);
   } else if (filters?.status) {
@@ -1606,8 +1639,8 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
   return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
-export async function listTasksForProfile(profileId: number, status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", dueFilter?: "overdue" | "dueSoon" | "completed") {
-  return listTasks({ assigneeProfileId: profileId, status, dueFilter });
+export async function listTasksForProfile(profileId: number, status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", dueFilter?: "overdue" | "dueSoon" | "completed", futureRange?: FutureRange) {
+  return listTasks({ assigneeProfileId: profileId, status, dueFilter, futureRange });
 }
 
 export async function archiveTask(input: { taskId: number; actorUserId: number }) {
@@ -1620,12 +1653,18 @@ export async function archiveTask(input: { taskId: number; actorUserId: number }
   return { success: true as const };
 }
 
-export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number, assigneeProfileId?: number, dueFilter?: "overdue" | "dueSoon" | "completed") {
+export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number, assigneeProfileId?: number, dueFilter?: "overdue" | "dueSoon" | "completed", futureRange?: FutureRange) {
   const db = await getDb();
   if (!db || !unitIds.length) return [];
   const conditions = [inArray(tasks.unitId, unitIds), isNull(tasks.archivedAt)];
-  // إخفاء المهام المجدولة لوقت مستقبلي حتى يحين موعد بدئها.
-  conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
+  const futureWindow = futureRange ? futureRangeWindow(futureRange, new Date()) : null;
+  if (futureWindow) {
+    conditions.push(gt(tasks.scheduledFor, futureWindow.start));
+    if (futureWindow.end) conditions.push(lt(tasks.scheduledFor, futureWindow.end));
+  } else {
+    // إخفاء المهام المجدولة لوقت مستقبلي حتى يحين موعد بدئها.
+    conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
+  }
   if (status === "overdue" || dueFilter === "overdue") {
     conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), lt(tasks.dueAt, new Date()))!);
   } else if (status) {

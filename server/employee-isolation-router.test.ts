@@ -29,7 +29,7 @@ describe("عزل الموظف الإداري", () => {
 
     expect(people.map(person => person.id)).toEqual([9]);
     expect(mocks.listProfilesForUnits).not.toHaveBeenCalled();
-    expect(mocks.listTasksForProfile).toHaveBeenCalledWith(9, undefined, undefined);
+    expect(mocks.listTasksForProfile).toHaveBeenCalledWith(9, undefined, undefined, undefined);
     await expect(caller.reports.operational({ period: "daily" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

@@ -166,8 +166,8 @@ export default function TasksWorkspaceContent() {
   const requestedTaskAction = useMemo(() => new URLSearchParams(search).get("action"), [search]);
   const requestedTaskFilter = useMemo(() => new URLSearchParams(search).get("filter") ?? "all", [search]);
   const requestedTab = useMemo(() => new URLSearchParams(search).get("tab") ?? "tasks", [search]);
-  const [activeTab, setActiveTab] = useState<"tasks" | "approvals">(requestedTab === "approvals" ? "approvals" : "tasks");
-  useEffect(() => { setActiveTab(requestedTab === "approvals" ? "approvals" : "tasks"); }, [requestedTab]);
+  const [activeTab, setActiveTab] = useState<"tasks" | "approvals" | "future">(requestedTab === "approvals" ? "approvals" : requestedTab === "future" ? "future" : "tasks");
+  useEffect(() => { setActiveTab(requestedTab === "approvals" ? "approvals" : requestedTab === "future" ? "future" : "tasks"); }, [requestedTab]);
   useEffect(() => {
     if (activeTab === "approvals") {
       const el = document.getElementById("task-approvals");
@@ -191,6 +191,7 @@ export default function TasksWorkspaceContent() {
   const [selectedAssigneeProfileId, setSelectedAssigneeProfileId] = useState<number | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [dueFilter, setDueFilter] = useState<"all" | "overdue" | "dueSoon" | "completed">("all");
+  const [futureRange, setFutureRange] = useState<"all" | "current_week" | "next_week" | "end_of_month">("all");
   const platformWide = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary"));
   const isManager = canAssign && !platformWide;
   const canDirectEdit = permission.data === "full_control" || Boolean(roles.data?.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager", "technical_support_manager"].includes(role)));
@@ -206,6 +207,8 @@ export default function TasksWorkspaceContent() {
   }, [selectedUnitId]);
   const taskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id, dueFilter: dueFilter !== "all" ? dueFilter : undefined } : { unitId: selectedUnitId || undefined, assigneeProfileId: selectedAssigneeProfileId || undefined, dueFilter: dueFilter !== "all" ? dueFilter : undefined };
   const tasks = trpc.court.tasks.list.useQuery(taskQuery, { enabled: taskView === "scope" || Boolean(currentProfile.data?.id) });
+  const futureTaskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id, futureRange } : { unitId: selectedUnitId || undefined, assigneeProfileId: selectedAssigneeProfileId || undefined, futureRange };
+  const futureTasks = trpc.court.tasks.list.useQuery(futureTaskQuery, { enabled: activeTab === "future" && (taskView === "scope" || Boolean(currentProfile.data?.id)) });
   const taskGroups = useMemo(() => {
     const unitNameById = new Map<number, string>();
     for (const unit of units.data ?? []) unitNameById.set(unit.id, unit.name);
@@ -644,12 +647,33 @@ export default function TasksWorkspaceContent() {
     if (window.confirm(message)) autoAssign.mutate({ unitId: selectedUnitId ?? undefined });
   };
 
+  if (activeTab === "future") {
+    return <section className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6">
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">المهام المستقبلية</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">عرض المهام المجدولة لوقت لاحق دون إمكانية العمل عليها قبل موعدها.</p></div>
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><ListChecks className="h-6 w-6" /></div>
+      </header>
+      <div className="mt-5 flex gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
+        <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
+        <Button type="button" size="sm" variant="default" className="bg-[#8a6731]"><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية {futureTasks.data?.length ? <span className="ml-1 rounded-full bg-[#2f7653] px-1.5 text-[10px] text-white">{futureTasks.data.length}</span> : null}</Button>
+        {canDirectEdit && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("approvals")}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        {(["all", "current_week", "next_week", "end_of_month"] as const).map(range => <Button key={range} type="button" size="sm" variant={futureRange === range ? "default" : "outline"} onClick={() => setFutureRange(range)} className={futureRange === range ? "bg-[#2f7653]" : ""}>{range === "all" ? "📅 الكل" : range === "current_week" ? "📅 الأسبوع الحالي" : range === "next_week" ? "📅 الأسبوع القادم" : "📅 حتى نهاية الشهر"}</Button>)}
+      </div>
+      <div className="mt-5 rounded-[1.5rem] border border-[#e7e0d4] bg-white p-5">
+        {futureTasks.isLoading ? <p className="py-6 text-center text-sm text-[#6e7e75]">جارٍ تحميل المهام المستقبلية…</p> : futureTasks.data?.length ? <div className="divide-y divide-[#eee8de]">{futureTasks.data.map(task => <article key={task.id} className="flex flex-col gap-2 py-4 opacity-70 pointer-events-none"><div className="flex flex-wrap items-center justify-between gap-2"><p className="break-words font-bold text-[#26473a]">{task.title}</p><span className="rounded-full bg-[#fff3d6] px-2 py-0.5 text-[11px] font-bold text-[#a8601f]">⏳ لم يحن الموعد بعد</span></div><p className="text-xs text-[#75837c]">موعد البدء: {formatTaskDate(task.scheduledFor)} · الاستحقاق: {formatTaskDate(task.dueAt, task.isOpen)}</p></article>)}</div> : <p className="py-10 text-center text-sm text-[#738179]">لا توجد مهام مستقبلية ضمن هذا النطاق.</p>}
+      </div>
+    </section>;
+  }
+
   return <section className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6">
     <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">{canAssign ? "المهام والمتابعة" : "مهامي وطلباتي"}</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">{canAssign ? "إسناد مباشر ومتابعة مسار المعالجة، مع اختيار ملازم كنسخة تنبيه عند الحاجة." : "تظهر هنا المهام المخولة لك فقط، ويمكنك تأكيد المعالجة أو إرسال تعليق ضمن المسار المعتمد."}</p></div><div className="flex items-center gap-2"><Button type="button" onClick={() => setLocation("/correspondence?type=request")} variant="outline" className="border-[#b6d5bd] text-[#1d6243]"><Send className="ml-1 h-4 w-4" />إنشاء طلب</Button><div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><ListChecks className="h-6 w-6" /></div></div>
     </header>
     <div className="mt-5 flex gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
       <Button type="button" size="sm" variant={activeTab === "tasks" ? "default" : "outline"} onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }} className={activeTab === "tasks" ? "bg-[#12352f]" : ""}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
+      <Button type="button" size="sm" variant={activeTab === "future" ? "default" : "outline"} onClick={() => setActiveTab("future")} className={activeTab === "future" ? "bg-[#8a6731]" : ""}><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية {futureTasks.data?.length ? <span className="ml-1 rounded-full bg-[#2f7653] px-1.5 text-[10px] text-white">{futureTasks.data.length}</span> : null}</Button>
       {canDirectEdit && <Button type="button" size="sm" variant={activeTab === "approvals" ? "default" : "outline"} onClick={() => setActiveTab("approvals")} className={activeTab === "approvals" ? "bg-[#8a6731]" : ""}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
     </div>
     {holidayInfo.data?.isHoliday && (

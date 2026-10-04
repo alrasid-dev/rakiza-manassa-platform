@@ -80,6 +80,6 @@ describe("سياسة نطاق الأدوار الجديدة", () => {
     await owner.people.list({ unitId: 5 });
     expect(mocks.listProfilesForUnits).toHaveBeenCalledWith([5], undefined);
     await owner.tasks.list({ unitId: 5 });
-    expect(mocks.listTasksForUnits).toHaveBeenCalledWith([5], undefined, 9, undefined, undefined);
+    expect(mocks.listTasksForUnits).toHaveBeenCalledWith([5], undefined, 9, undefined, undefined, undefined);
   });
 });
