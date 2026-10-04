@@ -11,7 +11,7 @@ export type ConfirmationCadence = "daily" | "three_times_weekly" | "every_fiftee
 export const THREE_TIMES_WEEKLY_DAYS = [0, 2, 4] as const; // الأحد / الثلاثاء / الخميس
 
 /** مدة نافذة التأكيد بالدقائق. */
-export const CONFIRMATION_WINDOW_MINUTES = 20;
+export const CONFIRMATION_WINDOW_MINUTES = 30;
 /** بداية نافذة التوليد العشوائي (09:00). */
 export const CONFIRMATION_RANDOM_START_MINUTES = 9 * 60;
 /** نهاية نافذة التوليد العشوائي (13:45). */

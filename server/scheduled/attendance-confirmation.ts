@@ -422,8 +422,15 @@ export async function dispatchConfirmationAssignments(now = new Date()): Promise
       missed += 1;
     } else {
       const result = await db.insert(notifications).values({ profileId: assignment.profileId, category: "attendance_confirmation", title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن.", dedupeKey: `confirmation-request-${assignment.id}` }).onDuplicateKeyUpdate({ set: { title: "تأكيد الحضور" } });
-      try { await sendPushForNotification(assignment.profileId, { title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن خلال 20 دقيقة.", url: "/status", tag: `confirmation-request-${assignment.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار تأكيد الحضور", { assignmentId: assignment.id, error }); }
+      try { await sendPushForNotification(assignment.profileId, { title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن خلال 30 دقيقة.", url: "/status", tag: `confirmation-request-${assignment.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار تأكيد الحضور", { assignmentId: assignment.id, error }); }
       if (Number(result[0].affectedRows) === 1) notified += 1;
+
+      // تذكير ثانٍ بعد 10 دقائق من بداية النافذة إذا لم يؤكد بعد.
+      const reminderAt = new Date(assignment.scheduledAt.getTime() + 10 * 60000);
+      if (now >= reminderAt) {
+        await db.insert(notifications).values({ profileId: assignment.profileId, category: "attendance_confirmation", title: "تذكير: تأكيد الحضور", body: "بقي وقت قليل لتأكيد حضورك قبل انتهاء النافذة.", dedupeKey: `confirmation-reminder-${assignment.id}` }).onDuplicateKeyUpdate({ set: { title: "تذكير: تأكيد الحضور" } });
+        try { await sendPushForNotification(assignment.profileId, { title: "تذكير: تأكيد الحضور", body: "بقي وقت قليل لتأكيد حضورك قبل انتهاء النافذة.", url: "/status", tag: `confirmation-reminder-${assignment.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال التذكير الثاني لتأكيد الحضور", { assignmentId: assignment.id, error }); }
+      }
     }
   }
   return { notified, missed };
