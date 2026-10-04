@@ -3647,7 +3647,15 @@ export async function getTaskDetails(taskId: number) {
         attachments: submissionAttachments,
       }
     : null;
-  return { task, assigneeName: assigneeRows[0]?.fullName ?? null, comments, timeline, attachments, approvals: approvalsWithReviewer, lastEmployeeSubmission };
+  const allAttachmentsMap = new Map<number, { id: number; fileName: string; mimeType: string; sizeBytes: number; source: string; uploadedAt: Date }>();
+  for (const a of attachments) allAttachmentsMap.set(a.id, { id: a.id, fileName: a.originalName, mimeType: a.mimeType, sizeBytes: a.sizeBytes, source: "task", uploadedAt: a.createdAt });
+  for (const u of timeline) {
+    for (const a of u.attachments) {
+      if (!allAttachmentsMap.has(a.id)) allAttachmentsMap.set(a.id, { id: a.id, fileName: a.originalName, mimeType: a.mimeType, sizeBytes: a.sizeBytes, source: "submission", uploadedAt: a.createdAt });
+    }
+  }
+  const allEmployeeAttachments = [...allAttachmentsMap.values()];
+  return { task, assigneeName: assigneeRows[0]?.fullName ?? null, comments, timeline, attachments, approvals: approvalsWithReviewer, lastEmployeeSubmission, allEmployeeAttachments };
 }
 
 export async function decideApproval(input: { approvalId: number; actorUserId: number; decision: "approved" | "returned" | "rejected"; note?: string; nextRole?: ApprovalRole | null }) {
