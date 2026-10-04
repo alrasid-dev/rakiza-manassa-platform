@@ -1586,6 +1586,8 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
   const db = await getDb();
   if (!db) return [];
   const conditions = [isNull(tasks.archivedAt)];
+  // إخفاء المهام المجدولة لوقت مستقبلي حتى يحين موعد بدئها؛ المهام بدون scheduledFor تبقى ظاهرة (توافق مع السلوك القديم).
+  conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
   if (filters?.status === "overdue" || filters?.dueFilter === "overdue") {
     conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), lt(tasks.dueAt, new Date()))!);
   } else if (filters?.status) {
@@ -1622,6 +1624,8 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
   const db = await getDb();
   if (!db || !unitIds.length) return [];
   const conditions = [inArray(tasks.unitId, unitIds), isNull(tasks.archivedAt)];
+  // إخفاء المهام المجدولة لوقت مستقبلي حتى يحين موعد بدئها.
+  conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
   if (status === "overdue" || dueFilter === "overdue") {
     conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), lt(tasks.dueAt, new Date()))!);
   } else if (status) {
