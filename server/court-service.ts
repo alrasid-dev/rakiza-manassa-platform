@@ -1931,12 +1931,19 @@ export async function listTaskAttachments(taskId: number) {
   return db.select({ id: taskAttachments.id, taskId: taskAttachments.taskId, originalName: taskAttachments.originalName, mimeType: taskAttachments.mimeType, sizeBytes: taskAttachments.sizeBytes, storageUrl: taskAttachments.storageUrl, uploadedByProfileId: taskAttachments.uploadedByProfileId, createdAt: taskAttachments.createdAt }).from(taskAttachments).where(eq(taskAttachments.taskId, taskId)).orderBy(desc(taskAttachments.createdAt));
 }
 
-export async function getTaskAttachmentContent(attachmentId: number) {
+export async function getTaskAttachmentContent(attachmentId: number, source: "task" | "submission" = "task") {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة." });
+  if (source === "submission") {
+    const attachment = (await db.select().from(taskUpdateAttachments).where(eq(taskUpdateAttachments.id, attachmentId)).limit(1))[0];
+    if (!attachment) throw new TRPCError({ code: "NOT_FOUND", message: "المرفق غير موجود." });
+    const update = (await db.select({ taskId: taskUpdates.taskId }).from(taskUpdates).where(eq(taskUpdates.id, attachment.taskUpdateId)).limit(1))[0];
+    if (!update) throw new TRPCError({ code: "NOT_FOUND", message: "التحديث المرتبط غير موجود." });
+    return { taskId: update.taskId, fileName: attachment.originalName, mimeType: attachment.mimeType, contentBase64: attachment.contentBase64 };
+  }
   const attachment = (await db.select().from(taskAttachments).where(eq(taskAttachments.id, attachmentId)).limit(1))[0];
   if (!attachment) throw new TRPCError({ code: "NOT_FOUND", message: "المرفق غير موجود." });
-  return { taskId: attachment.taskId, originalName: attachment.originalName, mimeType: attachment.mimeType, contentBase64: attachment.contentBase64 };
+  return { taskId: attachment.taskId, fileName: attachment.originalName, mimeType: attachment.mimeType, contentBase64: attachment.contentBase64 };
 }
 
 export async function getTaskAttachmentById(attachmentId: number) {
