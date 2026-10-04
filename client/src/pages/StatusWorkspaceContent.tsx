@@ -143,8 +143,17 @@ export default function StatusWorkspaceContent() {
   const assignment = (pendingAssignment.data ?? null) as { id?: number; scheduledAt?: string | Date } | null;
   const [confirmationNow, setConfirmationNow] = useState(Date.now());
   const scheduledMs = assignment?.scheduledAt ? new Date(assignment.scheduledAt).getTime() : 0;
-  const deadlineMs = scheduledMs + 20 * 60_000;
-  const showConfirmationModal = Boolean(assignment?.id && confirmationNow >= scheduledMs - 60_000 && confirmationNow < deadlineMs && (!confirmationDismissedUntil || confirmationNow > confirmationDismissedUntil));
+  const deadlineMs = scheduledMs + 30 * 60_000;
+  const getRiyadhMinutesOfDay = (date: Date): number => {
+    const formatter = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "numeric", minute: "numeric", hour12: false });
+    const parts = formatter.formatToParts(date);
+    const hour = parseInt(parts.find(p => p.type === "hour")?.value || "0", 10);
+    const minute = parseInt(parts.find(p => p.type === "minute")?.value || "0", 10);
+    return hour * 60 + minute;
+  };
+  const nowMinRiyadh = getRiyadhMinutesOfDay(new Date(confirmationNow));
+  const isWithinWindow = nowMinRiyadh >= 540 && nowMinRiyadh <= 825;
+  const showConfirmationModal = Boolean(assignment?.id && isWithinWindow && confirmationNow >= scheduledMs - 60_000 && confirmationNow < deadlineMs && (!confirmationDismissedUntil || confirmationNow > confirmationDismissedUntil));
   const confirmationSecondsLeft = Math.max(0, Math.floor((deadlineMs - confirmationNow) / 1000));
   useEffect(() => { if (!showConfirmationModal) return; const id = setInterval(() => setConfirmationNow(Date.now()), 1000); return () => clearInterval(id); }, [showConfirmationModal]);
   // ===== تنبيه صوتي تلقائي لتأكيد الحضور (مع زر احتياطي يدوي) =====
