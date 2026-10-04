@@ -1636,7 +1636,7 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
     const now = new Date();
     conditions.push(or(eq(tasks.isConfidential, false), and(isNotNull(tasks.confidentialityExpiresAt), lte(tasks.confidentialityExpiresAt, now)), eq(tasks.assigneeProfileId, filters.visibleProfileId), eq(tasks.watcherProfileId, filters.visibleProfileId))!);
   }
-  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
+  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
 export async function listTasksForProfile(profileId: number, status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", dueFilter?: "overdue" | "dueSoon" | "completed", futureRange?: FutureRange) {
@@ -1680,7 +1680,7 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
     const now = new Date();
     conditions.push(or(eq(tasks.isConfidential, false), and(isNotNull(tasks.confidentialityExpiresAt), lte(tasks.confidentialityExpiresAt, now)), eq(tasks.assigneeProfileId, visibleProfileId), eq(tasks.watcherProfileId, visibleProfileId))!);
   }
-  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
+  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
 /** نافذة التصعيد الآلي: يوم عمل سعودي، ليس إجازة رسمية، وخلال دوام 07:00–14:59 بتوقيت الرياض. */
@@ -3490,7 +3490,7 @@ export async function listPendingTaskApprovals(options: { unitIds?: number[]; su
   if (options.excludeSubmittedByProfileId) approvals = approvals.filter(a => a.submittedByProfileId !== options.excludeSubmittedByProfileId);
   if (!approvals.length) return [];
   const taskIds = approvals.map(a => a.taskId);
-  const taskRows = await db.select({ id: tasks.id, title: tasks.title, unitId: tasks.unitId, status: tasks.status, taskNotes: tasks.taskNotes }).from(tasks).where(inArray(tasks.id, taskIds));
+  const taskRows = await db.select({ id: tasks.id, title: tasks.title, unitId: tasks.unitId, status: tasks.status, taskNotes: tasks.taskNotes, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})` }).from(tasks).where(inArray(tasks.id, taskIds));
   const taskMap = new Map(taskRows.map(t => [t.id, t]));
   const submitterIds = [...new Set(approvals.map(a => a.submittedByProfileId))];
   const submitterRows = await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(inArray(personProfiles.id, submitterIds));
