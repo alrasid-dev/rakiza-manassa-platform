@@ -3281,6 +3281,7 @@ export async function updateTask(input: {
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
+  if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
 
   const patch: Partial<typeof tasks.$inferInsert> = {};
   if (input.title !== undefined) patch.title = input.title.trim();
@@ -3420,6 +3421,7 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+  if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
   if (task.assigneeProfileId !== input.submittedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "رفع الاعتماد متاح للمكلف الحالي بالمهمة فقط." });
   if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "المهمة مكتملة أو ملغاة." });
   const existing = await db.select({ id: taskApprovals.id }).from(taskApprovals).where(and(eq(taskApprovals.taskId, input.taskId), eq(taskApprovals.status, "pending"))).limit(1);
@@ -3560,6 +3562,7 @@ export async function markTaskAsProcessed(input: { taskId: number; actorUserId: 
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
+  if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
   if (task.status === "cancelled") throw new Error("لا يمكن إتمام مهمة ملغاة.");
   if (task.status === "completed") throw new Error("المهمة مكتملة مسبقاً.");
   const completedAt = new Date();
