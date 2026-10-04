@@ -1614,10 +1614,11 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
   if (!db) return [];
   const conditions = [isNull(tasks.archivedAt)];
   const futureWindow = filters?.futureRange ? futureRangeWindow(filters.futureRange, new Date()) : null;
+  const shouldHideFuture = !futureWindow && filters?.dueFilter !== "dueSoon" && filters?.dueFilter !== "completed";
   if (futureWindow) {
     conditions.push(gt(tasks.scheduledFor, futureWindow.start));
     if (futureWindow.end) conditions.push(lt(tasks.scheduledFor, futureWindow.end));
-  } else {
+  } else if (shouldHideFuture) {
     // إخفاء المهام المجدولة لوقت مستقبلي حتى يحين موعد بدئها؛ المهام بدون scheduledFor تبقى ظاهرة (توافق مع السلوك القديم).
     conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
   }
@@ -1658,10 +1659,11 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
   if (!db || !unitIds.length) return [];
   const conditions = [inArray(tasks.unitId, unitIds), isNull(tasks.archivedAt)];
   const futureWindow = futureRange ? futureRangeWindow(futureRange, new Date()) : null;
+  const shouldHideFuture = !futureWindow && dueFilter !== "dueSoon" && dueFilter !== "completed";
   if (futureWindow) {
     conditions.push(gt(tasks.scheduledFor, futureWindow.start));
     if (futureWindow.end) conditions.push(lt(tasks.scheduledFor, futureWindow.end));
-  } else {
+  } else if (shouldHideFuture) {
     // إخفاء المهام المجدولة لوقت مستقبلي حتى يحين موعد بدئها.
     conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
   }
