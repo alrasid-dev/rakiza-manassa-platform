@@ -1,4 +1,4 @@
-import { and, desc, eq, exists, gte, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { accessGrants, approvalRequests, attendanceRecords, confirmationAssignments, courtRoleAssignments, leaveRequests, notifications, personProfiles, scoreEvents, scheduledJobConfigs, systemConfigs, users, workShifts } from "../../drizzle/schema";
 import { getDb } from "../db";
@@ -361,10 +361,7 @@ export async function generateConfirmationAssignments(now = new Date()): Promise
 
   const excluded = await getExcludedProfileIds();
   const weekday = riyadhWeekday(now);
-  const profiles = await db.select().from(personProfiles).where(and(
-    eq(personProfiles.status, "active"),
-    exists(db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, personProfiles.id), isNotNull(attendanceRecords.checkInAt)))),
-  ));
+  const profiles = await db.select().from(personProfiles).where(eq(personProfiles.status, "active"));
   const allowlist = settings.audienceUnitIds?.length ? new Set(settings.audienceUnitIds) : null;
   const currentModes = await getCurrentAttendanceModes(profiles.map(p => p.id), now);
 
@@ -377,6 +374,14 @@ export async function generateConfirmationAssignments(now = new Date()): Promise
     } else if (profile.unitId != null && settings.perDept[String(profile.unitId)] === false) {
       continue;
     }
+    // بصمة دخول اليوم + عدم تسجيل انصراف (وإلا لا يُطلَب تأكيد).
+    const todayRecord = (await db.select({ checkInAt: attendanceRecords.checkInAt, checkOutAt: attendanceRecords.checkOutAt }).from(attendanceRecords).where(and(
+      eq(attendanceRecords.profileId, profile.id),
+      gte(attendanceRecords.recordDate, dayRange.start),
+      lt(attendanceRecords.recordDate, dayRange.end),
+    )).limit(1))[0];
+    if (!todayRecord || !todayRecord.checkInAt) continue; // لم يبصم اليوم
+    if (todayRecord.checkOutAt) continue; // سجّل انصراف
     const consecutive = await consecutiveDoneWorkdays(profile.id, now);
     const cadence = confirmationCadence(consecutive);
     const daysSinceLastDone = await daysSinceLastDoneFor(profile.id, now);
