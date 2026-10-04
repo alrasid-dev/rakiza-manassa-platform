@@ -4632,20 +4632,12 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   if (!existing.checkInAt) throw new Error("لا يوجد بصمة دخول لهذا السجل.");
   if (existing.checkOutAt) throw new TRPCError({ code: "CONFLICT", message: `تم تسجيل انصرافك مسبقاً الساعة ${formatRiyadhTime(existing.checkOutAt)}` });
 
-  // منع الانصراف المبكر (قبل 14:15) مع وجود مهام مفتوحة.
-  if (riyadhMinutesOfDay(input.checkOutAt) < 855) {
-    const openTasks = await db.select({ id: tasks.id, title: tasks.title }).from(tasks).where(and(
-      eq(tasks.assigneeProfileId, input.profileId),
-      inArray(tasks.status, ["new", "in_progress", "under_review", "overdue"]),
-      isNull(tasks.archivedAt),
-    ));
-    if (openTasks.length > 0) {
-      throw new TRPCError({
-        code: "PRECONDITION_FAILED",
-        message: `لديك ${openTasks.length} مهمة مفتوحة. اطلب إعادة إسناد من المدير قبل الانصراف المبكر.`,
-      });
-    }
-  }
+  // عدد المهام المفتوحة عند الانصراف المبكر (للتنبيه فقط — لا منع).
+  const openTasksCount = (await db.select({ id: tasks.id }).from(tasks).where(and(
+    eq(tasks.assigneeProfileId, input.profileId),
+    inArray(tasks.status, ["new", "in_progress", "under_review", "overdue"]),
+    isNull(tasks.archivedAt),
+  ))).length;
 
   const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes, eveningCompensationDeadlineMinutes: workShifts.eveningCompensationDeadlineMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
 
@@ -4666,7 +4658,7 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   }
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, negativeMinutes } });
   await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
-  return { success: true, attendanceId: existing.id };
+  return { success: true, attendanceId: existing.id, openTasksCount };
 }
 
 /** إعادة حساب وتخزين رصيد شهر هجري معين لموظف (له/عليه/استئذان/صافي). */
