@@ -34,7 +34,7 @@ export function attendanceConfirmationDeadline(startAt: Date, windowMinutes = 20
 }
 
 export function attendanceConfirmationPolicyDefaults() {
-  return { enabled: true, confirmationWindowMinutes: 20, ignoredConfirmationPenalty: -1, cadence: "every_two_days" as const };
+  return { enabled: true, confirmationWindowMinutes: 30, ignoredConfirmationPenalty: -1, cadence: "every_two_days" as const };
 }
 
 /** عتبة الالتزام التي تُعفى عندها من تأكيد الحضور (نسبة مئوية). */
