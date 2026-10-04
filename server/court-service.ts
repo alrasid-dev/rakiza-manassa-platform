@@ -3615,12 +3615,27 @@ export async function getTaskDetails(taskId: number) {
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(taskId);
   if (!task) throw new Error("المهمة غير موجودة.");
-  const [comments, timeline, attachments] = await Promise.all([
+  const [comments, timeline, attachments, approvals, assigneeRows] = await Promise.all([
     listTaskComments(taskId),
     listTaskTimeline(taskId),
     listTaskAttachments(taskId),
+    db.select().from(taskApprovals).where(eq(taskApprovals.taskId, taskId)).orderBy(desc(taskApprovals.createdAt)),
+    task.assigneeProfileId ? db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1) : Promise.resolve([] as { id: number; fullName: string }[]),
   ]);
-  return { task, comments, timeline, attachments };
+  const reviewerIds = [...new Set(approvals.map(a => a.reviewedByProfileId).filter((v): v is number => v != null))];
+  const reviewerRows = reviewerIds.length ? await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(inArray(personProfiles.id, reviewerIds)) : [];
+  const reviewerNames = new Map(reviewerRows.map(p => [p.id, p.fullName]));
+  const approvalsWithReviewer = approvals.map(a => ({
+    id: a.id,
+    status: a.status,
+    rating: a.managerRating,
+    reviewerName: a.reviewedByProfileId ? (reviewerNames.get(a.reviewedByProfileId) ?? null) : null,
+    reviewedAt: a.reviewedAt,
+    note: a.reviewNote,
+    pointsAwarded: a.pointsAwarded,
+    submittedAt: a.submittedAt,
+  }));
+  return { task, assigneeName: assigneeRows[0]?.fullName ?? null, comments, timeline, attachments, approvals: approvalsWithReviewer };
 }
 
 export async function decideApproval(input: { approvalId: number; actorUserId: number; decision: "approved" | "returned" | "rejected"; note?: string; nextRole?: ApprovalRole | null }) {
