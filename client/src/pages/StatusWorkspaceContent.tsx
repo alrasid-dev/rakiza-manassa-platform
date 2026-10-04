@@ -216,8 +216,10 @@ export default function StatusWorkspaceContent() {
   const attendanceLabel = (status: string) => ({ present: "حاضر", late: "متأخر", absent: "غائب", excused: "مستأذن", on_leave: "في إجازة", missing_checkout: "لم يسجل انصراف" }[status] || status);
   const attendanceStatusTone = (status: string) => ({ present: "bg-emerald-50 text-emerald-700 border-emerald-200", late: "bg-amber-50 text-amber-700 border-amber-200", absent: "bg-red-50 text-red-700 border-red-200", excused: "bg-blue-50 text-blue-700 border-blue-200", on_leave: "bg-blue-50 text-blue-700 border-blue-200", missing_checkout: "bg-orange-50 text-orange-700 border-orange-200" }[status] || "bg-gray-50 text-gray-600 border-gray-200");
   const attendanceStatusDot = (status: string) => ({ present: "bg-emerald-500", late: "bg-amber-500", absent: "bg-red-500", excused: "bg-blue-500", on_leave: "bg-blue-500", missing_checkout: "bg-orange-500" }[status] || "bg-gray-400");
-  // الحالة الدقيقة المعروضة: غياب (لا دخول) → missing_checkout (دخول بلا خروج) → متأخر → حاضر.
+  // الحالة الدقيقة المعروضة: الإجازة والاستئذان لهما الأولوية على غياب عدم التسجيل.
   const computeDisplayStatus = (item: { checkInAt?: Date | string | null; checkOutAt?: Date | string | null; status: string }): string => {
+    if (item.status === "on_leave") return "on_leave";
+    if (item.status === "excused") return "excused";
     if (!item.checkInAt) return "absent";
     if (item.checkInAt && !item.checkOutAt) return "missing_checkout";
     if (item.status === "late") return "late";
