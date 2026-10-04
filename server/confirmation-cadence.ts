@@ -12,10 +12,10 @@ export const THREE_TIMES_WEEKLY_DAYS = [0, 2, 4] as const; // الأحد / ال�
 
 /** مدة نافذة التأكيد بالدقائق. */
 export const CONFIRMATION_WINDOW_MINUTES = 20;
-/** بداية نافذة التوليد العشوائي (07:30). */
-export const CONFIRMATION_RANDOM_START_MINUTES = 7 * 60 + 30;
-/** نهاية نافذة التوليد العشوائي (14:15). */
-export const CONFIRMATION_RANDOM_END_MINUTES = 14 * 60 + 15;
+/** بداية نافذة التوليد العشوائي (09:00). */
+export const CONFIRMATION_RANDOM_START_MINUTES = 9 * 60;
+/** نهاية نافذة التوليد العشوائي (13:45). */
+export const CONFIRMATION_RANDOM_END_MINUTES = 13 * 60 + 45;
 
 /** حساب cadence بناءً على عدد أيام العمل المتواصلة المنجزة (done). */
 export function confirmationCadence(consecutiveDoneDays: number): ConfirmationCadence {
