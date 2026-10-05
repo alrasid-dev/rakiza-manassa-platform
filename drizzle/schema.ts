@@ -909,7 +909,7 @@ export const approvalRequests = mysqlTable("approval_requests", {
   entityType: mysqlEnum("entityType", ["task", "delay", "decision", "disciplinary_action", "score_adjustment", "department_manager_assignment"]).notNull(),
   entityId: int("entityId").notNull(),
   requestedByUserId: int("requestedByUserId").notNull(),
-  currentRole: mysqlEnum("currentRole", ["trainee_affairs_manager", "human_resources_manager", "court_secretary", "assistant_president", "court_president"]).notNull(),
+  currentRole: mysqlEnum("currentRole", ["trainee_affairs_manager", "human_resources_manager", "court_secretary", "assistant_president", "court_president", "department_manager", "owner"]).notNull(),
   status: mysqlEnum("status", ["pending", "returned", "approved", "rejected", "cancelled", "under_review", "escalated", "closed"]).default("pending").notNull(),
   requestNote: text("requestNote"),
   decisionNote: text("decisionNote"),

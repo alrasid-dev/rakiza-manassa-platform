@@ -2730,7 +2730,11 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
     decidedAt: new Date(),
     updatedAt: new Date(),
   };
-  if (input.decision === "escalate") patch.currentRole = "court_secretary";
+  if (input.decision === "escalate") {
+    const current = (caseRow.currentRole as string) || "department_manager";
+    if (current === "owner") throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن التصعيد بعد المالك." });
+    patch.currentRole = (ESCALATION_NEXT[current] ?? "court_secretary") as typeof patch.currentRole;
+  }
 
   await db.update(approvalRequests).set(patch).where(eq(approvalRequests.id, input.caseId));
 
@@ -2861,10 +2865,31 @@ const DISCIPLINARY_ROLE_LABELS: Record<string, string> = {
   court_secretary: "أمين المحكمة",
   assistant_president: "مساعد الرئيس",
   court_president: "رئيس المحكمة",
+  department_manager: "المدير المباشر",
+  owner: "المالك",
+};
+
+/** تسلسل تصعيد المساءلات: مدير → أمين → رئيس → مالك. */
+export const DISCIPLINARY_ESCALATION_CHAIN = [
+  { role: "department_manager", label: "المدير المباشر" },
+  { role: "court_secretary", label: "أمين المحكمة" },
+  { role: "court_president", label: "رئيس المحكمة" },
+  { role: "owner", label: "المالك (صلاحية عامة)" },
+] as const;
+
+/** المستوى التالي عند التصعيد حسب الدور الحالي. */
+const ESCALATION_NEXT: Record<string, string> = {
+  department_manager: "court_secretary",
+  human_resources_manager: "court_secretary",
+  trainee_affairs_manager: "court_secretary",
+  court_secretary: "court_president",
+  assistant_president: "court_president",
+  court_president: "owner",
+  owner: "owner",
 };
 
 export type RequestRouteStep = {
-  step: "submitted" | "employee_response" | "manager_review" | "escalated" | "decision";
+  step: "submitted" | "employee_response" | "manager_review" | "escalated" | "escalated_secretary" | "escalated_president" | "escalated_owner" | "decision";
   label: string;
   by: string;
   at: string | null;
@@ -2912,11 +2937,32 @@ export async function getRequestRoute(input: { requestId: number; requestType: "
       deciderName = u?.name ?? "—";
     }
     const decided = ["approved", "cancelled", "returned", "rejected", "closed"].includes(c.status);
+    const currentRole = (c.currentRole as string) || "department_manager";
+
+    // الأسماء الفعلية لمستويات التصعيد (الأمين، الرئيس، المالك).
+    const secretary = (await db.select({ fullName: personProfiles.fullName }).from(courtRoleAssignments).innerJoin(personProfiles, eq(personProfiles.userId, courtRoleAssignments.userId)).where(and(eq(courtRoleAssignments.role, "court_secretary"), eq(courtRoleAssignments.isActive, true))).limit(1))[0];
+    const president = (await db.select({ fullName: personProfiles.fullName }).from(courtRoleAssignments).innerJoin(personProfiles, eq(personProfiles.userId, courtRoleAssignments.userId)).where(and(eq(courtRoleAssignments.role, "court_president"), eq(courtRoleAssignments.isActive, true))).limit(1))[0];
+    const owner = (await db.select({ fullName: accessGrants.fullName }).from(accessGrants).where(and(eq(accessGrants.permission, "full_control"), eq(accessGrants.isActive, true))).limit(1))[0];
+    const secretaryName = secretary?.fullName ?? "أمين المحكمة";
+    const presidentName = president?.fullName ?? "رئيس المحكمة";
+    const ownerName = owner?.fullName ?? "المالك";
+
+    const escalationOrder: Record<string, number> = { court_secretary: 0, court_president: 1, owner: 2 };
+    const currentLevelIdx = escalationOrder[currentRole] ?? 0;
+    const levelStatus = (idx: number): "done" | "current" | "pending" => {
+      if (decided) return "done";
+      if (c.status !== "escalated") return "pending";
+      if (currentLevelIdx === idx) return "current";
+      return currentLevelIdx > idx ? "done" : "pending";
+    };
+
     const steps: RequestRouteStep[] = [
       { step: "submitted", label: "قدّمه النظام (آلياً)", by: "النظام", at: c.createdAt.toISOString(), status: "done" },
       { step: "employee_response", label: "جواب الموظف", by: employeeName, at: null, status: c.status === "pending" ? "current" : "done" },
       { step: "manager_review", label: "قرار المدير المباشر", by: managerName, at: null, status: c.status === "pending" ? "pending" : c.status === "under_review" ? "current" : "done" },
-      { step: "escalated", label: "التصعيد (الأمين + المالك)", by: "الأمين + المالك", at: null, status: c.status === "escalated" ? "current" : decided ? "done" : "pending" },
+      { step: "escalated_secretary", label: "التصعيد — أمين المحكمة", by: secretaryName, at: null, status: levelStatus(0) },
+      { step: "escalated_president", label: "التصعيد — رئيس المحكمة", by: presidentName, at: null, status: levelStatus(1) },
+      { step: "escalated_owner", label: "المالك (صلاحية عامة)", by: ownerName, at: null, status: levelStatus(2) },
       { step: "decision", label: "القرار النهائي", by: deciderName, at: c.decidedAt?.toISOString() ?? null, status: decided ? "done" : "pending", decision: decided ? c.status : null },
     ];
     const currentIdx = steps.findIndex(s => s.status === "current");
