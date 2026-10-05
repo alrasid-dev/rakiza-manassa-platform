@@ -2708,16 +2708,23 @@ export async function respondToDisciplinaryCase(input: { caseId: number; profile
   return { ok: true as const };
 }
 
-export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save" | "save_and_close" | "cancel" | "reject" | "return"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
+export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save" | "save_and_close" | "cancel" | "reject" | "return"; note?: string; actorUserId: number; managedUnitIds: number[] | null; isOwnerOverride?: boolean }) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
-  const caseRow = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.caseId)).limit(1))[0];
+  // select بحقول محددة فقط لتقليل حجم الاستعلام في المعالجة الجماعية.
+  const caseRow = (await db.select({ id: approvalRequests.id, status: approvalRequests.status, entityType: approvalRequests.entityType, entityId: approvalRequests.entityId, currentRole: approvalRequests.currentRole, requestNote: approvalRequests.requestNote }).from(approvalRequests).where(eq(approvalRequests.id, input.caseId)).limit(1))[0];
   if (!caseRow || caseRow.entityType !== "disciplinary_action") throw new TRPCError({ code: "NOT_FOUND", message: "المساءلة غير موجودة." });
 
   // هل الفاعل مالك / صلاحية عامة؟ → يتجاوز فحص الوحدة والمرحلة (عدا النهائي).
-  const actor = (await db.select({ role: users.role, email: users.email }).from(users).where(eq(users.id, input.actorUserId)).limit(1))[0];
-  const actorPermission = actor?.email ? await getAccessPermission(actor.email) : null;
-  const isOwner = actor?.role === "admin" || actorPermission === "full_control";
+  // في المعالجة الجماعية يُمرَّر isOwnerOverride جاهزاً لتجنّب إعادة جلب المستخدم لكل سجل.
+  let isOwner: boolean;
+  if (typeof input.isOwnerOverride === "boolean") {
+    isOwner = input.isOwnerOverride;
+  } else {
+    const actor = (await db.select({ role: users.role, email: users.email }).from(users).where(eq(users.id, input.actorUserId)).limit(1))[0];
+    const actorPermission = actor?.email ? await getAccessPermission(actor.email) : null;
+    isOwner = actor?.role === "admin" || actorPermission === "full_control";
+  }
 
   // فحص الحالة: ارفض النهائي فقط، واسمح للمالك بكل المراحل غير النهائية.
   const DISCIPLINARY_FINAL_STATUSES = ["approved", "rejected", "closed", "returned", "cancelled"];
@@ -2758,15 +2765,15 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
 
   await db.update(approvalRequests).set(patch).where(eq(approvalRequests.id, input.caseId));
 
-  // الخطوات الثانوية — غير محمية حتى لا تكسر القرار الأصلي.
-  try { await logAudit({ actorUserId: input.actorUserId, action: "disciplinary." + input.decision, entityType: "approval_request", entityId: input.caseId }); } catch (error) { console.warn("[audit] فشل تسجيل قرار المساءلة", { caseId: input.caseId, error }); }
+  // الخطوات الثانوية — fire-and-forget حتى لا تُبطئ القرار الأصلي (منع 504 على Vercel).
+  void logAudit({ actorUserId: input.actorUserId, action: "disciplinary." + input.decision, entityType: "approval_request", entityId: input.caseId }).catch(error => console.error("[audit] فشل تسجيل قرار المساءلة", { caseId: input.caseId, error }));
 
-  let targetProfileId = caseRow.entityId;
-  try {
-    const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, caseRow.entityId)).limit(1))[0];
-    if (task?.assigneeProfileId) targetProfileId = task.assigneeProfileId;
-    if (targetProfileId) {
-      try {
+  void (async () => {
+    try {
+      let targetProfileId = caseRow.entityId;
+      const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, caseRow.entityId)).limit(1))[0];
+      if (task?.assigneeProfileId) targetProfileId = task.assigneeProfileId;
+      if (targetProfileId) {
         await db.insert(notifications).values({
           profileId: targetProfileId,
           category: "security_alert",
@@ -2774,25 +2781,44 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
           body: decisionLabel,
           dedupeKey: `disciplinary-decision-${input.caseId}`,
         }).onDuplicateKeyUpdate({ set: { title: "قرار على المساءلة" } });
-      } catch (error) { console.warn("[notifications] فشل إدراج إشعار قرار المساءلة", { caseId: input.caseId, error }); }
-      try { await sendPushForNotification(targetProfileId, { title: "قرار على المساءلة", body: decisionLabel, url: "/disciplinary", tag: `disciplinary-decision-${input.caseId}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار قرار المساءلة", { caseId: input.caseId, error }); }
-    }
-  } catch (error) { console.warn("[disciplinary] فشل تجهيز إشعار القرار", { caseId: input.caseId, error }); }
+        void sendPushForNotification(targetProfileId, { title: "قرار على المساءلة", body: decisionLabel, url: "/disciplinary", tag: `disciplinary-decision-${input.caseId}` }).catch(error => console.error("[WebPush] فشل إرسال إشعار قرار المساءلة", { caseId: input.caseId, error }));
+      }
+    } catch (error) { console.error("[disciplinary] فشل تجهيز إشعار القرار", { caseId: input.caseId, error }); }
+  })();
   return { ok: true as const };
 }
 
 /** اعتماد/رفض/تصعيد مجمّع لمساءلات بانتظار قرار المدير. */
 export async function bulkReviewDisciplinary(input: { caseIds: number[]; decision: "save" | "cancel" | "escalate" | "reject" | "return"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
-  let processed = 0;
-  let failed = 0;
-  for (const caseId of input.caseIds) {
+  // جلب المستخدم/الصلاحية مرة واحدة خارج الـ loop لتجنّب إعادة الاستعلام لكل سجل.
+  const db = await getDb();
+  let isOwnerOverride: boolean | undefined;
+  if (db) {
     try {
-      await decideDisciplinaryCase({ caseId, decision: input.decision, note: input.note, actorUserId: input.actorUserId, managedUnitIds: input.managedUnitIds });
-      processed += 1;
+      const actor = (await db.select({ role: users.role, email: users.email }).from(users).where(eq(users.id, input.actorUserId)).limit(1))[0];
+      const actorPermission = actor?.email ? await getAccessPermission(actor.email) : null;
+      isOwnerOverride = actor?.role === "admin" || actorPermission === "full_control";
     } catch {
-      failed += 1;
+      isOwnerOverride = undefined;
     }
   }
+
+  const results: boolean[] = [];
+  const CHUNK = 5;
+  for (let i = 0; i < input.caseIds.length; i += CHUNK) {
+    const chunk = input.caseIds.slice(i, i + CHUNK);
+    const chunkResults = await Promise.all(chunk.map(async (caseId) => {
+      try {
+        await decideDisciplinaryCase({ caseId, decision: input.decision, note: input.note, actorUserId: input.actorUserId, managedUnitIds: input.managedUnitIds, isOwnerOverride });
+        return true;
+      } catch {
+        return false;
+      }
+    }));
+    results.push(...chunkResults);
+  }
+  const processed = results.filter(Boolean).length;
+  const failed = results.length - processed;
   return { processed, failed };
 }
 
