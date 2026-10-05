@@ -2715,9 +2715,25 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
   if (!caseRow || caseRow.entityType !== "disciplinary_action") throw new TRPCError({ code: "NOT_FOUND", message: "المساءلة غير موجودة." });
   if (caseRow.status !== "under_review") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لم يرد الموظف بعد." });
 
-  if (input.managedUnitIds !== null) {
+  // هل الفاعل مالك / صلاحية عامة؟ → يتجاوز فحص نطاق الوحدة.
+  const actor = (await db.select({ role: users.role, email: users.email }).from(users).where(eq(users.id, input.actorUserId)).limit(1))[0];
+  const actorPermission = actor?.email ? await getAccessPermission(actor.email) : null;
+  const isOwner = actor?.role === "admin" || actorPermission === "full_control";
+
+  if (!isOwner && input.managedUnitIds !== null) {
+    // حلّ وحدة الملف المستهدف (entityId قد يكون taskId وليس profileId).
+    let targetUnitId: number | null = null;
     const targetProfile = (await db.select({ unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, caseRow.entityId)).limit(1))[0];
-    if (!targetProfile || !input.managedUnitIds.includes(targetProfile.unitId!)) throw new TRPCError({ code: "FORBIDDEN", message: "خارج نطاق وحدتك." });
+    if (targetProfile?.unitId != null) {
+      targetUnitId = targetProfile.unitId;
+    } else {
+      const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, caseRow.entityId)).limit(1))[0];
+      if (task?.assigneeProfileId) {
+        const tp = (await db.select({ unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
+        targetUnitId = tp?.unitId ?? null;
+      }
+    }
+    if (targetUnitId == null || !input.managedUnitIds.includes(targetUnitId)) throw new TRPCError({ code: "FORBIDDEN", message: "خارج نطاق وحدتك." });
   }
 
   const newStatus = input.decision === "save_and_close" ? "closed" : input.decision === "escalate" ? "escalated" : input.decision === "cancel" ? "cancelled" : input.decision === "reject" ? "rejected" : input.decision === "return" ? "returned" : "approved";
