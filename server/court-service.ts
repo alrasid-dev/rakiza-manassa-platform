@@ -2710,14 +2710,14 @@ export async function respondToDisciplinaryCase(input: { caseId: number; profile
 
 export async function decideDisciplinaryCase(input: { caseId: number; decision: "escalate" | "save" | "save_and_close" | "cancel" | "reject" | "return"; note?: string; actorUserId: number; managedUnitIds: number[] | null }) {
   const db = await getDb();
-  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
   const caseRow = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.caseId)).limit(1))[0];
-  if (!caseRow || caseRow.entityType !== "disciplinary_action") throw new Error("المساءلة غير موجودة.");
-  if (caseRow.status !== "under_review") throw new Error("لم يرد الموظف بعد.");
+  if (!caseRow || caseRow.entityType !== "disciplinary_action") throw new TRPCError({ code: "NOT_FOUND", message: "المساءلة غير موجودة." });
+  if (caseRow.status !== "under_review") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لم يرد الموظف بعد." });
 
   if (input.managedUnitIds !== null) {
     const targetProfile = (await db.select({ unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, caseRow.entityId)).limit(1))[0];
-    if (!targetProfile || !input.managedUnitIds.includes(targetProfile.unitId!)) throw new Error("خارج نطاق وحدتك.");
+    if (!targetProfile || !input.managedUnitIds.includes(targetProfile.unitId!)) throw new TRPCError({ code: "FORBIDDEN", message: "خارج نطاق وحدتك." });
   }
 
   const newStatus = input.decision === "save_and_close" ? "closed" : input.decision === "escalate" ? "escalated" : input.decision === "cancel" ? "cancelled" : input.decision === "reject" ? "rejected" : input.decision === "return" ? "returned" : "approved";
@@ -2733,21 +2733,27 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
   if (input.decision === "escalate") patch.currentRole = "court_secretary";
 
   await db.update(approvalRequests).set(patch).where(eq(approvalRequests.id, input.caseId));
-  await logAudit({ actorUserId: input.actorUserId, action: "disciplinary." + input.decision, entityType: "approval_request", entityId: input.caseId });
+
+  // الخطوات الثانوية — غير محمية حتى لا تكسر القرار الأصلي.
+  try { await logAudit({ actorUserId: input.actorUserId, action: "disciplinary." + input.decision, entityType: "approval_request", entityId: input.caseId }); } catch (error) { console.warn("[audit] فشل تسجيل قرار المساءلة", { caseId: input.caseId, error }); }
 
   let targetProfileId = caseRow.entityId;
-  const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, caseRow.entityId)).limit(1))[0];
-  if (task?.assigneeProfileId) targetProfileId = task.assigneeProfileId;
-  if (targetProfileId) {
-    await db.insert(notifications).values({
-      profileId: targetProfileId,
-      category: "security_alert",
-      title: "قرار على المساءلة",
-      body: decisionLabel,
-      dedupeKey: `disciplinary-decision-${input.caseId}`,
-    });
-    try { await sendPushForNotification(targetProfileId, { title: "قرار على المساءلة", body: decisionLabel, url: "/disciplinary", tag: `disciplinary-decision-${input.caseId}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار قرار المساءلة", { caseId: input.caseId, error }); }
-  }
+  try {
+    const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, caseRow.entityId)).limit(1))[0];
+    if (task?.assigneeProfileId) targetProfileId = task.assigneeProfileId;
+    if (targetProfileId) {
+      try {
+        await db.insert(notifications).values({
+          profileId: targetProfileId,
+          category: "security_alert",
+          title: "قرار على المساءلة",
+          body: decisionLabel,
+          dedupeKey: `disciplinary-decision-${input.caseId}`,
+        }).onDuplicateKeyUpdate({ set: { title: "قرار على المساءلة" } });
+      } catch (error) { console.warn("[notifications] فشل إدراج إشعار قرار المساءلة", { caseId: input.caseId, error }); }
+      try { await sendPushForNotification(targetProfileId, { title: "قرار على المساءلة", body: decisionLabel, url: "/disciplinary", tag: `disciplinary-decision-${input.caseId}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار قرار المساءلة", { caseId: input.caseId, error }); }
+    }
+  } catch (error) { console.warn("[disciplinary] فشل تجهيز إشعار القرار", { caseId: input.caseId, error }); }
   return { ok: true as const };
 }
 
@@ -3615,7 +3621,7 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
 /** يوافق المدير على المهمة المرفوعة فيُحسب النقاط وتكتمل، أو يرفضها فتعود للتنفيذ. */
 export async function reviewTaskApproval(input: { approvalId: number; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number; managerRating?: "excellent" | "good" | "acceptable"; ratingNote?: string }) {
   const db = await getDb();
-  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
   const approval = (await db.select().from(taskApprovals).where(eq(taskApprovals.id, input.approvalId)).limit(1))[0];
   if (!approval) throw new TRPCError({ code: "NOT_FOUND", message: "طلب الاعتماد غير موجود." });
   if (approval.status !== "pending") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "تم البت في هذا الاعتماد مسبقاً." });
@@ -3623,28 +3629,47 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المرتبطة غير موجودة." });
   // منع الاعتماد الذاتي: لا يجوز لمن قدّم المهمة أن يعتمدها بنفسه.
   if (input.reviewerProfileId && input.reviewerProfileId === approval.submittedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن اعتماد مهمة قدمتها بنفسك." });
-  let pointsAwarded = 0;
   const rating = input.managerRating ?? "good";
+  if (!["excellent", "good", "acceptable"].includes(rating)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "التقييم غير صالح." });
+  }
+  let pointsAwarded = 0;
   if (input.decision === "approved") {
     pointsAwarded = rating === "excellent" ? 5 : rating === "acceptable" ? 1 : 3;
+  }
+
+  // 1) الإدراج الرئيسي: تحديث حالة المهمة — يجب أن ينجح أولاً.
+  if (input.decision === "approved") {
     await db.update(tasks).set({ status: "completed", completedAt: new Date() }).where(eq(tasks.id, approval.taskId));
-    if (task.assigneeProfileId) {
+  } else {
+    await db.update(tasks).set({ status: "in_progress", completedAt: null }).where(eq(tasks.id, approval.taskId));
+  }
+
+  // 2) الإدراج الرئيسي: تسجيل قرار الاعتماد — يجب أن ينجح.
+  await db.update(taskApprovals).set({ status: input.decision, reviewedByProfileId: input.reviewerProfileId, reviewedAt: new Date(), reviewNote: input.note.trim(), pointsAwarded, managerRating: input.decision === "approved" ? rating : null, ratingNote: input.ratingNote ?? null }).where(eq(taskApprovals.id, approval.id));
+
+  // 3) الخطوات الثانوية — غير محمية حتى لا تكسر القرار الأصلي.
+  if (input.decision === "approved" && task.assigneeProfileId) {
+    try {
       const existing = await db.select({ id: scoreEvents.id }).from(scoreEvents).where(and(eq(scoreEvents.taskId, approval.taskId), gt(scoreEvents.points, 0))).limit(1);
       if (!existing[0]) {
         await db.insert(scoreEvents).values({ profileId: task.assigneeProfileId, taskId: approval.taskId, points: pointsAwarded, reason: `تقييم مهمة: ${rating === "excellent" ? "ممتاز" : rating === "acceptable" ? "مقبول" : "متوسط"}`, createdByUserId: input.reviewerUserId });
       }
+    } catch (error) {
+      console.warn("[score_events] فشل إدراج نقاط التقييم", { taskId: approval.taskId, error });
     }
-  } else {
-    await db.update(tasks).set({ status: "in_progress", completedAt: null }).where(eq(tasks.id, approval.taskId));
+  } else if (input.decision === "rejected" && task.assigneeProfileId) {
     // إشعار الموظف برفض مهمته وإعادتها للتنفيذ.
-    if (task.assigneeProfileId) {
+    try {
       await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "رُفضت مهمتك", body: `تم رفض المهمة «${task.title}» وإعادتها للتنفيذ. ${input.note.trim()}`, dedupeKey: `task-rejected-${approval.id}` }).onDuplicateKeyUpdate({ set: { title: "رُفضت مهمتك" } });
-      try { await sendPushForNotification(task.assigneeProfileId, { title: "رُفضت مهمتك", body: `تم رفض المهمة «${task.title}» وإعادتها للتنفيذ.`, url: "/tasks", tag: `task-rejected-${approval.id}` }); } catch (error) { console.warn("[WebPush] فشل إشعار رفض المهمة", { taskId: approval.taskId, error }); }
+    } catch (error) {
+      console.warn("[notifications] فشل إدراج إشعار رفض المهمة", { taskId: approval.taskId, error });
     }
+    try { await sendPushForNotification(task.assigneeProfileId, { title: "رُفضت مهمتك", body: `تم رفض المهمة «${task.title}» وإعادتها للتنفيذ.`, url: "/tasks", tag: `task-rejected-${approval.id}` }); } catch (error) { console.warn("[WebPush] فشل إشعار رفض المهمة", { taskId: approval.taskId, error }); }
   }
-  await db.update(taskApprovals).set({ status: input.decision, reviewedByProfileId: input.reviewerProfileId, reviewedAt: new Date(), reviewNote: input.note.trim(), pointsAwarded, managerRating: input.decision === "approved" ? rating : null, ratingNote: input.ratingNote ?? null }).where(eq(taskApprovals.id, approval.id));
-  await db.insert(taskUpdates).values({ taskId: approval.taskId, actorUserId: input.reviewerUserId, updateType: "approved", note: `قرار الاعتماد: ${input.decision === "approved" ? "معتمد" : "مرفوض"}. ${input.note.trim()}` });
-  await logAudit({ actorUserId: input.reviewerUserId, action: `task.approval_${input.decision}`, entityType: "task_approval", entityId: approval.id, metadata: { taskId: approval.taskId, pointsAwarded, managerRating: input.decision === "approved" ? rating : null } });
+
+  try { await db.insert(taskUpdates).values({ taskId: approval.taskId, actorUserId: input.reviewerUserId, updateType: "approved", note: `قرار الاعتماد: ${input.decision === "approved" ? "معتمد" : "مرفوض"}. ${input.note.trim()}` }); } catch (error) { console.warn("[taskUpdates] فشل إدراج تحديث الاعتماد", { taskId: approval.taskId, error }); }
+  try { await logAudit({ actorUserId: input.reviewerUserId, action: `task.approval_${input.decision}`, entityType: "task_approval", entityId: approval.id, metadata: { taskId: approval.taskId, pointsAwarded, managerRating: input.decision === "approved" ? rating : null } }); } catch (error) { console.warn("[audit] فشل تسجيل قرار الاعتماد", { approvalId: approval.id, error }); }
   return { success: true, approvalId: approval.id, pointsAwarded };
 }
 

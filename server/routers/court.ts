@@ -1581,7 +1581,13 @@ export const courtRouter = router({
       const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
       if (!isLeadership && !isManager) throw new TRPCError({ code: "FORBIDDEN", message: "اعتماد المهام متاح للمدير والقيادة فقط." });
       const reviewer = await getProfileForUser(ctx.user.id);
-      return reviewTaskApproval({ approvalId: input.approvalId, decision: input.decision, note: input.note, reviewerProfileId: reviewer?.id ?? 0, reviewerUserId: ctx.user.id, managerRating: input.managerRating, ratingNote: input.ratingNote });
+      try {
+        return await reviewTaskApproval({ approvalId: input.approvalId, decision: input.decision, note: input.note, reviewerProfileId: reviewer?.id ?? 0, reviewerUserId: ctx.user.id, managerRating: input.managerRating, ratingNote: input.ratingNote });
+      } catch (err) {
+        if (err instanceof TRPCError) throw err;
+        console.error("[reviewTaskApproval] فشل:", err);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (err as Error)?.message || "فشل الاعتماد. تحقق من صلاحياتك." });
+      }
     }),
     listPendingApprovals: protectedProcedure.input(z.object({}).optional()).query(async ({ ctx }) => {
       const permission = await requirePermission(ctx.user, "view");
@@ -2219,6 +2225,7 @@ export const courtRouter = router({
       try {
         return await decideDisciplinaryCase({ caseId: input.caseId, decision: input.decision, note: input.note, actorUserId: ctx.user.id, managedUnitIds });
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         const message = error instanceof Error ? error.message : "تعذر حفظ القرار.";
         const code = message.includes("غير موجودة") ? "NOT_FOUND" : message.includes("نطاق") ? "FORBIDDEN" : "CONFLICT";
         throw new TRPCError({ code, message });
@@ -2294,14 +2301,20 @@ export const courtRouter = router({
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const profile = await getProfileForUser(ctx.user.id);
       const managedUnitIds = isLeadership ? null : await managedUnitIdsForUser(ctx.user);
-      if (input.requestType === "task") {
-        return reviewTaskApproval({ approvalId: input.requestId, decision: input.decision === "approve" ? "approved" : "rejected", note: input.reason?.trim() || (input.decision === "approve" ? "اعتماد" : "رفض"), reviewerProfileId: profile?.id ?? 0, reviewerUserId: ctx.user.id, managerRating: input.managerRating, ratingNote: input.ratingNote });
+      try {
+        if (input.requestType === "task") {
+          return await reviewTaskApproval({ approvalId: input.requestId, decision: input.decision === "approve" ? "approved" : "rejected", note: input.reason?.trim() || (input.decision === "approve" ? "اعتماد" : "رفض"), reviewerProfileId: profile?.id ?? 0, reviewerUserId: ctx.user.id, managerRating: input.managerRating, ratingNote: input.ratingNote });
+        }
+        if (input.requestType === "disciplinary") {
+          return await decideDisciplinaryCase({ caseId: input.requestId, decision: input.decision === "approve" ? "save" : "reject", note: input.reason, actorUserId: ctx.user.id, managedUnitIds });
+        }
+        await reviewLeaveRequest({ leaveRequestId: input.requestId, decision: input.decision === "approve" ? "approved" : "rejected", reviewedByUserId: ctx.user.id });
+        return { success: true };
+      } catch (err) {
+        if (err instanceof TRPCError) throw err;
+        console.error("[review] فشل:", err);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: (err as Error)?.message || "تعذر تنفيذ القرار." });
       }
-      if (input.requestType === "disciplinary") {
-        return decideDisciplinaryCase({ caseId: input.requestId, decision: input.decision === "approve" ? "save" : "reject", note: input.reason, actorUserId: ctx.user.id, managedUnitIds });
-      }
-      await reviewLeaveRequest({ leaveRequestId: input.requestId, decision: input.decision === "approve" ? "approved" : "rejected", reviewedByUserId: ctx.user.id });
-      return { success: true };
     }),
     escalate: protectedProcedure.input(z.object({ requestId: z.number().int().positive(), requestType: z.enum(["disciplinary", "leave", "permission", "task"]), comment: z.string().trim().min(3).max(1000) })).mutation(async ({ ctx, input }) => {
       await requireOperationsManager(ctx.user);
