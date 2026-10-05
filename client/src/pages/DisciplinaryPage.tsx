@@ -46,11 +46,24 @@ export default function DisciplinaryPage() {
   const isManager = roleList.some(role => ["department_manager", "trainee_affairs_manager"].includes(role));
   const isLeadership = permission.data === "full_control" || roleList.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
   const isOwner = permission.data === "full_control";
-  const canDecideCase = (c: CaseRow) => !isOwner || c.status === "escalated" || roleList.includes("court_secretary") || roleList.includes("court_president");
-  const isActionable = (c: CaseRow) => (c.status === "under_review" || c.status === "escalated") && canDecideCase(c);
+  const FINAL_STATUSES = ["approved", "rejected", "closed", "returned", "cancelled"];
+
+  const canDecideCase = (c: CaseRow) =>
+    isOwner ||
+    isManager ||
+    c.status === "escalated" ||
+    roleList.includes("court_secretary") ||
+    roleList.includes("court_president");
+
+  const isActionable = (c: CaseRow) => {
+    if (FINAL_STATUSES.includes(c.status)) return false;
+    if (isOwner) return true;
+    return (c.status === "under_review" || c.status === "escalated") && canDecideCase(c);
+  };
+
   const disabledReason = (c: CaseRow) => {
-    if (c.status === "pending") return "بانتظار رد الموظف";
-    if (["approved", "rejected", "closed", "returned", "cancelled"].includes(c.status)) return "تم البت في هذه المساءلة";
+    if (FINAL_STATUSES.includes(c.status)) return "تم البت في هذه المساءلة مسبقاً.";
+    if (c.status === "pending" && !isOwner) return "في انتظار رد الموظف.";
     if (!canDecideCase(c)) return "ليس لديك صلاحية";
     return "";
   };

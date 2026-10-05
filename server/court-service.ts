@@ -2713,12 +2713,16 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
   const caseRow = (await db.select().from(approvalRequests).where(eq(approvalRequests.id, input.caseId)).limit(1))[0];
   if (!caseRow || caseRow.entityType !== "disciplinary_action") throw new TRPCError({ code: "NOT_FOUND", message: "المساءلة غير موجودة." });
-  if (caseRow.status !== "under_review") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لم يرد الموظف بعد." });
 
-  // هل الفاعل مالك / صلاحية عامة؟ → يتجاوز فحص نطاق الوحدة.
+  // هل الفاعل مالك / صلاحية عامة؟ → يتجاوز فحص الوحدة والمرحلة (عدا النهائي).
   const actor = (await db.select({ role: users.role, email: users.email }).from(users).where(eq(users.id, input.actorUserId)).limit(1))[0];
   const actorPermission = actor?.email ? await getAccessPermission(actor.email) : null;
   const isOwner = actor?.role === "admin" || actorPermission === "full_control";
+
+  // فحص الحالة: ارفض النهائي فقط، واسمح للمالك بكل المراحل غير النهائية.
+  const DISCIPLINARY_FINAL_STATUSES = ["approved", "rejected", "closed", "returned", "cancelled"];
+  if (DISCIPLINARY_FINAL_STATUSES.includes(caseRow.status)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "تم البت في هذه المساءلة مسبقاً." });
+  if (!isOwner && caseRow.status === "pending") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لم يرد الموظف بعد." });
 
   if (!isOwner && input.managedUnitIds !== null) {
     // حلّ وحدة الملف المستهدف (entityId قد يكون taskId وليس profileId).
