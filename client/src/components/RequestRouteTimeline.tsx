@@ -5,6 +5,9 @@ const stepIcons: Record<string, string> = {
   employee_response: "💬",
   manager_review: "👤",
   escalated: "⬆️",
+  escalated_secretary: "⬆️",
+  escalated_president: "⬆️",
+  escalated_owner: "👑",
   decision: "✅",
 };
 
@@ -16,7 +19,7 @@ const decisionLabels: Record<string, string> = {
 };
 
 type RouteStep = {
-  step: "submitted" | "employee_response" | "manager_review" | "escalated" | "decision";
+  step: "submitted" | "employee_response" | "manager_review" | "escalated" | "escalated_secretary" | "escalated_president" | "escalated_owner" | "decision";
   label: string;
   by: string;
   at: string | null;
@@ -32,7 +35,9 @@ function approvalHint(steps: RouteStep[]) {
   }
   if (current.step === "employee_response") return "بانتظار جواب الموظف";
   if (current.step === "manager_review") return "بانتظار اعتماد المدير المباشر";
-  if (current.step === "escalated") return "مصعَّد للأمين/الرئيس";
+  if (current.step === "escalated" || current.step === "escalated_secretary") return "مصعَّد للأمين";
+  if (current.step === "escalated_president") return "مصعَّد للرئيس";
+  if (current.step === "escalated_owner") return "مصعَّد للمالك";
   return "قيد المعالجة";
 }
 
@@ -45,21 +50,26 @@ export default function RequestRouteTimeline({ requestId, requestType }: { reque
     <div className="mt-3 rounded-lg border border-[#e7e0d4] bg-[#faf7f0] p-3 text-xs">
       <p className="font-bold text-[#12352f]">مسار الطلب</p>
       <ol className="mt-2 space-y-2">
-        {(r.steps as RouteStep[]).map(step => (
-          <li key={step.step} className="flex items-start gap-2">
-            <span className="mt-0.5">{stepIcons[step.step] ?? "•"}</span>
-            <div className="flex-1">
-              <span className={`font-bold ${step.status === "current" ? "text-[#b18448]" : step.status === "done" ? "text-[#2d6b4f]" : "text-[#9a938a]"}`}>
-                {step.label}{step.status === "current" ? " (حالياً)" : ""}
-              </span>
-              {" — "}{step.by}
-              {step.at ? <span className="text-[#8a8279]"> · {new Date(step.at).toLocaleDateString("ar-SA")}</span> : null}
-              {step.decision ? <span className="text-[#2d6b4f]"> · {decisionLabels[step.decision] ?? step.decision}</span> : null}
-            </div>
-          </li>
-        ))}
+        {(r.steps as RouteStep[]).map(step => {
+          const statusDot = step.status === "done" ? "🟢" : step.status === "current" ? "🔵" : "⚪";
+          const statusClass = step.status === "current" ? "text-[#1d5fb8]" : step.status === "done" ? "text-[#2d6b4f]" : "text-[#9a938a]";
+          return (
+            <li key={`${step.step}-${step.label}`} className="flex items-start gap-2">
+              <span className="mt-0.5">{stepIcons[step.step] ?? "•"}</span>
+              <div className="flex-1">
+                <span className={`font-bold ${statusClass}`}>
+                  {statusDot} {step.label}{step.status === "current" ? " (حالياً)" : ""}
+                </span>
+                {" — "}{step.by}
+                {step.at ? <span className="text-[#8a8279]"> · {new Date(step.at).toLocaleDateString("ar-SA")}</span> : null}
+                {step.decision ? <span className="text-[#2d6b4f]"> · {decisionLabels[step.decision] ?? step.decision}</span> : null}
+              </div>
+            </li>
+          );
+        })}
       </ol>
       {hint && <p className="mt-2 rounded bg-[#f3e5bf] px-2 py-1 text-[#805d27]">{hint}</p>}
     </div>
   );
 }
+
