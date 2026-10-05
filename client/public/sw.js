@@ -46,6 +46,7 @@ self.addEventListener("push", event => {
     ],
     vibrate: [500, 200, 500, 200, 500],
     requireInteraction: true,
+    renotify: true,
     silent: false,
     data: { url: data.url },
   }));
