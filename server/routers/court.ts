@@ -70,6 +70,8 @@ import {
   archiveProfile,
   decideApproval,
   getAccessPermission,
+  getNotificationPreferences,
+  setNotificationPreferences,
   getActiveCourtRoleAssignments,
   getDashboardSummary,
   getDashboardPreferences,
@@ -861,6 +863,15 @@ export const courtRouter = router({
     }),
   }),
   myRoles: protectedProcedure.query(({ ctx }) => rolesForUser(ctx.user)),
+
+  notificationPreferences: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      return getNotificationPreferences(ctx.user.id);
+    }),
+    set: protectedProcedure.input(z.object({ toneId: z.string().trim().min(1).max(50), volume: z.number().min(0).max(1) })).mutation(async ({ ctx, input }) => {
+      return setNotificationPreferences(ctx.user.id, { toneId: input.toneId, volume: input.volume });
+    }),
+  }),
 
   roles: router({
     users: protectedProcedure.query(async ({ ctx }) => {

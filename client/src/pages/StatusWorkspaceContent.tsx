@@ -7,6 +7,8 @@ import { AlertCircle, ClipboardCheck, FileCheck2, LogIn, LogOut, Settings2 } fro
 import React, { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { playTone } from "@/lib/alert-tones";
+import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 
 type AttendanceAudience = "employees" | "trainees" | "judges";
 const attendanceAudienceValues: AttendanceAudience[] = ["employees", "trainees", "judges"];
@@ -90,6 +92,7 @@ export default function StatusWorkspaceContent() {
   const [lateExcuseDialog, setLateExcuseDialog] = useState(false);
   const [lateExcuseForm, setLateExcuseForm] = useState({ checkOutAt: "", reason: "" });
   const [confirmationDismissedUntil, setConfirmationDismissedUntil] = useState<number | null>(null);
+  const { prefs: notificationPrefs } = useNotificationPreferences();
   const [selectedAttendanceAudiences, setSelectedAttendanceAudiences] = useState<AttendanceAudience[]>(attendanceAudienceValues);
   const activePeople = (people.data ?? []).filter(person => person.status === "active");
   const ownProfile = selfAttendanceProfile.data;
@@ -183,28 +186,10 @@ export default function StatusWorkspaceContent() {
   }, [soundUnlocked]);
   const playAlertSound = () => {
     if (soundMuted) return;
-    // ثلاث محاولات متتالية (تشغيل/إيقاف/تشغيل) بفواصل 500ms لضمان وضوح النغمة،
-    // مع احتياطي اهتزاز قوي لأن بعض المتصفحات تمنع الصوت قبل تفاعل المستخدم.
-    const attemptPlay = (attempt: number) => {
-      if (attempt >= 3) return;
-      try {
-        if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
-        const audio = new Audio("/sounds/confirmation-alert.wav");
-        audio.volume = 0.6;
-        audioRef.current = audio;
-        audio.play()
-          .then(() => { setAutoplayBlocked(false); setSoundUnlocked(true); })
-          .catch(() => {
-            setAutoplayBlocked(true);
-            if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
-          });
-      } catch (e) {
-        setAutoplayBlocked(true);
-      }
-      const timer = setTimeout(() => attemptPlay(attempt + 1), 500);
-      soundTimersRef.current.push(timer);
-    };
-    attemptPlay(0);
+    // استخدام Web Audio API (نغمة قابلة للتخصيص) بدلاً من <audio> HTML5.
+    void playTone(notificationPrefs.toneId, notificationPrefs.volume).then((played) => {
+      if (!played && navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+    });
   };
   const stopAlertSound = () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; audioRef.current = null; }

@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { unlockAudio } from "./lib/audio-unlock";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Redirect, Route, Router as WouterRouter, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -49,6 +51,7 @@ import LeadershipWorkloadPage from "./pages/LeadershipWorkloadPage";
 import PerformanceReportEvaluationsPage from "./pages/PerformanceReportEvaluationsPage";
 import CorrespondenceWorkspaceContent from "./pages/CorrespondenceWorkspaceContent";
 import InstallAppsPage from "./pages/InstallAppsPage";
+import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import DepartmentDocumentsPage from "./pages/DepartmentDocumentsPage";
 import TaskTemplatesPage from "./pages/TaskTemplatesPage";
 import DepartmentTasksPage from "./pages/DepartmentTasksPage";
@@ -109,6 +112,7 @@ function Router() {
       <Route path="/platform-modules" component={PlatformModulesPage} />
       <Route path="/department-documents" component={DepartmentDocumentsPage} />
       <Route path="/email-settings" component={EmailSettingsPage} />
+      <Route path="/notification-settings" component={NotificationSettingsPage} />
       <Route path="/trainee-correspondence-templates" component={TraineeCorrespondenceTemplatesPage} />
       <Route path="/leadership-access" component={LeadershipAccessPage} />
       <Route path="/manager-assignment-request" component={ManagerAssignmentRequestPage} />
@@ -130,6 +134,19 @@ function Router() {
 }
 
 export default function App() {
+  useEffect(() => {
+    // فك قفل تشغيل الصوت بعد أول تفاعل (قيود Autoplay في المتصفحات).
+    const unlock = () => { void unlockAudio(); };
+    window.addEventListener("click", unlock);
+    window.addEventListener("touchstart", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("touchstart", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light" switchable>

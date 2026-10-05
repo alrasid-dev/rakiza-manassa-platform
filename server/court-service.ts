@@ -5551,6 +5551,27 @@ export async function getAccessPermission(email: string | null | undefined): Pro
   return department?.isActive ? "general_view" : null;
 }
 
+/** تفضيلات تنبيهات المستخدم (نغمة + درجة صوت) — تُقرأ من جدول user_notification_preferences. */
+export async function getNotificationPreferences(userId: number): Promise<{ toneId: string; volume: number }> {
+  const db = await getDb();
+  if (!db) return { toneId: "double_beep", volume: 0.7 };
+  try {
+    const result = await db.execute(sql`SELECT tone_id, volume FROM user_notification_preferences WHERE user_id = ${userId}`);
+    const rows = Array.isArray(result) ? result[0] : (result as { rows?: unknown[] }).rows;
+    const row = (rows as Array<{ tone_id?: string; volume?: number }> | undefined)?.[0];
+    return { toneId: row?.tone_id ?? "double_beep", volume: typeof row?.volume === "number" ? row.volume : 0.7 };
+  } catch {
+    return { toneId: "double_beep", volume: 0.7 };
+  }
+}
+
+export async function setNotificationPreferences(userId: number, input: { toneId: string; volume: number }): Promise<{ success: true }> {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  await db.execute(sql`INSERT INTO user_notification_preferences (user_id, tone_id, volume) VALUES (${userId}, ${input.toneId}, ${input.volume}) ON DUPLICATE KEY UPDATE tone_id = ${input.toneId}, volume = ${input.volume}`);
+  return { success: true as const };
+}
+
 export async function submitRegistrationRequest(input: { fullName: string; officialEmail: string; notificationEmail: string; phone?: string; privacyNoticeVersion: string; privacyAcknowledged: boolean }) {
   assertRegistrationPrivacy(input);
   const email = input.officialEmail.trim().toLowerCase();
