@@ -183,17 +183,28 @@ export default function StatusWorkspaceContent() {
   }, [soundUnlocked]);
   const playAlertSound = () => {
     if (soundMuted) return;
-    try {
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
-      const audio = new Audio("/sounds/confirmation-alert.wav");
-      audio.volume = 0.6;
-      audioRef.current = audio;
-      audio.play()
-        .then(() => { setAutoplayBlocked(false); setSoundUnlocked(true); })
-        .catch(() => { setAutoplayBlocked(true); if (navigator.vibrate) navigator.vibrate([300, 100, 300]); });
-    } catch (e) {
-      setAutoplayBlocked(true);
-    }
+    // ثلاث محاولات متتالية (تشغيل/إيقاف/تشغيل) بفواصل 500ms لضمان وضوح النغمة،
+    // مع احتياطي اهتزاز قوي لأن بعض المتصفحات تمنع الصوت قبل تفاعل المستخدم.
+    const attemptPlay = (attempt: number) => {
+      if (attempt >= 3) return;
+      try {
+        if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+        const audio = new Audio("/sounds/confirmation-alert.wav");
+        audio.volume = 0.6;
+        audioRef.current = audio;
+        audio.play()
+          .then(() => { setAutoplayBlocked(false); setSoundUnlocked(true); })
+          .catch(() => {
+            setAutoplayBlocked(true);
+            if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+          });
+      } catch (e) {
+        setAutoplayBlocked(true);
+      }
+      const timer = setTimeout(() => attemptPlay(attempt + 1), 500);
+      soundTimersRef.current.push(timer);
+    };
+    attemptPlay(0);
   };
   const stopAlertSound = () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; audioRef.current = null; }

@@ -96,7 +96,7 @@ export async function sendPushToProfile(profileId: number, payload: { title: str
   for (const row of rows) {
     const subscription: PushSubscription = { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } };
     try {
-      await webpush.sendNotification(subscription, JSON.stringify(payload));
+      await webpush.sendNotification(subscription, JSON.stringify(payload), { urgency: "high", TTL: 300 });
       sent += 1;
     } catch (error: any) {
       const statusCode = Number(error?.statusCode);

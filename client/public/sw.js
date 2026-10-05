@@ -44,7 +44,7 @@ self.addEventListener("push", event => {
       { action: "open-tasks", title: "عرض المهام" },
       { action: "open-notifications", title: "مركز التنبيهات" },
     ],
-    vibrate: [200, 100, 200],
+    vibrate: [500, 200, 500, 200, 500],
     requireInteraction: true,
     silent: false,
     data: { url: data.url },
