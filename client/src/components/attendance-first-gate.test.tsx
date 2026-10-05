@@ -48,10 +48,10 @@ describe("نافذة الحضور الأولى", () => {
     act(() => { recordOptions.current?.onSuccess?.(); });
     expect(await screen.findByRole("button", { name: "تأكيد وإغلاق" })).toBeTruthy();
   });
-  it("يحفظ التخطي عند تجاهل اليوم", () => {
+  it("يحفظ الإغلاق عند الضغط على زر إغلاق", () => {
     render(<AttendanceFirstGate onComplete={vi.fn()} />);
     const key = `rakiza:attendance:skip:${new Date().toLocaleDateString("en-CA")}`;
-    fireEvent.click(screen.getByRole("button", { name: "تجاهل اليوم" }));
+    fireEvent.click(screen.getByRole("button", { name: "إغلاق" }));
     expect(localStorage.getItem(key)).toBe("true");
   });
 });
