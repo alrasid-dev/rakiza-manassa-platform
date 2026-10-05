@@ -108,6 +108,7 @@ import { hijriMonthKey } from "./hijri-month";
 import { CONFIRMATION_WINDOW_MINUTES } from "./confirmation-cadence";
 import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
+import { safeWaitUntil } from "./_core/wait-until";
 import { dateRangeForSaudiDay, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime } from "./task-automation";
 import { isOfficialHoliday, officialHolidayName, workHoursFor } from "./holidays";
 import { detectExcelChangeCandidates } from "./excel-change-detector";
@@ -2765,10 +2766,10 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
 
   await db.update(approvalRequests).set(patch).where(eq(approvalRequests.id, input.caseId));
 
-  // الخطوات الثانوية — fire-and-forget حتى لا تُبطئ القرار الأصلي (منع 504 على Vercel).
-  void logAudit({ actorUserId: input.actorUserId, action: "disciplinary." + input.decision, entityType: "approval_request", entityId: input.caseId }).catch(error => console.error("[audit] فشل تسجيل قرار المساءلة", { caseId: input.caseId, error }));
+  // الخطوات الثانوية — fire-and-forget (مع waitUntil على Vercel) حتى لا تُبطئ القرار الأصلي.
+  safeWaitUntil(logAudit({ actorUserId: input.actorUserId, action: "disciplinary." + input.decision, entityType: "approval_request", entityId: input.caseId }).catch(error => console.error("[audit] فشل تسجيل قرار المساءلة", { caseId: input.caseId, error })));
 
-  void (async () => {
+  safeWaitUntil((async () => {
     try {
       let targetProfileId = caseRow.entityId;
       const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, caseRow.entityId)).limit(1))[0];
@@ -2781,10 +2782,10 @@ export async function decideDisciplinaryCase(input: { caseId: number; decision: 
           body: decisionLabel,
           dedupeKey: `disciplinary-decision-${input.caseId}`,
         }).onDuplicateKeyUpdate({ set: { title: "قرار على المساءلة" } });
-        void sendPushForNotification(targetProfileId, { title: "قرار على المساءلة", body: decisionLabel, url: "/disciplinary", tag: `disciplinary-decision-${input.caseId}` }).catch(error => console.error("[WebPush] فشل إرسال إشعار قرار المساءلة", { caseId: input.caseId, error }));
+        safeWaitUntil(sendPushForNotification(targetProfileId, { title: "قرار على المساءلة", body: decisionLabel, url: "/disciplinary", tag: `disciplinary-decision-${input.caseId}` }).catch(error => console.error("[WebPush] فشل إرسال إشعار قرار المساءلة", { caseId: input.caseId, error })));
       }
     } catch (error) { console.error("[disciplinary] فشل تجهيز إشعار القرار", { caseId: input.caseId, error }); }
-  })();
+  })());
   return { ok: true as const };
 }
 
@@ -2843,6 +2844,9 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null,
     const teamTasks = await db.select({ id: tasks.id }).from(tasks).where(inArray(tasks.assigneeProfileId, profileIds));
     const entityIds = [...profileIds, ...teamTasks.map(t => t.id)];
     conditions.push(inArray(approvalRequests.entityId, entityIds)!);
+  } else {
+    // القيادة ترى المساءلات النشطة فقط (غير المنتهية) ما لم تحدد حالة أخرى صراحة.
+    if (!filters?.status) conditions.push(inArray(approvalRequests.status, ["pending", "under_review", "escalated"]));
   }
   const cases = await db.select().from(approvalRequests).where(and(...conditions)).orderBy(desc(approvalRequests.createdAt));
   const rows = await Promise.all(cases.map(async (c) => {
