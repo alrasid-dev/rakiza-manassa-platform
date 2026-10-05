@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { playTone } from "@/lib/alert-tones";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
+import { useLiveNotifications } from "@/hooks/useLiveNotifications";
 
 type AttendanceAudience = "employees" | "trainees" | "judges";
 const attendanceAudienceValues: AttendanceAudience[] = ["employees", "trainees", "judges"];
@@ -93,6 +94,7 @@ export default function StatusWorkspaceContent() {
   const [lateExcuseForm, setLateExcuseForm] = useState({ checkOutAt: "", reason: "" });
   const [confirmationDismissedUntil, setConfirmationDismissedUntil] = useState<number | null>(null);
   const { prefs: notificationPrefs } = useNotificationPreferences();
+  useLiveNotifications();
   const [selectedAttendanceAudiences, setSelectedAttendanceAudiences] = useState<AttendanceAudience[]>(attendanceAudienceValues);
   const activePeople = (people.data ?? []).filter(person => person.status === "active");
   const ownProfile = selfAttendanceProfile.data;

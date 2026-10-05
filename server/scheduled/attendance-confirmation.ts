@@ -11,6 +11,7 @@ import { isOfficialHoliday, workHoursFor } from "../holidays";
 import { getCurrentAttendanceModes, MISSING_CHECKOUT_PENALTY_MINUTES, MISSING_CHECKOUT_PENALTY_POINTS } from "../court-service";
 import { CONFIRMATION_RANDOM_END_MINUTES, CONFIRMATION_RANDOM_START_MINUTES, CONFIRMATION_WINDOW_MINUTES, confirmationCadence, shouldConfirmOnWorkday } from "../confirmation-cadence";
 import { sendPushForNotification } from "../push-service";
+import { broadcastToUser } from "../sse-service";
 
 const ACTIVE_REMOTE_MODES = ["remote", "mixed"] as const;
 const SYSTEM_ACTOR_ID = 0;
@@ -423,6 +424,8 @@ export async function dispatchConfirmationAssignments(now = new Date()): Promise
     } else {
       const result = await db.insert(notifications).values({ profileId: assignment.profileId, category: "attendance_confirmation", title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن.", dedupeKey: `confirmation-request-${assignment.id}` }).onDuplicateKeyUpdate({ set: { title: "تأكيد الحضور" } });
       try { await sendPushForNotification(assignment.profileId, { title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن خلال 30 دقيقة.", url: "/status", tag: `confirmation-request-${assignment.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار تأكيد الحضور", { assignmentId: assignment.id, error }); }
+      const targetUser = (await db.select({ userId: personProfiles.userId }).from(personProfiles).where(eq(personProfiles.id, assignment.profileId)).limit(1))[0];
+      if (targetUser?.userId) broadcastToUser(targetUser.userId, { type: "attendance_confirmation", title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن.", profileId: assignment.profileId });
       if (Number(result[0].affectedRows) === 1) notified += 1;
 
       // تذكير ثانٍ بعد 10 دقائق من بداية النافذة إذا لم يؤكد بعد.
