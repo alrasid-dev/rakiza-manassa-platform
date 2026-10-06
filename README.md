@@ -23,6 +23,13 @@ node scripts/recompute-tamadur-balance.mjs      # معاينة رصيد تماض
 node scripts/fix-future-overdue-tasks.mjs       # إصلاح المهام المستقبلية-overdue (9 مهام)
 node scripts/add-monthly-balance-penalty.mjs    # إضافة عمود penaltyMinutes إلى monthly_balances
 npx tsx scripts/test-new-policy-live.mjs        # اختبار دورة حياة المهام (4 سيناريوهات)
+
+# فحص/تنظيف إسناد المهام والقوالب المكررة (قراءة أو --apply للتنفيذ):
+node scripts/audit-task-assignment.mjs          # فحص صحة إسناد المهام (بلا مُسند/خارج قسم/مكرر)
+node scripts/audit-duplication-pattern.mjs      # تحليل نمط تكرار المهام المولّدة (7 أبعاد)
+node scripts/merge-duplicate-templates.mjs      # دمج القوالب المكررة (معاينة افتراضية؛ --apply للتنفيذ)
+node scripts/archive-duplicate-tasks.mjs        # أرشفة المهام المكررة (احتفاظ بالأكثر تقدماً؛ --apply)
+node scripts/archive-october-1-women-tasks.mjs  # أرشفة مهام القسم النسائي ليوم 1 أكتوبر (--apply)
 ```
 
 > معادلة الرصيد: `net = positive − negative − penalty + excuse`، مع إعفاء موظف `remote` من `negative` و`penalty` (يبقى الاستئذان محسوباً).
