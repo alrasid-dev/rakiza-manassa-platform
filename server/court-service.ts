@@ -5324,7 +5324,8 @@ export async function reviewLeaveRequest(input: { leaveRequestId: number; decisi
         }
       }
     }
-  } else if (input.decision === "approved") {
+  } else if (input.decision === "approved" && request.requestType === "leave") {
+    // الإجازة الطويلة توقف المهام مؤقتاً؛ أما الاستئذان (permission) فيُخفي المهام فقط عبر listTasks دون إيقافها.
     await pauseOpenTasksForProfile({ profileId: request.profileId, actorUserId: input.reviewedByUserId, reason: "إجازة معتمدة", expiresAt: request.endAt, type: "temporary" });
   }
   await logAudit({ actorUserId: input.reviewedByUserId, action: `leave.${input.decision}`, entityType: "leave_request", entityId: request.id, metadata: { substituteProfileId: request.substituteProfileId } });
