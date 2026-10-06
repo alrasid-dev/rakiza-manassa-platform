@@ -1846,6 +1846,7 @@ export function calculateWorkMinutesBetween(start: Date, end: Date): number {
  * - مهلة إضافية: عند 900 دقيقة عمل (15 ساعة) → status = overdue.
  * - مساءلة: عند 900 دقيقة عمل + بعد 14:45 → disciplinary_action.
  * المهام المفتوحة (isOpen) مستثناة من كل الفحوص الزمنية.
+ * ملاحظة: لا يوجد منطق «منتصف الليل» — التصعيد يعتمد على 15 ساعة عمل متراكمة + عتبة 14:45 اليومية.
  */
 export async function runTaskLifecycleAutomation(now = new Date()) {
   if (!isAutomationEscalationWindow(now)) return { notified: 0, overdue: 0, disciplined: 0, skipped: 0 };
