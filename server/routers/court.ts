@@ -246,7 +246,6 @@ import {
   submitRegistrationRequest,
   submitLeaveRequest,
   switchActiveDepartmentIdentity,
-  submitTaskForReview,
   addSupportTicketComment,
   updateJudgeProfile,
   updateOperationalProfile,
@@ -1530,11 +1529,9 @@ export const courtRouter = router({
       }
       return { id: taskId };
     }),
-    submitForReview: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
-      const task = await getTaskById(input.taskId);
-      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
-      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك رفع مهمة ليست مسندة إليك." });
-      return submitTaskForReview(input.taskId, ctx.user.id, input.note);
+    submitForReview: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), note: z.string().trim().max(4000).optional() })).mutation(async () => {
+      // [مؤرشف] المسار القديم معطَّل؛ توحيد مسار الاعتماد على submitForApproval فقط.
+      throw new TRPCError({ code: "METHOD_NOT_SUPPORTED", message: "مسار الرفع القديم معطَّل؛ استخدم «تأكيد الإتمام» (submitForApproval)." });
     }),
     updateStatus: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");

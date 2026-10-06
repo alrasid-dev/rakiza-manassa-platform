@@ -3524,6 +3524,11 @@ export async function createDelay(input: { title: string; category: string; unit
   return id;
 }
 
+/**
+ * [مؤرشف] المسار القديم لرفع المهمة للمراجعة (ينشئ approval_requests بدل task_approvals).
+ * محفوظ للتاريخ والتوافق مع الاختبارات؛ الواجهة تستخدم submitTaskForApproval حصراً.
+ * @deprecated استخدم submitTaskForApproval بدلاً منه.
+ */
 export async function submitTaskForReview(taskId: number, actorUserId: number, note?: string) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
