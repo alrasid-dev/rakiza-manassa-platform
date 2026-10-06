@@ -1454,6 +1454,7 @@ export async function requestTaskExtension(input: { taskId: number; newDueAt: Da
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
   if (!task) throw new Error("المهمة غير موجودة.");
+  assertTaskActionAllowed(task);
   await db.update(tasks).set({ dueAt: input.newDueAt }).where(eq(tasks.id, input.taskId));
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: `طلب تمديد الموعد إلى ${input.newDueAt.toISOString()}: ${input.reason.trim()}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.extension_requested", entityType: "task", entityId: input.taskId, metadata: { newDueAt: input.newDueAt.toISOString() } });
@@ -3414,6 +3415,7 @@ export async function createTaskExceptionRequest(input: { taskId: number; kind: 
       .from(personProfiles).where(and(eq(personProfiles.id, input.requesterProfileId), eq(personProfiles.status, "active"))).limit(1).then(rows => rows[0]),
   ]);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+  assertTaskActionAllowed(task);
   if (!requester) throw new TRPCError({ code: "FORBIDDEN", message: "ملف مقدم الطلب غير نشط أو غير موجود." });
   if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لا يمكن تقديم طلب على مهمة مكتملة أو ملغاة." });
   const isAssignee = task.assigneeProfileId === requester.id;
@@ -3556,12 +3558,11 @@ export async function updateTaskStatus(input: { taskId: number; status: "new" | 
  * تعديل بيانات مهمة موجودة (الحقول المقدمة فقط دون لمس الباقي).
  * يُنفَّذ التحقق من الصلاحيات في طبقة الراوتر (court.ts) قبل استدعاء هذه الدالة.
  */
-/** قفل العمل على المهام خارج ساعات العمل الرسمية (07:00–14:15) وأيام العمل. */
-function assertTaskWorkWindow(now = new Date()): void {
-  const nowMin = riyadhMinutesOfDay(now);
-  if (nowMin < 420 || nowMin > 855) throw new TRPCError({ code: "FORBIDDEN", message: "خارج ساعات العمل (07:00 ص – 02:15 م)." });
-  if (!isSaudiWorkday(now)) throw new TRPCError({ code: "FORBIDDEN", message: "اليوم ليس يوم عمل." });
-  if (isOfficialHoliday(now)) throw new TRPCError({ code: "FORBIDDEN", message: "اليوم إجازة رسمية." });
+/** قفل الإجراءات بعد تصعيد المهمة (مرحلة المهلة الإضافية/المساءلة). */
+function assertTaskActionAllowed(task: { status: string }): void {
+  if (task.status === "overdue") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "المهمة مُصعّدة (تجاوزت المهلة الإضافية) ولا يمكن تعديلها أو إتمامها قبل معالجة التصعيد." });
+  }
 }
 
 export async function updateTask(input: {
@@ -3589,7 +3590,7 @@ export async function updateTask(input: {
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
   if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
-  assertTaskWorkWindow();
+  assertTaskActionAllowed(task);
 
   const patch: Partial<typeof tasks.$inferInsert> = {};
   if (input.title !== undefined) patch.title = input.title.trim();
@@ -3730,7 +3731,7 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
   if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
-  assertTaskWorkWindow();
+  assertTaskActionAllowed(task);
   if (task.assigneeProfileId !== input.submittedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "رفع الاعتماد متاح للمكلف الحالي بالمهمة فقط." });
   if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "المهمة مكتملة أو ملغاة." });
   const existing = await db.select({ id: taskApprovals.id }).from(taskApprovals).where(and(eq(taskApprovals.taskId, input.taskId), eq(taskApprovals.status, "pending"))).limit(1);
@@ -3891,7 +3892,7 @@ export async function markTaskAsProcessed(input: { taskId: number; actorUserId: 
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
   if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
-  assertTaskWorkWindow();
+  assertTaskActionAllowed(task);
   if (task.status === "cancelled") throw new Error("لا يمكن إتمام مهمة ملغاة.");
   if (task.status === "completed") throw new Error("المهمة مكتملة مسبقاً.");
   const completedAt = new Date();
@@ -3908,6 +3909,7 @@ export async function addTaskComment(input: { taskId: number; profileId?: number
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
   if (!task) throw new Error("المهمة غير موجودة.");
+  assertTaskActionAllowed(task);
   const result = await db.insert(taskComments).values({ taskId: input.taskId, profileId: input.profileId ?? null, authorUserId: input.authorUserId, comment: input.comment.trim() });
   await logAudit({ actorUserId: input.authorUserId, action: "task.comment_added", entityType: "task_comment", entityId: Number(result[0].insertId), metadata: { taskId: input.taskId } });
   return Number(result[0].insertId);
@@ -3918,6 +3920,7 @@ export async function reportTaskObstacle(input: { taskId: number; actorUserId: n
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(input.taskId);
   if (!task) throw new Error("المهمة غير موجودة.");
+  assertTaskActionAllowed(task);
   if (task.status === "completed" || task.status === "cancelled") throw new Error("لا يمكن تسجيل عائق على مهمة مكتملة أو ملغاة.");
   await db.update(tasks).set({ hasObstacle: true, obstacleDetail: input.detail.trim() }).where(eq(tasks.id, input.taskId));
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "obstacle_reported", note: `بلاغ عائق: ${input.detail.trim()}` });
