@@ -5910,7 +5910,13 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
   let skipped = 0;
   for (const template of templates) {
     if (!isTemplateDue(template.frequency, template.workdayOnly, now, template.intervalDays, template.lastGeneratedAt, parseSpecificDays(template.specificDays))) { skipped += 1; continue; }
-    const existing = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.templateId, template.id), gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))).limit(1);
+    // إصلاح الجدولة المتأخرة: إذا تجاوزنا السابعة صباحاً (بتوقيت الرياض)، تُجدول المهمة لليوم التالي
+    const scheduleOffsetMs = now.getTime() > saudiScheduledTime(now, 7).getTime() ? 24 * 60 * 60 * 1000 : 0;
+    const scheduleAnchor = new Date(now.getTime() + scheduleOffsetMs);
+    const scheduledFor = saudiScheduledTime(scheduleAnchor, 7);
+    // مفتاح منع التكرار: ابحث عن مهمة ضمن نطاق يوم الجدولة الفعلي (scheduleAnchor) لا يوم «الآن»
+    const targetRange = dateRangeForSaudiDay(scheduleAnchor);
+    const existing = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.templateId, template.id), gte(tasks.scheduledFor, targetRange.start), lt(tasks.scheduledFor, targetRange.end))).limit(1);
     if (existing[0]) { skipped += 1; continue; }
     // عزل الإسناد على موظفي قسم القالب فقط
     const assigneeConditions = [eq(personProfiles.personType, "administrative"), eq(personProfiles.status, "active")];
@@ -5921,10 +5927,6 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
     const configuredAdministrativeAssignee = assignees.find(profile => profile.id === template.defaultAssigneeProfileId);
     const assigneeProfileId = configuredAdministrativeAssignee?.id ?? autoAssignee?.id ?? null;
     if (!assigneeProfileId) { skipped += 1; continue; }
-    // إصلاح الجدولة المتأخرة: إذا تجاوزنا السابعة صباحاً (بتوقيت الرياض)، تُجدول المهمة لليوم التالي
-    const scheduleOffsetMs = now.getTime() > saudiScheduledTime(now, 7).getTime() ? 24 * 60 * 60 * 1000 : 0;
-    const scheduleAnchor = new Date(now.getTime() + scheduleOffsetMs);
-    const scheduledFor = saudiScheduledTime(scheduleAnchor, 7);
     const dueAt = saudiScheduledTime(scheduleAnchor, template.dueHourLocal);
     await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null, specificDays: template.specificDays ?? null });
     await db.update(taskTemplates).set({ lastGeneratedAt: now }).where(eq(taskTemplates.id, template.id));
