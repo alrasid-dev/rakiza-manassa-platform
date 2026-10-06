@@ -109,7 +109,7 @@ import { CONFIRMATION_WINDOW_MINUTES } from "./confirmation-cadence";
 import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
 import { safeWaitUntil } from "./_core/wait-until";
-import { accumulateWorkMinutes, dateRangeForSaudiDay, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime, taskLifecycleStage } from "./task-automation";
+import { accumulateWorkMinutes, dateRangeForSaudiDay, EARLY_OPEN_HOURS, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime, taskLifecycleStage } from "./task-automation";
 import { isOfficialHoliday, officialHolidayName, workHoursFor } from "./holidays";
 import { detectExcelChangeCandidates } from "./excel-change-detector";
 import { completedTaskTransition, taskAssignmentNotifications } from "./task-response-policy";
@@ -1729,8 +1729,9 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
     conditions.push(gt(tasks.scheduledFor, futureWindow.start));
     if (futureWindow.end) conditions.push(lt(tasks.scheduledFor, futureWindow.end));
   } else if (shouldHideFuture) {
-    // إخفاء المهام المجدولة لوقت مستقبلي حتى يحين موعد بدئها؛ المهام بدون scheduledFor تبقى ظاهرة (توافق مع السلوك القديم).
-    conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
+    // إخفاء المهام المجدولة لوقت مستقبلي حتى تفتح قبل موعدها بأربع ساعات؛ المهام بدون scheduledFor تبقى ظاهرة.
+    const openHorizon = new Date(Date.now() + EARLY_OPEN_HOURS * 60 * 60 * 1000);
+    conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, openHorizon))!);
   }
   if (filters?.status === "overdue" || filters?.dueFilter === "overdue") {
     conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), lt(tasks.dueAt, new Date()))!);
