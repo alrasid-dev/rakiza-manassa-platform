@@ -11,6 +11,22 @@ pnpm dev
 
 افتح `http://localhost:3000` بعد ضبط ملف البيئة على جهاز التشغيل فقط. لا ترفع أسرار الدخول إلى غيث هاب.
 
+## سكربتات الصيانة (scripts/)
+
+سكربتات فحص/إعادة حساب الحضور والرصيد (قراءة فقط أو معاينة — لا تُعدّل تلقائياً):
+
+```bash
+node scripts/audit-timezone.mjs                 # فحص فرق التوقيت (3 ساعات) في سجلات الحضور
+node scripts/audit-active-tasks.mjs             # إحصاء المهام النشطة ومرحلتها المتوقعة
+node scripts/recompute-all-balances-dryrun.mjs  # معاينة إعادة حساب رصيد كل الموظفين/الأشهر (قبل/بعد)
+node scripts/recompute-tamadur-balance.mjs      # معاينة رصيد تماضر 1448-04 (dry-run)
+node scripts/fix-future-overdue-tasks.mjs       # إصلاح المهام المستقبلية-overdue (9 مهام)
+node scripts/add-monthly-balance-penalty.mjs    # إضافة عمود penaltyMinutes إلى monthly_balances
+npx tsx scripts/test-new-policy-live.mjs        # اختبار دورة حياة المهام (4 سيناريوهات)
+```
+
+> معادلة الرصيد: `net = positive − negative − penalty + excuse`، مع إعفاء موظف `remote` من `negative` و`penalty` (يبقى الاستئذان محسوباً).
+
 ## الاستضافة
 رَكيزة مشروع مستقل عن AZ Alpha Vision. نفس فكرة الربط (غيث هاب + Vercel) لكن حساباً ومستودعاً ورابطاً خاصاً بها.
 
