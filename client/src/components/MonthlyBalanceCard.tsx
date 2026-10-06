@@ -7,10 +7,10 @@ function signed(value: number) {
   return "0";
 }
 
-type Balance = { positiveMinutes: number; negativeMinutes: number; excuseMinutes: number; netMinutes: number };
+type Balance = { positiveMinutes: number; negativeMinutes: number; excuseMinutes: number; penaltyMinutes: number; netMinutes: number };
 
 function BalanceTable({ title, balance }: { title: string; balance: Balance | null | undefined }) {
-  const b = balance ?? { positiveMinutes: 0, negativeMinutes: 0, excuseMinutes: 0, netMinutes: 0 };
+  const b = balance ?? { positiveMinutes: 0, negativeMinutes: 0, excuseMinutes: 0, penaltyMinutes: 0, netMinutes: 0 };
   return (
     <div className="rounded-xl border border-[#e7dccd] bg-white">
       <div className="border-b border-[#eee4d3] px-4 py-2 text-sm font-semibold text-[#4a3b28]">{title}</div>
@@ -23,6 +23,10 @@ function BalanceTable({ title, balance }: { title: string; balance: Balance | nu
           <tr className="border-b border-[#f3ecdf]">
             <td className="px-4 py-2 text-[#6b5b45]">عليه (سلبي)</td>
             <td className="px-4 py-2 text-left font-medium text-red-700">−{b.negativeMinutes}</td>
+          </tr>
+          <tr className="border-b border-[#f3ecdf]">
+            <td className="px-4 py-2 text-[#6b5b45]">عقوبات</td>
+            <td className="px-4 py-2 text-left font-medium text-orange-700">−{b.penaltyMinutes}</td>
           </tr>
           <tr className="border-b border-[#f3ecdf]">
             <td className="px-4 py-2 text-[#6b5b45]">استئذانات</td>

@@ -7,7 +7,7 @@ function signed(value: number) {
   return "0";
 }
 
-type TeamRow = { profileId: number; fullName: string; positiveMinutes: number; negativeMinutes: number; excuseMinutes: number; netMinutes: number };
+type TeamRow = { profileId: number; fullName: string; positiveMinutes: number; negativeMinutes: number; excuseMinutes: number; penaltyMinutes: number; netMinutes: number };
 
 export default function TeamBalancesTable() {
   const [mode, setMode] = useState<"monthly" | "cumulative">("monthly");
@@ -47,6 +47,7 @@ export default function TeamBalancesTable() {
               <th className="px-3 py-2 text-right font-medium">الموظف</th>
               <th className="px-3 py-2 font-medium">له</th>
               <th className="px-3 py-2 font-medium">عليه</th>
+              <th className="px-3 py-2 font-medium">عقوبات</th>
               <th className="px-3 py-2 font-medium">استئذان</th>
               <th className="px-3 py-2 font-medium">الصافي</th>
             </tr>
@@ -57,6 +58,7 @@ export default function TeamBalancesTable() {
                 <td className="px-3 py-2 text-[#4a3b28]">{row.fullName}</td>
                 <td className="px-3 py-2 text-emerald-700">{signed(row.positiveMinutes)}</td>
                 <td className="px-3 py-2 text-red-700">−{row.negativeMinutes}</td>
+                <td className="px-3 py-2 text-orange-700">−{row.penaltyMinutes}</td>
                 <td className="px-3 py-2 text-sky-700">+{row.excuseMinutes}</td>
                 <td className={`px-3 py-2 font-bold ${row.netMinutes >= 0 ? "text-emerald-700" : "text-red-700"}`}>{signed(row.netMinutes)}</td>
               </tr>

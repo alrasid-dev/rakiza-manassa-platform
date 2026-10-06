@@ -4863,12 +4863,15 @@ export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyVa
   const records = await db.select({
     positiveMinutes: attendanceRecords.positiveMinutes,
     negativeMinutes: attendanceRecords.negativeMinutes,
+    penaltyMinutes: attendanceRecords.penaltyMinutes,
     recordDate: attendanceRecords.recordDate,
   }).from(attendanceRecords).where(eq(attendanceRecords.profileId, profileId));
 
   const monthRecords = records.filter(r => hijriMonthKey(r.recordDate) === hijriMonthKeyValue);
   const positive = monthRecords.reduce((sum, r) => sum + (r.positiveMinutes ?? 0), 0);
   const negative = monthRecords.reduce((sum, r) => sum + (r.negativeMinutes ?? 0), 0);
+  // عقوبات "عدم التسجيل" (penaltyMinutes) منفصلة عن السلبي الكامل (negativeMinutes) ويجب جمعها.
+  const penalty = monthRecords.reduce((sum, r) => sum + (r.penaltyMinutes ?? 0), 0);
 
   // الاستئذان فقط (requestType = "permission")؛ الإجازة (leave) لا تُحسب في رصيد الاستئذان.
   const excuseRows = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
@@ -4879,7 +4882,7 @@ export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyVa
   ));
   const excuseCount = excuseRows.length;
   const excuseMinutes = excuseCount * 240;
-  const netMinutes = positive - negative + excuseMinutes;
+  const netMinutes = positive - negative - penalty + excuseMinutes;
 
   const now = new Date();
   await db.insert(monthlyBalances).values({
@@ -4888,6 +4891,7 @@ export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyVa
     positiveMinutes: positive,
     negativeMinutes: negative,
     excuseMinutes,
+    penaltyMinutes: penalty,
     netMinutes,
     isSettled: false,
     lastComputedAt: now,
@@ -4897,12 +4901,13 @@ export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyVa
     positiveMinutes: positive,
     negativeMinutes: negative,
     excuseMinutes,
+    penaltyMinutes: penalty,
     netMinutes,
     lastComputedAt: now,
     updatedAt: now,
   }});
 
-  return { profileId, hijriMonthKey: hijriMonthKeyValue, positiveMinutes: positive, negativeMinutes: negative, excuseMinutes, netMinutes };
+  return { profileId, hijriMonthKey: hijriMonthKeyValue, positiveMinutes: positive, negativeMinutes: negative, excuseMinutes, penaltyMinutes: penalty, netMinutes };
 }
 
 /** المجموع التراكمي لكل الأشهر (محسوب عند الطلب، دون تخزين). */
@@ -4913,14 +4918,16 @@ export async function recomputeCumulativeBalance(profileId: number) {
     positiveMinutes: monthlyBalances.positiveMinutes,
     negativeMinutes: monthlyBalances.negativeMinutes,
     excuseMinutes: monthlyBalances.excuseMinutes,
+    penaltyMinutes: monthlyBalances.penaltyMinutes,
     netMinutes: monthlyBalances.netMinutes,
   }).from(monthlyBalances).where(eq(monthlyBalances.profileId, profileId));
 
   const positive = rows.reduce((sum, r) => sum + (r.positiveMinutes ?? 0), 0);
   const negative = rows.reduce((sum, r) => sum + (r.negativeMinutes ?? 0), 0);
   const excuse = rows.reduce((sum, r) => sum + (r.excuseMinutes ?? 0), 0);
+  const penalty = rows.reduce((sum, r) => sum + (r.penaltyMinutes ?? 0), 0);
   const net = rows.reduce((sum, r) => sum + (r.netMinutes ?? 0), 0);
-  return { positiveMinutes: positive, negativeMinutes: negative, excuseMinutes: excuse, netMinutes: net };
+  return { positiveMinutes: positive, negativeMinutes: negative, excuseMinutes: excuse, penaltyMinutes: penalty, netMinutes: net };
 }
 
 /** قراءة رصيد شهر معين (يُنشأ عند الحاجة إذا لم يكن محسوباً بعد). */
@@ -4959,6 +4966,7 @@ export async function listTeamMonthlyBalances(unitIds: number[] | null, hijriMon
       positiveMinutes: bal?.positiveMinutes ?? 0,
       negativeMinutes: bal?.negativeMinutes ?? 0,
       excuseMinutes: bal?.excuseMinutes ?? 0,
+      penaltyMinutes: bal?.penaltyMinutes ?? 0,
       netMinutes: bal?.netMinutes ?? 0,
     });
   }

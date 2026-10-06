@@ -637,6 +637,7 @@ export const monthlyBalances = mysqlTable("monthly_balances", {
   positiveMinutes: int("positiveMinutes").default(0).notNull(),
   negativeMinutes: int("negativeMinutes").default(0).notNull(),
   excuseMinutes: int("excuseMinutes").default(0).notNull(),
+  penaltyMinutes: int("penaltyMinutes").default(0).notNull(),
   netMinutes: int("netMinutes").default(0).notNull(),
   isSettled: boolean("isSettled").default(false).notNull(),
   settledAt: timestamp("settledAt"),
