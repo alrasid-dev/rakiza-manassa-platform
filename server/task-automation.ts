@@ -21,6 +21,10 @@ export const DEADLINE_WORK_MINUTES = 900;
 export const EARLY_OPEN_HOURS = 4;
 /** وقت المساءلة اليومي (14:45) بعد تجاوز المهلة الإضافية. */
 export const DISCIPLINARY_MINUTES_OF_DAY = 885;
+/** تاريخ بداية تطبيق السياسة الجديدة (2026-10-07 00:00 الرياض = 2026-10-06 21:00 UTC). */
+export const NEW_POLICY_CUTOFF = new Date("2026-10-06T21:00:00.000Z");
+/** ساعات الفتح المبكر الافتراضية للمهام التي ليس لها موعد فتح صريح. */
+export const DEFAULT_EARLY_OPEN_HOURS = 4;
 
 /** دقيقة اليوم بتوقيت الرياض (0–1439). */
 function riyadhMinutesOfDayLocal(now: Date): number {
@@ -91,6 +95,35 @@ export function workMinutesDeadlineAt(from: Date, thresholdMinutes: number): Dat
     cursor.setTime(cursor.getTime() + 30 * 60 * 1000);
   }
   return new Date(cursor.getTime());
+}
+
+/** وصف مبسّط لمهمة تكفي لتحديد سياسة الفتح/الاستحقاق. */
+export type TaskScheduleShape = { scheduledFor: Date; dueAt?: Date | null; isOpen?: boolean };
+
+/**
+ * هل للمهمة موعد نهائي محدد صراحة (غير الإزاحة الافتراضية القديمة 6/24 ساعة)؟
+ * - isOpen=true تُعامل كمفتوحة بلا حد زمني.
+ * - أي فرق بين dueAt و scheduledFor غير 6/24 ساعة = موعد محدد صراحة.
+ */
+export function hasExplicitSchedule(task: TaskScheduleShape): boolean {
+  if (task.isOpen) return true;
+  if (!task.dueAt) return false;
+  const diffHours = (task.dueAt.getTime() - task.scheduledFor.getTime()) / (60 * 60 * 1000);
+  return diffHours !== 6 && diffHours !== 24;
+}
+
+/** هل تنطبق السياسة الجديدة (7.5س/15س/14:45) على المهمة؟ */
+export function appliesNewPolicy(task: TaskScheduleShape): boolean {
+  if (task.isOpen) return false;
+  if (task.scheduledFor.getTime() < NEW_POLICY_CUTOFF.getTime()) return false;
+  if (hasExplicitSchedule(task)) return false;
+  return true;
+}
+
+/** متى تُفتح المهمة للموظف؟ (يحترم المواعيد الصريحة). */
+export function taskOpenAt(task: TaskScheduleShape): Date {
+  if (task.isOpen || hasExplicitSchedule(task)) return new Date(task.scheduledFor);
+  return new Date(task.scheduledFor.getTime() - DEFAULT_EARLY_OPEN_HOURS * 60 * 60 * 1000);
 }
 
 function riyadhParts(now: Date) {

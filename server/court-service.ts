@@ -109,7 +109,7 @@ import { CONFIRMATION_WINDOW_MINUTES } from "./confirmation-cadence";
 import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
 import { safeWaitUntil } from "./_core/wait-until";
-import { accumulateWorkMinutes, dateRangeForSaudiDay, EARLY_OPEN_HOURS, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime, taskLifecycleStage } from "./task-automation";
+import { accumulateWorkMinutes, appliesNewPolicy, dateRangeForSaudiDay, EARLY_OPEN_HOURS, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, NEW_POLICY_CUTOFF, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime, taskLifecycleStage } from "./task-automation";
 import { isOfficialHoliday, officialHolidayName, workHoursFor } from "./holidays";
 import { detectExcelChangeCandidates } from "./excel-change-detector";
 import { completedTaskTransition, taskAssignmentNotifications } from "./task-response-policy";
@@ -1730,9 +1730,22 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
     conditions.push(gt(tasks.scheduledFor, futureWindow.start));
     if (futureWindow.end) conditions.push(lt(tasks.scheduledFor, futureWindow.end));
   } else if (shouldHideFuture) {
-    // إخفاء المهام المجدولة لوقت مستقبلي حتى تفتح قبل موعدها بأربع ساعات؛ المهام بدون scheduledFor تبقى ظاهرة.
-    const openHorizon = new Date(Date.now() + EARLY_OPEN_HOURS * 60 * 60 * 1000);
-    conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, openHorizon))!);
+    // تُعرض المهمة إذا: بدون scheduledFor، أو بدأت فعلاً، أو مهمة افتراضية ضمن نافذة الفتح المبكر (4 ساعات).
+    // المهام ذات الموعد الصريح (isOpen أو dueAt يدوي) تُعرض عند scheduledFor فقط دون فتح مبكر.
+    const now = new Date();
+    const openHorizon = new Date(now.getTime() + EARLY_OPEN_HOURS * 60 * 60 * 1000);
+    conditions.push(or(
+      isNull(tasks.scheduledFor),
+      lte(tasks.scheduledFor, now),
+      and(
+        eq(tasks.isOpen, false),
+        or(
+          isNull(tasks.dueAt),
+          sql`TIMESTAMPDIFF(HOUR, ${tasks.scheduledFor}, ${tasks.dueAt}) IN (6, 24)`,
+        ),
+        lte(tasks.scheduledFor, openHorizon),
+      ),
+    )!);
   }
   if (filters?.status === "overdue" || filters?.dueFilter === "overdue") {
     // "متأخرة" = عُلّمت overdue آلياً بواسطة دورة الحياة (accumulateWorkMinutes)؛ الحالة هي المرجع الوحيد.
@@ -1852,13 +1865,20 @@ export async function runTaskLifecycleAutomation(now = new Date()) {
   if (!isAutomationEscalationWindow(now)) return { notified: 0, overdue: 0, disciplined: 0, skipped: 0 };
   const db = await getDb();
   if (!db) return { notified: 0, overdue: 0, disciplined: 0, skipped: 0 };
-  const candidates = await db.select().from(tasks).where(and(isNull(tasks.archivedAt), inArray(tasks.status, ["new", "in_progress"])));
+  // القاعدة 1: السياسة الجديدة تُطبَّق فقط على المهام التي scheduledFor >= NEW_POLICY_CUTOFF، وغير مفتوحة.
+  const candidates = await db.select().from(tasks).where(and(
+    isNull(tasks.archivedAt),
+    inArray(tasks.status, ["new", "in_progress"]),
+    gte(tasks.scheduledFor, NEW_POLICY_CUTOFF),
+    eq(tasks.isOpen, false),
+  ));
   let notified = 0;
   let overdue = 0;
   let disciplined = 0;
   let skipped = 0;
   for (const task of candidates) {
-    if (task.isOpen) { skipped += 1; continue; } // C9: المهام المفتوحة مستثناة
+    // القاعدة 2: المواعيد المحددة صراحة (isOpen / dueAt يدوي) مستثناة من سياسة 7.5س/15س.
+    if (!appliesNewPolicy({ scheduledFor: task.scheduledFor, dueAt: task.dueAt, isOpen: task.isOpen })) { skipped += 1; continue; }
     const stage = taskLifecycleStage({ scheduledFor: task.scheduledFor, now, status: task.status });
     if (stage === "future" || stage === "opening" || stage === "active") { skipped += 1; continue; }
     if (stage === "notified") {
