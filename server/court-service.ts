@@ -4859,6 +4859,19 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   return { success: true, attendanceId: existing.id, openTasksCount };
 }
 
+/**
+ * يحسب قيم الرصيد الصحيحة وفق سياسة الحضور.
+ * - remote: negative=0 وpenalty=0 (معفى من عقوبة الانصراف)؛ الاستئذان يبقى محسوباً.
+ * - in_person/mixed: negative/penalty يُحسبان.
+ * net = positive − negative − penalty + excuse
+ */
+export function recomputeBalanceValues(input: { mode: string; positive: number; negative: number; penalty: number; excuse: number }): { positive: number; negative: number; penalty: number; excuse: number; net: number } {
+  const negative = input.mode === "remote" ? 0 : input.negative;
+  const penalty = input.mode === "remote" ? 0 : input.penalty;
+  const net = input.positive - negative - penalty + input.excuse;
+  return { positive: input.positive, negative, penalty, excuse: input.excuse, net };
+}
+
 /** إعادة حساب وتخزين رصيد شهر هجري معين لموظف (له/عليه/استئذان/صافي). */
 export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyValue: string) {
   const db = await getDb();
@@ -4873,9 +4886,9 @@ export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyVa
 
   const monthRecords = records.filter(r => hijriMonthKey(r.recordDate) === hijriMonthKeyValue);
   const positive = monthRecords.reduce((sum, r) => sum + (r.positiveMinutes ?? 0), 0);
-  const negative = monthRecords.reduce((sum, r) => sum + (r.negativeMinutes ?? 0), 0);
+  const negativeRaw = monthRecords.reduce((sum, r) => sum + (r.negativeMinutes ?? 0), 0);
   // عقوبات "عدم التسجيل" (penaltyMinutes) منفصلة عن السلبي الكامل (negativeMinutes) ويجب جمعها.
-  const penalty = monthRecords.reduce((sum, r) => sum + (r.penaltyMinutes ?? 0), 0);
+  const penaltyRaw = monthRecords.reduce((sum, r) => sum + (r.penaltyMinutes ?? 0), 0);
 
   // الاستئذان فقط (requestType = "permission")؛ الإجازة (leave) لا تُحسب في رصيد الاستئذان.
   const excuseRows = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
@@ -4884,34 +4897,37 @@ export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyVa
     eq(leaveRequests.status, "approved"),
     eq(leaveRequests.requestType, "permission"),
   ));
-  const excuseCount = excuseRows.length;
-  const excuseMinutes = excuseCount * 240;
-  const netMinutes = positive - negative - penalty + excuseMinutes;
+  const excuseMinutes = excuseRows.length * 240;
+
+  // سياسة الحضور: remote معفى من negative/penalty، والاستئذان يبقى محسوباً.
+  const mode = await getCurrentAttendanceMode(profileId);
+  const corrected = recomputeBalanceValues({ mode, positive, negative: negativeRaw, penalty: penaltyRaw, excuse: excuseMinutes });
+  const netMinutes = corrected.net;
 
   const now = new Date();
   await db.insert(monthlyBalances).values({
     profileId,
     hijriMonthKey: hijriMonthKeyValue,
-    positiveMinutes: positive,
-    negativeMinutes: negative,
-    excuseMinutes,
-    penaltyMinutes: penalty,
-    netMinutes,
+    positiveMinutes: corrected.positive,
+    negativeMinutes: corrected.negative,
+    excuseMinutes: corrected.excuse,
+    penaltyMinutes: corrected.penalty,
+    netMinutes: corrected.net,
     isSettled: false,
     lastComputedAt: now,
     createdAt: now,
     updatedAt: now,
   }).onDuplicateKeyUpdate({ set: {
-    positiveMinutes: positive,
-    negativeMinutes: negative,
-    excuseMinutes,
-    penaltyMinutes: penalty,
-    netMinutes,
+    positiveMinutes: corrected.positive,
+    negativeMinutes: corrected.negative,
+    excuseMinutes: corrected.excuse,
+    penaltyMinutes: corrected.penalty,
+    netMinutes: corrected.net,
     lastComputedAt: now,
     updatedAt: now,
   }});
 
-  return { profileId, hijriMonthKey: hijriMonthKeyValue, positiveMinutes: positive, negativeMinutes: negative, excuseMinutes, penaltyMinutes: penalty, netMinutes };
+  return { profileId, hijriMonthKey: hijriMonthKeyValue, positiveMinutes: corrected.positive, negativeMinutes: corrected.negative, excuseMinutes: corrected.excuse, penaltyMinutes: corrected.penalty, netMinutes: corrected.net };
 }
 
 /** المجموع التراكمي لكل الأشهر (محسوب عند الطلب، دون تخزين). */
