@@ -4810,6 +4810,14 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.recorded", entityType: "attendance", entityId: input.profileId, metadata: { status } });
 }
 
+/** يحسب الرصيد اليومي للانصراف: الفعلي (خروج − دخول) مقابل المتوقع (نهاية الدوام − دخول). */
+export function computeCheckoutBalance(checkInMin: number, checkOutMin: number, actualEndMinutes = 855): { positiveMinutes: number; negativeMinutes: number } {
+  const actualMinutes = checkOutMin - checkInMin;
+  const expectedMinutes = actualEndMinutes - checkInMin;
+  const diff = actualMinutes - expectedMinutes; // = checkOutMin − actualEndMinutes (يُلغي checkIn جبرياً)
+  return { positiveMinutes: diff > 0 ? diff : 0, negativeMinutes: diff < 0 ? -diff : 0 };
+}
+
 export async function recordAttendanceCheckout(input: { profileId: number; checkOutAt: Date; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
@@ -4838,11 +4846,7 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   // حساب الرصيد اليومي: الفعلي (خروج − دخول) مقابل المتوقع (نهاية الدوام 14:15 − دخول).
   const checkInMin = riyadhMinutesOfDay(existing.checkInAt);
   const checkOutMin = riyadhMinutesOfDay(input.checkOutAt);
-  const actualMinutes = checkOutMin - checkInMin;
-  const expectedMinutes = (shift?.actualEndMinutes ?? 855) - checkInMin;
-  const diff = actualMinutes - expectedMinutes;
-  const positiveMinutes = diff > 0 ? diff : 0;
-  const negativeMinutes = diff < 0 ? -diff : 0;
+  const { positiveMinutes, negativeMinutes } = computeCheckoutBalance(checkInMin, checkOutMin, shift?.actualEndMinutes ?? 855);
 
   await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, positiveMinutes, negativeMinutes, penaltyMinutes: 0, compensationNote: null, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
 
