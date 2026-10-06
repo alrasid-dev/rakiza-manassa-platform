@@ -152,12 +152,18 @@ export async function runAttendanceAccountabilityCycle(now = new Date()): Promis
   return { checked: earliestByProfile.size, penalized };
 }
 
+/** هل يُعفى نمط الحضور من عقوبة عدم الانصراف؟ (حضوري وعن بُعد معفيان؛ mixed خاضع). */
+export function isCheckoutExempt(mode: string): boolean {
+  return mode === "in_person" || mode === "remote";
+}
+
 /**
  * عقوبة عدم تسجيل الانصراف: لأي موظف بصم دخولاً اليوم ولم يسجل انصرافاً،
  * بعد غلق البصمة تُطبَّق عقوبة فورية (-4 نقاط + خصم 240 دقيقة) مع مساءلة وإشعار.
  * الاستثناءات (لا تُطبَّق العقوبة إطلاقاً):
  * 1) الجمعة أو السبت. 2) الإجازات الرسمية. 3) لا يوجد بصمة دخول.
  * 4) إجازة معتمدة تغطي اليوم. 5) الوقت قبل غلق البصمة (14:59).
+ * 6) الموظف الحضوري (in_person). 7) الموظف عن بُعد (remote — يعتمد على نافذة التأكيد فقط).
  * العملية idempotent: لن تُطبَّق العقوبة مرتين لنفس اليوم.
  */
 export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ checked: number; penalized: number }> {
@@ -195,8 +201,10 @@ export async function runMissingCheckoutPenalty(now = new Date()): Promise<{ che
   const recordModes = await getCurrentAttendanceModes([...new Set(records.map(r => r.profileId))]);
   let penalized = 0;
   for (const record of records) {
-    // الحالة الحالية للحضور: الموظف الحضوري لا يُطالَب بالانصراف.
-    if ((recordModes.get(record.profileId) ?? "in_person") === "in_person") continue;
+    // الموظف الحضوري لا يُطالَب بالانصراف، والموظف عن بُعد يعتمد على نافذة التأكيد العشوائية فقط
+    // (لا تُطبَّق عليه عقوبة عدم الانصراف). "mixed" يبقى خاضعاً للانصراف (سلوك موثّق).
+    const mode = recordModes.get(record.profileId) ?? "in_person";
+    if (isCheckoutExempt(mode)) continue;
     // الشرط 4: لا توجد إجازة معتمدة تغطي اليوم.
     const approvedLeave = await db
       .select({ id: leaveRequests.id })
