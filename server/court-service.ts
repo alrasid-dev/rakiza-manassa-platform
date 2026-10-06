@@ -109,7 +109,7 @@ import { CONFIRMATION_WINDOW_MINUTES } from "./confirmation-cadence";
 import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
 import { safeWaitUntil } from "./_core/wait-until";
-import { dateRangeForSaudiDay, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime } from "./task-automation";
+import { accumulateWorkMinutes, dateRangeForSaudiDay, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime, taskLifecycleStage } from "./task-automation";
 import { isOfficialHoliday, officialHolidayName, workHoursFor } from "./holidays";
 import { detectExcelChangeCandidates } from "./excel-change-detector";
 import { completedTaskTransition, taskAssignmentNotifications } from "./task-response-policy";
@@ -1836,20 +1836,57 @@ export function calculateWorkMinutesBetween(start: Date, end: Date): number {
   return Math.floor(workMinutes);
 }
 
-/** تصبح المهمة متأخرة بعد 6 ساعات عمل من الساعة 08:00 في يوم بدئها (دون الجمعة/السبت/الإجازات الرسمية). */
-export async function markOverdueTasks(now = new Date()) {
-  if (!isAutomationEscalationWindow(now)) return { marked: 0 };
+/**
+ * المرجع الوحيد لتشغيل دورة حياة المهمة آلياً.
+ * يستبدل المنطق القديم (6 ساعات من 08:00 / +6 ساعات حائط) بحساب ساعات العمل الموحّد.
+ * - تنبيه: عند 450 دقيقة عمل (7.5 ساعة) → إشعار فقط.
+ * - مهلة إضافية: عند 900 دقيقة عمل (15 ساعة) → status = overdue.
+ * - مساءلة: عند 900 دقيقة عمل + بعد 14:45 → disciplinary_action.
+ * المهام المفتوحة (isOpen) مستثناة من كل الفحوص الزمنية.
+ */
+export async function runTaskLifecycleAutomation(now = new Date()) {
+  if (!isAutomationEscalationWindow(now)) return { notified: 0, overdue: 0, disciplined: 0, skipped: 0 };
   const db = await getDb();
-  if (!db) return { marked: 0 };
-  const candidates = await db.select({ id: tasks.id, scheduledFor: tasks.scheduledFor }).from(tasks).where(and(inArray(tasks.status, ["new", "in_progress"]), isNull(tasks.archivedAt)));
-  const overdueIds: number[] = [];
+  if (!db) return { notified: 0, overdue: 0, disciplined: 0, skipped: 0 };
+  const candidates = await db.select().from(tasks).where(and(isNull(tasks.archivedAt), inArray(tasks.status, ["new", "in_progress"])));
+  let notified = 0;
+  let overdue = 0;
+  let disciplined = 0;
+  let skipped = 0;
   for (const task of candidates) {
-    const eightAmRiyadh = new Date(Date.UTC(task.scheduledFor.getUTCFullYear(), task.scheduledFor.getUTCMonth(), task.scheduledFor.getUTCDate(), 5, 0, 0));
-    if (calculateWorkMinutesBetween(eightAmRiyadh, now) >= 360) overdueIds.push(task.id);
+    if (task.isOpen) { skipped += 1; continue; } // C9: المهام المفتوحة مستثناة
+    const stage = taskLifecycleStage({ scheduledFor: task.scheduledFor, now, status: task.status });
+    if (stage === "future" || stage === "opening" || stage === "active") { skipped += 1; continue; }
+    if (stage === "notified") {
+      if (task.assigneeProfileId) {
+        await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "تنبيه: المهمة قاربت على الموعد", body: `المهمة «${task.title}» تجاوزت 7.5 ساعة عمل.`, dedupeKey: `task-notified-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "تنبيه: المهمة قاربت على الموعد" } });
+      }
+      notified += 1;
+      continue;
+    }
+    // deadline أو disciplinary: تُعلَّم متأخرة وتُفتح مهلة إضافية/مساءلة.
+    await db.update(tasks).set({ status: "overdue", updatedAt: now }).where(eq(tasks.id, task.id));
+    await db.insert(taskUpdates).values({ taskId: task.id, actorUserId: SYSTEM_ACTOR_ID, updateType: "overdue_marked", note: "انقضت المهلة الإضافية (15 ساعة عمل)" }).onDuplicateKeyUpdate({ set: { note: "انقضت المهلة الإضافية (15 ساعة عمل)" } });
+    overdue += 1;
+    if (stage === "disciplinary") {
+      const existing = await db.select({ id: approvalRequests.id }).from(approvalRequests).where(and(eq(approvalRequests.entityType, "disciplinary_action"), eq(approvalRequests.entityId, task.id), eq(approvalRequests.status, "pending"))).limit(1);
+      if (!existing[0]) {
+        await db.insert(approvalRequests).values({ entityType: "disciplinary_action", entityId: task.id, requestedByUserId: SYSTEM_ACTOR_ID, currentRole: "court_secretary", requestNote: `مساءلة آلية: استمرار تعثر المهمة «${task.title}» بعد 15 ساعة عمل.` });
+        if (task.assigneeProfileId) {
+          await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "disciplinary_employee", title: "لديك مساءلة جديدة — بانتظار ردك", body: `سُجّلت مساءلة تلقائية عليك لاستمرار تعثر المهمة «${task.title}» بعد المهلة الإضافية. يرجى فتح صفحة «المساءلات» وتقديم ردك.`, dedupeKey: `task-disciplined-${task.id}` }).onDuplicateKeyUpdate({ set: { title: "لديك مساءلة جديدة — بانتظار ردك" } });
+        }
+        disciplined += 1;
+      }
+    }
   }
-  if (!overdueIds.length) return { marked: 0 };
-  const result = await db.update(tasks).set({ status: "overdue", updatedAt: now }).where(inArray(tasks.id, overdueIds));
-  return { marked: Number(result[0]?.affectedRows ?? 0) };
+  await logAudit({ action: "automation.task_lifecycle", entityType: "task_automation", metadata: { notified, overdue, disciplined, skipped } });
+  return { notified, overdue, disciplined, skipped };
+}
+
+/** نقطة دخول cron «mark-overdue-tasks»: تعتمد الآن على دورة الحياة الموحّدة. */
+export async function markOverdueTasks(now = new Date()) {
+  const result = await runTaskLifecycleAutomation(now);
+  return { marked: result.overdue };
 }
 
 /** عدد الملفات الشخصية التي حالتها "on_leave" (لإظهارها ضمن إجازات ملخص الحضور). */
@@ -5817,26 +5854,13 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
 }
 
 export async function escalateOverdueTasks(now = new Date()) {
-  if (!isAutomationEscalationWindow(now)) return { escalated: 0, skipped: 0, nudged24h: 0, nudged12h: 0 };
-  const db = await getDb();
-  if (!db) return { escalated: 0, skipped: 0, nudged24h: 0, nudged12h: 0 };
-  const candidates = await db.select().from(tasks).where(inArray(tasks.status, ["new", "in_progress"]));
-  let escalated = 0;
-  let supervisoryReferrals = 0;
-  let skipped = 0;
-  let nudged24h = 0;
-  let nudged12h = 0;
-  for (const task of candidates) {
-    if (task.assigneeProfileId && task.dueAt) {
-      const nudge = deadlineNudgeKind(task.dueAt, now);
-      if (nudge !== "none") {
-        const title = nudge === "12h" ? "تذكير: تبقى 12 ساعة على الموعد" : "تذكير: تبقى 24 ساعة على الموعد";
-        await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title, body: `المهمة «${task.title}» تقترب من موعد الاستحقاق.`, dedupeKey: `task-nudge-${nudge}-${task.assigneeProfileId}-${task.id}` }).onDuplicateKeyUpdate({ set: { title } });
-        if (nudge === "12h") nudged12h += 1; else nudged24h += 1;
-      }
-    }
-    const stage = escalationStage(task.scheduledFor, task.dueAt, now);
-    if (stage === "none") { skipped += 1; continue; }
+  // نقطة دخول cron «task-escalation»: تعتمد الآن على دورة الحياة الموحّدة (accumulateWorkMinutes).
+  // المنطق القديم (+6 ساعات حائط + إحالة إشرافية) تمت أرشفته ضمن هذه السياسة الموحّدة.
+  const result = await runTaskLifecycleAutomation(now);
+  return { escalated: result.overdue, supervisoryReferrals: result.disciplined, skipped: result.skipped, nudged24h: 0, nudged12h: 0 };
+}
+
+/* ===== [أرشيف] المنطق القديم للتصعيد (ساعة حائط + إحالة إشرافية) — غير مستخدم =====
     const existingDelay = await db.select({ id: delayRecords.id }).from(delayRecords).where(eq(delayRecords.taskId, task.id)).limit(1);
     if (existingDelay[0]) {
       if (stage === "supervisory") {
@@ -5875,6 +5899,7 @@ export async function escalateOverdueTasks(now = new Date()) {
   await logAudit({ action: "automation.task_escalation", entityType: "task_automation", metadata: { escalated, supervisoryReferrals, skipped, nudged24h, nudged12h } });
   return { escalated, supervisoryReferrals, skipped, nudged24h, nudged12h };
 }
+===== */
 
 async function getOperationalRanking(input: { startAt: Date; unitId?: number; personType?: "administrative" | "trainee" }) {
   const db = await getDb();
