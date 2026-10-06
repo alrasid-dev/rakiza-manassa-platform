@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accumulateWorkMinutes, DEADLINE_WORK_MINUTES, NOTIFY_WORK_MINUTES, taskLifecycleStage } from "./task-automation";
+import { accumulateWorkMinutes, DEADLINE_WORK_MINUTES, NOTIFY_WORK_MINUTES, taskLifecycleStage, workMinutesDeadlineAt } from "./task-automation";
 
 // الأحد 2026-08-16 (يوم عمل سعودي)؛ 10:00 بتوقيت الرياض = 07:00 UTC.
 const scheduledFor = new Date("2026-08-16T07:00:00Z");
@@ -60,5 +60,12 @@ describe("taskLifecycleStage — مراحل دورة حياة المهمة", () 
     const now = new Date("2026-08-18T11:45:00Z");
     expect(taskLifecycleStage({ scheduledFor, now, status: "completed" })).toBe("active");
     expect(taskLifecycleStage({ scheduledFor, now, status: "under_review" })).toBe("active");
+  });
+
+  it("dueAt الديناميكي يطابق accumulateWorkMinutes", () => {
+    // الموعد الفعلي (450 دقيقة عمل) لمهمة تبدأ الأحد 10:00 = الاثنين 10:00 الرياض.
+    const due = workMinutesDeadlineAt(scheduledFor, NOTIFY_WORK_MINUTES);
+    expect(accumulateWorkMinutes(scheduledFor, due)).toBe(NOTIFY_WORK_MINUTES);
+    expect(due.toISOString()).toBe("2026-08-17T07:00:00.000Z");
   });
 });

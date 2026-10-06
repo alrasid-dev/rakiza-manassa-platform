@@ -1734,7 +1734,8 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
     conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, openHorizon))!);
   }
   if (filters?.status === "overdue" || filters?.dueFilter === "overdue") {
-    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), lt(tasks.dueAt, new Date()))!);
+    // "متأخرة" = عُلّمت overdue آلياً بواسطة دورة الحياة، أو تجاوز موعدها (توافق مع البيانات القديمة).
+    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), or(eq(tasks.status, "overdue"), lt(tasks.dueAt, new Date())))!);
   } else if (filters?.status) {
     conditions.push(eq(tasks.status, filters.status));
   } else if (filters?.dueFilter === "dueSoon") {
