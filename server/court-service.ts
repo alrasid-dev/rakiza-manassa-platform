@@ -5325,12 +5325,25 @@ export async function submitLeaveRequest(input: { profileId: number; requestType
   return id;
 }
 
+/** هل الطلب "استئذان متأخر" (بداية == نهاية ومدة 240/0 دقيقة) يجب توجيهه إلى approveLateExcuse؟ */
+export function isLateExcuseRequest(request: { requestType: string; startAt: Date; endAt: Date; durationMinutes: number }): boolean {
+  return request.requestType === "permission"
+    && request.startAt.getTime() === request.endAt.getTime()
+    && (request.durationMinutes === MISSING_CHECKOUT_PENALTY_MINUTES || request.durationMinutes === 0);
+}
+
 export async function reviewLeaveRequest(input: { leaveRequestId: number; decision: "approved" | "rejected"; reviewedByUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const request = (await db.select().from(leaveRequests).where(eq(leaveRequests.id, input.leaveRequestId)).limit(1))[0];
   if (!request || request.status !== "pending") throw new Error("طلب الإجازة غير موجود أو تمت مراجعته.");
   if (input.decision === "approved" && !request.handoverConfirmed) throw new Error("لا يمكن اعتماد الإجازة قبل تأكيد إسناد المهام.");
+  // كشف "الاستئذان المتأخر" → المسار الصحيح approveLateExcuse (يصفّر العقوبة ويضبط الانصراف ويعيد النقاط)
+  // بدل مسار الإجازة (الذي كان يوقف المهام).
+  if (isLateExcuseRequest(request)) {
+    await approveLateExcuse({ leaveRequestId: request.id, decision: input.decision, reviewedByUserId: input.reviewedByUserId });
+    return;
+  }
   const nextStatus = input.decision === "approved" && request.requestType === "permission" && request.requestSequenceInMonth > PERMISSION_POLICY.maxRequestsBeforeOwnerApproval ? "pending_owner_approval" : input.decision;
   await db.update(leaveRequests).set({ status: nextStatus, reviewedByUserId: input.reviewedByUserId, reviewedAt: new Date() }).where(eq(leaveRequests.id, request.id));
   if (nextStatus === "pending_owner_approval") {
