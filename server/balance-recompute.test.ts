@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { recomputeBalanceValues } from "./court-service";
+import { recomputeBalanceValues, resolveRecordAttendanceMode } from "./court-service";
+
+describe("النمط التاريخي وقت البصمة (resolveRecordAttendanceMode)", () => {
+  it("موظف تحوّل من remote إلى in_person: بصمة دخول + تصنيف in_person → كان remote (لا عقوبة)", () => {
+    expect(resolveRecordAttendanceMode({ currentMode: "in_person", hasCheckIn: true })).toBe("remote");
+  });
+
+  it("موظف remote حالي: remote", () => {
+    expect(resolveRecordAttendanceMode({ currentMode: "remote", hasCheckIn: true })).toBe("remote");
+  });
+
+  it("موظف mixed حالي مع بصمة: mixed (خاضع للعقوبة)", () => {
+    expect(resolveRecordAttendanceMode({ currentMode: "mixed", hasCheckIn: true })).toBe("mixed");
+  });
+
+  it("موظف in_person بدون بصمة: in_person", () => {
+    expect(resolveRecordAttendanceMode({ currentMode: "in_person", hasCheckIn: false })).toBe("in_person");
+  });
+});
 
 describe("إعادة حساب الرصيد وفق سياسة الحضور (recomputeBalanceValues)", () => {
   it("الاستئذان يبقى محسوباً للموظف عن بُعد (لا يُبطَل)", () => {
@@ -27,3 +45,4 @@ describe("إعادة حساب الرصيد وفق سياسة الحضور (recom
     expect(second).toEqual(first);
   });
 });
+
