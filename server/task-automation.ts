@@ -167,7 +167,7 @@ export function parseSpecificDays(value: unknown): number[] | null {
 
 export function isTemplateDue(frequency: TaskFrequency, workdayOnly: boolean, now: Date, intervalDays: number | null = null, lastGeneratedAt: Date | null = null, specificDays: number[] | null = null): boolean {
   if (workdayOnly && !isSaudiWorkday(now)) return false;
-  const { month, day } = riyadhParts(now);
+  const { year, month, day } = riyadhParts(now);
   // دعم الأيام المحددة
   if (frequency === "specific_days" && specificDays && specificDays.length > 0) {
     return specificDays.includes(dayOfWeekRiyadh(now));
@@ -178,7 +178,12 @@ export function isTemplateDue(frequency: TaskFrequency, workdayOnly: boolean, no
     const daysSinceLast = Math.floor((now.getTime() - lastGeneratedAt.getTime()) / 86400000);
     return daysSinceLast >= intervalDays;
   }
-  if (frequency === "daily") return true;
+  if (frequency === "daily") {
+    // القوالب اليومية: تُولَّد مرة واحدة في اليوم السعودي فقط
+    if (!lastGeneratedAt) return true; // أول مرة
+    const last = riyadhParts(lastGeneratedAt);
+    return last.year !== year || last.month !== month || last.day !== day;
+  }
   if (frequency === "weekly") return dayOfWeekRiyadh(now) === 0;
   if (frequency === "monthly") return day === 1;
   if (frequency === "quarterly") return day === 1 && [1, 4, 7, 10].includes(month);

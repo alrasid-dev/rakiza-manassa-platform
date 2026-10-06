@@ -71,3 +71,16 @@ describe("أتمتة مهام شؤون الملازمين", () => {
     expect(escalationStage(scheduled, due, new Date("2026-08-16T16:00:00Z"))).toBe("supervisory");
   });
 });
+
+describe("منع تكرار القوالب اليومية (lastGeneratedAt)", () => {
+  const sunday = new Date("2026-08-16T05:00:00Z");
+  it("لا يُعيد توليد القالب اليومي إذا وُلِّد في نفس اليوم", () => {
+    expect(isTemplateDue("daily", true, sunday, null, new Date("2026-08-16T04:00:00Z"))).toBe(false);
+  });
+  it("يُولِّد القالب اليومي إذا كان آخر توليد بالأمس", () => {
+    expect(isTemplateDue("daily", true, sunday, null, new Date("2026-08-15T04:00:00Z"))).toBe(true);
+  });
+  it("يُولِّد القالب اليومي أول مرة (بدون lastGeneratedAt)", () => {
+    expect(isTemplateDue("daily", true, sunday, null, null)).toBe(true);
+  });
+});
