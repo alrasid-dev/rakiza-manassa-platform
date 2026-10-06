@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { mockGetUserByOpenId, mockUpsertUser } from "./mock-store";
@@ -11,7 +12,10 @@ export async function getDb() {
   const databaseUrl = ENV.databaseUrl || process.env.DATABASE_URL || process.env.VITE_DATABASE_URL;
   if (!_db && databaseUrl) {
     try {
-      _db = drizzle(databaseUrl);
+      // timezone: "Z" يثبّت قراءة/كتابة أعمدة TIMESTAMP بتوقيت UTC الموحّد،
+      // لتجنّب إزاحة 3 ساعات عندما تعمل العقدة في بيئة غير UTC (مثل UTC+3).
+      const pool = mysql.createPool({ uri: databaseUrl, timezone: "Z" });
+      _db = drizzle(pool) as unknown as ReturnType<typeof drizzle>;
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;

@@ -4601,10 +4601,15 @@ export function parseTimeToMinutes(time: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
-export function riyadhMinutesOfDay(now: Date): number {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
-  const field = (name: string) => Number(parts.find(p => p.type === name)?.value || "0");
-  return field("hour") * 60 + field("minute");
+/** يحوّل لحظة UTC إلى تمثيل "بتوقيت الرياض" (UTC+3، بلا توقيت صيفي). */
+export function toRiyadhDate(utc: Date): Date {
+  return new Date(utc.getTime() + 3 * 60 * 60 * 1000);
+}
+
+/** دقيقة اليوم بتوقيت الرياض (0–1439) من لحظة UTC. */
+export function riyadhMinutesOfDay(utc: Date): number {
+  const r = toRiyadhDate(utc);
+  return r.getUTCHours() * 60 + r.getUTCMinutes();
 }
 
 export function formatMinutesOfDay(minutes: number): string {
