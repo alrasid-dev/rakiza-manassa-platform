@@ -120,6 +120,7 @@ const ty = tmr.getUTCFullYear(), tm = tmr.getUTCMonth() + 1, td = tmr.getUTCDate
 
 const summary = { daily: 0, weekly: 0, monthly: 0, quarterly: 0, specific_days: 0 };
 let created = 0;
+const insertedTitles = new Set(); // منع تكرار القوالب بنفس العنوان
 console.log("\n=== إنشاء القوالب والمهام ===");
 for (const t of fileTasks) {
   let frequency = freqMap[t.freq] || "daily";
@@ -133,6 +134,18 @@ for (const t of fileTasks) {
   const suggested = t.emps.join("، ");
   const notes = `المكلفون المقترحون: ${suggested || "غير محدد"}`;
   const specificDaysJson = specificDays ? JSON.stringify(specificDays) : null;
+
+  // منع تكرار القوالب: تخطَّ إذا وُجد قالب نشط بنفس العنوان في نفس الوحدة أو أُدرج سابقاً في هذه الدفعة
+  const normalizedTitle = normalizeArabic(t.title);
+  const [existingTpl] = await db.query(
+    "SELECT id FROM task_templates WHERE unitId = 5 AND isActive = 1 AND title = ? LIMIT 1",
+    [t.title]
+  );
+  if (existingTpl.length > 0 || insertedTitles.has(normalizedTitle)) {
+    console.log(`#${t.seq} [تخطي: قالب مكرر] "${t.title.slice(0, 50)}"`);
+    continue;
+  }
+  insertedTitles.add(normalizedTitle);
 
   const [ins] = await db.query(
     "INSERT INTO task_templates (unitId, title, frequency, workdayOnly, dueHourLocal, defaultAssigneeProfileId, isActive, createdByUserId, specificDays) VALUES (5, ?, ?, 1, ?, ?, 1, 1, ?)",
