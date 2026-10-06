@@ -48,20 +48,25 @@ const rows = [];
 for (const b of balances) {
   const mode = b.attendanceMode ?? "in_person";
   const [att] = await db.query(
-    "SELECT recordDate, positiveMinutes, negativeMinutes, COALESCE(penaltyMinutes, 0) AS penaltyMinutes FROM attendance_records WHERE profileId = ?",
+    "SELECT recordDate, checkInAt, positiveMinutes, negativeMinutes, COALESCE(penaltyMinutes, 0) AS penaltyMinutes FROM attendance_records WHERE profileId = ?",
     [b.profileId],
   );
   const monthAtt = att.filter(r => hijriMonthKey(new Date(r.recordDate)) === b.hijriMonthKey);
-  const posNew = monthAtt.reduce((s, r) => s + Number(r.positiveMinutes || 0), 0);
-  const negRaw = monthAtt.reduce((s, r) => s + Number(r.negativeMinutes || 0), 0);
-  const penRaw = monthAtt.reduce((s, r) => s + Number(r.penaltyMinutes || 0), 0);
+  let posNew = 0, negNew = 0, penNew = 0;
+  for (const r of monthAtt) {
+    posNew += Number(r.positiveMinutes || 0);
+    // النمط التاريخي وقت البصمة: بصمة دخول + تصنيف in_person → كان remote (معفى).
+    const histMode = (mode === "in_person" && r.checkInAt) ? "remote" : mode;
+    if (histMode !== "remote") {
+      negNew += Number(r.negativeMinutes || 0);
+      penNew += Number(r.penaltyMinutes || 0);
+    }
+  }
   const [lv] = await db.query(
     "SELECT id FROM leave_requests WHERE profileId = ? AND hijriMonthKey = ? AND requestType = 'permission' AND status = 'approved'",
     [b.profileId, b.hijriMonthKey],
   );
   const excNew = lv.length * 240;
-  const negNew = mode === "remote" ? 0 : negRaw;
-  const penNew = mode === "remote" ? 0 : penRaw;
   const netNew = posNew - negNew - penNew + excNew;
 
   const posOld = Number(b.positiveMinutes || 0);
@@ -124,8 +129,8 @@ for (const r of rows) {
     r.posOld, r.posNew, r.negOld, r.negNew, r.penOld, r.penNew, r.excOld, r.excNew,
     r.netOld, r.netNew, r.delta, r.reason].join(","));
 }
-const csvPath = path.join(dir, `recompute-preview-${dateStr}.csv`);
-const jsonPath = path.join(dir, `recompute-preview-${dateStr}.json`);
+const csvPath = path.join(dir, `recompute-preview-final-${dateStr}.csv`);
+const jsonPath = path.join(dir, `recompute-preview-final-${dateStr}.json`);
 fs.writeFileSync(csvPath, csvLines.join("\n") + "\n", "utf8");
 fs.writeFileSync(jsonPath, JSON.stringify({ generatedAt: new Date().toISOString(), summary: { total: rows.length, affected: affected.length, affectedEmployees, improved: improved.length, worsened: worsened.length, totalDelta, byReason }, rows }, null, 2), "utf8");
 console.log(`\nحُفظ التقرير: ${csvPath}`);
