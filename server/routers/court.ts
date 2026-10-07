@@ -1442,7 +1442,16 @@ export const courtRouter = router({
       const permission = await requirePermission(ctx.user, "view");
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
       const viewerProfile = await getProfileForUser(ctx.user.id);
-      const targetProfileId = isLeadership ? (input?.profileId ?? undefined) : (viewerProfile?.id ?? undefined);
+      let targetProfileId = isLeadership ? (input?.profileId ?? undefined) : (viewerProfile?.id ?? undefined);
+      if (!isLeadership && input?.profileId && viewerProfile) {
+        const roles = await rolesForUser(ctx.user);
+        const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+        if (isManager) {
+          const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+          const target = await getProfileById(input.profileId);
+          if (managedUnitIds.length && target?.unitId && managedUnitIds.includes(target.unitId)) targetProfileId = input.profileId;
+        }
+      }
       return getTodayTaskCounts(targetProfileId);
     }),
     listSharedWithMe: protectedProcedure.query(async ({ ctx }) => {
