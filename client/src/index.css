@@ -42,10 +42,10 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* خط المهند (Al Mohanad) — ضع ملف الخط المرخّص في client/public/fonts/al-mohanad.ttf */
+/* خط عليامة (Alyamama) — مرخّص OFL */
 @font-face {
-  font-family: "Al Mohanad";
-  src: url("/fonts/al-mohanad.ttf") format("truetype");
+  font-family: "Alyamama";
+  src: url("/fonts/alyamama.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;

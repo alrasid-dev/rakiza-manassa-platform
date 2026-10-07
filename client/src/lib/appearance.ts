@@ -4,7 +4,8 @@ export const RAKIZA_FONTS = [
   { id: "noto-naskh", label: "نوتو نسخ", family: "\"Noto Naskh Arabic\", Amiri, serif", sample: "رَكيزة — وضوح رسمي" },
   { id: "noto-kufi", label: "نوتو كوفي", family: "\"Noto Kufi Arabic\", Cairo, sans-serif", sample: "رَكيزة — وضوح رسمي" },
   { id: "amiri", label: "أميري", family: "Amiri, \"Noto Naskh Arabic\", serif", sample: "رَكيزة — وضوح رسمي" },
-  { id: "al-mohanad", label: "المهند", family: "\"Al Mohanad\", Tajawal, sans-serif", sample: "رَكيزة — وضوح رسمي" },
+  { id: "alyamama", label: "عليامة", family: "\"Alyamama\", Tajawal, sans-serif", sample: "رَكيزة — وضوح رسمي" },
+  { id: "ibm-plex", label: "آي بي إم بلكس", family: "\"IBM Plex Sans Arabic\", Tajawal, sans-serif", sample: "رَكيزة — وضوح رسمي" },
 ] as const;
 
 export const RAKIZA_FONT_SIZES = [

@@ -1,12 +1,14 @@
-خط المهند (Al Mohanad)
-=======================
+خط عليامة (Alyamama)
+====================
 
-ضع ملف الخط المرخّص هنا بالاسم التالي:
+الملف: client/public/fonts/alyamama.ttf (مرخّص OFL — تم تنزيله).
 
-    client/public/fonts/al-mohanad.ttf
+الخطوط المتاحة في المنصة:
+- تجوال (Tajawal) — Google Fonts
+- القاهرة (Cairo) — Google Fonts
+- نوتو نسخ / نوتو كوفي (Noto Naskh / Noto Kufi) — Google Fonts
+- أميري (Amiri) — Google Fonts
+- عليامة (Alyamama) — ملف محلي (OFL)
+- آي بي إم بلكس (IBM Plex Sans Arabic) — Google Fonts
 
-ملاحظات:
-- الخط في arbfonts.com موسوم بأنه "Cracked" (منسوخ/مقرصن)، لذا لم يتم تحميله.
-- يرجى توفير نسخة مرخّصة من الخط، أو اختيار بديل مرخّص.
-- بعد وضع الملف، سيُحمَّل تلقائياً عبر @font-face في client/src/index.css
-  وسيظهر خيار "المهند" في إعدادات المظهر (client/src/lib/appearance.ts).
+تم استبدال "المهند" (المقرصن) بـ "عليامة" المرخّص.
