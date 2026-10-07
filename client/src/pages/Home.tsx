@@ -176,9 +176,6 @@ export default function Home() {
   return <DashboardLayout hideUtilityPrompts dashboardCustomization={dashboardCustomizer} navigationPreferences={preferences}>
     <section className="mx-auto max-w-[1240px]" dir="rtl">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d5ddd2] bg-[#f8f9f4] px-4 py-3 shadow-[0_8px_22px_rgba(36,67,51,0.05)]">
-        <div className="min-w-0">
-          <p className="text-[11px] font-black tracking-[0.12em] text-[#b18448]">مساحة العمل</p>
-        </div>
         <div className="flex flex-wrap items-center gap-2">
           <GlobalSearchBar />
           <button type="button" onClick={() => setLocation("/tasks?filter=active")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#e6efe4] px-3 py-1.5 text-[11px] font-bold text-[#2d6b4f] transition hover:opacity-80"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />{activeCount > 0 ? `${activeCount} مهام اليوم النشطة` : "لا مهام نشطة اليوم"}</button>
