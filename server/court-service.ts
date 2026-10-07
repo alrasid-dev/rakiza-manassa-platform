@@ -1849,6 +1849,23 @@ export async function getTodayTaskCounts(profileId?: number) {
   };
 }
 
+/** عدّادات المهام لكل حالة لمستخدم أو قسم معيّن (بدون أرشفة). */
+export async function countTasksByStatus(input: { assigneeProfileId?: number; unitId?: number }) {
+  const db = await getDb();
+  const empty = { new: 0, in_progress: 0, under_review: 0, completed: 0, overdue: 0, cancelled: 0, paused: 0, open: 0 };
+  if (!db) return empty;
+  const conditions = [isNull(tasks.archivedAt)];
+  if (input.assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, input.assigneeProfileId));
+  if (input.unitId) conditions.push(eq(tasks.unitId, input.unitId));
+  const rows = await db.select({ status: tasks.status, isOpen: tasks.isOpen }).from(tasks).where(and(...conditions));
+  const counts: Record<string, number> = { ...empty };
+  for (const row of rows) {
+    if (row.status in counts) counts[row.status] += 1;
+    if (row.isOpen) counts.open += 1;
+  }
+  return counts as typeof empty;
+}
+
 // ===== نسخة للاطلاع (CC) =====
 export async function addTaskCc(input: { taskId: number; viewerProfileIds: number[]; actorProfileId: number }) {
   const db = await getDb();

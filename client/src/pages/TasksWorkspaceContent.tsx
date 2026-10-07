@@ -214,6 +214,8 @@ export default function TasksWorkspaceContent() {
   }, [selectedUnitId]);
   const taskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id, dueFilter: dueFilter !== "all" ? dueFilter : undefined, period: period !== "all" ? period : undefined } : { unitId: selectedUnitId || undefined, assigneeProfileId: selectedAssigneeProfileId || undefined, dueFilter: dueFilter !== "all" ? dueFilter : undefined, period: period !== "all" ? period : undefined };
   const tasks = trpc.court.tasks.list.useQuery(taskQuery, { enabled: taskView === "scope" || Boolean(currentProfile.data?.id) });
+  const statusCountsQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id } : { unitId: selectedUnitId || undefined, assigneeProfileId: selectedAssigneeProfileId || undefined };
+  const statusCounts = trpc.court.tasks.countsByStatus.useQuery(statusCountsQuery, { enabled: taskView === "scope" || Boolean(currentProfile.data?.id) });
   const futureTaskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id, futureRange } : { unitId: selectedUnitId || undefined, assigneeProfileId: selectedAssigneeProfileId || undefined, futureRange };
   const futureTasks = trpc.court.tasks.list.useQuery(futureTaskQuery, { enabled: activeTab === "future" && (taskView === "scope" || Boolean(currentProfile.data?.id)) });
   const [recordsPage, setRecordsPage] = useState(1);
@@ -759,6 +761,14 @@ export default function TasksWorkspaceContent() {
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
       {!platformWide && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("shared")}><FileText className="ml-1 h-4 w-4" />مُشاركة معي</Button>}
     </div>
+    {activeTab === "tasks" && statusCounts.data && (
+      <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="عدّادات الحالات">
+        <span className="text-[11px] font-bold text-[#7a8980]">الحالات:</span>
+        {(["in_progress", "overdue", "completed", "new", "under_review", "paused", "cancelled"] as const).map(status => (
+          <span key={status} className="rounded-full border border-[#d7e6d8] bg-white px-2.5 py-1 text-[11px] font-bold text-[#355d4b]">{taskStatusLabel(status)}: {statusCounts.data?.[status] ?? 0}</span>
+        ))}
+      </div>
+    )}
     {holidayInfo.data?.isHoliday && (
       <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4 text-center">
         <p className="font-bold text-amber-900">

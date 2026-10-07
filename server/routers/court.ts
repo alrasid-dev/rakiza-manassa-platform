@@ -185,6 +185,7 @@ import {
   listTasksForUnits,
   listTasksRecords,
   getTodayTaskCounts,
+  countTasksByStatus,
   addTaskCc,
   listTaskCcForTask,
   removeTaskCc,
@@ -1455,6 +1456,26 @@ export const courtRouter = router({
         }
       }
       return getTodayTaskCounts(targetProfileId);
+    }),
+    countsByStatus: protectedProcedure.input(z.object({ assigneeProfileId: z.number().int().positive().optional(), unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const viewerProfile = await getProfileForUser(ctx.user.id);
+      let targetProfileId = isLeadership ? (input?.assigneeProfileId ?? undefined) : (viewerProfile?.id ?? undefined);
+      let targetUnitId = isLeadership ? (input?.unitId ?? undefined) : undefined;
+      if (!isLeadership) {
+        const roles = await rolesForUser(ctx.user);
+        const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+        if (isManager) {
+          const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+          if (input?.assigneeProfileId) {
+            const target = await getProfileById(input.assigneeProfileId);
+            if (managedUnitIds.length && target?.unitId && managedUnitIds.includes(target.unitId)) targetProfileId = input.assigneeProfileId;
+          }
+          if (input?.unitId && managedUnitIds.includes(input.unitId)) targetUnitId = input.unitId;
+        }
+      }
+      return countTasksByStatus({ assigneeProfileId: targetProfileId, unitId: targetUnitId });
     }),
     listSharedWithMe: protectedProcedure.query(async ({ ctx }) => {
       const profile = await getProfileForUser(ctx.user.id);
