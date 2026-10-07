@@ -734,6 +734,7 @@ export const tasks = mysqlTable("tasks", {
   assigneeProfileId: int("assigneeProfileId"),
   reassignedFromProfileId: int("reassignedFromProfileId"),
   reassignmentReason: varchar("reassignmentReason", { length: 40 }),
+  rejectedBySubstituteProfileId: int("rejectedBySubstituteProfileId"),
   assignedByUserId: int("assignedByUserId").notNull(),
   scheduledFor: timestamp("scheduledFor").notNull(),
   startedAt: timestamp("startedAt"),

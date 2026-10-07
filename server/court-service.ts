@@ -4043,6 +4043,17 @@ export async function cancelTask(input: { taskId: number; actorUserId: number; c
 
   await db.update(tasks).set({ status: "cancelled", cancellationReason: reason, completedAt: null }).where(eq(tasks.id, input.taskId));
   await markTaskNotificationsRead(input.taskId);
+  // إذا كانت المهمة محالة من موظف في إجازة وألغاها البديل الحالي → سجّل الرفض وأشعر مدير الأصلية.
+  if (task.reassignedFromProfileId != null) {
+    const actorProfile = await getProfileForUser(input.actorUserId);
+    if (actorProfile && actorProfile.id === task.assigneeProfileId) {
+      await db.update(tasks).set({ rejectedBySubstituteProfileId: task.assigneeProfileId }).where(eq(tasks.id, input.taskId));
+      const [original] = await db.select({ directManagerProfileId: personProfiles.directManagerProfileId, fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, task.reassignedFromProfileId)).limit(1);
+      if (original?.directManagerProfileId) {
+        await db.insert(notifications).values({ profileId: original.directManagerProfileId, category: "security_alert", title: "البديلة رفضت مهمة محالة", body: `البديلة رفضت مهمة "${task.title}" المحالة من ${original.fullName} - تحتاج إعادة إسناد يدوي.`, dedupeKey: `substitute-rejected-${task.id}` });
+      }
+    }
+  }
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: `تم إلغاء المهمة. السبب: ${reason}` });
   await logAudit({ actorUserId: input.actorUserId, action: "task.cancelled", entityType: "task", entityId: input.taskId, metadata: { cancellationReason: reason } });
 
@@ -6104,9 +6115,13 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
       if (defaultAssignee?.status === "on_leave") {
         const [sub] = await db.select({ substituteProfileId: leaveRequests.substituteProfileId, requestType: leaveRequests.requestType }).from(leaveRequests).where(and(eq(leaveRequests.profileId, defaultAssignee.id), inArray(leaveRequests.status, ["approved", "active"]), lte(leaveRequests.startAt, scheduledFor), gte(leaveRequests.endAt, scheduledFor))).limit(1);
         if (sub?.substituteProfileId) {
-          assigneeProfileId = sub.substituteProfileId;
-          reassignedFromProfileId = defaultAssignee.id;
-          reassignmentReason = sub.requestType;
+          // تخطّي البديل الذي رفض مهمة سابقة في نفس الإجازة.
+          const [rejected] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.reassignedFromProfileId, defaultAssignee.id), eq(tasks.rejectedBySubstituteProfileId, sub.substituteProfileId))).limit(1);
+          if (!rejected) {
+            assigneeProfileId = sub.substituteProfileId;
+            reassignedFromProfileId = defaultAssignee.id;
+            reassignmentReason = sub.requestType;
+          }
         }
       }
     }
