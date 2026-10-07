@@ -2909,6 +2909,7 @@ export async function approveAllPendingApprovals(input: { actorUserId: number; r
   let approved = 0;
   let skipped = 0;
   let failed = 0;
+  const failures: string[] = [];
   for (const approval of approvals) {
     if (input.unitId && approval.entityType !== "department_manager_assignment") {
       // تصفية اختيارية بقسم تسليم الأحكام عند الحاجة: تُطبَّق على طلبات تسكين مدير القسم فقط.
@@ -2932,11 +2933,13 @@ export async function approveAllPendingApprovals(input: { actorUserId: number; r
       approved += 1;
     } catch (error) {
       failed += 1;
-      console.warn("[Approvals] فشل الاعتماد المجمع لأحد الطلبات", { approvalId: approval.id, error: (error as Error)?.message ?? String(error) });
+      const message = (error as Error)?.message ?? String(error);
+      failures.push(`طلب #${approval.id}: ${message}`);
+      console.warn("[Approvals] فشل الاعتماد المجمع لأحد الطلبات", { approvalId: approval.id, error: message });
     }
   }
-  await logAudit({ actorUserId: input.actorUserId, action: "approval.bulk_approved", entityType: "approval", metadata: { approved, skipped, failed } });
-  return { approved, skipped, failed };
+  await logAudit({ actorUserId: input.actorUserId, action: "approval.bulk_approved", entityType: "approval", metadata: { approved, skipped, failed, failures } });
+  return { approved, skipped, failed, failures };
 }
 
 function safeParseJson(value: string | null): unknown {
