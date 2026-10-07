@@ -1946,6 +1946,29 @@ export async function listTaskTitlesForComparison(unitId?: number) {
   return db.select({ id: taskTemplates.id, title: taskTemplates.title, unitId: taskTemplates.unitId }).from(taskTemplates).where(and(...conditions)).orderBy(taskTemplates.title);
 }
 
+export type ComparisonTaskRow = { assigneeProfileId: number | null; status: string; dueAt: Date | null; completedAt: Date | null; scheduledFor: Date | null };
+
+/** إحصاء أداء المهام لكل موظف: يفصل «في الوقت» عن «أُنجزت متأخرة» عن «لم تُنجز»، ويحسب متوسط الزمن بساعات العمل. */
+export function computeTaskPerformanceStats(taskRows: ComparisonTaskRow[]) {
+  const byProfile = new Map<number, { total: number; completed: number; onTime: number; lateCompleted: number; stillOverdue: number; completionMinutes: number[] }>();
+  for (const t of taskRows) {
+    if (!t.assigneeProfileId) continue;
+    if (!byProfile.has(t.assigneeProfileId)) byProfile.set(t.assigneeProfileId, { total: 0, completed: 0, onTime: 0, lateCompleted: 0, stillOverdue: 0, completionMinutes: [] });
+    const s = byProfile.get(t.assigneeProfileId)!;
+    s.total += 1;
+    if (t.status === "completed") {
+      s.completed += 1;
+      const startRef = t.scheduledFor ?? t.dueAt;
+      if (startRef && t.completedAt) s.completionMinutes.push(calculateWorkMinutesBetween(startRef, t.completedAt));
+      if (t.dueAt && t.completedAt && t.completedAt.getTime() <= t.dueAt.getTime()) s.onTime += 1;
+      else s.lateCompleted += 1;
+    } else if (t.status === "overdue") {
+      s.stillOverdue += 1;
+    }
+  }
+  return byProfile;
+}
+
 export async function compareTaskPerformance(input: { title?: string; templateId?: number; fromDate?: Date; toDate?: Date; unitId?: number; sortBy?: "completed" | "totalPoints" | "avgCompletionMinutes" | "complianceRate" }) {
   const db = await getDb();
   if (!db) return [];
@@ -1955,22 +1978,8 @@ export async function compareTaskPerformance(input: { title?: string; templateId
   if (input.unitId) conditions.push(eq(tasks.unitId, input.unitId));
   if (input.fromDate) conditions.push(gte(tasks.scheduledFor, input.fromDate));
   if (input.toDate) conditions.push(lt(tasks.scheduledFor, input.toDate));
-  const taskRows = await db.select({ id: tasks.id, assigneeProfileId: tasks.assigneeProfileId, status: tasks.status, dueAt: tasks.dueAt, completedAt: tasks.completedAt }).from(tasks).where(and(...conditions));
-  const byProfile = new Map<number, { total: number; completed: number; onTime: number; late: number; completionMinutes: number[] }>();
-  for (const t of taskRows) {
-    if (!t.assigneeProfileId) continue;
-    if (!byProfile.has(t.assigneeProfileId)) byProfile.set(t.assigneeProfileId, { total: 0, completed: 0, onTime: 0, late: 0, completionMinutes: [] });
-    const s = byProfile.get(t.assigneeProfileId)!;
-    s.total += 1;
-    if (t.status === "completed") {
-      s.completed += 1;
-      const mins = Math.round(((t.completedAt?.getTime() ?? Date.now()) - (t.dueAt?.getTime() ?? Date.now())) / 60000);
-      s.completionMinutes.push(mins);
-      if (mins <= 0) s.onTime += 1; else s.late += 1;
-    } else if (t.status === "overdue") {
-      s.late += 1;
-    }
-  }
+  const taskRows = await db.select({ id: tasks.id, assigneeProfileId: tasks.assigneeProfileId, status: tasks.status, dueAt: tasks.dueAt, completedAt: tasks.completedAt, scheduledFor: tasks.scheduledFor }).from(tasks).where(and(...conditions));
+  const byProfile = computeTaskPerformanceStats(taskRows as ComparisonTaskRow[]);
 
   // تعداد كل موظفي النطاق (وليس فقط المُسندين) لعرض «لم يُسند له».
   const profileConditions = [ne(personProfiles.status, "archived"), or(eq(personProfiles.personType, "administrative"), eq(personProfiles.personType, "trainee"))];
@@ -2003,19 +2012,20 @@ export async function compareTaskPerformance(input: { title?: string; templateId
     for (const row of scoreRows) scoreByProfile.set(row.profileId, { total: Number(row.total), positive: Number(row.positive), negative: Number(row.negative) });
   }
 
-  const result: Array<{ profileId: number; name: string; status: "assigned" | "on_leave" | "not_assigned"; totalTasks: number; completed: number; onTime: number; late: number; avgCompletionMinutes: number | null; totalPoints: number; scoreBreakdown: { positive: number; negative: number }; complianceRate: number; onLeave: boolean; leaveStartAt: Date | null; leaveEndAt: Date | null }> = [];
+  const result: Array<{ profileId: number; name: string; status: "assigned" | "not_started" | "not_assigned" | "on_leave"; totalTasks: number; completed: number; onTime: number; lateCompleted: number; stillOverdue: number; avgCompletionMinutes: number | null; totalPoints: number; scoreBreakdown: { positive: number; negative: number }; complianceRate: number; onLeave: boolean; leaveStartAt: Date | null; leaveEndAt: Date | null }> = [];
   for (const p of unitProfiles) {
     const s = byProfile.get(p.id);
     const score = scoreByProfile.get(p.id);
     const leaveInfo = leaveByProfile.get(p.id);
-    const assigned = Boolean(s && s.total > 0);
-    const status = leaveInfo ? "on_leave" : assigned ? "assigned" : "not_assigned";
+    const assigned = Boolean(s && s.completed > 0);
+    const hasTasks = Boolean(s && s.total > 0);
+    const status = leaveInfo ? "on_leave" : assigned ? "assigned" : hasTasks ? "not_started" : "not_assigned";
     const avgMinutes = s && s.completionMinutes.length ? Math.round(s.completionMinutes.reduce((a, b) => a + b, 0) / s.completionMinutes.length) : null;
-    result.push({ profileId: p.id, name: p.fullName, status, totalTasks: s?.total ?? 0, completed: s?.completed ?? 0, onTime: s?.onTime ?? 0, late: s?.late ?? 0, avgCompletionMinutes: avgMinutes, totalPoints: score?.total ?? 0, scoreBreakdown: { positive: score?.positive ?? 0, negative: score?.negative ?? 0 }, complianceRate: s && s.total ? Math.round((s.completed / s.total) * 100) : 0, onLeave: Boolean(leaveInfo), leaveStartAt: leaveInfo?.startAt ?? null, leaveEndAt: leaveInfo?.endAt ?? null });
+    result.push({ profileId: p.id, name: p.fullName, status, totalTasks: s?.total ?? 0, completed: s?.completed ?? 0, onTime: s?.onTime ?? 0, lateCompleted: s?.lateCompleted ?? 0, stillOverdue: s?.stillOverdue ?? 0, avgCompletionMinutes: avgMinutes, totalPoints: score?.total ?? 0, scoreBreakdown: { positive: score?.positive ?? 0, negative: score?.negative ?? 0 }, complianceRate: s && s.total ? Math.round((s.onTime / s.total) * 100) : 0, onLeave: Boolean(leaveInfo), leaveStartAt: leaveInfo?.startAt ?? null, leaveEndAt: leaveInfo?.endAt ?? null });
   }
   const sortBy = input.sortBy ?? "totalPoints";
   result.sort((a, b) => {
-    if (a.status !== b.status) return (["assigned", "not_assigned", "on_leave"] as const).indexOf(a.status) - (["assigned", "not_assigned", "on_leave"] as const).indexOf(b.status);
+    if (a.status !== b.status) return (["assigned", "not_started", "not_assigned", "on_leave"] as const).indexOf(a.status) - (["assigned", "not_started", "not_assigned", "on_leave"] as const).indexOf(b.status);
     if (sortBy === "completed") return b.completed - a.completed;
     if (sortBy === "avgCompletionMinutes") return (a.avgCompletionMinutes ?? 1e9) - (b.avgCompletionMinutes ?? 1e9);
     if (sortBy === "complianceRate") return b.complianceRate - a.complianceRate;

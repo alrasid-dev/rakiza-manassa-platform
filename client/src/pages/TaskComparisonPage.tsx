@@ -23,6 +23,11 @@ function formatLeaveDate(value: Date | string | number | null | undefined) {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ar-SA");
 }
 
+function formatCompletionTime(r: { avgCompletionMinutes: number | null }) {
+  if (r.avgCompletionMinutes == null) return "—";
+  return `${r.avgCompletionMinutes} د عمل`;
+}
+
 export default function TaskComparisonPage() {
   const permission = trpc.court.registration.myPermission.useQuery();
   const roles = trpc.court.myRoles.useQuery();
@@ -48,6 +53,7 @@ export default function TaskComparisonPage() {
   );
   const rows = comparison.data ?? [];
   const assignedRows = rows.filter(r => r.status === "assigned");
+  const notStartedRows = rows.filter(r => r.status === "not_started");
   const notAssignedRows = rows.filter(r => r.status === "not_assigned");
   const onLeaveRows = rows.filter(r => r.status === "on_leave");
 
@@ -58,15 +64,15 @@ export default function TaskComparisonPage() {
     doc.setFont("helvetica", "bold");
     doc.text("تقرير مقارنة المهام", 14, 16);
     doc.text(`نوع المهمة: ${title}`, 14, 24);
-    const body = assignedRows.map((r, i) => [String(i + 1), r.name, String(r.totalTasks), String(r.completed), String(r.onTime), String(r.late), r.avgCompletionMinutes == null ? "—" : `${r.avgCompletionMinutes} د`, String(r.totalPoints), `${r.complianceRate}%`]);
-    (doc as any).autoTable({ head: [["الترتيب", "الاسم", "الإجمالي", "منجزة", "في الوقت", "متأخرة", "متوسط الزمن", "النقاط", "الالتزام %"]], body, startY: 30, theme: "grid" });
+    const body = assignedRows.map((r, i) => [String(i + 1), r.name, String(r.totalTasks), String(r.completed), String(r.onTime), String(r.lateCompleted), String(r.stillOverdue), r.avgCompletionMinutes == null ? "—" : `${r.avgCompletionMinutes} د`, String(r.totalPoints), `${r.complianceRate}%`]);
+    (doc as any).autoTable({ head: [["الترتيب", "الاسم", "الإجمالي", "منجزة", "في الوقت", "أنجزت متأخرة", "لم تُنجز", "متوسط الزمن", "النقاط", "الالتزام %"]], body, startY: 30, theme: "grid" });
     doc.save("task-comparison.pdf");
   };
 
   const exportCsv = () => {
     downloadCsv("task-comparison.csv", [
-      ["rank", "name", "total", "completed", "onTime", "late", "avgTime", "points", "compliance"],
-      ...assignedRows.map((r, i) => [String(i + 1), r.name, String(r.totalTasks), String(r.completed), String(r.onTime), String(r.late), r.avgCompletionMinutes == null ? "" : String(r.avgCompletionMinutes), String(r.totalPoints), String(r.complianceRate)]),
+      ["rank", "name", "total", "completed", "onTime", "lateCompleted", "stillOverdue", "avgTime", "points", "compliance"],
+      ...assignedRows.map((r, i) => [String(i + 1), r.name, String(r.totalTasks), String(r.completed), String(r.onTime), String(r.lateCompleted), String(r.stillOverdue), r.avgCompletionMinutes == null ? "" : String(r.avgCompletionMinutes), String(r.totalPoints), String(r.complianceRate)]),
     ]);
   };
 
@@ -141,7 +147,7 @@ export default function TaskComparisonPage() {
             <p className="mb-3 text-sm font-bold text-[#12352f]">المُقيَّمون</p>
             <table className="w-full min-w-[560px] text-sm">
               <thead><tr className="border-b border-[#eee8de] text-[#6b5b45]">
-                <th className="px-3 py-2 text-right font-medium">الترتيب</th><th className="px-3 py-2 font-medium">الموظف</th><th className="px-3 py-2 font-medium">الإجمالي</th><th className="px-3 py-2 font-medium">منجزة</th><th className="px-3 py-2 font-medium">في الوقت</th><th className="px-3 py-2 font-medium">متأخرة</th><th className="px-3 py-2 font-medium">متوسط الزمن</th><th className="px-3 py-2 font-medium">النقاط</th><th className="px-3 py-2 font-medium">الالتزام</th>
+                <th className="px-3 py-2 text-right font-medium">الترتيب</th><th className="px-3 py-2 font-medium">الموظف</th><th className="px-3 py-2 font-medium">الإجمالي</th><th className="px-3 py-2 font-medium">منجزة</th><th className="px-3 py-2 font-medium">في الوقت</th><th className="px-3 py-2 font-medium">أنجزت متأخرة</th><th className="px-3 py-2 font-medium">لم تُنجز</th><th className="px-3 py-2 font-medium">متوسط ساعات العمل</th><th className="px-3 py-2 font-medium">النقاط</th><th className="px-3 py-2 font-medium">الالتزام</th>
               </tr></thead>
               <tbody>{assignedRows.map((r, i) => <tr key={r.profileId} className="border-b border-[#f3ecdf]">
                 <td className="px-3 py-2 text-[#4a3b28]">{medal(i + 1)} {i + 1}</td>
@@ -149,8 +155,9 @@ export default function TaskComparisonPage() {
                 <td className="px-3 py-2">{r.totalTasks}</td>
                 <td className="px-3 py-2 text-emerald-700">{r.completed}</td>
                 <td className="px-3 py-2">{r.onTime}</td>
-                <td className="px-3 py-2 text-red-700">{r.late}</td>
-                <td className="px-3 py-2">{r.avgCompletionMinutes == null ? "—" : `${r.avgCompletionMinutes} د`}</td>
+                <td className="px-3 py-2 text-amber-700">{r.lateCompleted}</td>
+                <td className="px-3 py-2 text-red-700">{r.stillOverdue}</td>
+                <td className="px-3 py-2">{formatCompletionTime(r)}</td>
                 <td className={`px-3 py-2 font-bold ${r.totalPoints >= 0 ? "text-emerald-700" : "text-red-700"}`}>{r.totalPoints}</td>
                 <td className="px-3 py-2">{r.complianceRate}%</td>
               </tr>)}</tbody>
@@ -165,6 +172,12 @@ export default function TaskComparisonPage() {
               </div>
             </div>)}
           </div>
+          {notStartedRows.length > 0 && <div className="rounded-2xl border border-[#e7e0d4] bg-[#f3f3ef] p-4 lg:col-span-3">
+            <p className="mb-3 text-sm font-bold text-[#6d7d74]">لم يبدأ (أُسندت ولم تُنجز)</p>
+            <div className="flex flex-wrap gap-2">
+              {notStartedRows.map(r => <span key={r.profileId} className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[#6d7d74]">{r.name}</span>)}
+            </div>
+          </div>}
           {notAssignedRows.length > 0 && <div className="rounded-2xl border border-[#e7e0d4] bg-[#f3f3ef] p-4 lg:col-span-3">
             <p className="mb-3 text-sm font-bold text-[#6d7d74]">لم يُسند له</p>
             <div className="flex flex-wrap gap-2">
