@@ -3970,7 +3970,7 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
 }
 
 /** يوافق المدير على المهمة المرفوعة فيُحسب النقاط وتكتمل، أو يرفضها فتعود للتنفيذ. */
-export async function reviewTaskApproval(input: { approvalId: number; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number; managerRating?: "excellent" | "good" | "acceptable"; ratingNote?: string }) {
+export async function reviewTaskApproval(input: { approvalId: number; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number; managerRating?: "excellent" | "good" | "acceptable"; ratingNote?: string; viewerProfileIds?: number[] }) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
   const approval = (await db.select().from(taskApprovals).where(eq(taskApprovals.id, input.approvalId)).limit(1))[0];
@@ -4017,6 +4017,25 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
       console.warn("[notifications] فشل إدراج إشعار رفض المهمة", { taskId: approval.taskId, error });
     }
     try { await sendPushForNotification(task.assigneeProfileId, { title: "رُفضت مهمتك", body: `تم رفض المهمة «${task.title}» وإعادتها للتنفيذ.`, url: "/tasks", tag: `task-rejected-${approval.id}` }); } catch (error) { console.warn("[WebPush] فشل إشعار رفض المهمة", { taskId: approval.taskId, error }); }
+  }
+
+  // 3ب) نسخة للاطلاع (CC): إضافة المطّلعين بعد الاعتماد الناجح فقط.
+  if (input.decision === "approved" && input.viewerProfileIds && input.viewerProfileIds.length > 0 && input.reviewerProfileId) {
+    try {
+      const manager = (await db.select({ unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, input.reviewerProfileId)).limit(1))[0];
+      const viewerIds = [...new Set(input.viewerProfileIds.filter(id => id !== task.assigneeProfileId))];
+      for (const viewerId of viewerIds) {
+        const viewer = (await db.select({ unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, viewerId)).limit(1))[0];
+        if (!viewer || viewer.unitId !== manager?.unitId) {
+          console.warn(`[CC] viewer ${viewerId} outside manager unit — skipped`);
+          continue;
+        }
+        await db.insert(taskCc).values({ taskId: approval.taskId, viewerProfileId: viewerId, addedByProfileId: input.reviewerProfileId }).onDuplicateKeyUpdate({ set: { addedByProfileId: input.reviewerProfileId } });
+        await db.insert(notifications).values({ profileId: viewerId, category: "task_due", title: "نسخة للاطلاع", body: `تمت مشاركة مهمة معك للاطلاع: ${task.title}`, dedupeKey: `task-cc-${approval.taskId}-${viewerId}` });
+      }
+    } catch (error) {
+      console.warn("[CC] فشل إضافة المطّلعين", { taskId: approval.taskId, error });
+    }
   }
 
   try { await db.insert(taskUpdates).values({ taskId: approval.taskId, actorUserId: input.reviewerUserId, updateType: "approved", note: `قرار الاعتماد: ${input.decision === "approved" ? "معتمد" : "مرفوض"}. ${input.note.trim()}` }); } catch (error) { console.warn("[taskUpdates] فشل إدراج تحديث الاعتماد", { taskId: approval.taskId, error }); }

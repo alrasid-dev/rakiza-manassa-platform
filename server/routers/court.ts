@@ -1610,7 +1610,7 @@ export const courtRouter = router({
       if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف موظف لرفع المهمة للاعتماد." });
       return submitTaskForApproval({ taskId: input.taskId, submittedByProfileId: profile.id, actorUserId: ctx.user.id, note: input.note });
     }),
-    reviewApproval: protectedProcedure.input(z.object({ approvalId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), note: z.string().trim().min(3).max(4000), managerRating: z.enum(["excellent", "good", "acceptable"]).optional(), ratingNote: z.string().trim().max(500).optional() })).mutation(async ({ ctx, input }) => {
+    reviewApproval: protectedProcedure.input(z.object({ approvalId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), note: z.string().trim().min(3).max(4000), managerRating: z.enum(["excellent", "good", "acceptable"]).optional(), ratingNote: z.string().trim().max(500).optional(), viewerProfileIds: z.array(z.number().int().positive()).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
       const roles = await rolesForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
@@ -1618,7 +1618,7 @@ export const courtRouter = router({
       if (!isLeadership && !isManager) throw new TRPCError({ code: "FORBIDDEN", message: "اعتماد المهام متاح للمدير والقيادة فقط." });
       const reviewer = await getProfileForUser(ctx.user.id);
       try {
-        return await reviewTaskApproval({ approvalId: input.approvalId, decision: input.decision, note: input.note, reviewerProfileId: reviewer?.id ?? 0, reviewerUserId: ctx.user.id, managerRating: input.managerRating, ratingNote: input.ratingNote });
+        return await reviewTaskApproval({ approvalId: input.approvalId, decision: input.decision, note: input.note, reviewerProfileId: reviewer?.id ?? 0, reviewerUserId: ctx.user.id, managerRating: input.managerRating, ratingNote: input.ratingNote, viewerProfileIds: input.viewerProfileIds });
       } catch (err) {
         if (err instanceof TRPCError) throw err;
         console.error("[reviewTaskApproval] فشل:", err);
