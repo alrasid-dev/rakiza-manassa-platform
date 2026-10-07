@@ -1853,7 +1853,8 @@ export async function getTodayTaskCounts(profileId?: number) {
   );
   const conditions = [base];
   if (profileId) conditions.push(eq(tasks.assigneeProfileId, profileId));
-  const [totalRows] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions));
+  // إجمالي «مهام اليوم» = المهام النشطة فقط (جديدة/قيد التنفيذ/قيد المراجعة/متأخرة) — تُستثنى المنجزة والملغاة والموقوفة.
+  const [totalRows] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions, inArray(tasks.status, ["new", "in_progress", "under_review", "overdue"])));
   const [completedRows] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions, eq(tasks.status, "completed")));
   const [pendingRows] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions, inArray(tasks.status, ["new", "in_progress", "under_review"])));
   const [overdueRows] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions, eq(tasks.status, "overdue")));
