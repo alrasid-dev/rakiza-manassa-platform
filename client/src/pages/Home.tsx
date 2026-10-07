@@ -124,6 +124,9 @@ export default function Home() {
   const todayCounts = trpc.court.tasks.todayCounts.useQuery(undefined, { enabled: Boolean(permission.data) });
   const openFlaggedTasks = (tasksList.data ?? []).filter(task => task.isOpen).length;
   const mayManageTasks = permission.data === "full_control" || (roles.data ?? []).some(role => ["court_president", "assistant_president", "court_secretary", "department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const people = trpc.court.people.list.useQuery({ personType: "administrative" }, { enabled: mayManageTasks });
+  const selectedCounts = trpc.court.tasks.todayCounts.useQuery(selectedEmployeeId != null ? { profileId: selectedEmployeeId } : undefined, { enabled: selectedEmployeeId != null });
   const taskApprovalsProcedure = (trpc.court as any).tasks?.listPendingApprovals;
   const pendingTaskApprovals = taskApprovalsProcedure?.useQuery ? taskApprovalsProcedure.useQuery(undefined, { enabled: mayManageTasks, refetchInterval: 30_000, retry: false }) : { data: [] };
   const pendingApprovalCount = (pendingTaskApprovals.data ?? []).length;
@@ -206,6 +209,32 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {mayManageTasks && (
+        <section aria-label="عدّاد موظف" className="mt-5 rounded-2xl border border-[#d5ddd2] bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#e3eef5] text-[#2c5d77]"><UserCog className="h-5 w-5" /></span>
+              <div>
+                <p className="text-sm font-black text-[#12352f]">عدّاد موظف</p>
+                <p className="text-xs text-[#66766e]">اختر موظفاً لعرض أرقام مهامه اليوم</p>
+              </div>
+            </div>
+            <select aria-label="اختر موظفاً" value={selectedEmployeeId?.toString() ?? ""} onChange={event => setSelectedEmployeeId(event.target.value ? Number(event.target.value) : null)} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm text-[#12352f]">
+              <option value="">اختر موظفاً…</option>
+              {(people.data ?? []).map(person => <option key={person.id} value={person.id}>{person.fullName}</option>)}
+            </select>
+          </div>
+          {selectedEmployeeId != null && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">📊 إجمالي: {selectedCounts.data?.total ?? 0}</span>
+              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">✅ منجزة: {selectedCounts.data?.completed ?? 0}</span>
+              <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-xs font-bold text-[#80642b]">⏳ معلّقة: {selectedCounts.data?.pending ?? 0}</span>
+              <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-xs font-bold text-[#a8493b]">🔴 متأخرة: {selectedCounts.data?.overdue ?? 0}</span>
+            </div>
+          )}
+        </section>
+      )}
 
             <section aria-label="الشبكة الرئيسية" className="mt-5">
         <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-[#7a8980]"><GripVertical className="h-3.5 w-3.5" aria-hidden="true" />اسحب البطاقات لإعادة ترتيبها، أو أسقطها داخل «البطاقات المخفية» بالأسفل لإخفائها.</p>
