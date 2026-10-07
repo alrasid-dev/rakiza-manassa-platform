@@ -3332,7 +3332,7 @@ export async function createTask(input: { title: string; unitId?: number; assign
     }
   }
   try {
-    await logAudit({ actorUserId: input.assignedByUserId, action: "task.created", entityType: "task", entityId: id, metadata: { traineeCopyProfileId: traineeCopyProfileId ?? null } });
+    await logAudit({ actorUserId: input.assignedByUserId, action: "task.created", entityType: "task", entityId: id, metadata: { source: "manual", traineeCopyProfileId: traineeCopyProfileId ?? null } });
   } catch (error) {
     console.warn("[Audit] فشل تسجيل أثر إنشاء المهمة دون تعطيل الإنشاء", { taskId: id, error });
   }
@@ -6112,8 +6112,9 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
     }
     if (!assigneeProfileId) { skipped += 1; continue; }
     const dueAt = saudiScheduledTime(scheduleAnchor, template.dueHourLocal);
-    await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, reassignedFromProfileId, reassignmentReason, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null, specificDays: template.specificDays ?? null });
+    const taskResult = await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, reassignedFromProfileId, reassignmentReason, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null, specificDays: template.specificDays ?? null });
     await db.update(taskTemplates).set({ lastGeneratedAt: now }).where(eq(taskTemplates.id, template.id));
+    await logAudit({ actorUserId: SYSTEM_ACTOR_ID, action: "task.created", entityType: "task", entityId: Number(taskResult[0].insertId), metadata: { source: "template", templateId: template.id } });
     createdTasks += 1;
   }
   const scheduledTasks = await db.select().from(tasks).where(and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end), inArray(tasks.status, ["new", "in_progress"])));
