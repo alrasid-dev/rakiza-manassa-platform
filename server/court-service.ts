@@ -1747,30 +1747,13 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
   const conditions = [isNull(tasks.archivedAt)];
   const periodWindow = filters?.period ? taskPeriodWindow(filters.period, new Date()) : null;
   const futureWindow = filters?.futureRange ? futureRangeWindow(filters.futureRange, new Date()) : null;
-  const shouldHideFuture = !futureWindow && !periodWindow && filters?.dueFilter !== "dueSoon" && filters?.dueFilter !== "completed";
+  // المهام المستقبلية (scheduledFor بعد الآن) تظهر دائماً في القائمة النشطة دون حجب.
   if (periodWindow) {
     conditions.push(gte(tasks.scheduledFor, periodWindow.start));
     if (periodWindow.end) conditions.push(lt(tasks.scheduledFor, periodWindow.end));
   } else if (futureWindow) {
     conditions.push(gt(tasks.scheduledFor, futureWindow.start));
     if (futureWindow.end) conditions.push(lt(tasks.scheduledFor, futureWindow.end));
-  } else if (shouldHideFuture) {
-    // تُعرض المهمة إذا: بدون scheduledFor، أو بدأت فعلاً، أو مهمة افتراضية ضمن نافذة الفتح المبكر (4 ساعات).
-    // المهام ذات الموعد الصريح (isOpen أو dueAt يدوي) تُعرض عند scheduledFor فقط دون فتح مبكر.
-    const now = new Date();
-    const openHorizon = new Date(now.getTime() + EARLY_OPEN_HOURS * 60 * 60 * 1000);
-    conditions.push(or(
-      isNull(tasks.scheduledFor),
-      lte(tasks.scheduledFor, now),
-      and(
-        eq(tasks.isOpen, false),
-        or(
-          isNull(tasks.dueAt),
-          sql`TIMESTAMPDIFF(HOUR, ${tasks.scheduledFor}, ${tasks.dueAt}) IN (6, 24)`,
-        ),
-        lte(tasks.scheduledFor, openHorizon),
-      ),
-    )!);
   }
   // إخفاء المهام القديمة غير المعالجة (scheduledFor قبل اليوم) من القائمة النشطة — تنتقل إلى تبويب «السجلات».
   if (!periodWindow && !futureWindow && !filters?.status && !filters?.dueFilter) {
@@ -2905,6 +2888,7 @@ export async function approveAllPendingApprovals(input: { actorUserId: number; r
   const approvals = await listPendingApprovals();
   let approved = 0;
   let skipped = 0;
+  let failed = 0;
   for (const approval of approvals) {
     if (input.unitId && approval.entityType !== "department_manager_assignment") {
       // تصفية اختيارية بقسم تسليم الأحكام عند الحاجة: تُطبَّق على طلبات تسكين مدير القسم فقط.
@@ -2921,13 +2905,18 @@ export async function approveAllPendingApprovals(input: { actorUserId: number; r
       canAct = input.roles.some(role => canActOnApproval(role as CourtRole, currentRole));
     }
     if (!canAct) { skipped += 1; continue; }
-    const nextRole = isManagerAssignment ? nextManagerAssignmentApprovalRole(currentRole as ManagerAssignmentApprovalRole) : nextApprovalRole(currentRole);
-    await decideApproval({ approvalId: approval.id, actorUserId: input.actorUserId, decision: "approved", nextRole });
-    if (isManagerAssignment && !nextRole) await applyManagerAssignmentApproval(approval.id, input.actorUserId);
-    approved += 1;
+    try {
+      const nextRole = isManagerAssignment ? nextManagerAssignmentApprovalRole(currentRole as ManagerAssignmentApprovalRole) : nextApprovalRole(currentRole);
+      await decideApproval({ approvalId: approval.id, actorUserId: input.actorUserId, decision: "approved", nextRole });
+      if (isManagerAssignment && !nextRole) await applyManagerAssignmentApproval(approval.id, input.actorUserId);
+      approved += 1;
+    } catch (error) {
+      failed += 1;
+      console.warn("[Approvals] فشل الاعتماد المجمع لأحد الطلبات", { approvalId: approval.id, error: (error as Error)?.message ?? String(error) });
+    }
   }
-  await logAudit({ actorUserId: input.actorUserId, action: "approval.bulk_approved", entityType: "approval", metadata: { approved, skipped } });
-  return { approved, skipped };
+  await logAudit({ actorUserId: input.actorUserId, action: "approval.bulk_approved", entityType: "approval", metadata: { approved, skipped, failed } });
+  return { approved, skipped, failed };
 }
 
 function safeParseJson(value: string | null): unknown {
@@ -3186,7 +3175,7 @@ export async function listTeamDisciplinaryCases(managedUnitIds: number[] | null,
       const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId }).from(tasks).where(eq(tasks.id, c.entityId)).limit(1))[0];
       if (task?.assigneeProfileId) employee = (await db.select({ fullName: personProfiles.fullName, unitId: personProfiles.unitId, attendanceMode: personProfiles.attendanceMode }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1))[0];
     }
-    return { ...c, employeeName: employee?.fullName || "غير معروف", employeeUnitId: employee?.unitId ?? null, attendanceMode: employee?.attendanceMode ?? null, source };
+    return { ...c, employeeName: employee?.fullName || "غير مُسند", employeeUnitId: employee?.unitId ?? null, attendanceMode: employee?.attendanceMode ?? null, source };
   }));
   // فلاتر إضافية تُطبق بعد حل اسم الموظف وقسمه (قسم/نوع/بحث).
   return rows.filter(row => {
@@ -3228,7 +3217,7 @@ export async function listTeamDisciplinaryLog(managedUnitIds: number[] | null, f
     if (employee?.unitId != null) {
       unitName = (await db.select({ name: organizationUnits.name }).from(organizationUnits).where(eq(organizationUnits.id, employee.unitId)).limit(1))[0]?.name ?? null;
     }
-    return { ...c, employeeName: employee?.fullName || "غير معروف", unitId: employee?.unitId ?? null, unitName, type: source, reason: c.requestNote };
+    return { ...c, employeeName: employee?.fullName || "غير مُسند", unitId: employee?.unitId ?? null, unitName, type: source, reason: c.requestNote };
   }));
   return rows.filter(row => {
     if (filters?.type && row.type !== filters.type) return false;
