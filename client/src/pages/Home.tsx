@@ -201,8 +201,8 @@ export default function Home() {
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">منجزة: {todayCounts.data?.completed ?? 0}</span>
-            <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-xs font-bold text-[#80642b]">قيد التنفيذ: {todayCounts.data?.pending ?? 0}</span>
-            <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-xs font-bold text-[#a8493b]">متأخرة: {todayCounts.data?.overdue ?? 0}</span>
+            <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-xs font-bold text-[#80642b]">معلّقة: {todayCounts.data?.pending ?? 0}</span>
+            <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-xs font-bold text-[#a8493b]">متأخرات: {todayCounts.data?.overdue ?? 0}</span>
           </div>
         </div>
       </section>

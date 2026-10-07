@@ -19,7 +19,7 @@ vi.mock("@/lib/trpc", () => ({
       myRoles: { useQuery: () => query(["court_president"]) },
       management: { list: { useQuery: () => query([]) }, assign: { useMutation: () => mutation }, end: { useMutation: () => mutation } },
       dashboard: { useQuery: () => query({ profiles: 12, openTasks: 4, overdueTasks: 1, openDelays: 2, overdueDelays: 0, dueTasks: 1, unreadNotifications: 0 }) },
-      tasks: { list: { useQuery: () => query([]) } },
+      tasks: { list: { useQuery: () => query([]) }, todayCounts: { useQuery: () => query({ total: 0, completed: 0, pending: 0, overdue: 0 }) } },
       notifications: { listMine: { useQuery: () => query([]) }, markRead: { useMutation: () => mutation } },
       attendance: { remoteReport: { useQuery: () => query([]) } },
       people: { self: { useQuery: () => query({ id: 10, fullName: "موظف ضمن الجلسة", personType: "administrative", status: "active", jobTitle: "موظف إداري", judicialFormation: null, unitId: 1, unitName: "شؤون الملازمين", unitCode: "trainee_affairs" }) }, list: { useQuery: () => query([{ id: 10, fullName: "موظف ضمن الجلسة", personType: "administrative", status: "active", jobTitle: "موظف إداري", judicialFormation: null, unitId: 1 }]) }, create: { useMutation: () => mutation }, delegations: { useQuery: () => query([]) }, createDelegation: { useMutation: () => mutation }, updateDelegationStatus: { useMutation: () => mutation } },

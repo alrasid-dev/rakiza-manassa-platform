@@ -22,7 +22,7 @@ vi.mock("@/lib/trpc", () => ({
       registration: { myPermission: { useQuery: () => ({ data: state.permission, isLoading: false, error: null }) } },
       myRoles: { useQuery: () => ({ data: state.roles, isLoading: false, error: null }) },
       dashboard: { useQuery: () => ({ data: state.dashboard, isLoading: false, error: null }) },
-      tasks: { list: { useQuery: () => ({ data: [{ id: 17, title: "متابعة خطاب تجريبي", status: state.taskStatus, dueAt: "2027-08-26T11:00:00.000Z", scheduledAt: "2027-08-26T08:00:00.000Z", assigneeProfileId: 17, unitName: "وحدة الاختبار" }], isLoading: false, error: null }) } },
+      tasks: { list: { useQuery: () => ({ data: [{ id: 17, title: "متابعة خطاب تجريبي", status: state.taskStatus, dueAt: "2027-08-26T11:00:00.000Z", scheduledAt: "2027-08-26T08:00:00.000Z", assigneeProfileId: 17, unitName: "وحدة الاختبار" }], isLoading: false, error: null }) }, todayCounts: { useQuery: () => ({ data: { total: 0, completed: 0, pending: 0, overdue: 0 }, isLoading: false, error: null }) } },
       communications: { conversations: { unreadCount: { useQuery: () => ({ data: 2, isLoading: false, error: null }) } } },
       people: { list: { useQuery: () => ({ data: [], isLoading: false, error: null }) }, self: { useQuery: () => ({ data: { id: 17 }, isLoading: false, error: null }) } },
       units: { list: { useQuery: () => ({ data: [], isLoading: false, error: null }) } },
