@@ -76,6 +76,7 @@ import CourtStructureMenu from "./CourtStructureMenu";
 import DepartmentManagementActions from "./DepartmentManagementActions";
 import DepartmentManagerMenu from "./DepartmentManagerMenu";
 import DynamicQuickActions, { quickActionCatalog, type QuickActionId } from "./DynamicQuickActions";
+import { RakizaIconButton } from "./RakizaIconButton";
 
 type WorkspacePermission = "full_control" | "general_view" | "employee" | "trainee" | null | undefined;
 export type AnnouncementPreview = { id: number; title: string; body: string };
@@ -245,10 +246,9 @@ function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, v
               const active = isNavigationPathActive(location, item.path);
               const tone = navigationIconTone(section.heading, item.label);
               const { count: unreadCount, accessibleLabel: unreadLabel } = navigationBadgeForItem(item.label, { mail: mailUnreadCount, chat: chatUnreadCount, taskAttention: taskAttentionCount, pendingApprovals: pendingApprovalCount, taskApprovals: taskApprovalCount, myRequests: myRequestsCount });
-              const iconSize = item.label === "بريد ركيزة" ? "h-5 w-5" : "h-[1.15rem] w-[1.15rem]";
               return (
-                <button key={`${item.path}-${item.label}`} type="button" onClick={() => { setLocation(item.path); onNavigate?.(); }} className={["group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-right text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]", variant === "dark" ? (active ? "border-r-2 border-[#a8c98f] bg-[#1f6147] text-white shadow-[0_6px_16px_rgba(20,69,48,0.2)" : "text-white/85 hover:bg-[#214c3d] hover:text-white") : (active ? "border-r-2 border-[#7faa82] bg-[#e0ecdf] text-[#245f43] shadow-[0_5px_14px_rgba(50,94,68,0.09)]" : "text-[#4f6258] hover:bg-[#e9eee7] hover:text-[#245f43]")].join(" ")}>
-                  <span aria-hidden="true" className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${navigationIconWellClass(tone, active, variant)}`}><item.icon className={`${iconSize} ${oliveIconMotionClass}`} fill={active ? "currentColor" : "none"} strokeWidth={active ? 1.6 : 2} /></span>
+                <button key={`${item.path}-${item.label}`} type="button" onClick={() => { setLocation(item.path); onNavigate?.(); }} className={["group flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-right text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]", variant === "dark" ? (active ? "border-r-2 border-[#a8c98f] bg-[#1f6147] text-white shadow-[0_6px_16px_rgba(20,69,48,0.2)" : "text-white/85 hover:bg-[#214c3d] hover:text-white") : (active ? "border-r-2 border-[#7faa82] bg-[#e0ecdf] text-[#245f43] shadow-[0_5px_14px_rgba(50,94,68,0.09)]" : "text-[#4f6258] hover:bg-[#e9eee7] hover:text-[#245f43]")].join(" ")}>
+                  <RakizaIconButton icon={item.icon} tone={tone} active={active} size="sm" />
                   <span>{item.label}</span>
                   {unreadCount > 0 && <span aria-label={unreadLabel} className={`mr-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[10px] font-black ${variant === "dark" ? "bg-[#b6d3aa] text-[#173c2d]" : "bg-[#b84d3e] text-white"}`}>{unreadCount > 99 ? "99+" : unreadCount}</span>}
                 </button>

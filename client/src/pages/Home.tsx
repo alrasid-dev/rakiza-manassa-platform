@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { DASHBOARD_HOME_CARD_IDS, DashboardCustomizationDialog, defaultDashboardPreferences, normalizeDashboardPreferences, type DashboardHomeCardId, type DashboardPreferenceState } from "@/components/DashboardCustomizationDialog";
 import GlobalSearchBar from "@/components/GlobalSearchBar";
+import { RakizaIconButton } from "@/components/RakizaIconButton";
 import { trpc } from "@/lib/trpc";
 import { readDashboardPreferencesLocal, writeDashboardPreferencesLocal } from "@/lib/dashboard-preferences-storage";
 import { AlertTriangle, BadgeHelp, BellRing, Bot, CheckCircle2, Circle, Clock3, Eye, EyeOff, FileUp, GripVertical, LayoutDashboard, ListChecks, Mail, Megaphone, MessageSquare, Network, Repeat, RotateCcw, Settings2, TrendingUp, UserCog } from "lucide-react";
@@ -64,7 +65,7 @@ function WidgetCard({ label, icon: Icon, tone, count, sub, pulse = false, onClic
     <button type="button" onClick={onClick} className={`group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br p-4 min-h-28 text-right text-white shadow-[0_14px_32px_rgba(20,40,32,0.16)] transition hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_20px_44px_rgba(20,40,32,0.26)] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${tone} ${pulse ? "animate-[pulse_2.5s_ease-in-out_infinite]" : ""}`}>
       {pulse && <span aria-hidden="true" className="absolute left-3 top-3 flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-white" /></span>}
       <span className="flex w-full items-center justify-between gap-2">
-        <span className="grid h-11 w-11 place-items-center rounded-full bg-white/20 ring-1 ring-white/30 backdrop-blur-sm"><Icon className="h-5 w-5" strokeWidth={2.1} aria-hidden="true" /></span>
+        <RakizaIconButton icon={Icon} variant="glass" size="lg" />
         {typeof count === "number" && <span className="rounded-full bg-white/25 px-2.5 py-1 text-sm font-black tabular-nums">{formatUnreadBadgeCount(count)}</span>}
       </span>
       <span className="mt-3 block text-base font-black leading-tight">{label}</span>
