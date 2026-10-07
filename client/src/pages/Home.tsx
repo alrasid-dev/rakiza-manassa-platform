@@ -62,13 +62,11 @@ export function teamStatusLabel(status?: TeamMember["status"]) {
 /** شريط مؤشر مدمج: عنصر صغير لا بطاقة، يعرض الرقم والوصف ويعيد التوجيه عند النقر. */
 function WidgetCard({ label, icon: Icon, tone, count, sub, pulse = false, onClick }: { label: string; icon: typeof ListChecks; tone: string; count?: number; sub?: string; pulse?: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={`group relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br p-4 min-h-28 text-right text-white shadow-[0_14px_32px_rgba(20,40,32,0.16)] transition hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_20px_44px_rgba(20,40,32,0.26)] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${tone} ${pulse ? "animate-[pulse_2.5s_ease-in-out_infinite]" : ""}`}>
-      {pulse && <span aria-hidden="true" className="absolute left-3 top-3 flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-white" /></span>}
-      <span className="flex w-full items-center justify-between gap-2">
-        <RakizaIconButton icon={Icon} variant="glass" size="lg" />
-        {typeof count === "number" && <span className="rounded-full bg-white/25 px-2.5 py-1 text-sm font-black tabular-nums">{formatUnreadBadgeCount(count)}</span>}
-      </span>
-      <span className="mt-3 block text-base font-black leading-tight">{label}</span>
+    <button type="button" onClick={onClick} className={`group relative flex min-h-28 cursor-pointer flex-col overflow-hidden rounded-2xl bg-gradient-to-br p-4 text-right text-white shadow-[0_14px_32px_rgba(20,40,32,0.16)] transition hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_20px_44px_rgba(20,40,32,0.26)] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${tone} ${pulse ? "animate-[pulse_2.5s_ease-in-out_infinite]" : ""}`}>
+      {pulse && <span aria-hidden="true" className="absolute right-3 top-3 flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-white" /></span>}
+      {typeof count === "number" && <span className="absolute left-3 top-3 rounded-full bg-white/25 px-2.5 py-1 text-sm font-black tabular-nums">{formatUnreadBadgeCount(count)}</span>}
+      <span className="flex flex-1 items-center justify-center"><Icon className="h-6 w-6 text-white" strokeWidth={2} aria-hidden="true" /></span>
+      <span className="mt-2 block text-base font-black leading-tight">{label}</span>
       {sub ? <span className="mt-0.5 block text-[11px] font-semibold text-white/80">{sub}</span> : null}
     </button>
   );
@@ -192,7 +190,7 @@ export default function Home() {
       <section aria-label="مهامي اليوم" onClick={() => setLocation("/tasks")} className="mt-5 cursor-pointer rounded-2xl border border-[#d5ddd2] bg-white p-4 transition hover:border-[#9fc7a8] hover:bg-[#f6fbf6]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#dce9da] text-[#2d6b4f]"><ListChecks className="h-5 w-5" /></span>
+            <RakizaIconButton icon={ListChecks} gradient="from-emerald-500 to-emerald-600" />
             <div>
               <p className="text-sm font-black text-[#12352f]">مهامي اليوم</p>
               <p className="text-xs text-[#66766e]">إجمالي: {todayCounts.data?.total ?? 0} مهمة · <span className="font-bold text-[#2d6b4f]">عرض الكل ←</span></p>

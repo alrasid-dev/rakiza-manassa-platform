@@ -1,46 +1,39 @@
+import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
-export type RakizaIconTone = "olive" | "gold" | "alert" | "slate";
-
-const toneGradients: Record<RakizaIconTone, string> = {
-  olive: "from-[#2f7653] to-[#1a5c40]",
-  gold: "from-[#c9a24a] to-[#98711b]",
-  alert: "from-[#c64839] to-[#93271e]",
-  slate: "from-[#3a4651] to-[#4e5c69]",
+type Props = {
+  icon: LucideIcon;
+  gradient?: string; // مثال: "from-emerald-500 to-emerald-600"
+  className?: string;
+  onClick?: () => void;
+  ariaLabel?: string;
 };
 
-/**
- * مكوّن أيقونة موحّد: حجم ثابت، تدرّج لوني لكل قسم، سمك خط ثابت،
- * وتأثيرات hover/active حديثة (تكبير/تصغير + سطوع) مع تعبئة عند التفعيل.
- */
+/** أيقونة موحّدة: حاوية 40px + أيقونة 20px (نسبة ملء 50%) + تدرّج لوني + تأثيرات hover/active. */
 export function RakizaIconButton({
   icon: Icon,
-  tone = "olive",
-  active = false,
-  size = "md",
-  variant = "gradient",
-  className = "",
-}: {
-  icon: LucideIcon;
-  tone?: RakizaIconTone;
-  active?: boolean;
-  size?: "sm" | "md" | "lg";
-  variant?: "gradient" | "glass";
-  className?: string;
-}) {
-  const box =
-    size === "sm" ? "h-8 w-8 rounded-lg" : size === "lg" ? "h-11 w-11 rounded-2xl" : "h-10 w-10 rounded-xl";
-  const iconSize = size === "sm" ? "h-4 w-4" : "h-5 w-5";
-  const surface =
-    variant === "glass"
-      ? "bg-white/20 text-white ring-1 ring-white/30 backdrop-blur-sm"
-      : `bg-gradient-to-br text-white shadow-[0_6px_16px_rgba(20,40,32,0.18)] ${toneGradients[tone]}`;
+  gradient = "from-emerald-500 to-emerald-600",
+  className,
+  onClick,
+  ariaLabel,
+}: Props) {
   return (
     <span
-      aria-hidden="true"
-      className={`grid shrink-0 place-items-center transition-transform duration-200 hover:scale-105 hover:brightness-110 active:scale-95 ${box} ${active ? "ring-2 ring-white/60" : "ring-1 ring-white/20"} ${surface} ${className}`}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className={cn(
+        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+        "bg-gradient-to-br ring-1 ring-black/5 shadow-sm",
+        "transition-all duration-200",
+        "hover:scale-105 hover:brightness-110",
+        "active:scale-95",
+        gradient,
+        className,
+      )}
     >
-      <Icon className={iconSize} strokeWidth={2} fill={active ? "currentColor" : "none"} aria-hidden="true" />
+      <Icon className="h-5 w-5 text-white" strokeWidth={2} />
     </span>
   );
 }
