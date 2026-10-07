@@ -18,7 +18,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe("مساحة الحالة اليومية", () => {
   it("تمكّن الموظف العامل عن بعد من تسجيل حضوره في ملفه فقط", () => {
     render(<StatusWorkspaceContent />);
-    const attendanceForm = screen.getByText("حضور وانصراف القضاة والعاملين عن بعد").closest("form");
+    const attendanceForm = screen.getByText("حضور وانصراف العاملين عن بعد").closest("form");
     expect(attendanceForm).toBeTruthy();
     expect(within(attendanceForm!).getByRole("option", { name: /موظف عن بعد/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /تسجيل الانصراف/ })).toBeTruthy();
