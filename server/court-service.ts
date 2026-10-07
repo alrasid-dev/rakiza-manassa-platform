@@ -1897,6 +1897,27 @@ export async function assertNotCcViewer(taskId: number, profileId?: number | nul
   }
 }
 
+/** المهام التي المستخدم مُطّلع (CC viewer) عليها. */
+export async function listTasksSharedWithProfile(profileId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: tasks.id,
+    title: tasks.title,
+    status: tasks.status,
+    scheduledFor: tasks.scheduledFor,
+    dueAt: tasks.dueAt,
+    unitId: tasks.unitId,
+    assigneeName: sql<string | null>`(SELECT fullName FROM person_profiles WHERE id = ${tasks.assigneeProfileId})`,
+    addedByName: sql<string | null>`(SELECT fullName FROM person_profiles WHERE id = ${taskCc.addedByProfileId})`,
+    addedAt: taskCc.createdAt,
+    readAt: taskCc.readAt,
+  }).from(taskCc)
+    .innerJoin(tasks, eq(tasks.id, taskCc.taskId))
+    .where(eq(taskCc.viewerProfileId, profileId))
+    .orderBy(desc(taskCc.createdAt));
+}
+
 // ===== تقارير مقارنة المهام =====
 export async function listTaskTitlesForComparison(unitId?: number) {
   const db = await getDb();

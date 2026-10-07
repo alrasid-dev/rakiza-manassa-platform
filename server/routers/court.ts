@@ -189,6 +189,7 @@ import {
   listTaskCcForTask,
   removeTaskCc,
   markTaskCcAsRead,
+  listTasksSharedWithProfile,
   listTaskTitlesForComparison,
   compareTaskPerformance,
   archiveTask,
@@ -1443,6 +1444,11 @@ export const courtRouter = router({
       const viewerProfile = await getProfileForUser(ctx.user.id);
       const targetProfileId = isLeadership ? (input?.profileId ?? undefined) : (viewerProfile?.id ?? undefined);
       return getTodayTaskCounts(targetProfileId);
+    }),
+    listSharedWithMe: protectedProcedure.query(async ({ ctx }) => {
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) return [];
+      return listTasksSharedWithProfile(profile.id);
     }),
     pause: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), reason: z.string().trim().max(200).optional(), expiresAt: z.date().optional(), type: z.enum(["permanent", "temporary"]).optional() })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");
