@@ -598,13 +598,13 @@ export const courtRouter = router({
     recordManagerDecision: protectedProcedure.input(z.object({ assistant: z.enum(["department", "leadership", "trainee_affairs", "judicial_affairs", "performance_monitoring", "technical_support"]), decisionType: z.enum(["task_route", "priority", "summary_ack", "recommendation_accept", "recommendation_reject"]), decision: z.enum(["accepted", "rejected", "modified"]), contextLabel: z.string().trim().min(2).max(240), outcomeLabel: z.string().trim().max(240).optional(), rationale: z.string().trim().max(1000).optional(), automationMode: z.enum(["full", "partial", "disabled"]).optional() })).mutation(async ({ ctx, input }) => {
       await requireOperationsManager(ctx.user);
       await recordManagerDecision({ ...input, managerUserId: ctx.user.id });
-      const notificationSent = await notifyOwner({ title: "اختيار وضع معالجة في رَكيزة", content: `سُجل اختيار المدير لوضع «${input.automationMode ?? "غير محدد"}» للمساعد «${input.assistant}»، دون تنفيذ تلقائي.` });
+      const notificationSent = await notifyOwner({ title: "اختيار وضع معالجة في رَكيزة", content: `سُجل اختيار المدير لوضع «${input.automationMode ?? "غير محدد"}» للمساعد «${input.assistant}»، دون تنفيذ تلقائي.` }).catch(() => false);
       return { success: true, notificationSent };
     }),
     revokeAutomation: protectedProcedure.input(z.object({ assistant: z.enum(["department", "leadership", "trainee_affairs", "judicial_affairs", "performance_monitoring", "technical_support"]), decisionType: z.enum(["task_route", "priority", "summary_ack", "recommendation_accept", "recommendation_reject"]), contextLabel: z.string().trim().min(2).max(240), rationale: z.string().trim().max(1000).optional() })).mutation(async ({ ctx, input }) => {
       await requireOperationsManager(ctx.user);
       const result = await revokeAutomationDecision({ ...input, managerUserId: ctx.user.id });
-      const notificationSent = await notifyOwner({ title: "إلغاء فوري للموافقة الآلية", content: `ألغى المدير الموافقة الآلية للمساعد ${input.assistant}، وبقي التنفيذ متوقفاً حتى اعتماد جديد.` });
+      const notificationSent = await notifyOwner({ title: "إلغاء فوري للموافقة الآلية", content: `ألغى المدير الموافقة الآلية للمساعد ${input.assistant}، وبقي التنفيذ متوقفاً حتى اعتماد جديد.` }).catch(() => false);
       return { ...result, notificationSent };
     }),
     managerPatterns: protectedProcedure.input(z.object({ assistant: z.string().trim().max(80).optional(), limit: z.number().int().min(1).max(100).optional() }).optional()).query(async ({ ctx, input }) => {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Ban, Bot, Clipboard, GitBranch, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { AIChatBox, type Message } from "@/components/AIChatBox";
@@ -24,8 +24,15 @@ export function AssistantsPage() {
   const prediction = trpc.court.assistants.predict.useMutation();
   const recordDecision = trpc.court.assistants.recordManagerDecision.useMutation();
   const revokeAutomation = trpc.court.assistants.revokeAutomation.useMutation();
+  const autoApprovalPrefs = trpc.court.settings.getAutoApproval.useQuery();
+  const setAutoApproval = trpc.court.settings.setAutoApproval.useMutation();
   const [automationChoiceNotice, setAutomationChoiceNotice] = useState("");
   const [decisionMode, setDecisionMode] = useState<"disabled" | "partial" | "full">("disabled");
+  useEffect(() => {
+    if (autoApprovalPrefs.data?.mode) {
+      setDecisionMode(autoApprovalPrefs.data.mode === "half" ? "partial" : autoApprovalPrefs.data.mode === "full" ? "full" : "disabled");
+    }
+  }, [autoApprovalPrefs.data?.mode]);
   const [taskSnapshot, setTaskSnapshot] = useState("");
   const [predictionResult, setPredictionResult] = useState<Awaited<ReturnType<typeof prediction.mutateAsync>> | null>(null);
   const [copyNotice, setCopyNotice] = useState("");
@@ -48,7 +55,10 @@ export function AssistantsPage() {
 
   const chooseAutomation = (mode: "full" | "partial" | "disabled") => {
     setDecisionMode(mode);
-    recordDecision.mutate({ assistant: selectedKey, decisionType: mode === "disabled" ? "recommendation_reject" : "recommendation_accept", decision: mode === "disabled" ? "rejected" : "accepted", contextLabel: `اختيار وضع المعالجة: ${mode}`, automationMode: mode, rationale: "اختيار صريح من المدير؛ لا ينفذ هذا الزر أي مهمة تلقائياً." }, { onSuccess: () => setAutomationChoiceNotice("تم حفظ الاختيار في سجل التدقيق، ولم يُنفذ أي إجراء تلقائياً."), onError: error => setAutomationChoiceNotice(`تعذر حفظ الاختيار: ${error.message}`) });
+    const autoMode = mode === "disabled" ? "off" : mode === "partial" ? "half" : "full";
+    const modeLabel = mode === "disabled" ? "بدون آلي" : mode === "partial" ? "نصف آلي" : "آلي — بموافقة المسؤول";
+    setAutoApproval.mutate({ mode: autoMode, scope: ["tasks", "requests", "disciplinary", "leaves"] }, { onSuccess: () => setAutomationChoiceNotice(`تم حفظ وضع المعالجة «${modeLabel}» بنجاح.`), onError: error => setAutomationChoiceNotice(`تعذر حفظ الاختيار: ${error.message}`) });
+    recordDecision.mutate({ assistant: selectedKey, decisionType: mode === "disabled" ? "recommendation_reject" : "recommendation_accept", decision: mode === "disabled" ? "rejected" : "accepted", contextLabel: `اختيار وضع المعالجة: ${mode}`, automationMode: mode, rationale: "اختيار صريح من المدير؛ لا ينفذ هذا الزر أي مهمة تلقائياً." });
   };
 
   const revokeCurrentAutomation = () => {
