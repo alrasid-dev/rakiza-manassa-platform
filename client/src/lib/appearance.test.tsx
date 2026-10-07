@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { RAKIZA_FONTS, RAKIZA_FONT_SIZES, sortCourtStructureUnits } from "./appearance";
 
 describe("مظهر الخط وهيكلة المحكمة", () => {
-  it("يوفر خمسة خطوط عربية مجانية وأحجاماً واضحة", () => {
-    expect(RAKIZA_FONTS).toHaveLength(5);
-    expect(RAKIZA_FONTS.map(font => font.id)).toEqual(["tajawal", "cairo", "noto-naskh", "noto-kufi", "amiri"]);
+  it("يوفر سبعة خطوط عربية مجانية وأحجاماً واضحة", () => {
+    expect(RAKIZA_FONTS).toHaveLength(7);
+    expect(RAKIZA_FONTS.map(font => font.id)).toEqual(["tajawal", "cairo", "noto-naskh", "noto-kufi", "amiri", "alyamama", "ibm-plex"]);
     expect(RAKIZA_FONT_SIZES.map(size => size.id)).toEqual(["sm", "md", "lg", "xl"]);
   });
 
