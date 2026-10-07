@@ -2,9 +2,11 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { DASHBOARD_HOME_CARD_IDS, DashboardCustomizationDialog, defaultDashboardPreferences, normalizeDashboardPreferences, type DashboardHomeCardId, type DashboardPreferenceState } from "@/components/DashboardCustomizationDialog";
 import GlobalSearchBar from "@/components/GlobalSearchBar";
 import { RakizaIconButton } from "@/components/RakizaIconButton";
+import { StatCardCustomizationDialog } from "@/components/StatCardCustomizationDialog";
 import { trpc } from "@/lib/trpc";
 import { readDashboardPreferencesLocal, writeDashboardPreferencesLocal } from "@/lib/dashboard-preferences-storage";
 import { cn } from "@/lib/utils";
+import { STAT_CARD_DEFINITIONS, STAT_CARD_IDS, resolveStatColor, resolveStatIcon, type StatCardId } from "@/lib/stat-cards";
 import { AlertTriangle, BadgeHelp, BellRing, Bot, CheckCircle2, Circle, Clock3, Eye, EyeOff, FileUp, GripVertical, LayoutDashboard, ListChecks, Mail, Megaphone, MessageSquare, Network, Repeat, RotateCcw, Settings2, TrendingUp, UserCog } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -100,6 +102,9 @@ export default function Home() {
     : { isPending: false, mutate: (_input: DashboardPreferenceState) => undefined };
   const [preferences, setPreferences] = useState<DashboardPreferenceState>(() => normalizeDashboardPreferences(readDashboardPreferencesLocal<DashboardPreferenceState>() ?? defaultDashboardPreferences()));
   const [dashboardCustomizationOpen, setDashboardCustomizationOpen] = useState(false);
+  const [statCardCustomizationOpen, setStatCardCustomizationOpen] = useState(false);
+  const applyStatCardPreferences = (next: DashboardPreferenceState) => { setPreferences(next); writeDashboardPreferencesLocal(next); };
+  const saveStatCardPreferences = () => { writeDashboardPreferencesLocal(preferences); persistDashboardPreferences.mutate(preferences); setStatCardCustomizationOpen(false); };
   const [draggingCardId, setDraggingCardId] = useState<DashboardHomeCardId | null>(null);
   const [dragOverCardId, setDragOverCardId] = useState<DashboardHomeCardId | null>(null);
   const [dragOverHidden, setDragOverHidden] = useState(false);
@@ -131,16 +136,23 @@ export default function Home() {
   const activeCount = openTasks + overdueTasks;
   const lateCount = overdueTasks;
 
-  // شريط المؤشرات المتصل: 7 بطاقات بعدّاداتها الحية في صف واحد.
-  const statsCards: StatCard[] = [
-    { id: "tasks-active", label: "قيد التنفيذ", icon: ListChecks, gradient: "from-sky-400 to-sky-500", value: openTasks, onClick: () => setLocation("/tasks?filter=active") },
-    { id: "tasks-due-soon", label: "قرب موعدها", icon: Clock3, gradient: "from-amber-300 to-amber-400", darkText: true, value: dueTasks, onClick: () => setLocation("/tasks?filter=due_soon") },
-    { id: "tasks-overdue", label: "متأخرة", icon: AlertTriangle, gradient: "from-red-500 to-rose-600", pulse: overdueTasks > 0, value: overdueTasks, onClick: () => setLocation("/tasks?filter=overdue") },
-    { id: "tasks-open", label: "مفتوحة", icon: Circle, gradient: "from-slate-400 to-slate-500", darkText: true, value: openFlaggedTasks, onClick: () => setLocation("/tasks?filter=open") },
-    { id: "notifications", label: "الإشعارات", icon: BellRing, gradient: "from-indigo-500 to-purple-600", value: unreadNotifications, onClick: () => setLocation("/notifications") },
-    { id: "chats", label: "الدردشات", icon: MessageSquare, gradient: "from-teal-500 to-cyan-600", value: chatUnreadCount, onClick: () => setLocation("/messages") },
-    { id: "mail", label: "بريد ركيزة", icon: Mail, gradient: "from-blue-500 to-indigo-600", value: mailUnreadCount, onClick: () => setLocation("/rakiza-mail") },
-  ];
+  // شريط المؤشرات المتصل: 7 بطاقات بعدّاداتها الحية في صف واحد، مع تخصيص المستخدم.
+  const statCardMeta: Record<StatCardId, { value: number; onClick: () => void }> = {
+    "tasks-active": { value: openTasks, onClick: () => setLocation("/tasks?filter=active") },
+    "tasks-due-soon": { value: dueTasks, onClick: () => setLocation("/tasks?filter=due_soon") },
+    "tasks-overdue": { value: overdueTasks, onClick: () => setLocation("/tasks?filter=overdue") },
+    "tasks-open": { value: openFlaggedTasks, onClick: () => setLocation("/tasks?filter=open") },
+    "notifications": { value: unreadNotifications, onClick: () => setLocation("/notifications") },
+    "chats": { value: chatUnreadCount, onClick: () => setLocation("/messages") },
+    "mail": { value: mailUnreadCount, onClick: () => setLocation("/rakiza-mail") },
+  };
+  const orderedStatIds = Array.from(new Set([...preferences.homeCardOrder.filter((id): id is StatCardId => (STAT_CARD_IDS as readonly string[]).includes(id)), ...STAT_CARD_IDS])) as StatCardId[];
+  const hiddenStatIds = new Set(preferences.hiddenHomeCardIds);
+  const statsCards: StatCard[] = orderedStatIds.filter(id => !hiddenStatIds.has(id)).map(id => {
+    const meta = statCardMeta[id];
+    const { gradient, darkText } = resolveStatColor(id, preferences.statCardColors[id]);
+    return { id, label: STAT_CARD_DEFINITIONS[id].label, icon: resolveStatIcon(id, preferences.statCardIcons[id]), gradient, darkText, pulse: id === "tasks-overdue" && meta.value > 0, value: meta.value, onClick: meta.onClick };
+  });
 
   const homeCards: HomeCardEntry[] = [
     { id: "home", label: "الرئيسية", icon: LayoutDashboard, tone: "from-[#1f6e4d] to-[#2f8a63]", sub: "نظرة عامة على عملك", path: "/", allowed: true },
@@ -215,6 +227,10 @@ export default function Home() {
       </section>
 
             <section aria-label="الشبكة الرئيسية" className="mt-5">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-[11px] font-semibold text-[#7a8980]">مؤشراتك السريعة</p>
+          <button type="button" onClick={() => setStatCardCustomizationOpen(true)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#c6d4c7] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#355d4b] transition hover:bg-[#e8f0e7]"><Settings2 className="h-3.5 w-3.5" aria-hidden="true" />تخصيص</button>
+        </div>
         <div className="w-full overflow-hidden rounded-2xl bg-white/50 shadow-sm ring-1 ring-black/5 backdrop-blur-sm">
           <div className="flex flex-row divide-x divide-white/30 rtl:divide-x-reverse">
             {statsCards.map((card, idx) => {
@@ -249,6 +265,7 @@ export default function Home() {
         </div>
       </section>
 
+      <StatCardCustomizationDialog open={statCardCustomizationOpen} onOpenChange={setStatCardCustomizationOpen} preferences={preferences} onChange={applyStatCardPreferences} onSave={saveStatCardPreferences} isSaving={Boolean(persistDashboardPreferences.isPending)} />
     </section>
   </DashboardLayout>;
 }

@@ -2601,18 +2601,22 @@ export const DASHBOARD_NAVIGATION_LABELS = ["الرئيسية", "مهامي", "�
 export const DASHBOARD_QUICK_ACTION_IDS = ["my-tasks", "notifications", "chats", "mail", "report-upload"] as const;
 /** بطاقات الشاشة الرئيسية: تُرتب وتُخفى عبر السحب والإفلات وتُحفظ في تفضيلات اللوحة. */
 export const DASHBOARD_HOME_CARD_IDS = ["home", "tasks-active", "tasks-due-soon", "tasks-overdue", "tasks-completed", "tasks-open", "notifications", "chats", "mail", "report-upload", "guide", "personal-settings", "rotation", "hierarchy", "delays", "assistants", "announcements", "platform-settings"] as const;
+export const STAT_CARD_IDS = ["tasks-active", "tasks-due-soon", "tasks-overdue", "tasks-open", "notifications", "chats", "mail"] as const;
+export type StatCardId = typeof STAT_CARD_IDS[number];
 export type DashboardHomeCardId = typeof DASHBOARD_HOME_CARD_IDS[number];
 export type DashboardWidgetId = typeof DASHBOARD_WIDGET_IDS[number];
 export type DashboardQuickActionId = typeof DASHBOARD_QUICK_ACTION_IDS[number];
 export type DashboardNavigationLabel = typeof DASHBOARD_NAVIGATION_LABELS[number];
-export type DashboardPreferences = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; quickActionOrder: DashboardQuickActionId[]; hiddenQuickActionIds: DashboardQuickActionId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[]; homeCardOrder: DashboardHomeCardId[]; hiddenHomeCardIds: DashboardHomeCardId[] };
+export type DashboardPreferences = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; quickActionOrder: DashboardQuickActionId[]; hiddenQuickActionIds: DashboardQuickActionId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[]; homeCardOrder: DashboardHomeCardId[]; hiddenHomeCardIds: DashboardHomeCardId[]; statCardIcons: Record<string, string>; statCardColors: Record<string, string> };
 
-const defaultDashboardPreferences = (): DashboardPreferences => ({ widgetOrder: [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds: [], quickActionOrder: [...DASHBOARD_QUICK_ACTION_IDS], hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_LABELS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [] });
+const defaultDashboardPreferences = (): DashboardPreferences => ({ widgetOrder: [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds: [], quickActionOrder: [...DASHBOARD_QUICK_ACTION_IDS], hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_LABELS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [], statCardIcons: {}, statCardColors: {} });
 const allowedDashboardWidgets = new Set<string>(DASHBOARD_WIDGET_IDS);
 const allowedDashboardQuickActions = new Set<string>(DASHBOARD_QUICK_ACTION_IDS);
 const allowedDashboardNavigationLabels = new Set<string>(DASHBOARD_NAVIGATION_LABELS);
 const allowedDashboardHomeCards = new Set<string>(DASHBOARD_HOME_CARD_IDS);
 const normalizeDashboardPreferenceList = <T extends string>(values: unknown, allowed: Set<string>, fallback: readonly T[]) => Array.isArray(values) ? Array.from(new Set(values.filter((value): value is T => typeof value === "string" && allowed.has(value)))) : [...fallback];
+  const allowedStatCards = new Set<string>(STAT_CARD_IDS);
+  const normalizeStatCardMap = (value: unknown): Record<string, string> => { const result: Record<string, string> = {}; if (value && typeof value === "object" && !Array.isArray(value)) for (const [key, val] of Object.entries(value as Record<string, unknown>)) if (allowedStatCards.has(key) && typeof val === "string" && val.length > 0 && val.length <= 48) result[key] = val; return result; };
 
 export function normalizeDashboardPreferences(value: unknown): DashboardPreferences {
   const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
@@ -2627,7 +2631,9 @@ export function normalizeDashboardPreferences(value: unknown): DashboardPreferen
   const savedHomeCardOrder = normalizeDashboardPreferenceList<DashboardHomeCardId>(source.homeCardOrder, allowedDashboardHomeCards, []);
   const homeCardOrder = Array.from(new Set([...savedHomeCardOrder, ...DASHBOARD_HOME_CARD_IDS]));
   const hiddenHomeCardIds = normalizeDashboardPreferenceList<DashboardHomeCardId>(source.hiddenHomeCardIds, allowedDashboardHomeCards, []);
-  return { widgetOrder: widgetOrder.length ? widgetOrder : [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds, quickActionOrder, hiddenQuickActionIds, navigationOrder, hiddenNavigationLabels, homeCardOrder, hiddenHomeCardIds };
+  const statCardIcons = normalizeStatCardMap(source.statCardIcons);
+  const statCardColors = normalizeStatCardMap(source.statCardColors);
+  return { widgetOrder: widgetOrder.length ? widgetOrder : [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds, quickActionOrder, hiddenQuickActionIds, navigationOrder, hiddenNavigationLabels, homeCardOrder, hiddenHomeCardIds, statCardIcons, statCardColors };
 }
 
 export async function getDashboardPreferences(userId: number) {
@@ -2648,7 +2654,7 @@ export async function updateDashboardPreferences(input: { userId: number; prefer
   const preferences = normalizeDashboardPreferences(input.preferences);
   const result = await db.update(users).set({ dashboardPreferences: JSON.stringify(preferences), updatedAt: new Date() }).where(eq(users.id, input.userId));
   if (!Number(result[0].affectedRows)) throw new Error("الحساب غير موجود");
-  await logAudit({ actorUserId: input.userId, action: "user.dashboard_preferences.updated", entityType: "user", entityId: input.userId, metadata: { widgetOrder: preferences.widgetOrder, hiddenWidgetIds: preferences.hiddenWidgetIds, quickActionOrder: preferences.quickActionOrder, hiddenQuickActionIds: preferences.hiddenQuickActionIds, navigationOrder: preferences.navigationOrder, hiddenNavigationLabels: preferences.hiddenNavigationLabels, homeCardOrder: preferences.homeCardOrder, hiddenHomeCardIds: preferences.hiddenHomeCardIds } });
+  await logAudit({ actorUserId: input.userId, action: "user.dashboard_preferences.updated", entityType: "user", entityId: input.userId, metadata: { widgetOrder: preferences.widgetOrder, hiddenWidgetIds: preferences.hiddenWidgetIds, quickActionOrder: preferences.quickActionOrder, hiddenQuickActionIds: preferences.hiddenQuickActionIds, navigationOrder: preferences.navigationOrder, hiddenNavigationLabels: preferences.hiddenNavigationLabels, homeCardOrder: preferences.homeCardOrder, hiddenHomeCardIds: preferences.hiddenHomeCardIds, statCardIcons: preferences.statCardIcons, statCardColors: preferences.statCardColors } });
   return preferences;
 }
 

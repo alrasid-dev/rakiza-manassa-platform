@@ -3,7 +3,7 @@ import { DASHBOARD_HOME_CARD_IDS, DASHBOARD_NAVIGATION_LABELS, DASHBOARD_QUICK_A
 
 describe("تفضيلات لوحة القيادة", () => {
   it("يعيد ترتيباً افتراضياً آمناً عند عدم وجود تفضيلات محفوظة", () => {
-    expect(normalizeDashboardPreferences(null)).toEqual({ widgetOrder: [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds: [], quickActionOrder: [...DASHBOARD_QUICK_ACTION_IDS], hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_LABELS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [] });
+    expect(normalizeDashboardPreferences(null)).toEqual({ widgetOrder: [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds: [], quickActionOrder: [...DASHBOARD_QUICK_ACTION_IDS], hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_LABELS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [], statCardIcons: {}, statCardColors: {} });
   });
 
   it("يحذف القيم غير المعتمدة والتكرارات ويستعيد الاختصارات المعتمدة المفقودة", () => {

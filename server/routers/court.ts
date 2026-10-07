@@ -790,6 +790,8 @@ export const courtRouter = router({
       hiddenNavigationLabels: z.array(z.enum(DASHBOARD_NAVIGATION_LABELS)).max(DASHBOARD_NAVIGATION_LABELS.length),
       homeCardOrder: z.array(z.enum(DASHBOARD_HOME_CARD_IDS)).max(DASHBOARD_HOME_CARD_IDS.length),
       hiddenHomeCardIds: z.array(z.enum(DASHBOARD_HOME_CARD_IDS)).max(DASHBOARD_HOME_CARD_IDS.length),
+      statCardIcons: z.record(z.string(), z.string()).optional().default({}),
+      statCardColors: z.record(z.string(), z.string()).optional().default({}),
     })).mutation(async ({ ctx, input }) => {
       try {
         return await updateDashboardPreferences({ userId: ctx.user.id, preferences: input });
