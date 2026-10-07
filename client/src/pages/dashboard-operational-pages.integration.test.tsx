@@ -67,7 +67,7 @@ describe("الصفحات التشغيلية داخل جلسة قيادية", () 
 
   it("يعرض لوحة القيادة المدمجة بشبكة بطاقاتها الملوّنة", () => {
     render(<Home />);
-    expect(screen.getByText("لوحة القيادة المدمجة")).toBeTruthy();
+    expect(screen.getByText("مهامي اليوم")).toBeTruthy();
     expect(screen.getByRole("region", { name: "الشبكة الرئيسية" })).toBeTruthy();
     expect(screen.getAllByText("المداورة").length).toBeGreaterThan(0);
     expect(screen.getAllByText("هيكل المحكمة").length).toBeGreaterThan(0);

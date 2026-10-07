@@ -40,7 +40,7 @@ afterEach(() => cleanup());
 describe("لوحة القيادة المدمجة حسب الدور", () => {
   it("تعرض الشبكة الرئيسية الملوّنة للقيادة بعدّاداتها الحية", () => {
     render(<Home />);
-    expect(screen.getByText("لوحة القيادة المدمجة")).toBeTruthy();
+    expect(screen.getByText("مهامي اليوم")).toBeTruthy();
     expect(screen.getByRole("region", { name: "الشبكة الرئيسية" })).toBeTruthy();
     for (const label of ["مهام قيد التنفيذ", "قرب موعدها", "متأخرة", "تمت المعالجة", "الإشعارات", "الدردشات", "بريد ركيزة", "رفع تقرير", "هيكل المحكمة", "المداورة", "المتعثرات", "AI ركيزة", "الإعلانات"]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
@@ -55,7 +55,7 @@ describe("لوحة القيادة المدمجة حسب الدور", () => {
     state.roles = [];
     state.dashboard = { openTasks: 3, overdueTasks: 1, openDelays: 2, unreadNotifications: 4 };
     render(<Home />);
-    expect(screen.getByText("مساحتي اليومية")).toBeTruthy();
+    expect(screen.getByText("مهامي اليوم")).toBeTruthy();
     expect(screen.getByRole("region", { name: "الشبكة الرئيسية" })).toBeTruthy();
     expect(screen.getByText("4 مهمة نشطة")).toBeTruthy();
     expect(screen.getByText("1 متأخر")).toBeTruthy();

@@ -180,7 +180,6 @@ export default function Home() {
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d5ddd2] bg-[#f8f9f4] px-4 py-3 shadow-[0_8px_22px_rgba(36,67,51,0.05)]">
         <div className="min-w-0">
           <p className="text-[11px] font-black tracking-[0.12em] text-[#b18448]">مساحة العمل</p>
-          <h1 className="mt-1 text-xl font-black text-[#12352f]">الرئيسية</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <GlobalSearchBar />
