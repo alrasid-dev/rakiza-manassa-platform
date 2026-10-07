@@ -183,6 +183,7 @@ import {
   restoreArchivedOperationalWork,
   listTasksForProfile,
   listTasksForUnits,
+  listTasksRecords,
   archiveTask,
   suggestTaskAssignees,
   autoAssignTasks,
@@ -1421,6 +1422,13 @@ export const courtRouter = router({
       if (managedUnitIds.length) { const viewerProfile = await getProfileForUser(ctx.user.id); const unitIds = input?.unitId && managedUnitIds.includes(input.unitId) ? [input.unitId] : managedUnitIds; return listTasksForUnits(unitIds, input?.status, viewerProfile?.id, input?.assigneeProfileId, input?.dueFilter, input?.futureRange); }
       const { profile } = await requirePersonalWorkspace(ctx.user);
       return listTasksForProfile(profile.id, input?.status, input?.dueFilter, input?.futureRange);
+    }),
+    listRecords: protectedProcedure.input(z.object({ assigneeProfileId: z.number().int().positive().optional(), status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]).optional(), fromDate: z.date().optional(), toDate: z.date().optional(), page: z.number().int().min(1).optional(), pageSize: z.number().int().min(1).max(100).optional() }).optional()).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const viewerProfile = await getProfileForUser(ctx.user.id);
+      const targetProfileId = isLeadership ? (input?.assigneeProfileId ?? undefined) : (viewerProfile?.id ?? undefined);
+      return listTasksRecords({ status: input?.status, fromDate: input?.fromDate, toDate: input?.toDate, page: input?.page, pageSize: input?.pageSize, assigneeProfileId: targetProfileId });
     }),
     pause: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), reason: z.string().trim().max(200).optional(), expiresAt: z.date().optional(), type: z.enum(["permanent", "temporary"]).optional() })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");

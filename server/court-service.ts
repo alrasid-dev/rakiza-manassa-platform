@@ -1752,6 +1752,15 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
       ),
     )!);
   }
+  // إخفاء المهام القديمة غير المعالجة (scheduledFor قبل اليوم) من القائمة النشطة — تنتقل إلى تبويب «السجلات».
+  if (!futureWindow && !filters?.status && !filters?.dueFilter) {
+    const todayStart = dateRangeForSaudiDay(new Date()).start;
+    conditions.push(or(
+      eq(tasks.status, "overdue"),
+      isNull(tasks.scheduledFor),
+      gte(tasks.scheduledFor, todayStart),
+    )!);
+  }
   if (filters?.status === "overdue" || filters?.dueFilter === "overdue") {
     // "متأخرة" = عُلّمت overdue آلياً بواسطة دورة الحياة (accumulateWorkMinutes)؛ الحالة هي المرجع الوحيد.
     conditions.push(eq(tasks.status, "overdue"));
@@ -1780,6 +1789,36 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
 
 export async function listTasksForProfile(profileId: number, status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", dueFilter?: "overdue" | "dueSoon" | "completed", futureRange?: FutureRange) {
   return listTasks({ assigneeProfileId: profileId, status, dueFilter, futureRange });
+}
+
+/** سجلات المهام (تبويب «السجلات»): المؤرشفة + المنتهية/الملغاة + القديمة غير المعالجة، مع فلاتر وترقيم. */
+export async function listTasksRecords(input: { assigneeProfileId?: number; unitId?: number; status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; fromDate?: Date; toDate?: Date; page?: number; pageSize?: number }) {
+  const db = await getDb();
+  if (!db) return { records: [], total: 0, page: 1, pageSize: 20 };
+  const page = input.page && input.page > 0 ? input.page : 1;
+  const pageSize = input.pageSize && input.pageSize > 0 && input.pageSize <= 100 ? input.pageSize : 20;
+  const now = new Date();
+  const today = dateRangeForSaudiDay(now);
+  const conditions = [
+    or(
+      isNotNull(tasks.archivedAt),
+      inArray(tasks.status, ["completed", "cancelled"]),
+      and(
+        isNull(tasks.archivedAt),
+        notInArray(tasks.status, ["completed", "cancelled", "overdue", "paused"]),
+        lt(tasks.scheduledFor, today.start),
+      ),
+    )!,
+  ];
+  if (input.assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, input.assigneeProfileId));
+  if (input.unitId) conditions.push(eq(tasks.unitId, input.unitId));
+  if (input.status) conditions.push(eq(tasks.status, input.status));
+  if (input.fromDate) conditions.push(gte(tasks.scheduledFor, input.fromDate));
+  if (input.toDate) conditions.push(lt(tasks.scheduledFor, input.toDate));
+  const countRows = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions));
+  const total = Number(countRows[0]?.count ?? 0);
+  const records = await db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.scheduledFor)).limit(pageSize).offset((page - 1) * pageSize);
+  return { records, total, page, pageSize };
 }
 
 export async function archiveTask(input: { taskId: number; actorUserId: number }) {
