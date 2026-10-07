@@ -42,6 +42,15 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* خط المهند (Al Mohanad) — ضع ملف الخط المرخّص في client/public/fonts/al-mohanad.ttf */
+@font-face {
+  font-family: "Al Mohanad";
+  src: url("/fonts/al-mohanad.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --rakiza-font-family: Tajawal, "Noto Naskh Arabic", sans-serif;
   --rakiza-font-scale: 1;
