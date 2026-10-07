@@ -54,6 +54,7 @@ import InstallAppsPage from "./pages/InstallAppsPage";
 import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import DepartmentDocumentsPage from "./pages/DepartmentDocumentsPage";
 import TaskTemplatesPage from "./pages/TaskTemplatesPage";
+import TaskComparisonPage from "./pages/TaskComparisonPage";
 import DepartmentTasksPage from "./pages/DepartmentTasksPage";
 import DisciplinaryPage from "./pages/DisciplinaryPage";
 import TeamStatusPage from "./pages/TeamStatusPage";
@@ -102,6 +103,7 @@ function Router() {
       <Route path="/decisions" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="decisions" /> : DecisionsPage} />
       <Route path="/meetings" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="meetings" /> : MeetingsPage} />
       <Route path="/reports" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : ReportsDashboardPage} />
+      <Route path="/reports/task-comparison" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : TaskComparisonPage} />
       <Route path="/report-upload" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : ReportUploadPage} />
       <Route path="/status" component={StatusAndLeavePage} />
       <Route path="/assets" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : AssetsPage} />
