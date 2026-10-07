@@ -476,7 +476,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
           {children}
         </main>
 
-        <aside dir="rtl" className="rakiza-sidebar hidden w-[15.5rem] shrink-0 bg-sidebar px-4 py-6 text-sidebar-foreground shadow-[-8px_0_22px_rgba(18,53,47,0.12)] lg:block">
+        <aside dir="rtl" className="rakiza-sidebar hidden w-64 shrink-0 bg-sidebar px-4 py-6 text-sidebar-foreground shadow-[-8px_0_22px_rgba(18,53,47,0.12)] lg:block">
           <div className="sticky top-5 flex min-h-[calc(100vh-2.5rem)] flex-col">
             <div className="border-b border-white/10 pb-6 text-center">
               <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eff4ec] text-[#2d6b4f] shadow-[0_10px_30px_rgba(0,0,0,0.16)]"><CourtEmblem className={`h-9 w-9 ${oliveIconMotionClass}`} /></div>

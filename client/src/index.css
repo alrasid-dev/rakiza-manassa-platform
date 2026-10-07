@@ -54,6 +54,19 @@
   --rakiza-olive-soft: #dce9da;
   --rakiza-ink: #243d32;
   --rakiza-muted: #6f7e75;
+  /* Layout — تصميم موحّد (Design Tokens) */
+  --radius-card: 1rem;          /* 16px = rounded-2xl */
+  --radius-section: 1rem;       /* 16px */
+  --gap-cards: 0.75rem;         /* 12px */
+  /* Cards */
+  --card-padding: 1rem;         /* 16px */
+  --card-min-height: 7rem;      /* 112px */
+  /* Icons */
+  --icon-sm: 1rem;              /* 16px */
+  --icon-md: 1.25rem;           /* 20px */
+  --icon-lg: 1.5rem;            /* 24px */
+  --icon-container-sm: 2.75rem; /* 44px */
+  --icon-container-lg: 3rem;    /* 48px */
   --primary: oklch(0.43 0.08 151);
   --primary-foreground: oklch(0.985 0.008 105);
   --sidebar-primary: oklch(0.46 0.085 151);
