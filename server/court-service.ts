@@ -4983,18 +4983,17 @@ export async function checkAttendanceWindow(now: Date, kind: "check_in" | "check
   if (!shift) return { allowed: false as const, reason: "لم يتم ضبط الوردية الافتراضية." };
 
   const nowMin = riyadhMinutesOfDay(now);
-  // خارج ساعات العمل (07:00–14:59) مرفوض لكلا النوعين.
-  if (nowMin < shift.fingerprintOpenMinutes) {
-    return { allowed: false as const, reason: "تبدأ ساعات العمل من 07:00 ص إلى 02:59 م" };
-  }
-  if (nowMin > shift.fingerprintCloseMinutes) {
-    return { allowed: false as const, reason: "تبدأ ساعات العمل من 07:00 ص إلى 02:59 م" };
-  }
+  // نافذة موحّدة: الحضور 07:00–08:15، والانصراف 14:15–14:59 (مطابقة لـ attendanceWindowKindForShift).
   if (kind === "check_in") {
-    // السماح بالحضور 07:00–14:59؛ "متأخر" بعد 08:15 (يُحسب سلبيًا لاحقًا).
-    return { allowed: true as const, isLate: nowMin > shift.morningCompensationDeadlineMinutes };
+    if (nowMin < shift.fingerprintOpenMinutes || nowMin > shift.morningCompensationDeadlineMinutes) {
+      return { allowed: false as const, reason: "نافذة تسجيل الحضور من 07:00 ص إلى 08:15 ص." };
+    }
+    return { allowed: true as const, isLate: nowMin > shift.lateStartMinutes };
   }
-  // check_out: أي وقت ضمن 07:00–14:59 مسموح (التبكير يُحسب سلبيًا لاحقًا).
+  // check_out: يُسمح فقط ضمن نافذة الانصراف 14:15–14:59.
+  if (nowMin < shift.actualEndMinutes || nowMin > shift.fingerprintCloseMinutes) {
+    return { allowed: false as const, reason: "نافذة تسجيل الانصراف من 02:15 م إلى 02:59 م." };
+  }
   return { allowed: true as const };
 }
 
