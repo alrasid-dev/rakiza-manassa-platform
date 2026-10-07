@@ -821,7 +821,7 @@ export default function TasksWorkspaceContent() {
 
     {activeTab === "tasks" && statusCounts.data && (
       <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="عدّادات الحالات">
-        <span className="text-[11px] font-bold text-[#7a8980]">الحالات:</span>
+        <span className="text-[11px] font-bold text-[#7a8980]">الحالات (إجمالي النطاق):</span>
         {(["in_progress", "overdue", "completed", "new", "under_review", "paused", "cancelled"] as const).map(status => (
           <span key={status} className="rounded-full border border-[#d7e6d8] bg-white px-2.5 py-1 text-[11px] font-bold text-[#355d4b]">{taskStatusLabel(status)}: {statusCounts.data?.[status] ?? 0}</span>
         ))}
