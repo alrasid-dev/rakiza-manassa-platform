@@ -4035,6 +4035,14 @@ export async function decideApproval(input: { approvalId: number; actorUserId: n
 export async function recordScoreEvent(input: { profileId: number; taskId?: number; delayRecordId?: number; points: number; reason: string; createdByUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  // منع التكرار: حدث متطابق (نفس الملف + المهمة + المتعثرة + السبب) لا يُسجَّل مرتين.
+  const existing = await db.select({ id: scoreEvents.id }).from(scoreEvents).where(and(
+    eq(scoreEvents.profileId, input.profileId),
+    eq(scoreEvents.reason, input.reason),
+    input.taskId != null ? eq(scoreEvents.taskId, input.taskId) : isNull(scoreEvents.taskId),
+    input.delayRecordId != null ? eq(scoreEvents.delayRecordId, input.delayRecordId) : isNull(scoreEvents.delayRecordId),
+  )).limit(1);
+  if (existing[0]) return Number(existing[0].id);
   const result = await db.insert(scoreEvents).values(input);
   const id = Number(result[0].insertId);
   await logAudit({ actorUserId: input.createdByUserId, action: "score.recorded", entityType: "score_event", entityId: id });
