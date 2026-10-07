@@ -24,11 +24,12 @@ export type DashboardQuickActionId = typeof DASHBOARD_QUICK_ACTIONS[number]["id"
 export type DashboardNavigationLabel = typeof DASHBOARD_NAVIGATION_ITEMS[number];
 export const DASHBOARD_HOME_CARD_IDS = ["home", "tasks-active", "tasks-due-soon", "tasks-overdue", "tasks-completed", "tasks-open", "notifications", "chats", "mail", "report-upload", "guide", "personal-settings", "rotation", "hierarchy", "delays", "assistants", "announcements", "platform-settings"] as const;
 export type DashboardHomeCardId = typeof DASHBOARD_HOME_CARD_IDS[number];
-export type DashboardPreferenceState = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; quickActionOrder: DashboardQuickActionId[]; hiddenQuickActionIds: DashboardQuickActionId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[]; homeCardOrder: DashboardHomeCardId[]; hiddenHomeCardIds: DashboardHomeCardId[]; statCardIcons: Record<string, string>; statCardColors: Record<string, string> };
+export type AutoApprovalScope = "tasks" | "requests" | "disciplinary" | "leaves";
+export type DashboardPreferenceState = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; quickActionOrder: DashboardQuickActionId[]; hiddenQuickActionIds: DashboardQuickActionId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[]; homeCardOrder: DashboardHomeCardId[]; hiddenHomeCardIds: DashboardHomeCardId[]; statCardIcons: Record<string, string>; statCardColors: Record<string, string>; autoApproval: { mode: "off" | "half" | "full"; scope: AutoApprovalScope[] } };
 
-export const defaultDashboardPreferences = (): DashboardPreferenceState => ({ widgetOrder: DASHBOARD_WIDGETS.map(item => item.id), hiddenWidgetIds: [], quickActionOrder: DASHBOARD_QUICK_ACTIONS.map(item => item.id), hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_ITEMS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [], statCardIcons: {}, statCardColors: {} });
+export const defaultDashboardPreferences = (): DashboardPreferenceState => ({ widgetOrder: DASHBOARD_WIDGETS.map(item => item.id), hiddenWidgetIds: [], quickActionOrder: DASHBOARD_QUICK_ACTIONS.map(item => item.id), hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_ITEMS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [], statCardIcons: {}, statCardColors: {}, autoApproval: { mode: "off", scope: ["tasks"] } });
 
-export function normalizeDashboardPreferences(preferences?: Partial<DashboardPreferenceState> | { widgetOrder?: string[]; hiddenWidgetIds?: string[]; quickActionOrder?: string[]; hiddenQuickActionIds?: string[]; navigationOrder?: string[]; hiddenNavigationLabels?: string[]; homeCardOrder?: string[]; hiddenHomeCardIds?: string[]; statCardIcons?: Record<string, string>; statCardColors?: Record<string, string> } | null): DashboardPreferenceState {
+export function normalizeDashboardPreferences(preferences?: Partial<DashboardPreferenceState> | { widgetOrder?: string[]; hiddenWidgetIds?: string[]; quickActionOrder?: string[]; hiddenQuickActionIds?: string[]; navigationOrder?: string[]; hiddenNavigationLabels?: string[]; homeCardOrder?: string[]; hiddenHomeCardIds?: string[]; statCardIcons?: Record<string, string>; statCardColors?: Record<string, string>; autoApproval?: { mode?: string; scope?: string[] } } | null): DashboardPreferenceState {
   const widgetIds = DASHBOARD_WIDGETS.map(item => item.id);
   const quickActionIds = DASHBOARD_QUICK_ACTIONS.map(item => item.id);
   const navigationLabels = DASHBOARD_NAVIGATION_ITEMS as readonly string[];
@@ -48,6 +49,7 @@ export function normalizeDashboardPreferences(preferences?: Partial<DashboardPre
     hiddenHomeCardIds: (preferences?.hiddenHomeCardIds ?? []).filter((id): id is DashboardHomeCardId => homeCardIds.includes(id as DashboardHomeCardId)),
     statCardIcons: (preferences?.statCardIcons && typeof preferences.statCardIcons === "object" && !Array.isArray(preferences.statCardIcons) ? preferences.statCardIcons : {}) as Record<string, string>,
     statCardColors: (preferences?.statCardColors && typeof preferences.statCardColors === "object" && !Array.isArray(preferences.statCardColors) ? preferences.statCardColors : {}) as Record<string, string>,
+    autoApproval: { mode: preferences?.autoApproval?.mode === "half" || preferences?.autoApproval?.mode === "full" ? preferences.autoApproval.mode : "off", scope: (Array.isArray(preferences?.autoApproval?.scope) ? preferences.autoApproval.scope.filter(item => ["tasks", "requests", "disciplinary", "leaves"].includes(item)) : ["tasks"]) as AutoApprovalScope[] },
   };
 }
 

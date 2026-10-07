@@ -2595,6 +2595,8 @@ export async function getUserEmailSettings(userId: number) {
   return rows[0];
 }
 
+import { DEFAULT_AUTO_APPROVAL_SETTINGS, normalizeAutoApprovalSettings, type AutoApprovalSettings } from "./approval-automation";
+
 export const DASHBOARD_WIDGET_IDS = ["overview", "tasks", "chat", "performance"] as const;
 export const DASHBOARD_NAVIGATION_LABELS = ["الرئيسية", "مهامي", "الإشعارات", "الدردشات", "بريد ركيزة", "AI ركيزة", "الإعلانات الداخلية", "المتعثرات", "رفع التقارير", "دليل المستخدم", "إعدادات الموظف", "إعدادات المنصة"] as const;
 /** إجراءات شريط العمل السريع العلوي: يبقى في الشريط ما اختاره المستخدم، وينتقل الباقي إلى القائمة الجانبية. */
@@ -2607,9 +2609,9 @@ export type DashboardHomeCardId = typeof DASHBOARD_HOME_CARD_IDS[number];
 export type DashboardWidgetId = typeof DASHBOARD_WIDGET_IDS[number];
 export type DashboardQuickActionId = typeof DASHBOARD_QUICK_ACTION_IDS[number];
 export type DashboardNavigationLabel = typeof DASHBOARD_NAVIGATION_LABELS[number];
-export type DashboardPreferences = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; quickActionOrder: DashboardQuickActionId[]; hiddenQuickActionIds: DashboardQuickActionId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[]; homeCardOrder: DashboardHomeCardId[]; hiddenHomeCardIds: DashboardHomeCardId[]; statCardIcons: Record<string, string>; statCardColors: Record<string, string> };
+export type DashboardPreferences = { widgetOrder: DashboardWidgetId[]; hiddenWidgetIds: DashboardWidgetId[]; quickActionOrder: DashboardQuickActionId[]; hiddenQuickActionIds: DashboardQuickActionId[]; navigationOrder: DashboardNavigationLabel[]; hiddenNavigationLabels: DashboardNavigationLabel[]; homeCardOrder: DashboardHomeCardId[]; hiddenHomeCardIds: DashboardHomeCardId[]; statCardIcons: Record<string, string>; statCardColors: Record<string, string>; autoApproval: AutoApprovalSettings };
 
-const defaultDashboardPreferences = (): DashboardPreferences => ({ widgetOrder: [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds: [], quickActionOrder: [...DASHBOARD_QUICK_ACTION_IDS], hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_LABELS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [], statCardIcons: {}, statCardColors: {} });
+const defaultDashboardPreferences = (): DashboardPreferences => ({ widgetOrder: [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds: [], quickActionOrder: [...DASHBOARD_QUICK_ACTION_IDS], hiddenQuickActionIds: [], navigationOrder: [...DASHBOARD_NAVIGATION_LABELS], hiddenNavigationLabels: [], homeCardOrder: [...DASHBOARD_HOME_CARD_IDS], hiddenHomeCardIds: [], statCardIcons: {}, statCardColors: {}, autoApproval: { mode: DEFAULT_AUTO_APPROVAL_SETTINGS.mode, scope: [...DEFAULT_AUTO_APPROVAL_SETTINGS.scope] } });
 const allowedDashboardWidgets = new Set<string>(DASHBOARD_WIDGET_IDS);
 const allowedDashboardQuickActions = new Set<string>(DASHBOARD_QUICK_ACTION_IDS);
 const allowedDashboardNavigationLabels = new Set<string>(DASHBOARD_NAVIGATION_LABELS);
@@ -2633,7 +2635,8 @@ export function normalizeDashboardPreferences(value: unknown): DashboardPreferen
   const hiddenHomeCardIds = normalizeDashboardPreferenceList<DashboardHomeCardId>(source.hiddenHomeCardIds, allowedDashboardHomeCards, []);
   const statCardIcons = normalizeStatCardMap(source.statCardIcons);
   const statCardColors = normalizeStatCardMap(source.statCardColors);
-  return { widgetOrder: widgetOrder.length ? widgetOrder : [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds, quickActionOrder, hiddenQuickActionIds, navigationOrder, hiddenNavigationLabels, homeCardOrder, hiddenHomeCardIds, statCardIcons, statCardColors };
+  const autoApproval = normalizeAutoApprovalSettings(source.autoApproval);
+  return { widgetOrder: widgetOrder.length ? widgetOrder : [...DASHBOARD_WIDGET_IDS], hiddenWidgetIds, quickActionOrder, hiddenQuickActionIds, navigationOrder, hiddenNavigationLabels, homeCardOrder, hiddenHomeCardIds, statCardIcons, statCardColors, autoApproval };
 }
 
 export async function getDashboardPreferences(userId: number) {

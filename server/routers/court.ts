@@ -292,6 +292,7 @@ import { askSectionAssistant, canUseSectionAssistant, SECTION_ASSISTANTS, type S
 import { listManagerDecisionPatterns, recordManagerDecision, revokeAutomationDecision } from "../assistant-learning-service";
 import { predictForManager } from "../assistant-predictions";
 import { evaluateAutoApproval } from "../assistant-auto-approval";
+import { normalizeAutoApprovalSettings } from "../approval-automation";
 import { notifyOwner } from "../_core/notification";
 import { ENV } from "../_core/env";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
@@ -793,12 +794,28 @@ export const courtRouter = router({
       hiddenHomeCardIds: z.array(z.enum(DASHBOARD_HOME_CARD_IDS)).max(DASHBOARD_HOME_CARD_IDS.length),
       statCardIcons: z.record(z.string(), z.string()).optional().default({}),
       statCardColors: z.record(z.string(), z.string()).optional().default({}),
+      autoApproval: z.object({ mode: z.enum(["off", "half", "full"]), scope: z.array(z.enum(["tasks", "requests", "disciplinary", "leaves"])) }).optional().default({ mode: "off", scope: ["tasks"] }),
     })).mutation(async ({ ctx, input }) => {
       try {
         return await updateDashboardPreferences({ userId: ctx.user.id, preferences: input });
       } catch (error) {
         throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "تعذر حفظ تخصيص لوحة القيادة." });
       }
+    }),
+  }),
+
+  settings: router({
+    getAutoApproval: protectedProcedure.query(async ({ ctx }) => {
+      return (await getDashboardPreferences(ctx.user.id)).autoApproval;
+    }),
+    setAutoApproval: protectedProcedure.input(z.object({ mode: z.enum(["off", "half", "full"]), scope: z.array(z.enum(["tasks", "requests", "disciplinary", "leaves"])).max(4).optional() })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      if (permission !== "full_control") throw new TRPCError({ code: "FORBIDDEN", message: "إعدادات الاعتماد الآلي متاحة للمالك والقيادة العليا (صلاحية كاملة) فقط." });
+      const prefs = await getDashboardPreferences(ctx.user.id);
+      const autoApproval = normalizeAutoApprovalSettings({ mode: input.mode, scope: input.scope });
+      await updateDashboardPreferences({ userId: ctx.user.id, preferences: { ...prefs, autoApproval } });
+      await logAudit({ actorUserId: ctx.user.id, action: "auto_approval.settings_updated", entityType: "user", entityId: ctx.user.id, metadata: { mode: input.mode, scope: input.scope ?? null } });
+      return autoApproval;
     }),
   }),
 
