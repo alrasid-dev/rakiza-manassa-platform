@@ -1866,6 +1866,34 @@ export async function countTasksByStatus(input: { assigneeProfileId?: number; un
   return counts as typeof empty;
 }
 
+/** يجمع مدخلات فحوصات الاعتماد الآلي لمهمة ويرجع نتيجة الفحوصات. */
+export async function verifyTaskForApproval(taskId: number): Promise<{ taskId: number; checks: AutoApprovalCheck[]; allPassed: boolean }> {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
+  const task = await getTaskById(taskId);
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
+
+  const hasAttachments = Boolean((await db.select({ id: taskAttachments.id }).from(taskAttachments).where(eq(taskAttachments.taskId, taskId)).limit(1))[0]);
+
+  let checkedInToday = false;
+  let noLeaveConflict = true;
+  if (task.assigneeProfileId) {
+    const now = new Date();
+    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const [attendance] = await db.select({ checkInAt: attendanceRecords.checkInAt }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, task.assigneeProfileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1);
+    checkedInToday = Boolean(attendance?.checkInAt);
+    const [leave] = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(eq(leaveRequests.profileId, task.assigneeProfileId), eq(leaveRequests.status, "approved"), lte(leaveRequests.startAt, now), gte(leaveRequests.endAt, now))).limit(1);
+    noLeaveConflict = !leave;
+  }
+
+  // أُنجزت قبل 14:45 بتوقيت الرياض.
+  const completedBeforeDeadline = task.completedAt ? riyadhMinutesOfDay(task.completedAt) < 14 * 60 + 45 : false;
+
+  const { checks, allPassed } = runAutoApprovalChecks({ status: task.status, hasAttachments, checkedInToday, completedBeforeDeadline, noLeaveConflict });
+  return { taskId, checks, allPassed };
+}
+
 // ===== نسخة للاطلاع (CC) =====
 export async function addTaskCc(input: { taskId: number; viewerProfileIds: number[]; actorProfileId: number }) {
   const db = await getDb();
@@ -2595,7 +2623,7 @@ export async function getUserEmailSettings(userId: number) {
   return rows[0];
 }
 
-import { DEFAULT_AUTO_APPROVAL_SETTINGS, normalizeAutoApprovalSettings, type AutoApprovalSettings } from "./approval-automation";
+import { DEFAULT_AUTO_APPROVAL_SETTINGS, normalizeAutoApprovalSettings, runAutoApprovalChecks, type AutoApprovalCheck, type AutoApprovalSettings } from "./approval-automation";
 
 export const DASHBOARD_WIDGET_IDS = ["overview", "tasks", "chat", "performance"] as const;
 export const DASHBOARD_NAVIGATION_LABELS = ["الرئيسية", "مهامي", "الإشعارات", "الدردشات", "بريد ركيزة", "AI ركيزة", "الإعلانات الداخلية", "المتعثرات", "رفع التقارير", "دليل المستخدم", "إعدادات الموظف", "إعدادات المنصة"] as const;

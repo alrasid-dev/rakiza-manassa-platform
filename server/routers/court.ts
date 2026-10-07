@@ -186,6 +186,7 @@ import {
   listTasksRecords,
   getTodayTaskCounts,
   countTasksByStatus,
+  verifyTaskForApproval,
   addTaskCc,
   listTaskCcForTask,
   removeTaskCc,
@@ -1684,6 +1685,14 @@ export const courtRouter = router({
       if (isLeadership) return listPendingTaskApprovals({ excludeSubmittedByProfileId: selfProfile?.id });
       const unitIds = await managedUnitIdsForUser(ctx.user);
       return listPendingTaskApprovals({ unitIds, excludeSubmittedByProfileId: selfProfile?.id });
+    }),
+    verifyForApproval: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      const roles = await rolesForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+      if (!isLeadership && !isManager) throw new TRPCError({ code: "FORBIDDEN", message: "التحقق الآلي للمهمة متاح للمدير والقيادة فقط." });
+      return verifyTaskForApproval(input.taskId);
     }),
     bulkReviewApprovals: protectedProcedure.input(z.object({ approvalIds: z.array(z.number().int().positive()).min(1).max(100), decision: z.enum(["approved", "rejected"]), note: z.string().trim().max(4000).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
