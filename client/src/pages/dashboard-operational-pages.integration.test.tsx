@@ -69,8 +69,8 @@ describe("الصفحات التشغيلية داخل جلسة قيادية", () 
     render(<Home />);
     expect(screen.getByText("مهامي اليوم")).toBeTruthy();
     expect(screen.getByRole("region", { name: "الشبكة الرئيسية" })).toBeTruthy();
-    expect(screen.getAllByText("المداورة").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("هيكل المحكمة").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("الإشعارات").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("بريد ركيزة").length).toBeGreaterThan(0);
     expect(screen.getByText(/قيد التنفيذ/)).toBeTruthy();
     expect(screen.queryByLabelText("نوع المهمة")).toBeNull();
     expect(screen.queryByText("PDF")).toBeNull();

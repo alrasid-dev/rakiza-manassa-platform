@@ -4,6 +4,7 @@ import GlobalSearchBar from "@/components/GlobalSearchBar";
 import { RakizaIconButton } from "@/components/RakizaIconButton";
 import { trpc } from "@/lib/trpc";
 import { readDashboardPreferencesLocal, writeDashboardPreferencesLocal } from "@/lib/dashboard-preferences-storage";
+import { cn } from "@/lib/utils";
 import { AlertTriangle, BadgeHelp, BellRing, Bot, CheckCircle2, Circle, Clock3, Eye, EyeOff, FileUp, GripVertical, LayoutDashboard, ListChecks, Mail, Megaphone, MessageSquare, Network, Repeat, RotateCcw, Settings2, TrendingUp, UserCog } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -129,6 +130,17 @@ export default function Home() {
   const activeCount = openTasks + overdueTasks;
   const lateCount = overdueTasks;
 
+  // شريط المؤشرات المتصل: 7 بطاقات بعدّاداتها الحية في صف واحد.
+  const statsCards = [
+    { id: "tasks-active", label: "قيد التنفيذ", icon: ListChecks, gradient: "from-emerald-500 to-emerald-600", value: openTasks, onClick: () => setLocation("/tasks?filter=active") },
+    { id: "tasks-due-soon", label: "قرب موعدها", icon: Clock3, gradient: "from-amber-500 to-amber-600", value: dueTasks, onClick: () => setLocation("/tasks?filter=due_soon") },
+    { id: "tasks-overdue", label: "متأخرة", icon: AlertTriangle, gradient: "from-red-500 to-red-600", value: overdueTasks, onClick: () => setLocation("/tasks?filter=overdue") },
+    { id: "tasks-open", label: "مفتوحة", icon: Circle, gradient: "from-sky-500 to-sky-600", value: openFlaggedTasks, onClick: () => setLocation("/tasks?filter=open") },
+    { id: "notifications", label: "الإشعارات", icon: BellRing, gradient: "from-blue-500 to-blue-600", value: unreadNotifications, onClick: () => setLocation("/notifications") },
+    { id: "chats", label: "الدردشات", icon: MessageSquare, gradient: "from-teal-500 to-teal-600", value: chatUnreadCount, onClick: () => setLocation("/messages") },
+    { id: "mail", label: "بريد ركيزة", icon: Mail, gradient: "from-indigo-500 to-indigo-600", value: mailUnreadCount, onClick: () => setLocation("/rakiza-mail") },
+  ];
+
   const homeCards: HomeCardEntry[] = [
     { id: "home", label: "الرئيسية", icon: LayoutDashboard, tone: "from-[#1f6e4d] to-[#2f8a63]", sub: "نظرة عامة على عملك", path: "/", allowed: true },
     { id: "tasks-active", label: "مهام قيد التنفيذ", icon: ListChecks, tone: "from-[#0e8a6d] to-[#14a37f]", count: openTasks, sub: pendingApprovalCount > 0 ? `بانتظار اعتمادك: ${pendingApprovalCount}` : "تُنجز الآن", path: "/tasks?filter=active", allowed: true },
@@ -202,30 +214,37 @@ export default function Home() {
       </section>
 
             <section aria-label="الشبكة الرئيسية" className="mt-5">
-        <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-[#7a8980]"><GripVertical className="h-3.5 w-3.5" aria-hidden="true" />اسحب البطاقات لإعادة ترتيبها، أو أسقطها داخل «البطاقات المخفية» بالأسفل لإخفائها.</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {visibleCards.map(card => (
-            <DraggableHomeCard
-              key={card.id}
-              card={card}
-              isDragging={draggingCardId === card.id}
-              isDragOver={dragOverCardId === card.id}
-              onActivate={() => setLocation(card.path)}
-              onDragStart={event => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", card.id); setDraggingCardId(card.id); }}
-              onDragEnd={() => { setDraggingCardId(null); setDragOverCardId(null); }}
-              onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; if (dragOverCardId !== card.id) setDragOverCardId(card.id); }}
-              onDrop={event => { event.preventDefault(); if (draggingCardId && draggingCardId !== card.id) reorderHomeCard(draggingCardId, card.id); setDraggingCardId(null); setDragOverCardId(null); }}
-              onHide={() => hideHomeCard(card.id)}
-            />
-          ))}
-        </div>
-        <section aria-label="البطاقات المخفية" onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; if (!dragOverHidden) setDragOverHidden(true); }} onDragLeave={() => setDragOverHidden(false)} onDrop={event => { event.preventDefault(); if (draggingCardId) hideHomeCard(draggingCardId); setDraggingCardId(null); setDragOverHidden(false); }} className={`mt-4 rounded-2xl border border-dashed p-4 transition ${dragOverHidden ? "border-[#c26a2b] bg-[#fff6ec]" : "border-[#d8d1c5] bg-[#fbfaf6]"}`}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs font-bold text-[#6d7d74]"><EyeOff className="ml-1 inline h-4 w-4" aria-hidden="true" />البطاقات المخفية — اسحب بطاقة هنا لإخفائها</p>
-            {hiddenCards.length > 0 && <button type="button" onClick={restoreAllHomeCards} className="inline-flex items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-2.5 py-1.5 text-xs font-bold text-[#355d4b] transition hover:bg-[#e8f0e7]"><RotateCcw className="h-3.5 w-3.5" />استعادة الكل</button>}
+        <div className="w-full overflow-hidden rounded-2xl bg-white/50 shadow-sm ring-1 ring-black/5 backdrop-blur-sm">
+          <div className="flex flex-row divide-x divide-white/30 rtl:divide-x-reverse">
+            {statsCards.map((card, idx) => {
+              const Icon = card.icon;
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={card.onClick}
+                  className={cn(
+                    "group relative flex flex-1 flex-col items-center justify-center",
+                    "aspect-square min-w-0",
+                    "bg-gradient-to-br",
+                    idx === 0 && "rounded-s-2xl",
+                    idx === statsCards.length - 1 && "rounded-e-2xl",
+                    "transition-all duration-200",
+                    "hover:z-10 hover:scale-105 hover:shadow-lg",
+                    "active:scale-95",
+                    card.gradient,
+                    "p-2 sm:p-3",
+                  )}
+                  style={{ minWidth: 0 }}
+                >
+                  <span className={cn("absolute top-1.5 right-1.5", "flex h-6 min-w-6 items-center justify-center rounded-full", "bg-white/30 px-1.5 backdrop-blur-sm", "text-[10px] font-black text-white tabular-nums", "border border-white/50")}>{formatUnreadBadgeCount(card.value)}</span>
+                  <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", "bg-white/20 backdrop-blur-sm", "ring-1 ring-white/40", "transition-transform duration-200", "group-hover:scale-110 group-hover:rotate-3")}><Icon className="h-5 w-5 text-white" strokeWidth={2.2} /></span>
+                  <span className="mt-1.5 line-clamp-2 text-center text-[10px] font-bold leading-tight text-white/95">{card.label}</span>
+                </button>
+              );
+            })}
           </div>
-          {hiddenCards.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{hiddenCards.map(card => <span key={card.id} className="inline-flex items-center gap-2 rounded-xl border border-[#e2d9c9] bg-white px-3 py-2 text-xs font-bold text-[#5a6b60]">{card.label}<button type="button" onClick={() => showHomeCard(card.id)} aria-label={`إظهار ${card.label}`} title="إظهار البطاقة" className="grid h-6 w-6 place-items-center rounded-md bg-[#e3eee2] text-[#2d6b4f] transition hover:bg-[#d3e6d2]"><Eye className="h-3.5 w-3.5" /></button></span>)}</div> : <p className="mt-2 text-xs text-[#a09a8d]">لا بطاقات مخفية حالياً.</p>}
-        </section>
+        </div>
       </section>
 
     </section>

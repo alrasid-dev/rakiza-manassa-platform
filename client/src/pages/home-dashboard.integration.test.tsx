@@ -42,7 +42,7 @@ describe("لوحة القيادة المدمجة حسب الدور", () => {
     render(<Home />);
     expect(screen.getByText("مهامي اليوم")).toBeTruthy();
     expect(screen.getByRole("region", { name: "الشبكة الرئيسية" })).toBeTruthy();
-    for (const label of ["مهام قيد التنفيذ", "قرب موعدها", "متأخرة", "تمت المعالجة", "الإشعارات", "الدردشات", "بريد ركيزة", "رفع تقرير", "هيكل المحكمة", "المداورة", "المتعثرات", "AI ركيزة", "الإعلانات"]) {
+    for (const label of ["قيد التنفيذ", "قرب موعدها", "متأخرة", "مفتوحة", "الإشعارات", "الدردشات", "بريد ركيزة"]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
     expect(screen.getByText(/قيد التنفيذ/)).toBeTruthy();
@@ -60,11 +60,11 @@ describe("لوحة القيادة المدمجة حسب الدور", () => {
     expect(screen.getByText("4 مهام اليوم النشطة")).toBeTruthy();
     expect(screen.getByText("1 متأخر")).toBeTruthy();
     expect(screen.getByText("4 تنبيه جديد")).toBeTruthy();
-    expect(screen.getAllByText("مهام قيد التنفيذ").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("قيد التنفيذ").length).toBeGreaterThan(0);
     expect(screen.getAllByText("قرب موعدها").length).toBeGreaterThan(0);
     expect(screen.getAllByText("متأخرة").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("تمت المعالجة").length).toBeGreaterThan(0);
-    expect(screen.getByText("رفع تقرير")).toBeTruthy();
+    expect(screen.getAllByText("مفتوحة").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("الإشعارات").length).toBeGreaterThan(0);
     // بطاقات القيادة محجوبة تماماً عن الموظف
     expect(screen.queryByText("المداورة")).toBeNull();
     expect(screen.queryByText("هيكل المحكمة")).toBeNull();
