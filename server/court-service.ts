@@ -1082,28 +1082,33 @@ export async function getDashboardSummary(userId: number, isPlatformAdmin: boole
   const profileId = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, userId)).limit(1))[0]?.id ?? null;
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const tomorrow = saudiTomorrowRange(now);
+  const today = dateRangeForSaudiDay(now); // نطاق اليوم بتوقيت الرياض (UTC+3)
   const [roles, profileRows, templateRows, delayRows, overdueRows, taskRows, openTaskRows, overdueTaskRows, unreadRows, announcementRows] = await Promise.all([
     getEffectiveRoles(userId, isPlatformAdmin),
     db.select({ count: sql<number>`count(*)` }).from(personProfiles),
     db.select({ count: sql<number>`count(*)` }).from(taskTemplates).where(eq(taskTemplates.isActive, true)),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(eq(delayRecords.status, "under_follow_up")),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(eq(delayRecords.status, "overdue")),
+    // قرب موعدها: مهام اليوم فقط (scheduledFor = TODAY) + استحقاق خلال 24 ساعة.
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
       isNull(tasks.archivedAt),
       notInArray(tasks.status, ["completed", "cancelled", "paused"]),
-      or(
-        and(gte(tasks.dueAt, now), lt(tasks.dueAt, in24h)),
-        and(gte(tasks.scheduledFor, tomorrow.start), lt(tasks.scheduledFor, tomorrow.end))
-      )
+      gte(tasks.scheduledFor, today.start),
+      lt(tasks.scheduledFor, today.end),
+      gte(tasks.dueAt, now),
+      lt(tasks.dueAt, in24h),
     )),
-    db.select({ count: sql<number>`count(*)` }).from(tasks).where(inArray(tasks.status, ["new", "in_progress", "under_review", "overdue"])),
+    // قيد التنفيذ: مهام اليوم فقط (scheduledFor = TODAY) بحالة new/in_progress.
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
       isNull(tasks.archivedAt),
-      or(
-        eq(tasks.status, "overdue"),
-        and(lt(tasks.dueAt, now), inArray(tasks.status, ["new", "in_progress", "under_review"]))
-      )
+      inArray(tasks.status, ["new", "in_progress"]),
+      gte(tasks.scheduledFor, today.start),
+      lt(tasks.scheduledFor, today.end),
+    )),
+    // متأخرة: كل المهام المتأخرة (كل الأيام حتى المعالجة) غير المؤرشفة.
+    db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
+      isNull(tasks.archivedAt),
+      eq(tasks.status, "overdue"),
     )),
     db.select({ count: sql<number>`count(*)` }).from(notifications).where(and(eq(notifications.profileId, profileId ?? 0), eq(notifications.isRead, false))),
     db.select({ id: announcements.id, title: announcements.title, body: announcements.body, publishedAt: announcements.publishedAt })
