@@ -1387,8 +1387,14 @@ export const courtRouter = router({
 
   judges: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      await requirePlatformView(ctx.user);
-      return listJudgesWithTraineeCounts();
+      const permission = await requirePermission(ctx.user, "view");
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      if (isLeadership) return listJudgesWithTraineeCounts();
+      const roles = await rolesForUser(ctx.user);
+      const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+      if (!isManager) throw new TRPCError({ code: "FORBIDDEN", message: "عرض سجل القضاة متاح للقيادة ومديري الأقسام فقط." });
+      const unitIds = await managedUnitIdsForUser(ctx.user);
+      return listJudgesWithTraineeCounts(unitIds);
     }),
     withoutEmail: protectedProcedure.query(async ({ ctx }) => {
       await requirePlatformView(ctx.user);

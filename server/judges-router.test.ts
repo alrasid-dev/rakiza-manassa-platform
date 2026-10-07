@@ -7,11 +7,13 @@ const mocks = vi.hoisted(() => ({
   listJudgesWithTraineeCounts: vi.fn(async () => [{ id: 300, fullName: "قاضٍ مختبر", personType: "judge", traineeCount: 0 }]),
   createJudgeWithAccount: vi.fn(async () => 301),
   updateJudgeProfile: vi.fn(async () => undefined),
+  getEffectiveRoles: vi.fn(async () => []),
+  getActiveCourtRoleAssignments: vi.fn(async () => []),
 }));
 
 vi.mock("./court-service", async importOriginal => {
   const actual = await importOriginal<typeof import("./court-service")>();
-  return { ...actual, listJudgesWithTraineeCounts: mocks.listJudgesWithTraineeCounts, createJudgeWithAccount: mocks.createJudgeWithAccount, updateJudgeProfile: mocks.updateJudgeProfile, getAccessPermission: vi.fn(async () => "general_view") };
+  return { ...actual, listJudgesWithTraineeCounts: mocks.listJudgesWithTraineeCounts, createJudgeWithAccount: mocks.createJudgeWithAccount, updateJudgeProfile: mocks.updateJudgeProfile, getAccessPermission: vi.fn(async () => "general_view"), getEffectiveRoles: mocks.getEffectiveRoles, getActiveCourtRoleAssignments: mocks.getActiveCourtRoleAssignments };
 });
 
 import { courtRouter } from "./routers/court";
@@ -31,5 +33,14 @@ describe("مسارات شؤون القضاة", () => {
     await expect(viewer.judges.list()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(viewer.judges.create({ fullName: "قاضٍ غير مسموح", email: "blocked@moj.gov.sa" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(viewer.judges.update({ judgeId: 300, fullName: "قاضٍ مختبر", status: "active" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("يمنح مدير القسم قضاة قسمه فقط (فلتر unitId)", async () => {
+    mocks.getEffectiveRoles.mockResolvedValue(["department_manager"]);
+    mocks.getActiveCourtRoleAssignments.mockResolvedValue([{ role: "department_manager", unitId: 5 }]);
+    mocks.listJudgesWithTraineeCounts.mockResolvedValue([{ id: 300, fullName: "قاضٍ مختبر", personType: "judge", traineeCount: 0 }]);
+    const manager = courtRouter.createCaller({ user: { id: 3, role: "user", email: "manager@court.example", name: "مدير قسم", openId: "manager" } } as never);
+    await expect(manager.judges.list()).resolves.toEqual([{ id: 300, fullName: "قاضٍ مختبر", personType: "judge", traineeCount: 0 }]);
+    expect(mocks.listJudgesWithTraineeCounts).toHaveBeenCalledWith([5]);
   });
 });

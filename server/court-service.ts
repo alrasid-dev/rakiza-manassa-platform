@@ -1309,15 +1309,14 @@ export async function listUnitRoster(unitId: number) {
   };
 }
 
-export async function listJudgesWithTraineeCounts() {
+export async function listJudgesWithTraineeCounts(unitIds?: number[]) {
   const db = await getDb();
-  if (!db) return listProfiles("judge");
-  const [profiles, counts] = await Promise.all([
-    listProfiles("judge"),
-    db.select({ judgeId: traineeAssignments.supervisingJudgeProfileId, count: sql<number>`count(*)` }).from(traineeAssignments).where(isNotNull(traineeAssignments.supervisingJudgeProfileId)).groupBy(traineeAssignments.supervisingJudgeProfileId),
-  ]);
+  const profiles = await listProfiles("judge");
+  const scopedProfiles = unitIds?.length ? profiles.filter(profile => profile.unitId != null && unitIds.includes(profile.unitId)) : profiles;
+  if (!db) return scopedProfiles;
+  const counts = await db.select({ judgeId: traineeAssignments.supervisingJudgeProfileId, count: sql<number>`count(*)` }).from(traineeAssignments).where(isNotNull(traineeAssignments.supervisingJudgeProfileId)).groupBy(traineeAssignments.supervisingJudgeProfileId);
   const countMap = new Map(counts.filter(c => c.judgeId != null).map(c => [c.judgeId as number, Number(c.count)]));
-  return profiles.map(profile => ({ ...profile, traineeCount: countMap.get(profile.id) ?? 0 }));
+  return scopedProfiles.map(profile => ({ ...profile, traineeCount: countMap.get(profile.id) ?? 0 }));
 }
 
 /** قضاة بلا بريد رسمي مسجل (لإضافتهم يدوياً). */
