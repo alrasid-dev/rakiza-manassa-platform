@@ -74,6 +74,7 @@ function WidgetCard({ label, icon: Icon, tone, count, sub, pulse = false, onClic
 }
 
 type HomeCardEntry = { id: DashboardHomeCardId; label: string; icon: typeof ListChecks; tone: string; count?: number; sub: string; path: string; pulse?: boolean; allowed: boolean };
+type StatCard = { id: string; label: string; icon: typeof ListChecks; gradient: string; value: number; darkText?: boolean; pulse?: boolean; onClick: () => void };
 
 function DraggableHomeCard({ card, isDragging, isDragOver, onActivate, onDragStart, onDragEnd, onDragOver, onDrop, onHide }: { card: HomeCardEntry; isDragging: boolean; isDragOver: boolean; onActivate: () => void; onDragStart: (event: React.DragEvent<HTMLDivElement>) => void; onDragEnd: () => void; onDragOver: (event: React.DragEvent<HTMLDivElement>) => void; onDrop: (event: React.DragEvent<HTMLDivElement>) => void; onHide: () => void }) {
   return (
@@ -131,14 +132,14 @@ export default function Home() {
   const lateCount = overdueTasks;
 
   // شريط المؤشرات المتصل: 7 بطاقات بعدّاداتها الحية في صف واحد.
-  const statsCards = [
-    { id: "tasks-active", label: "قيد التنفيذ", icon: ListChecks, gradient: "from-emerald-500 to-emerald-600", value: openTasks, onClick: () => setLocation("/tasks?filter=active") },
-    { id: "tasks-due-soon", label: "قرب موعدها", icon: Clock3, gradient: "from-amber-500 to-amber-600", value: dueTasks, onClick: () => setLocation("/tasks?filter=due_soon") },
-    { id: "tasks-overdue", label: "متأخرة", icon: AlertTriangle, gradient: "from-red-500 to-red-600", value: overdueTasks, onClick: () => setLocation("/tasks?filter=overdue") },
-    { id: "tasks-open", label: "مفتوحة", icon: Circle, gradient: "from-sky-500 to-sky-600", value: openFlaggedTasks, onClick: () => setLocation("/tasks?filter=open") },
-    { id: "notifications", label: "الإشعارات", icon: BellRing, gradient: "from-blue-500 to-blue-600", value: unreadNotifications, onClick: () => setLocation("/notifications") },
-    { id: "chats", label: "الدردشات", icon: MessageSquare, gradient: "from-teal-500 to-teal-600", value: chatUnreadCount, onClick: () => setLocation("/messages") },
-    { id: "mail", label: "بريد ركيزة", icon: Mail, gradient: "from-indigo-500 to-indigo-600", value: mailUnreadCount, onClick: () => setLocation("/rakiza-mail") },
+  const statsCards: StatCard[] = [
+    { id: "tasks-active", label: "قيد التنفيذ", icon: ListChecks, gradient: "from-sky-400 to-sky-500", value: openTasks, onClick: () => setLocation("/tasks?filter=active") },
+    { id: "tasks-due-soon", label: "قرب موعدها", icon: Clock3, gradient: "from-amber-300 to-amber-400", darkText: true, value: dueTasks, onClick: () => setLocation("/tasks?filter=due_soon") },
+    { id: "tasks-overdue", label: "متأخرة", icon: AlertTriangle, gradient: "from-red-500 to-rose-600", pulse: overdueTasks > 0, value: overdueTasks, onClick: () => setLocation("/tasks?filter=overdue") },
+    { id: "tasks-open", label: "مفتوحة", icon: Circle, gradient: "from-slate-400 to-slate-500", darkText: true, value: openFlaggedTasks, onClick: () => setLocation("/tasks?filter=open") },
+    { id: "notifications", label: "الإشعارات", icon: BellRing, gradient: "from-indigo-500 to-purple-600", value: unreadNotifications, onClick: () => setLocation("/notifications") },
+    { id: "chats", label: "الدردشات", icon: MessageSquare, gradient: "from-teal-500 to-cyan-600", value: chatUnreadCount, onClick: () => setLocation("/messages") },
+    { id: "mail", label: "بريد ركيزة", icon: Mail, gradient: "from-blue-500 to-indigo-600", value: mailUnreadCount, onClick: () => setLocation("/rakiza-mail") },
   ];
 
   const homeCards: HomeCardEntry[] = [
@@ -224,7 +225,7 @@ export default function Home() {
                   type="button"
                   onClick={card.onClick}
                   className={cn(
-                    "group relative flex flex-1 flex-col items-center justify-center",
+                    "group relative flex flex-1 flex-col items-center justify-center overflow-hidden",
                     "aspect-square min-w-0",
                     "bg-gradient-to-br",
                     idx === 0 && "rounded-s-2xl",
@@ -237,9 +238,10 @@ export default function Home() {
                   )}
                   style={{ minWidth: 0 }}
                 >
-                  <span className={cn("absolute top-1.5 right-1.5", "flex h-6 min-w-6 items-center justify-center rounded-full", "bg-white/30 px-1.5 backdrop-blur-sm", "text-[10px] font-black text-white tabular-nums", "border border-white/50")}>{formatUnreadBadgeCount(card.value)}</span>
-                  <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", "bg-white/20 backdrop-blur-sm", "ring-1 ring-white/40", "transition-transform duration-200", "group-hover:scale-110 group-hover:rotate-3")}><Icon className="h-5 w-5 text-white" strokeWidth={2.2} /></span>
-                  <span className="mt-1.5 line-clamp-2 text-center text-[10px] font-bold leading-tight text-white/95">{card.label}</span>
+                  {card.pulse && <span aria-hidden="true" className="pointer-events-none absolute inset-0 animate-pulse bg-red-400/30" />}
+                  <span className={cn("absolute top-1.5 right-1.5", "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 backdrop-blur-sm", "border text-[10px] font-black tabular-nums", card.darkText ? "border-black/10 bg-black/15 text-gray-900" : "border-white/50 bg-white/30 text-white")}>{formatUnreadBadgeCount(card.value)}</span>
+                  <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl backdrop-blur-sm ring-1 transition-transform duration-200", "group-hover:scale-110 group-hover:rotate-3", card.darkText ? "bg-white/50 ring-white/70" : "bg-white/20 ring-white/40")}><Icon className={cn("h-5 w-5", card.darkText ? "text-gray-800" : "text-white")} strokeWidth={2.2} /></span>
+                  <span className={cn("mt-1.5 line-clamp-2 text-center text-[10px] font-bold leading-tight", card.darkText ? "text-gray-900/90" : "text-white/95")}>{card.label}</span>
                 </button>
               );
             })}
