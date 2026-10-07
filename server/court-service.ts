@@ -1890,6 +1890,13 @@ export async function isTaskCcViewer(taskId: number, profileId: number) {
   return Boolean(row);
 }
 
+/** يمنع المطّلع (CC viewer) من أي إجراء تعديلي على المهمة. */
+export async function assertNotCcViewer(taskId: number, profileId?: number | null) {
+  if (profileId && await isTaskCcViewer(taskId, profileId)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "أنت مُطّلع فقط على هذه المهمة." });
+  }
+}
+
 // ===== تقارير مقارنة المهام =====
 export async function listTaskTitlesForComparison(unitId?: number) {
   const db = await getDb();
@@ -3777,6 +3784,7 @@ export async function updateTask(input: {
   if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
   assertTaskActionAllowed(task);
 
+  await assertNotCcViewer(input.taskId, (await getProfileForUser(input.actorUserId))?.id);
   const patch: Partial<typeof tasks.$inferInsert> = {};
   if (input.title !== undefined) patch.title = input.title.trim();
   if (input.taskNotes !== undefined) patch.taskNotes = input.taskNotes?.trim() || null;
@@ -3917,6 +3925,7 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
   if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
   assertTaskActionAllowed(task);
+  await assertNotCcViewer(input.taskId, input.submittedByProfileId);
   if (task.assigneeProfileId !== input.submittedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "رفع الاعتماد متاح للمكلف الحالي بالمهمة فقط." });
   if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "المهمة مكتملة أو ملغاة." });
   const existing = await db.select({ id: taskApprovals.id }).from(taskApprovals).where(and(eq(taskApprovals.taskId, input.taskId), eq(taskApprovals.status, "pending"))).limit(1);
@@ -4089,6 +4098,7 @@ export async function markTaskAsProcessed(input: { taskId: number; actorUserId: 
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
   if (task.scheduledFor && task.scheduledFor.getTime() > Date.now()) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك العمل على هذه المهمة قبل موعدها المحدد." });
   assertTaskActionAllowed(task);
+  await assertNotCcViewer(input.taskId, (await getProfileForUser(input.actorUserId))?.id);
   if (task.status === "cancelled") throw new Error("لا يمكن إتمام مهمة ملغاة.");
   if (task.status === "completed") throw new Error("المهمة مكتملة مسبقاً.");
   const completedAt = new Date();
@@ -4106,6 +4116,7 @@ export async function addTaskComment(input: { taskId: number; profileId?: number
   const task = await getTaskById(input.taskId);
   if (!task) throw new Error("المهمة غير موجودة.");
   assertTaskActionAllowed(task);
+  await assertNotCcViewer(input.taskId, input.profileId ?? (await getProfileForUser(input.authorUserId))?.id);
   const result = await db.insert(taskComments).values({ taskId: input.taskId, profileId: input.profileId ?? null, authorUserId: input.authorUserId, comment: input.comment.trim() });
   await logAudit({ actorUserId: input.authorUserId, action: "task.comment_added", entityType: "task_comment", entityId: Number(result[0].insertId), metadata: { taskId: input.taskId } });
   return Number(result[0].insertId);
@@ -4117,6 +4128,7 @@ export async function reportTaskObstacle(input: { taskId: number; actorUserId: n
   const task = await getTaskById(input.taskId);
   if (!task) throw new Error("المهمة غير موجودة.");
   assertTaskActionAllowed(task);
+  await assertNotCcViewer(input.taskId, (await getProfileForUser(input.actorUserId))?.id);
   if (task.status === "completed" || task.status === "cancelled") throw new Error("لا يمكن تسجيل عائق على مهمة مكتملة أو ملغاة.");
   await db.update(tasks).set({ hasObstacle: true, obstacleDetail: input.detail.trim() }).where(eq(tasks.id, input.taskId));
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "obstacle_reported", note: `بلاغ عائق: ${input.detail.trim()}` });
