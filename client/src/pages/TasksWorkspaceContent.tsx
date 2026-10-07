@@ -665,7 +665,7 @@ export default function TasksWorkspaceContent() {
   };
 
   if (activeTab === "future") {
-    return <section className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6">
+    return <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">المهام المستقبلية</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">عرض المهام المجدولة لوقت لاحق دون إمكانية العمل عليها قبل موعدها.</p></div>
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><ListChecks className="h-6 w-6" /></div>
@@ -687,7 +687,7 @@ export default function TasksWorkspaceContent() {
   if (activeTab === "records") {
     const recordsData = records.data;
     const totalPages = Math.max(1, Math.ceil((recordsData?.total ?? 0) / 20));
-    return <section className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6">
+    return <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">سجلات المهام</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">المهام المؤرشفة والمنتهية والملغاة والقديمة، مع فلاتر التاريخ والحالة وترقيم الصفحات.</p></div>
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><FileText className="h-6 w-6" /></div>
@@ -724,7 +724,7 @@ export default function TasksWorkspaceContent() {
     </section>;
   }
 
-  return <section className="mx-auto max-w-6xl px-3 sm:px-4 md:px-6">
+  return <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
     <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">{canAssign ? "المهام والمتابعة" : "مهامي وطلباتي"}</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">{canAssign ? "إسناد مباشر ومتابعة مسار المعالجة، مع اختيار ملازم كنسخة تنبيه عند الحاجة." : "تظهر هنا المهام المخولة لك فقط، ويمكنك تأكيد المعالجة أو إرسال تعليق ضمن المسار المعتمد."}</p></div><div className="flex items-center gap-2"><Button type="button" onClick={() => setLocation("/correspondence?type=request")} variant="outline" className="border-[#b6d5bd] text-[#1d6243]"><Send className="ml-1 h-4 w-4" />إنشاء طلب</Button><div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><ListChecks className="h-6 w-6" /></div></div>
     </header>
