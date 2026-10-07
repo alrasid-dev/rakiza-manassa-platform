@@ -180,8 +180,7 @@ export default function Home() {
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d5ddd2] bg-[#f8f9f4] px-4 py-3 shadow-[0_8px_22px_rgba(36,67,51,0.05)]">
         <div className="min-w-0">
           <p className="text-[11px] font-black tracking-[0.12em] text-[#b18448]">مساحة العمل</p>
-          <h1 className="mt-1 text-xl font-black text-[#12352f]">{isLeadership ? "لوحة القيادة المدمجة" : "مساحتي اليومية"}</h1>
-          <p className="mt-1 text-xs leading-6 text-[#66766e]">شبكة بطاقاتك الرئيسية: كل بطاقة تعرض عدّاداتها الحية وتفتح ميزتها بنقرة واحدة.</p>
+          <h1 className="mt-1 text-xl font-black text-[#12352f]">الرئيسية</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <GlobalSearchBar />
@@ -191,13 +190,13 @@ export default function Home() {
         </div>
       </header>
 
-      <section aria-label="مهامي اليوم" className="mt-5 rounded-2xl border border-[#d5ddd2] bg-white p-4">
+      <section aria-label="مهامي اليوم" onClick={() => setLocation("/tasks")} className="mt-5 cursor-pointer rounded-2xl border border-[#d5ddd2] bg-white p-4 transition hover:border-[#9fc7a8] hover:bg-[#f6fbf6]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#dce9da] text-[#2d6b4f]"><ListChecks className="h-5 w-5" /></span>
             <div>
               <p className="text-sm font-black text-[#12352f]">مهامي اليوم</p>
-              <p className="text-xs text-[#66766e]">إجمالي: {todayCounts.data?.total ?? 0} مهمة</p>
+              <p className="text-xs text-[#66766e]">إجمالي: {todayCounts.data?.total ?? 0} مهمة · <span className="font-bold text-[#2d6b4f]">عرض الكل ←</span></p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
