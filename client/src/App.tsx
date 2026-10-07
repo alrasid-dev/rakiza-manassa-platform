@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { unlockAudio } from "./lib/audio-unlock";
+import { applyAppearancePreferences, readAppearancePreferences } from "./lib/appearance";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Redirect, Route, Router as WouterRouter, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -136,6 +137,12 @@ function Router() {
 }
 
 export default function App() {
+  useEffect(() => {
+    // استعادة مظهر الخط وحجمه المحفوظ محلياً عند إقلاع التطبيق.
+    const p = readAppearancePreferences();
+    applyAppearancePreferences(p.fontId, p.sizeId);
+  }, []);
+
   useEffect(() => {
     // فك قفل تشغيل الصوت بعد أول تفاعل (قيود Autoplay في المتصفحات).
     const unlock = () => { void unlockAudio(); };
