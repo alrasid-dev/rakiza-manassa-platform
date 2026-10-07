@@ -87,6 +87,7 @@ import {
   taskExceptionRequests,
   taskModificationRequests,
   taskApprovals,
+  taskCc,
   taskTemplates,
   taskUpdates,
   traineeAssignments,
@@ -1843,6 +1844,96 @@ export async function getTodayTaskCounts(profileId?: number) {
     pending: Number(pendingRows?.count ?? 0),
     overdue: Number(overdueRows?.count ?? 0),
   };
+}
+
+// ===== نسخة للاطلاع (CC) =====
+export async function addTaskCc(input: { taskId: number; viewerProfileIds: number[]; actorProfileId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = (await db.select({ assigneeProfileId: tasks.assigneeProfileId, title: tasks.title }).from(tasks).where(eq(tasks.id, input.taskId)).limit(1))[0];
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+  const actor = (await db.select({ unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, input.actorProfileId)).limit(1))[0];
+  if (!actor) throw new TRPCError({ code: "FORBIDDEN", message: "ملف الفاعل غير موجود." });
+  const ids = [...new Set(input.viewerProfileIds.filter(id => id !== task.assigneeProfileId))];
+  for (const vid of ids) {
+    const viewer = (await db.select({ unitId: personProfiles.unitId }).from(personProfiles).where(eq(personProfiles.id, vid)).limit(1))[0];
+    if (!viewer || viewer.unitId !== actor.unitId) throw new TRPCError({ code: "FORBIDDEN", message: "المطّلع يجب أن يكون في نفس قسم المدير." });
+    await db.insert(taskCc).values({ taskId: input.taskId, viewerProfileId: vid, addedByProfileId: input.actorProfileId }).onDuplicateKeyUpdate({ set: { addedByProfileId: input.actorProfileId } });
+    await db.insert(notifications).values({ profileId: vid, category: "task_due", title: "أُضفت كمطّلع على مهمة", body: `أُضفت للاطلاع على المهمة "${task.title}".`, dedupeKey: `task-cc-${input.taskId}-${vid}` });
+  }
+  return { added: ids.length };
+}
+
+export async function listTaskCcForTask(taskId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ id: taskCc.id, viewerProfileId: taskCc.viewerProfileId, addedByProfileId: taskCc.addedByProfileId, readAt: taskCc.readAt, viewerName: personProfiles.fullName }).from(taskCc).innerJoin(personProfiles, eq(personProfiles.id, taskCc.viewerProfileId)).where(eq(taskCc.taskId, taskId)).orderBy(taskCc.id);
+}
+
+export async function removeTaskCc(input: { taskId: number; viewerProfileId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  await db.delete(taskCc).where(and(eq(taskCc.taskId, input.taskId), eq(taskCc.viewerProfileId, input.viewerProfileId)));
+  return { success: true as const };
+}
+
+export async function markTaskCcAsRead(taskId: number, viewerProfileId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(taskCc).set({ readAt: new Date() }).where(and(eq(taskCc.taskId, taskId), eq(taskCc.viewerProfileId, viewerProfileId)));
+}
+
+export async function isTaskCcViewer(taskId: number, profileId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  const row = (await db.select({ id: taskCc.id }).from(taskCc).where(and(eq(taskCc.taskId, taskId), eq(taskCc.viewerProfileId, profileId))).limit(1))[0];
+  return Boolean(row);
+}
+
+// ===== تقارير مقارنة المهام =====
+export async function listTaskTitlesForComparison(unitId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(taskTemplates.isActive, true)];
+  if (unitId) conditions.push(eq(taskTemplates.unitId, unitId));
+  return db.select({ id: taskTemplates.id, title: taskTemplates.title, unitId: taskTemplates.unitId }).from(taskTemplates).where(and(...conditions)).orderBy(taskTemplates.title);
+}
+
+export async function compareTaskPerformance(input: { title?: string; templateId?: number; fromDate?: Date; toDate?: Date; unitId?: number; sortBy?: "completed" | "totalPoints" | "avgCompletionMinutes" | "complianceRate" }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [isNull(tasks.archivedAt)];
+  if (input.title) conditions.push(eq(tasks.title, input.title));
+  if (input.templateId) conditions.push(eq(tasks.templateId, input.templateId));
+  if (input.unitId) conditions.push(eq(tasks.unitId, input.unitId));
+  if (input.fromDate) conditions.push(gte(tasks.scheduledFor, input.fromDate));
+  if (input.toDate) conditions.push(lt(tasks.scheduledFor, input.toDate));
+  const taskRows = await db.select({ id: tasks.id, assigneeProfileId: tasks.assigneeProfileId, status: tasks.status, dueAt: tasks.dueAt, completedAt: tasks.completedAt }).from(tasks).where(and(...conditions));
+  const byProfile = new Map<number, { total: number; completed: number; onTime: number; late: number; completionMinutes: number[] }>();
+  for (const t of taskRows) {
+    if (!t.assigneeProfileId) continue;
+    if (!byProfile.has(t.assigneeProfileId)) byProfile.set(t.assigneeProfileId, { total: 0, completed: 0, onTime: 0, late: 0, completionMinutes: [] });
+    const s = byProfile.get(t.assigneeProfileId)!;
+    s.total += 1;
+    if (t.status === "completed") {
+      s.completed += 1;
+      const mins = Math.round(((t.completedAt?.getTime() ?? Date.now()) - (t.dueAt?.getTime() ?? Date.now())) / 60000);
+      s.completionMinutes.push(mins);
+      if (mins <= 0) s.onTime += 1; else s.late += 1;
+    } else if (t.status === "overdue") {
+      s.late += 1;
+    }
+  }
+  const result: Array<{ profileId: number; name: string; totalTasks: number; completed: number; onTime: number; late: number; avgCompletionMinutes: number | null; totalPoints: number; scoreBreakdown: { positive: number; negative: number }; complianceRate: number }> = [];
+  for (const [profileId, s] of byProfile) {
+    const [profile] = await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, profileId)).limit(1);
+    const [scoreRow] = await db.select({ total: sql<number>`coalesce(sum(${scoreEvents.points}),0)`, positive: sql<number>`coalesce(sum(case when ${scoreEvents.points} > 0 then ${scoreEvents.points} else 0 end),0)`, negative: sql<number>`coalesce(sum(case when ${scoreEvents.points} < 0 then ${scoreEvents.points} else 0 end),0)` }).from(scoreEvents).where(eq(scoreEvents.profileId, profileId));
+    const avgMinutes = s.completionMinutes.length ? Math.round(s.completionMinutes.reduce((a, b) => a + b, 0) / s.completionMinutes.length) : null;
+    result.push({ profileId, name: profile?.fullName ?? "؟", totalTasks: s.total, completed: s.completed, onTime: s.onTime, late: s.late, avgCompletionMinutes: avgMinutes, totalPoints: Number(scoreRow?.total ?? 0), scoreBreakdown: { positive: Number(scoreRow?.positive ?? 0), negative: Number(scoreRow?.negative ?? 0) }, complianceRate: s.total ? Math.round((s.completed / s.total) * 100) : 0 });
+  }
+  const sortBy = input.sortBy ?? "totalPoints";
+  result.sort((a, b) => sortBy === "completed" ? b.completed - a.completed : sortBy === "avgCompletionMinutes" ? (a.avgCompletionMinutes ?? 1e9) - (b.avgCompletionMinutes ?? 1e9) : sortBy === "complianceRate" ? b.complianceRate - a.complianceRate : b.totalPoints - a.totalPoints);
+  return result;
 }
 
 export async function archiveTask(input: { taskId: number; actorUserId: number }) {

@@ -777,6 +777,19 @@ export const tasks = mysqlTable("tasks", {
   index("idx_tasks_sourceTaskId").on(table.sourceTaskId),
 ]);
 
+export const taskCc = mysqlTable("task_cc", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  viewerProfileId: int("viewerProfileId").notNull(),
+  addedByProfileId: int("addedByProfileId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  readAt: timestamp("readAt"),
+}, table => [
+  uniqueIndex("task_cc_task_viewer_unique").on(table.taskId, table.viewerProfileId),
+  index("task_cc_viewer_idx").on(table.viewerProfileId),
+  index("task_cc_task_idx").on(table.taskId),
+]);
+
 export const taskUpdates = mysqlTable("task_updates", {
   id: int("id").autoincrement().primaryKey(),
   taskId: int("taskId").notNull(),

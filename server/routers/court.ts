@@ -185,6 +185,12 @@ import {
   listTasksForUnits,
   listTasksRecords,
   getTodayTaskCounts,
+  addTaskCc,
+  listTaskCcForTask,
+  removeTaskCc,
+  markTaskCcAsRead,
+  listTaskTitlesForComparison,
+  compareTaskPerformance,
   archiveTask,
   suggestTaskAssignees,
   autoAssignTasks,
@@ -1837,6 +1843,29 @@ export const courtRouter = router({
     }),
   }),
 
+  taskCc: router({
+    add: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), viewerProfileIds: z.array(z.number().int().positive()) })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "edit");
+      const profile = await getProfileForUser(ctx.user.id);
+      if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف شخصي." });
+      return addTaskCc({ taskId: input.taskId, viewerProfileIds: input.viewerProfileIds, actorProfileId: profile.id });
+    }),
+    listForTask: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      return listTaskCcForTask(input.taskId);
+    }),
+    remove: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), viewerProfileId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "edit");
+      return removeTaskCc(input);
+    }),
+    markAsRead: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requirePermission(ctx.user, "view");
+      const profile = await getProfileForUser(ctx.user.id);
+      if (profile) await markTaskCcAsRead(input.taskId, profile.id);
+      return { success: true as const };
+    }),
+  }),
+
   delays: router({
     list: protectedProcedure.input(z.object({ status: z.enum(["under_follow_up", "overdue", "resolved", "archived"]).optional(), unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
@@ -2073,6 +2102,28 @@ export const courtRouter = router({
       if (input.createTasksForTargetUnit && !isPerformanceMonitor) throw new TRPCError({ code: "FORBIDDEN", message: "تحويل التقرير إلى مهام موزعة محصور بصلاحية مراقبة الأداء." });
       if (input.createTasksForTargetUnit && !targetUnitId) throw new TRPCError({ code: "BAD_REQUEST", message: "اختر القسم المستهدف قبل إنشاء المهام من تقرير مراقبة الأداء." });
       return createOperationalReport({ ...input, profileId: targetProfile.id, unitId: targetUnitId, actorUserId: ctx.user.id });
+    }),
+    listTaskTitles: protectedProcedure.input(z.object({ unitId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      if (await hasLeadershipPlatformScope(ctx.user, permission)) return listTaskTitlesForComparison(input?.unitId);
+      const roles = await rolesForUser(ctx.user);
+      if (roles.includes("performance_monitor")) return listTaskTitlesForComparison(input?.unitId);
+      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      const unitId = input?.unitId ?? managedUnitIds[0];
+      if (!unitId) throw new TRPCError({ code: "FORBIDDEN", message: "لا توجد وحدات مفوضة لك." });
+      if (input?.unitId && !managedUnitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "يمكنك الاطلاع على وحدتك المفوضة فقط." });
+      return listTaskTitlesForComparison(unitId);
+    }),
+    compareTaskPerformance: protectedProcedure.input(z.object({ title: z.string().trim().min(1).max(255).optional(), templateId: z.number().int().positive().optional(), fromDate: z.date().optional(), toDate: z.date().optional(), unitId: z.number().int().positive().optional(), sortBy: z.enum(["completed", "totalPoints", "avgCompletionMinutes", "complianceRate"]).optional() })).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      if (await hasLeadershipPlatformScope(ctx.user, permission)) return compareTaskPerformance(input);
+      const roles = await rolesForUser(ctx.user);
+      if (roles.includes("performance_monitor")) return compareTaskPerformance(input);
+      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      const unitId = input.unitId ?? managedUnitIds[0];
+      if (!unitId) throw new TRPCError({ code: "FORBIDDEN", message: "لا توجد وحدات مفوضة لك." });
+      if (input.unitId && !managedUnitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "يمكنك مقارنة موظفي وحدتك المفوضة فقط." });
+      return compareTaskPerformance({ ...input, unitId });
     }),
   }),
 
