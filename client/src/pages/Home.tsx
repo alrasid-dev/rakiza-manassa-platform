@@ -181,7 +181,7 @@ export default function Home() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <GlobalSearchBar />
-          <button type="button" onClick={() => setLocation("/tasks?filter=active")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#e6efe4] px-3 py-1.5 text-[11px] font-bold text-[#2d6b4f] transition hover:opacity-80"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />{activeCount > 0 ? `${activeCount} مهمة نشطة` : "لا مهام نشطة"}</button>
+          <button type="button" onClick={() => setLocation("/tasks?filter=active")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#e6efe4] px-3 py-1.5 text-[11px] font-bold text-[#2d6b4f] transition hover:opacity-80"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />{activeCount > 0 ? `${activeCount} مهام اليوم النشطة` : "لا مهام نشطة اليوم"}</button>
           <button type="button" onClick={() => setLocation("/tasks?filter=overdue")} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold transition hover:opacity-80 ${lateCount > 0 ? "bg-[#f8e6e1] text-[#963e33]" : "bg-[#e6efe4] text-[#2d6b4f]"}`}><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />{lateCount > 0 ? `${lateCount} متأخر` : "لا متأخرات"}</button>
           <button type="button" onClick={() => setLocation("/notifications")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#eaf4ff] px-3 py-1.5 text-[11px] font-bold text-[#26628d] transition hover:opacity-80"><BellRing className="h-3.5 w-3.5" aria-hidden="true" />{unreadNotifications > 0 ? `${formatUnreadBadgeCount(unreadNotifications)} تنبيه جديد` : "لا تنبيهات جديدة"}</button>
         </div>

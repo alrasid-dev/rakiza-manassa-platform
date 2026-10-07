@@ -57,7 +57,7 @@ describe("لوحة القيادة المدمجة حسب الدور", () => {
     render(<Home />);
     expect(screen.getByText("مهامي اليوم")).toBeTruthy();
     expect(screen.getByRole("region", { name: "الشبكة الرئيسية" })).toBeTruthy();
-    expect(screen.getByText("4 مهمة نشطة")).toBeTruthy();
+    expect(screen.getByText("4 مهام اليوم النشطة")).toBeTruthy();
     expect(screen.getByText("1 متأخر")).toBeTruthy();
     expect(screen.getByText("4 تنبيه جديد")).toBeTruthy();
     expect(screen.getAllByText("مهام قيد التنفيذ").length).toBeGreaterThan(0);
