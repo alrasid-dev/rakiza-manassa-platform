@@ -184,6 +184,7 @@ import {
   listTasksForProfile,
   listTasksForUnits,
   listTasksRecords,
+  getTodayTaskCounts,
   archiveTask,
   suggestTaskAssignees,
   autoAssignTasks,
@@ -1429,6 +1430,13 @@ export const courtRouter = router({
       const viewerProfile = await getProfileForUser(ctx.user.id);
       const targetProfileId = isLeadership ? (input?.assigneeProfileId ?? undefined) : (viewerProfile?.id ?? undefined);
       return listTasksRecords({ status: input?.status, fromDate: input?.fromDate, toDate: input?.toDate, page: input?.page, pageSize: input?.pageSize, assigneeProfileId: targetProfileId });
+    }),
+    todayCounts: protectedProcedure.input(z.object({ profileId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const viewerProfile = await getProfileForUser(ctx.user.id);
+      const targetProfileId = isLeadership ? (input?.profileId ?? undefined) : (viewerProfile?.id ?? undefined);
+      return getTodayTaskCounts(targetProfileId);
     }),
     pause: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), reason: z.string().trim().max(200).optional(), expiresAt: z.date().optional(), type: z.enum(["permanent", "temporary"]).optional() })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");

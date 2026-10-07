@@ -1821,6 +1821,30 @@ export async function listTasksRecords(input: { assigneeProfileId?: number; unit
   return { records, total, page, pageSize };
 }
 
+/** عدّاد مهام اليوم: إجمالي / منجزة / قيد التنفيذ / متأخرة (مهام scheduledFor = اليوم). */
+export async function getTodayTaskCounts(profileId?: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, completed: 0, pending: 0, overdue: 0 };
+  const today = dateRangeForSaudiDay(new Date());
+  const base = and(
+    isNull(tasks.archivedAt),
+    gte(tasks.scheduledFor, today.start),
+    lt(tasks.scheduledFor, today.end),
+  );
+  const conditions = [base];
+  if (profileId) conditions.push(eq(tasks.assigneeProfileId, profileId));
+  const [totalRows] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions));
+  const [completedRows] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions, eq(tasks.status, "completed")));
+  const [pendingRows] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions, inArray(tasks.status, ["new", "in_progress", "under_review"])));
+  const [overdueRows] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions, eq(tasks.status, "overdue")));
+  return {
+    total: Number(totalRows?.count ?? 0),
+    completed: Number(completedRows?.count ?? 0),
+    pending: Number(pendingRows?.count ?? 0),
+    overdue: Number(overdueRows?.count ?? 0),
+  };
+}
+
 export async function archiveTask(input: { taskId: number; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
