@@ -1952,26 +1952,56 @@ export async function compareTaskPerformance(input: { title?: string; templateId
       s.late += 1;
     }
   }
-  const profileIds = [...byProfile.keys()];
+
+  // تعداد كل موظفي النطاق (وليس فقط المُسندين) لعرض «لم يُسند له».
+  const profileConditions = [ne(personProfiles.status, "archived"), or(eq(personProfiles.personType, "administrative"), eq(personProfiles.personType, "trainee"))];
+  if (input.unitId) profileConditions.push(eq(personProfiles.unitId, input.unitId));
+  const unitProfiles = await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(and(...profileConditions)).orderBy(personProfiles.fullName);
+  const allProfileIds = unitProfiles.map(p => p.id);
+
   const now = new Date();
-  const leaveRows = profileIds.length
-    ? await db.select({ profileId: leaveRequests.profileId, startAt: leaveRequests.startAt, endAt: leaveRequests.endAt }).from(leaveRequests).where(and(inArray(leaveRequests.profileId, profileIds), inArray(leaveRequests.status, ["approved", "active"]), lte(leaveRequests.startAt, now), gte(leaveRequests.endAt, now)))
+  const leaveRows = allProfileIds.length
+    ? await db.select({ profileId: leaveRequests.profileId, startAt: leaveRequests.startAt, endAt: leaveRequests.endAt }).from(leaveRequests).where(and(inArray(leaveRequests.profileId, allProfileIds), inArray(leaveRequests.status, ["approved", "active"]), lte(leaveRequests.startAt, now), gte(leaveRequests.endAt, now)))
     : [];
   const leaveByProfile = new Map<number, { startAt: Date; endAt: Date }>();
   for (const lv of leaveRows) {
     const existing = leaveByProfile.get(lv.profileId);
     if (!existing || lv.endAt.getTime() > existing.endAt.getTime()) leaveByProfile.set(lv.profileId, { startAt: lv.startAt, endAt: lv.endAt });
   }
-  const result: Array<{ profileId: number; name: string; totalTasks: number; completed: number; onTime: number; late: number; avgCompletionMinutes: number | null; totalPoints: number; scoreBreakdown: { positive: number; negative: number }; complianceRate: number; onLeave: boolean; leaveStartAt: Date | null; leaveEndAt: Date | null }> = [];
-  for (const [profileId, s] of byProfile) {
-    const [profile] = await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, profileId)).limit(1);
-    const [scoreRow] = await db.select({ total: sql<number>`coalesce(sum(${scoreEvents.points}),0)`, positive: sql<number>`coalesce(sum(case when ${scoreEvents.points} > 0 then ${scoreEvents.points} else 0 end),0)`, negative: sql<number>`coalesce(sum(case when ${scoreEvents.points} < 0 then ${scoreEvents.points} else 0 end),0)` }).from(scoreEvents).where(eq(scoreEvents.profileId, profileId));
-    const avgMinutes = s.completionMinutes.length ? Math.round(s.completionMinutes.reduce((a, b) => a + b, 0) / s.completionMinutes.length) : null;
-    const leaveInfo = leaveByProfile.get(profileId);
-    result.push({ profileId, name: profile?.fullName ?? "؟", totalTasks: s.total, completed: s.completed, onTime: s.onTime, late: s.late, avgCompletionMinutes: avgMinutes, totalPoints: Number(scoreRow?.total ?? 0), scoreBreakdown: { positive: Number(scoreRow?.positive ?? 0), negative: Number(scoreRow?.negative ?? 0) }, complianceRate: s.total ? Math.round((s.completed / s.total) * 100) : 0, onLeave: Boolean(leaveInfo), leaveStartAt: leaveInfo?.startAt ?? null, leaveEndAt: leaveInfo?.endAt ?? null });
+
+  // نقاط مُرشّحة بنفس نافذة المقارنة (عبر ربط scoreEvents بالمهام المطابقة فقط).
+  const scoreByProfile = new Map<number, { total: number; positive: number; negative: number }>();
+  if (allProfileIds.length) {
+    const scoreRows = await db.select({
+      profileId: scoreEvents.profileId,
+      total: sql<number>`coalesce(sum(${scoreEvents.points}),0)`,
+      positive: sql<number>`coalesce(sum(case when ${scoreEvents.points} > 0 then ${scoreEvents.points} else 0 end),0)`,
+      negative: sql<number>`coalesce(sum(case when ${scoreEvents.points} < 0 then ${scoreEvents.points} else 0 end),0)`,
+    }).from(scoreEvents)
+      .innerJoin(tasks, eq(tasks.id, scoreEvents.taskId))
+      .where(and(...conditions, inArray(scoreEvents.profileId, allProfileIds)))
+      .groupBy(scoreEvents.profileId);
+    for (const row of scoreRows) scoreByProfile.set(row.profileId, { total: Number(row.total), positive: Number(row.positive), negative: Number(row.negative) });
+  }
+
+  const result: Array<{ profileId: number; name: string; status: "assigned" | "on_leave" | "not_assigned"; totalTasks: number; completed: number; onTime: number; late: number; avgCompletionMinutes: number | null; totalPoints: number; scoreBreakdown: { positive: number; negative: number }; complianceRate: number; onLeave: boolean; leaveStartAt: Date | null; leaveEndAt: Date | null }> = [];
+  for (const p of unitProfiles) {
+    const s = byProfile.get(p.id);
+    const score = scoreByProfile.get(p.id);
+    const leaveInfo = leaveByProfile.get(p.id);
+    const assigned = Boolean(s && s.total > 0);
+    const status = leaveInfo ? "on_leave" : assigned ? "assigned" : "not_assigned";
+    const avgMinutes = s && s.completionMinutes.length ? Math.round(s.completionMinutes.reduce((a, b) => a + b, 0) / s.completionMinutes.length) : null;
+    result.push({ profileId: p.id, name: p.fullName, status, totalTasks: s?.total ?? 0, completed: s?.completed ?? 0, onTime: s?.onTime ?? 0, late: s?.late ?? 0, avgCompletionMinutes: avgMinutes, totalPoints: score?.total ?? 0, scoreBreakdown: { positive: score?.positive ?? 0, negative: score?.negative ?? 0 }, complianceRate: s && s.total ? Math.round((s.completed / s.total) * 100) : 0, onLeave: Boolean(leaveInfo), leaveStartAt: leaveInfo?.startAt ?? null, leaveEndAt: leaveInfo?.endAt ?? null });
   }
   const sortBy = input.sortBy ?? "totalPoints";
-  result.sort((a, b) => sortBy === "completed" ? b.completed - a.completed : sortBy === "avgCompletionMinutes" ? (a.avgCompletionMinutes ?? 1e9) - (b.avgCompletionMinutes ?? 1e9) : sortBy === "complianceRate" ? b.complianceRate - a.complianceRate : b.totalPoints - a.totalPoints);
+  result.sort((a, b) => {
+    if (a.status !== b.status) return (["assigned", "not_assigned", "on_leave"] as const).indexOf(a.status) - (["assigned", "not_assigned", "on_leave"] as const).indexOf(b.status);
+    if (sortBy === "completed") return b.completed - a.completed;
+    if (sortBy === "avgCompletionMinutes") return (a.avgCompletionMinutes ?? 1e9) - (b.avgCompletionMinutes ?? 1e9);
+    if (sortBy === "complianceRate") return b.complianceRate - a.complianceRate;
+    return b.totalPoints - a.totalPoints;
+  });
   return result;
 }
 

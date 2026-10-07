@@ -47,8 +47,9 @@ export default function TaskComparisonPage() {
     { enabled: Boolean(title) },
   );
   const rows = comparison.data ?? [];
-  const activeRows = rows.filter(r => !r.onLeave);
-  const onLeaveRows = rows.filter(r => r.onLeave);
+  const assignedRows = rows.filter(r => r.status === "assigned");
+  const notAssignedRows = rows.filter(r => r.status === "not_assigned");
+  const onLeaveRows = rows.filter(r => r.status === "on_leave");
 
   const employeeCounts = trpc.court.tasks.todayCounts.useQuery(employeeId != null ? { profileId: employeeId } : undefined, { enabled: employeeId != null });
 
@@ -57,7 +58,7 @@ export default function TaskComparisonPage() {
     doc.setFont("helvetica", "bold");
     doc.text("تقرير مقارنة المهام", 14, 16);
     doc.text(`نوع المهمة: ${title}`, 14, 24);
-    const body = activeRows.map((r, i) => [String(i + 1), r.name, String(r.totalTasks), String(r.completed), String(r.onTime), String(r.late), r.avgCompletionMinutes == null ? "—" : `${r.avgCompletionMinutes} د`, String(r.totalPoints), `${r.complianceRate}%`]);
+    const body = assignedRows.map((r, i) => [String(i + 1), r.name, String(r.totalTasks), String(r.completed), String(r.onTime), String(r.late), r.avgCompletionMinutes == null ? "—" : `${r.avgCompletionMinutes} د`, String(r.totalPoints), `${r.complianceRate}%`]);
     (doc as any).autoTable({ head: [["الترتيب", "الاسم", "الإجمالي", "منجزة", "في الوقت", "متأخرة", "متوسط الزمن", "النقاط", "الالتزام %"]], body, startY: 30, theme: "grid" });
     doc.save("task-comparison.pdf");
   };
@@ -65,11 +66,11 @@ export default function TaskComparisonPage() {
   const exportCsv = () => {
     downloadCsv("task-comparison.csv", [
       ["rank", "name", "total", "completed", "onTime", "late", "avgTime", "points", "compliance"],
-      ...activeRows.map((r, i) => [String(i + 1), r.name, String(r.totalTasks), String(r.completed), String(r.onTime), String(r.late), r.avgCompletionMinutes == null ? "" : String(r.avgCompletionMinutes), String(r.totalPoints), String(r.complianceRate)]),
+      ...assignedRows.map((r, i) => [String(i + 1), r.name, String(r.totalTasks), String(r.completed), String(r.onTime), String(r.late), r.avgCompletionMinutes == null ? "" : String(r.avgCompletionMinutes), String(r.totalPoints), String(r.complianceRate)]),
     ]);
   };
 
-  const maxPoints = Math.max(1, ...activeRows.map(r => Math.abs(r.totalPoints)));
+  const maxPoints = Math.max(1, ...assignedRows.map(r => Math.abs(r.totalPoints)));
 
   return <DashboardLayout hideUtilityPrompts>
     <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6" dir="rtl">
@@ -127,8 +128,8 @@ export default function TaskComparisonPage() {
           </select>
         </label>
         <div className="ml-auto flex gap-2">
-          <button type="button" onClick={exportPdf} disabled={!activeRows.length} className="inline-flex items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileText className="h-4 w-4" />PDF</button>
-          <button type="button" onClick={exportCsv} disabled={!activeRows.length} className="inline-flex items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileSpreadsheet className="h-4 w-4" />CSV</button>
+          <button type="button" onClick={exportPdf} disabled={!assignedRows.length} className="inline-flex items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileText className="h-4 w-4" />PDF</button>
+          <button type="button" onClick={exportCsv} disabled={!assignedRows.length} className="inline-flex items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileSpreadsheet className="h-4 w-4" />CSV</button>
         </div>
       </div>
 
@@ -142,7 +143,7 @@ export default function TaskComparisonPage() {
               <thead><tr className="border-b border-[#eee8de] text-[#6b5b45]">
                 <th className="px-3 py-2 text-right font-medium">الترتيب</th><th className="px-3 py-2 font-medium">الموظف</th><th className="px-3 py-2 font-medium">الإجمالي</th><th className="px-3 py-2 font-medium">منجزة</th><th className="px-3 py-2 font-medium">في الوقت</th><th className="px-3 py-2 font-medium">متأخرة</th><th className="px-3 py-2 font-medium">متوسط الزمن</th><th className="px-3 py-2 font-medium">النقاط</th><th className="px-3 py-2 font-medium">الالتزام</th>
               </tr></thead>
-              <tbody>{activeRows.map((r, i) => <tr key={r.profileId} className="border-b border-[#f3ecdf]">
+              <tbody>{assignedRows.map((r, i) => <tr key={r.profileId} className="border-b border-[#f3ecdf]">
                 <td className="px-3 py-2 text-[#4a3b28]">{medal(i + 1)} {i + 1}</td>
                 <td className="px-3 py-2 text-[#4a3b28]">{r.name}</td>
                 <td className="px-3 py-2">{r.totalTasks}</td>
@@ -157,15 +158,21 @@ export default function TaskComparisonPage() {
           </div>
           <div className="rounded-2xl border border-[#e7e0d4] bg-white p-4">
             <p className="mb-3 text-sm font-bold text-[#12352f]">النقاط (مقارنة)</p>
-            {activeRows.map((r, i) => <div key={r.profileId} className="mb-2">
+            {assignedRows.map((r, i) => <div key={r.profileId} className="mb-2">
               <div className="flex items-center justify-between text-xs"><span>{medal(i + 1)} {r.name}</span><span className="font-bold">{r.totalPoints}</span></div>
               <div className="mt-1 h-3 overflow-hidden rounded-full bg-[#f1efe9]">
                 <div className={`h-full rounded-full ${r.totalPoints >= 0 ? "bg-[#2f7653]" : "bg-[#c22b2b]"}`} style={{ width: `${Math.min(100, Math.abs(r.totalPoints) / maxPoints * 100)}%` }} />
               </div>
             </div>)}
           </div>
+          {notAssignedRows.length > 0 && <div className="rounded-2xl border border-[#e7e0d4] bg-[#f3f3ef] p-4 lg:col-span-3">
+            <p className="mb-3 text-sm font-bold text-[#6d7d74]">لم يُسند له</p>
+            <div className="flex flex-wrap gap-2">
+              {notAssignedRows.map(r => <span key={r.profileId} className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[#6d7d74]">{r.name}</span>)}
+            </div>
+          </div>}
           {onLeaveRows.length > 0 && <div className="rounded-2xl border border-[#e7e0d4] bg-[#f3f3ef] p-4 lg:col-span-3">
-            <p className="mb-3 text-sm font-bold text-[#6d7d74]">غير مُقيَّمين (إجازة)</p>
+            <p className="mb-3 text-sm font-bold text-[#6d7d74]">مجاز 🏖️</p>
             <div className="divide-y divide-[#e3e3db]">
               {onLeaveRows.map(r => <div key={r.profileId} className="flex flex-wrap items-center justify-between gap-2 py-3 text-[#7b8980]">
                 <span className="font-bold">{r.name}</span>
