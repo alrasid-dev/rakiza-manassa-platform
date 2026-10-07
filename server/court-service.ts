@@ -5120,7 +5120,7 @@ export async function recomputeMonthlyBalance(profileId: number, hijriMonthKeyVa
 /** المجموع التراكمي لكل الأشهر (محسوب عند الطلب، دون تخزين). */
 export async function recomputeCumulativeBalance(profileId: number) {
   const db = await getDb();
-  if (!db) return { positiveMinutes: 0, negativeMinutes: 0, excuseMinutes: 0, netMinutes: 0 };
+  if (!db) return { positiveMinutes: 0, negativeMinutes: 0, excuseMinutes: 0, penaltyMinutes: 0, netMinutes: 0 };
   const rows = await db.select({
     positiveMinutes: monthlyBalances.positiveMinutes,
     negativeMinutes: monthlyBalances.negativeMinutes,
