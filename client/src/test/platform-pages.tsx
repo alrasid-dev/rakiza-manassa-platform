@@ -80,7 +80,7 @@ export const PLATFORM_PAGES: PlatformPage[] = [
   { path: "/hierarchy", label: "الهيكل الإداري", component: HierarchyWorkspacePage },
   { path: "/hierarchy-legacy", label: "الهيكل (الشاشة القديمة)", component: HierarchyAdminPage },
   { path: "/assets", label: "العهد والأصول", component: AssetsPage },
-  { path: "/status", label: "الحالة والإجازات", component: StatusAndLeavePage },
+  { path: "/status", label: "الحالة والإجازات (حضور وانصراف)", component: StatusAndLeavePage },
   { path: "/imports", label: "الاستيراد", component: ImportsPage },
   { path: "/data-exports", label: "تصدير البيانات", component: DataExportsPage },
   { path: "/rakiza-mail", label: "بريد رَكيزة", component: RakizaMailPage },
