@@ -1952,12 +1952,23 @@ export async function compareTaskPerformance(input: { title?: string; templateId
       s.late += 1;
     }
   }
-  const result: Array<{ profileId: number; name: string; totalTasks: number; completed: number; onTime: number; late: number; avgCompletionMinutes: number | null; totalPoints: number; scoreBreakdown: { positive: number; negative: number }; complianceRate: number }> = [];
+  const profileIds = [...byProfile.keys()];
+  const now = new Date();
+  const leaveRows = profileIds.length
+    ? await db.select({ profileId: leaveRequests.profileId, startAt: leaveRequests.startAt, endAt: leaveRequests.endAt }).from(leaveRequests).where(and(inArray(leaveRequests.profileId, profileIds), inArray(leaveRequests.status, ["approved", "active"]), lte(leaveRequests.startAt, now), gte(leaveRequests.endAt, now)))
+    : [];
+  const leaveByProfile = new Map<number, { startAt: Date; endAt: Date }>();
+  for (const lv of leaveRows) {
+    const existing = leaveByProfile.get(lv.profileId);
+    if (!existing || lv.endAt.getTime() > existing.endAt.getTime()) leaveByProfile.set(lv.profileId, { startAt: lv.startAt, endAt: lv.endAt });
+  }
+  const result: Array<{ profileId: number; name: string; totalTasks: number; completed: number; onTime: number; late: number; avgCompletionMinutes: number | null; totalPoints: number; scoreBreakdown: { positive: number; negative: number }; complianceRate: number; onLeave: boolean; leaveStartAt: Date | null; leaveEndAt: Date | null }> = [];
   for (const [profileId, s] of byProfile) {
     const [profile] = await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, profileId)).limit(1);
     const [scoreRow] = await db.select({ total: sql<number>`coalesce(sum(${scoreEvents.points}),0)`, positive: sql<number>`coalesce(sum(case when ${scoreEvents.points} > 0 then ${scoreEvents.points} else 0 end),0)`, negative: sql<number>`coalesce(sum(case when ${scoreEvents.points} < 0 then ${scoreEvents.points} else 0 end),0)` }).from(scoreEvents).where(eq(scoreEvents.profileId, profileId));
     const avgMinutes = s.completionMinutes.length ? Math.round(s.completionMinutes.reduce((a, b) => a + b, 0) / s.completionMinutes.length) : null;
-    result.push({ profileId, name: profile?.fullName ?? "؟", totalTasks: s.total, completed: s.completed, onTime: s.onTime, late: s.late, avgCompletionMinutes: avgMinutes, totalPoints: Number(scoreRow?.total ?? 0), scoreBreakdown: { positive: Number(scoreRow?.positive ?? 0), negative: Number(scoreRow?.negative ?? 0) }, complianceRate: s.total ? Math.round((s.completed / s.total) * 100) : 0 });
+    const leaveInfo = leaveByProfile.get(profileId);
+    result.push({ profileId, name: profile?.fullName ?? "؟", totalTasks: s.total, completed: s.completed, onTime: s.onTime, late: s.late, avgCompletionMinutes: avgMinutes, totalPoints: Number(scoreRow?.total ?? 0), scoreBreakdown: { positive: Number(scoreRow?.positive ?? 0), negative: Number(scoreRow?.negative ?? 0) }, complianceRate: s.total ? Math.round((s.completed / s.total) * 100) : 0, onLeave: Boolean(leaveInfo), leaveStartAt: leaveInfo?.startAt ?? null, leaveEndAt: leaveInfo?.endAt ?? null });
   }
   const sortBy = input.sortBy ?? "totalPoints";
   result.sort((a, b) => sortBy === "completed" ? b.completed - a.completed : sortBy === "avgCompletionMinutes" ? (a.avgCompletionMinutes ?? 1e9) - (b.avgCompletionMinutes ?? 1e9) : sortBy === "complianceRate" ? b.complianceRate - a.complianceRate : b.totalPoints - a.totalPoints);
