@@ -757,7 +757,7 @@ export default function TasksWorkspaceContent() {
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")} className=""><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية {futureTasks.data?.length ? <span className="ml-1 rounded-full bg-[#2f7653] px-1.5 text-[10px] text-white">{futureTasks.data.length}</span> : null}</Button>
       {canDirectEdit && <Button type="button" size="sm" variant={activeTab === "approvals" ? "default" : "outline"} onClick={() => setActiveTab("approvals")} className={activeTab === "approvals" ? "bg-[#8a6731]" : ""}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
-      <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("shared")}><FileText className="ml-1 h-4 w-4" />مُشاركة معي</Button>
+      {!platformWide && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("shared")}><FileText className="ml-1 h-4 w-4" />مُشاركة معي</Button>}
     </div>
     {holidayInfo.data?.isHoliday && (
       <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4 text-center">
