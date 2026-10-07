@@ -1784,7 +1784,7 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
     const now = new Date();
     conditions.push(or(eq(tasks.isConfidential, false), and(isNotNull(tasks.confidentialityExpiresAt), lte(tasks.confidentialityExpiresAt, now)), eq(tasks.assigneeProfileId, filters.visibleProfileId), eq(tasks.watcherProfileId, filters.visibleProfileId))!);
   }
-  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
+  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, reassignedFromName: sql<string | null>`(SELECT fullName FROM person_profiles WHERE id = ${tasks.reassignedFromProfileId})` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
 export async function listTasksForProfile(profileId: number, status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", dueFilter?: "overdue" | "dueSoon" | "completed", futureRange?: FutureRange) {
@@ -1817,7 +1817,7 @@ export async function listTasksRecords(input: { assigneeProfileId?: number; unit
   if (input.toDate) conditions.push(lt(tasks.scheduledFor, input.toDate));
   const countRows = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions));
   const total = Number(countRows[0]?.count ?? 0);
-  const records = await db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.scheduledFor)).limit(pageSize).offset((page - 1) * pageSize);
+  const records = await db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, reassignedFromName: sql<string | null>`(SELECT fullName FROM person_profiles WHERE id = ${tasks.reassignedFromProfileId})` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.scheduledFor)).limit(pageSize).offset((page - 1) * pageSize);
   return { records, total, page, pageSize };
 }
 
@@ -1890,7 +1890,7 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
     const now = new Date();
     conditions.push(or(eq(tasks.isConfidential, false), and(isNotNull(tasks.confidentialityExpiresAt), lte(tasks.confidentialityExpiresAt, now)), eq(tasks.assigneeProfileId, visibleProfileId), eq(tasks.watcherProfileId, visibleProfileId))!);
   }
-  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
+  return db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, reassignedFromName: sql<string | null>`(SELECT fullName FROM person_profiles WHERE id = ${tasks.reassignedFromProfileId})` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.dueAt));
 }
 
 /** نافذة التصعيد الآلي: يوم عمل سعودي، ليس إجازة رسمية، وخلال دوام 07:00–14:59 بتوقيت الرياض. */
@@ -5474,7 +5474,8 @@ export async function reviewLeaveRequest(input: { leaveRequestId: number; decisi
     await db.insert(notifications).values({ profileId: request.profileId, category: "security_alert", title: "استئذان بانتظار اعتماد الأمين", body: `طلب الاستئذان رقم ${request.id} يحتاج اعتماد الأمين بعد تجاوز الحد المسموح.`, dedupeKey: `permission-owner-approval-${request.id}` }).onDuplicateKeyUpdate({ set: { title: "استئذان بانتظار اعتماد الأمين" } });
   }
   if (input.decision === "approved" && request.substituteProfileId) {
-    await db.update(tasks).set({ assigneeProfileId: request.substituteProfileId, updatedAt: new Date() }).where(and(eq(tasks.assigneeProfileId, request.profileId), inArray(tasks.status, ["new", "in_progress", "under_review"])));
+    // نقل كل المهام غير المنتهية (بما فيها المتأخرة والموقوفة) إلى البديل، مع توثيق الأصل والسبب.
+    await db.update(tasks).set({ assigneeProfileId: request.substituteProfileId, reassignedFromProfileId: request.profileId, reassignmentReason: request.requestType, updatedAt: new Date() }).where(and(eq(tasks.assigneeProfileId, request.profileId), inArray(tasks.status, ["new", "in_progress", "under_review", "overdue", "paused"])));
     const owner = (await db.select().from(personProfiles).where(eq(personProfiles.id, request.profileId)).limit(1))[0];
     const substitute = (await db.select().from(personProfiles).where(eq(personProfiles.id, request.substituteProfileId)).limit(1))[0];
     if (owner?.userId && substitute?.userId) {
@@ -5704,6 +5705,8 @@ export async function activateScheduledLeaveStatuses(now = new Date()) {
     await db.update(leaveRequests).set({ status: "completed" }).where(eq(leaveRequests.id, leave.id));
     await db.update(personProfiles).set({ status: "active" }).where(eq(personProfiles.id, leave.profileId));
     await resumeOpenTasksForProfile({ profileId: leave.profileId, actorUserId: 0 });
+    // إعادة المهام غير المنجزة المُحالة للبديل إلى الموظف الأصلي (المنجزة تبقى للبديل).
+    await db.update(tasks).set({ assigneeProfileId: leave.profileId, reassignedFromProfileId: null, reassignmentReason: null, updatedAt: new Date() }).where(and(eq(tasks.reassignedFromProfileId, leave.profileId), notInArray(tasks.status, ["completed", "cancelled"])));
   }
   return { activated: toActivate.length, completed: toComplete.length };
 }
@@ -6001,10 +6004,24 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
     if (assignees.length === 0) { console.warn(`[recurring] لا موظفين في القسم ${template.unitId} للقالب ${template.id}`); skipped += 1; continue; }
     const autoAssignee = assignees[(template.id - 1) % assignees.length];
     const configuredAdministrativeAssignee = assignees.find(profile => profile.id === template.defaultAssigneeProfileId);
-    const assigneeProfileId = configuredAdministrativeAssignee?.id ?? autoAssignee?.id ?? null;
+    let assigneeProfileId: number | null = configuredAdministrativeAssignee?.id ?? autoAssignee?.id ?? null;
+    let reassignedFromProfileId: number | null = null;
+    let reassignmentReason: string | null = null;
+    // إذا كان صاحب القالب الافتراضي في إجازة/استئذان معتمد → أُسند المهمة للبديل المعتمد.
+    if (template.defaultAssigneeProfileId && !configuredAdministrativeAssignee) {
+      const defaultAssignee = (await db.select({ id: personProfiles.id, status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, template.defaultAssigneeProfileId)).limit(1))[0];
+      if (defaultAssignee?.status === "on_leave") {
+        const [sub] = await db.select({ substituteProfileId: leaveRequests.substituteProfileId, requestType: leaveRequests.requestType }).from(leaveRequests).where(and(eq(leaveRequests.profileId, defaultAssignee.id), inArray(leaveRequests.status, ["approved", "active"]), lte(leaveRequests.startAt, scheduledFor), gte(leaveRequests.endAt, scheduledFor))).limit(1);
+        if (sub?.substituteProfileId) {
+          assigneeProfileId = sub.substituteProfileId;
+          reassignedFromProfileId = defaultAssignee.id;
+          reassignmentReason = sub.requestType;
+        }
+      }
+    }
     if (!assigneeProfileId) { skipped += 1; continue; }
     const dueAt = saudiScheduledTime(scheduleAnchor, template.dueHourLocal);
-    await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null, specificDays: template.specificDays ?? null });
+    await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, reassignedFromProfileId, reassignmentReason, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null, specificDays: template.specificDays ?? null });
     await db.update(taskTemplates).set({ lastGeneratedAt: now }).where(eq(taskTemplates.id, template.id));
     createdTasks += 1;
   }

@@ -732,6 +732,8 @@ export const tasks = mysqlTable("tasks", {
   status: mysqlEnum("status", ["new", "in_progress", "under_review", "completed", "overdue", "cancelled", "paused"]).default("new").notNull(),
   priority: mysqlEnum("priority", ["normal", "high", "critical"]).default("normal").notNull(),
   assigneeProfileId: int("assigneeProfileId"),
+  reassignedFromProfileId: int("reassignedFromProfileId"),
+  reassignmentReason: varchar("reassignmentReason", { length: 40 }),
   assignedByUserId: int("assignedByUserId").notNull(),
   scheduledFor: timestamp("scheduledFor").notNull(),
   startedAt: timestamp("startedAt"),
