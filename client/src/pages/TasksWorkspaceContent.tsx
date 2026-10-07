@@ -172,7 +172,7 @@ export default function TasksWorkspaceContent() {
   const requestedTaskAction = useMemo(() => new URLSearchParams(search).get("action"), [search]);
   const requestedTaskFilter = useMemo(() => new URLSearchParams(search).get("filter") ?? "all", [search]);
   const requestedTab = useMemo(() => new URLSearchParams(search).get("tab") ?? "tasks", [search]);
-  const [activeTab, setActiveTab] = useState<"tasks" | "approvals" | "future" | "records">(requestedTab === "approvals" ? "approvals" : requestedTab === "future" ? "future" : "tasks");
+  const [activeTab, setActiveTab] = useState<"tasks" | "approvals" | "future" | "records" | "shared">(requestedTab === "approvals" ? "approvals" : requestedTab === "future" ? "future" : "tasks");
   useEffect(() => { setActiveTab(requestedTab === "approvals" ? "approvals" : requestedTab === "future" ? "future" : "tasks"); }, [requestedTab]);
   useEffect(() => {
     if (activeTab === "approvals") {
@@ -220,6 +220,7 @@ export default function TasksWorkspaceContent() {
   const [recordsFromDate, setRecordsFromDate] = useState<Date | undefined>(undefined);
   const [recordsToDate, setRecordsToDate] = useState<Date | undefined>(undefined);
   const records = trpc.court.tasks.listRecords.useQuery({ status: recordsStatus, fromDate: recordsFromDate, toDate: recordsToDate, page: recordsPage, pageSize: 20 }, { enabled: activeTab === "records" });
+  const sharedTasks = trpc.court.tasks.listSharedWithMe.useQuery(undefined, { enabled: activeTab === "shared" });
   const taskGroups = useMemo(() => {
     const unitNameById = new Map<number, string>();
     for (const unit of units.data ?? []) unitNameById.set(unit.id, unit.name);
@@ -724,6 +725,24 @@ export default function TasksWorkspaceContent() {
     </section>;
   }
 
+  if (activeTab === "shared") {
+    return <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">مُشاركة معي</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">المهام التي أُضفتَ كمطّلع عليها (نسخة للاطلاع فقط).</p></div>
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><FileText className="h-6 w-6" /></div>
+      </header>
+      <div className="mt-5 flex gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
+        <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")}><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
+        <Button type="button" size="sm" variant="default" className="bg-[#12352f]"><FileText className="ml-1 h-4 w-4" />مُشاركة معي</Button>
+      </div>
+      <div className="mt-5 rounded-2xl border border-[#e7e0d4] bg-white p-5">
+        {sharedTasks.isLoading ? <p className="py-6 text-center text-sm text-[#6e7e75]">جارٍ التحميل…</p> : (sharedTasks.data?.length ? <div className="divide-y divide-[#eee8de]">{sharedTasks.data.map(t => <article key={t.id} className="flex flex-col gap-1.5 py-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="break-words font-bold text-[#26473a]">{t.title}</p><span className="rounded-full bg-[#e3eef5] px-2 py-0.5 text-[11px] font-bold text-[#2c5d77]">👁️ للاطلاع</span></div><p className="text-xs text-[#75837c]">المكلف: {t.assigneeName ?? "—"} · أضافها: {t.addedByName ?? "—"} · {formatTaskDate(t.scheduledFor)}</p></article>)}</div> : <p className="py-10 text-center text-sm text-[#738179]">لا توجد مهام مُشاركة معك.</p>)}
+      </div>
+    </section>;
+  }
+
   return <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
     <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">{canAssign ? "المهام والمتابعة" : "مهامي وطلباتي"}</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">{canAssign ? "إسناد مباشر ومتابعة مسار المعالجة، مع اختيار ملازم كنسخة تنبيه عند الحاجة." : "تظهر هنا المهام المخولة لك فقط، ويمكنك تأكيد المعالجة أو إرسال تعليق ضمن المسار المعتمد."}</p></div><div className="flex items-center gap-2"><Button type="button" onClick={() => setLocation("/correspondence?type=request")} variant="outline" className="border-[#b6d5bd] text-[#1d6243]"><Send className="ml-1 h-4 w-4" />إنشاء طلب</Button><div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><ListChecks className="h-6 w-6" /></div></div>
@@ -733,6 +752,7 @@ export default function TasksWorkspaceContent() {
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")} className=""><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية {futureTasks.data?.length ? <span className="ml-1 rounded-full bg-[#2f7653] px-1.5 text-[10px] text-white">{futureTasks.data.length}</span> : null}</Button>
       {canDirectEdit && <Button type="button" size="sm" variant={activeTab === "approvals" ? "default" : "outline"} onClick={() => setActiveTab("approvals")} className={activeTab === "approvals" ? "bg-[#8a6731]" : ""}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
+      <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("shared")}><FileText className="ml-1 h-4 w-4" />مُشاركة معي</Button>
     </div>
     {holidayInfo.data?.isHoliday && (
       <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4 text-center">
