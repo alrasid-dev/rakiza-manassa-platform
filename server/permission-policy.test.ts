@@ -17,8 +17,8 @@ describe("سياسة الاستئذان", () => {
   });
 
   it("يثبت حدود السياسة المعتمدة", () => {
-    expect(PERMISSION_POLICY.maxMinutesPerRequest).toBe(240);
-    expect(PERMISSION_POLICY.maxMinutesPerMonth).toBe(720);
+    expect(PERMISSION_POLICY.maxMinutesPerRequest).toBe(250);
+    expect(PERMISSION_POLICY.maxMinutesPerMonth).toBe(1000);
     expect(PERMISSION_POLICY.maxRequestsBeforeOwnerApproval).toBe(3);
   });
 });
