@@ -7,7 +7,7 @@ describe("وظيفة Heartbeat لتأكيد الحضور", () => {
     const job = CORE_JOBS.find(item => item.jobType === "attendance_confirmation");
     expect(job).toMatchObject({
       path: "/api/scheduled/attendance-confirmation",
-      cronExpression: "0 0 4-12 * * 0-4",
+      cronExpression: "0 0 7 * * 0-4",
     });
   });
 

@@ -6,12 +6,12 @@ import { createHeartbeatJob } from "../_core/heartbeat";
 
 const CORE_JOBS = [
   { jobType: "daily_task_reminder" as const, cronExpression: "0 0 4 * * 0-4", path: "/api/scheduled/daily-task-reminder", description: "تذكير المهام اليومية في بداية يوم العمل" },
-  { jobType: "task_escalation" as const, cronExpression: "0 */15 4-12 * * 0-4", path: "/api/scheduled/task-escalation", description: "فحص التصعيدات كل 15 دقيقة أثناء وقت العمل" },
+  { jobType: "task_escalation" as const, cronExpression: "0 0 8 * * 0-4", path: "/api/scheduled/task-escalation", description: "فحص التصعيدات مرة يومياً" },
   { jobType: "trainee_due_soon" as const, cronExpression: "0 0 3 * * *", path: "/api/scheduled/trainee-due-soon", description: "تنبيه الملازمين قبل انتهاء الملازمة بسبعة أيام" },
-  { jobType: "leave_status_refresh" as const, cronExpression: "0 0 * * * *", path: "/api/scheduled/leave-status-refresh", description: "تحديث حالات الإجازات آلياً" },
-  { jobType: "trainee_excel_sync" as const, cronExpression: "0 */30 4-12 * * 0-4", path: "/api/scheduled/trainee-excel-sync", description: "مزامنة مصدر Excel كل 30 دقيقة أثناء وقت العمل" },
-  { jobType: "support_ticket_escalation" as const, cronExpression: "0 0 * * * *", path: "/api/scheduled/support-ticket-escalation", description: "فحص تصعيد تذاكر الدعم كل ساعة" },
-  { jobType: "attendance_confirmation" as const, cronExpression: "0 0 4-12 * * 0-4", path: "/api/scheduled/attendance-confirmation", description: "إرسال طلبات تأكيد الحضور للعاملين عن بعد خلال وقت العمل" },
+  { jobType: "leave_status_refresh" as const, cronExpression: "0 30 0 * * *", path: "/api/scheduled/leave-status-refresh", description: "تحديث حالات الإجازات آلياً" },
+  { jobType: "trainee_excel_sync" as const, cronExpression: "0 15 8 * * 0-4", path: "/api/scheduled/trainee-excel-sync", description: "مزامنة مصدر Excel مرة يومياً" },
+  { jobType: "support_ticket_escalation" as const, cronExpression: "0 45 0 * * *", path: "/api/scheduled/support-ticket-escalation", description: "فحص تصعيد تذاكر الدعم مرة يومياً" },
+  { jobType: "attendance_confirmation" as const, cronExpression: "0 0 7 * * 0-4", path: "/api/scheduled/attendance-confirmation", description: "إرسال طلبات تأكيد الحضور للعاملين عن بعد" },
   { jobType: "monthly_settlement" as const, cronExpression: "0 0 3 * * *", path: "/api/scheduled/monthly-settlement", description: "تجميع وإقفال أرصدة الشهر الهجري المنتهي" },
 ] as const;
 

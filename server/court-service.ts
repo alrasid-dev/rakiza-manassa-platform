@@ -4878,9 +4878,9 @@ function normalizeAttendanceAudience(value: AttendanceAudience): AttendanceAudie
 
 export async function getAttendanceConfirmationConfig() {
   const db = await getDb();
-  if (!db) return { isActive: false, cronExpression: "0 0 4-12 * * 0-4", targetProfileId: null as number | null, audience: "all" as AttendanceAudience, shiftEnabled: false };
+  if (!db) return { isActive: false, cronExpression: "0 0 7 * * 0-4", targetProfileId: null as number | null, audience: "all" as AttendanceAudience, shiftEnabled: false };
   const row = (await db.select().from(scheduledJobConfigs).where(eq(scheduledJobConfigs.jobType, "attendance_confirmation")).limit(1))[0];
-  return { isActive: row?.isActive ?? false, cronExpression: row?.cronExpression ?? "0 0 4-12 * * 0-4", targetProfileId: row?.attendanceTargetProfileId ?? null, audience: (row?.attendanceTargetAudience as AttendanceAudience) || "all", shiftEnabled: row?.attendanceShiftEnabled ?? false };
+  return { isActive: row?.isActive ?? false, cronExpression: row?.cronExpression ?? "0 0 7 * * 0-4", targetProfileId: row?.attendanceTargetProfileId ?? null, audience: (row?.attendanceTargetAudience as AttendanceAudience) || "all", shiftEnabled: row?.attendanceShiftEnabled ?? false };
 }
 export async function listWorkShifts() {
   const db = await getDb();
@@ -4950,7 +4950,7 @@ export async function setAttendanceConfirmationConfig(input: { isActive?: boolea
     const [target] = await db.select({ id: personProfiles.id }).from(personProfiles).where(and(eq(personProfiles.id, targetId), eq(personProfiles.status, "active"), or(eq(personProfiles.attendanceMode, "remote"), eq(personProfiles.attendanceMode, "mixed")))).limit(1);
     if (!target) throw new Error("الموظف المحدد غير نشط أو غير مؤهل لتأكيد الحضور عن بعد.");
   }
-  await db.insert(scheduledJobConfigs).values({ jobType: "attendance_confirmation", cronExpression: "0 0 4-12 * * 0-4", isActive, attendanceTargetAudience: audience, attendanceShiftEnabled: shiftEnabled, ...(targetProfileId === undefined ? {} : { attendanceTargetProfileId: targetProfileId }) }).onDuplicateKeyUpdate({ set: { isActive, attendanceTargetAudience: audience, attendanceShiftEnabled: shiftEnabled, ...(targetProfileId === undefined ? {} : { attendanceTargetProfileId: targetProfileId }), updatedAt: new Date() } });
+  await db.insert(scheduledJobConfigs).values({ jobType: "attendance_confirmation", cronExpression: "0 0 7 * * 0-4", isActive, attendanceTargetAudience: audience, attendanceShiftEnabled: shiftEnabled, ...(targetProfileId === undefined ? {} : { attendanceTargetProfileId: targetProfileId }) }).onDuplicateKeyUpdate({ set: { isActive, attendanceTargetAudience: audience, attendanceShiftEnabled: shiftEnabled, ...(targetProfileId === undefined ? {} : { attendanceTargetProfileId: targetProfileId }), updatedAt: new Date() } });
   const action = input.shiftEnabled !== undefined ? (input.shiftEnabled ? "attendance_shifts.enabled" : "attendance_shifts.disabled") : input.audience !== undefined && input.isActive === undefined ? "attendance_confirmation.audience_updated" : input.isActive === undefined ? "attendance_confirmation.target_updated" : input.isActive ? "attendance_confirmation.enabled" : "attendance_confirmation.disabled";
   await logAudit({ actorUserId: input.actorUserId, action, entityType: "scheduled_job", metadata: { jobType: "attendance_confirmation", targetProfileId: targetProfileId ?? null, audience } });
   return getAttendanceConfirmationConfig();
