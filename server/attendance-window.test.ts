@@ -9,10 +9,10 @@ const shift = {
   fingerprintCloseMinutes: 960,
 };
 
-describe("نافذة الحضور والانصراف بحسب الوردية", () => {
-  it("تظهر الحضور من فتح البصمة حتى قبل الانصراف، والانصراف حتى غلق البصمة", () => {
-    expect(attendanceWindowKindForShift(shift, new Date("2026-08-30T04:30:00.000Z"))).toBe("check_in"); // 07:30 الرياض
-    expect(attendanceWindowKindForShift(shift, new Date("2026-08-30T08:00:00.000Z"))).toBe("check_in"); // 11:00 الرياض (دخول متأخر)
+describe("نافذة الانصراف بحسب الوردية (ممتدة من فتح البصمة حتى غلقها)", () => {
+  it("تظهر نافذة الانصراف من فتح البصمة حتى غلقها (تشمل الانصراف المبكر)", () => {
+    expect(attendanceWindowKindForShift(shift, new Date("2026-08-30T04:30:00.000Z"))).toBe("check_out"); // 07:30 الرياض
+    expect(attendanceWindowKindForShift(shift, new Date("2026-08-30T08:00:00.000Z"))).toBe("check_out"); // 11:00 الرياض
     expect(attendanceWindowKindForShift(shift, new Date("2026-08-30T12:30:00.000Z"))).toBe("check_out"); // 15:30 الرياض
   });
 

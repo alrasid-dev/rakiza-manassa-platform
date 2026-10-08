@@ -2623,7 +2623,7 @@ export async function getUserEmailSettings(userId: number) {
 }
 
 import { DEFAULT_AUTO_APPROVAL_SETTINGS, normalizeAutoApprovalSettings, runAutoApprovalChecks, type AutoApprovalCheck, type AutoApprovalSettings } from "./approval-automation";
-import { classifyCheckIn, classifyCheckOut } from "./attendance-fingerprint-policy";
+import { ACTUAL_END_MIN, NORMAL_CHECKOUT_END_MIN, classifyCheckIn, classifyCheckOut } from "./attendance-fingerprint-policy";
 
 export const DASHBOARD_WIDGET_IDS = ["overview", "tasks", "chat", "performance"] as const;
 export const DASHBOARD_NAVIGATION_LABELS = ["الرئيسية", "مهامي", "الإشعارات", "الدردشات", "بريد ركيزة", "AI ركيزة", "الإعلانات الداخلية", "المتعثرات", "رفع التقارير", "دليل المستخدم", "إعدادات الموظف", "إعدادات المنصة"] as const;
@@ -4894,9 +4894,8 @@ export function attendanceWindowKindForShift(shift: Pick<typeof workShifts.$infe
   const minutes = saudiNow.getUTCHours() * 60 + saudiNow.getUTCMinutes();
   const workingDays = shift.workingDays.split(",").map(Number);
   if (!workingDays.includes(weekday)) return "none" as const;
-  // سياسة البصمة الدقيقة: الدخول 07:00–14:14، والانصراف 14:15–14:59.
-  if (minutes >= shift.fingerprintOpenMinutes && minutes < shift.actualEndMinutes) return "check_in" as const;
-  if (minutes >= shift.actualEndMinutes && minutes <= shift.fingerprintCloseMinutes) return "check_out" as const;
+  // سياسة البصمة الدقيقة: نافذة الانصراف ممتدة 07:00–14:59 (يُمكّن الانصراف المبكر).
+  if (minutes >= shift.fingerprintOpenMinutes && minutes <= shift.fingerprintCloseMinutes) return "check_out" as const;
   return "none" as const;
 }
 
@@ -4910,7 +4909,21 @@ export async function getAttendanceWindowForProfile(profileId: number, now = new
   const [shift] = await shiftQuery;
   if (!shift) return { kind: "none" as const, shiftName: null };
 
-  return { kind: attendanceWindowKindForShift(shift, now), shiftName: shift.name, workingDay: shift.workingDays.split(",").map(Number).includes(new Date(now.getTime() + 3 * 60 * 60 * 1000).getUTCDay()) };
+  const saudiNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  const weekday = saudiNow.getUTCDay();
+  const workingDay = shift.workingDays.split(",").map(Number).includes(weekday);
+  const minutes = saudiNow.getUTCHours() * 60 + saudiNow.getUTCMinutes();
+  const withinWindow = workingDay && minutes >= shift.fingerprintOpenMinutes && minutes <= shift.fingerprintCloseMinutes;
+  if (!withinWindow) return { kind: "none" as const, shiftName: shift.name, workingDay };
+
+  // الحالة: بصم دخول اليوم؟ → نافذة انصراف (مبكر أو في الموعد)؛ وإلا نافذة حضور.
+  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const [today] = await db.select({ checkInAt: attendanceRecords.checkInAt, checkOutAt: attendanceRecords.checkOutAt }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1);
+
+  if (today?.checkInAt && !today?.checkOutAt) return { kind: "check_out" as const, shiftName: shift.name, workingDay };
+  if (today?.checkOutAt) return { kind: "none" as const, shiftName: shift.name, workingDay };
+  return { kind: "check_in" as const, shiftName: shift.name, workingDay };
 }
 
 export async function updateWorkShift(input: { id: number; name: string; startMinutes: number; endMinutes: number; fingerprintOpenMinutes: number; lateStartMinutes: number; morningCompensationDeadlineMinutes: number; actualEndMinutes: number; eveningCompensationDeadlineMinutes: number; fingerprintCloseMinutes: number; workingDays: string; isDefault?: boolean; actorUserId: number }) {
@@ -5155,11 +5168,16 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
 }
 
 /** يحسب الرصيد اليومي للانصراف: الفعلي (خروج − دخول) مقابل المتوقع (نهاية الدوام − دخول). */
-export function computeCheckoutBalance(checkInMin: number, checkOutMin: number, actualEndMinutes = 855): { positiveMinutes: number; negativeMinutes: number } {
-  const actualMinutes = checkOutMin - checkInMin;
-  const expectedMinutes = actualEndMinutes - checkInMin;
-  const diff = actualMinutes - expectedMinutes; // = checkOutMin − actualEndMinutes (يُلغي checkIn جبرياً)
-  return { positiveMinutes: diff > 0 ? diff : 0, negativeMinutes: diff < 0 ? -diff : 0 };
+export function computeCheckoutBalance(checkInMin: number, checkOutMin: number, actualEndMinutes = ACTUAL_END_MIN): { positiveMinutes: number; negativeMinutes: number } {
+  // الاحتساب يعتمد على وقت الانصراف فقط؛ checkInMin محفوظ للتوافق مع الاستدعاءات القائمة.
+  if (checkOutMin < actualEndMinutes) {
+    const earlyMinutes = actualEndMinutes - checkOutMin;
+    // خصم الاستئذان (الحد الأقصى 250 دقيقة) من الدقائق المبكرة قبل احتساب السلبي.
+    const negativeMinutes = Math.max(0, earlyMinutes - PERMISSION_POLICY.maxMinutesPerRequest);
+    return { positiveMinutes: 0, negativeMinutes };
+  }
+  if (checkOutMin <= NORMAL_CHECKOUT_END_MIN) return { positiveMinutes: 0, negativeMinutes: 0 };
+  return { positiveMinutes: checkOutMin - NORMAL_CHECKOUT_END_MIN, negativeMinutes: 0 };
 }
 
 export async function recordAttendanceCheckout(input: { profileId: number; checkOutAt: Date; actorUserId: number }) {
@@ -5174,8 +5192,8 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   const dayStart = new Date(Date.UTC(input.checkOutAt.getUTCFullYear(), input.checkOutAt.getUTCMonth(), input.checkOutAt.getUTCDate()));
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).orderBy(asc(attendanceRecords.id)).limit(1))[0];
-  if (!existing) throw new Error("لا يوجد سجل حضور مفتوح لهذا اليوم؛ أكد بدء العمل أولاً.");
-  if (!existing.checkInAt) throw new Error("لا يوجد بصمة دخول لهذا السجل.");
+  if (!existing) throw new Error("يجب تسجيل الحضور أولاً قبل تسجيل الانصراف.");
+  if (!existing.checkInAt) throw new Error("يجب تسجيل الحضور أولاً؛ لا توجد بصمة دخول لهذا السجل.");
   if (existing.checkOutAt) throw new TRPCError({ code: "CONFLICT", message: `تم تسجيل انصرافك مسبقاً الساعة ${formatRiyadhTime(existing.checkOutAt)}` });
 
   // عدد المهام المفتوحة عند الانصراف المبكر (للتنبيه فقط — لا منع).
