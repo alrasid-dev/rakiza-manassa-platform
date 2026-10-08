@@ -12,7 +12,7 @@ export const MORNING_REWARD_END_MIN = 450;    // 07:30
 export const PRESENT_END_MIN = 480;           // 08:00
 export const LATE_NO_PENALTY_END_MIN = 495;   // 08:15
 export const ACTUAL_END_MIN = 855;            // 14:15
-export const EVENING_REWARD_END_MIN = 886;    // 14:46
+export const NORMAL_CHECKOUT_END_MIN = 870;    // 14:30
 export const FINGERPRINT_CLOSE_MIN = 899;     // 14:59
 
 /** تصنيف لحظة الدخول (الحضور). */
@@ -53,17 +53,14 @@ export function classifyCheckOut(min: number): CheckOutClassification {
     return { allowed: true, status: "early", points: 0, earlyMinutes };
   }
 
-  // 14:15: انصراف طبيعي
-  if (min === ACTUAL_END_MIN) return { allowed: true, status: "normal", points: 0, earlyMinutes: 0 };
+  // 14:15 → 14:30: انصراف عادي (لا نقاط)
+  if (min <= NORMAL_CHECKOUT_END_MIN) return { allowed: true, status: "normal", points: 0, earlyMinutes: 0 };
 
-  // 14:16 → 14:46: إيجابي كل دقيقتين (14:16 = +15، 14:46 = 0)
-  if (min <= EVENING_REWARD_END_MIN) {
-    const points = Math.floor((EVENING_REWARD_END_MIN - min) / 2);
+  // 14:31 → 14:59: إيجابي كل دقيقتين (14:31 = +0، 14:59 = +14)
+  if (min <= FINGERPRINT_CLOSE_MIN) {
+    const points = Math.floor((min - NORMAL_CHECKOUT_END_MIN) / 2);
     return { allowed: true, status: "late_present", points, earlyMinutes: 0 };
   }
-
-  // 14:47 → 14:59: مسموح بلا نقاط
-  if (min <= FINGERPRINT_CLOSE_MIN) return { allowed: true, status: "late_no_penalty", points: 0, earlyMinutes: 0 };
 
   // 15:00+
   return { allowed: false, status: "too_late", points: 0, earlyMinutes: 0 };
