@@ -134,8 +134,8 @@ export default function TaskComparisonPage() {
           </select>
         </label>
         <div className="ml-auto flex gap-2">
-          <button type="button" onClick={exportPdf} disabled={!assignedRows.length} className="inline-flex items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileText className="h-4 w-4" />PDF</button>
-          <button type="button" onClick={exportCsv} disabled={!assignedRows.length} className="inline-flex items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileSpreadsheet className="h-4 w-4" />CSV</button>
+          <button type="button" onClick={exportPdf} disabled={!assignedRows.length} className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileText className="h-4 w-4" />PDF</button>
+          <button type="button" onClick={exportCsv} disabled={!assignedRows.length} className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileSpreadsheet className="h-4 w-4" />CSV</button>
         </div>
       </div>
 

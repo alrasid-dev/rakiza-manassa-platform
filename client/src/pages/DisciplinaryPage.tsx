@@ -243,35 +243,35 @@ export default function DisciplinaryPage() {
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-[#006c35] text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#006c35] text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >✅ اعتماد</button>
                   <button
                     type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "reject", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-[#b3412e] text-white hover:bg-red-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#b3412e] text-white hover:bg-red-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >❌ رفض</button>
                   <button
                     type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "return", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-[#8a6d20] text-white hover:bg-amber-800" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#8a6d20] text-white hover:bg-amber-800" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >🔄 عودة للتصحيح</button>
                   <button
                     type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "escalate", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-amber-600 text-white hover:bg-amber-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-amber-600 text-white hover:bg-amber-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >⬆️ تصعيد</button>
                   <button
                     type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save_and_close", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm ${isActionable(c) ? "bg-[#4a5f70] text-white hover:bg-teal-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#4a5f70] text-white hover:bg-teal-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >💾 حفظ وإغلاق</button>
                 </div>
                 <input
