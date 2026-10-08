@@ -3428,15 +3428,17 @@ async function createTaskConversation(input: { db: any; taskId: number; title: s
   return conversationId;
 }
 
-export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom" | "specific_days"; recurrenceInterval?: number; recurrenceEndAt?: Date; specificDays?: number[]; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean; startDate?: string | null; endDate?: string | null }) {
+export async function createTask(input: { title: string; unitId?: number; assigneeProfileId?: number; traineeCopyProfileId?: number; priority: "normal" | "high" | "critical"; scheduledFor: Date; dueAt: Date; assignedByUserId: number; recurrence?: "none" | "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom" | "specific_days"; recurrenceInterval?: number; recurrenceEndAt?: Date; specificDays?: number[]; watcherProfileId?: number; isConfidential?: boolean; confidentialityExpiresAt?: Date; taskType?: "permanent" | "urgent"; taskNotes?: string; meetingId?: number; isOpen?: boolean; startDate?: string | null; endDate?: string | null; allowBlockedAssignees?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   let assigneeStatus: string | undefined;
   if (input.assigneeProfileId) {
     const assignee = (await db.select({ status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, input.assigneeProfileId)).limit(1))[0];
     assigneeStatus = assignee?.status;
-    const blocked = assignmentBlockReason(assignee?.status);
-    if (blocked) throw new TRPCError({ code: "CONFLICT", message: blocked });
+    if (!input.allowBlockedAssignees) {
+      const blocked = assignmentBlockReason(assignee?.status);
+      if (blocked) throw new TRPCError({ code: "CONFLICT", message: blocked });
+    }
   }
   const { traineeCopyProfileId, specificDays, ...taskInput } = input;
   const specificDaysJson = input.recurrence === "specific_days" && specificDays && specificDays.length ? JSON.stringify(specificDays) : null;
@@ -3486,6 +3488,44 @@ export async function createTask(input: { title: string; unitId?: number; assign
     console.warn("[Audit] فشل تسجيل أثر إنشاء المهمة دون تعطيل الإنشاء", { taskId: id, error });
   }
   return id;
+}
+
+/** إنشاء مهمة يدوية من شاشة «المهام المسجلة» (مدير القسم/القيادة) مع السماح بالإسناد لموظفة في إجازة إذا وُجد تاريخ بدء مستقبلي. */
+export async function createManualTask(input: {
+  title: string;
+  description?: string;
+  assigneeProfileId: number;
+  scheduledFor: Date;
+  dueAt?: Date;
+  frequency?: "daily" | "weekly" | "monthly" | "specific_days";
+  specificDays?: number[];
+  startDate?: string | null;
+  endDate?: string | null;
+  actorUserId: number;
+}) {
+  const assignee = await getProfileById(input.assigneeProfileId);
+  if (!assignee) throw new TRPCError({ code: "NOT_FOUND", message: "الموظفة المختارة غير موجودة." });
+  if (assignee.status === "on_leave" && !input.startDate) throw new TRPCError({ code: "CONFLICT", message: "لا يمكن إسناد مهمة فورية لموظفة في إجازة؛ حدد تاريخ بدء مستقبلي." });
+  if (["inactive", "dormant", "pending_review"].includes(assignee.status)) throw new TRPCError({ code: "CONFLICT", message: "لا يمكن إسناد مهمة لموظفة غير نشطة." });
+
+  const taskId = await createTask({
+    title: input.title.trim(),
+    taskNotes: input.description?.trim() || undefined,
+    assigneeProfileId: input.assigneeProfileId,
+    scheduledFor: input.scheduledFor,
+    dueAt: input.dueAt ?? new Date(input.scheduledFor.getTime() + 6 * 60 * 60 * 1000),
+    priority: "normal",
+    taskType: "permanent",
+    recurrence: input.frequency ?? "none",
+    specificDays: input.specificDays,
+    startDate: input.startDate ?? null,
+    endDate: input.endDate ?? null,
+    assignedByUserId: input.actorUserId,
+    unitId: assignee.unitId ?? undefined,
+    allowBlockedAssignees: true,
+  });
+  await logAudit({ actorUserId: input.actorUserId, action: "task.created_manual", entityType: "task", entityId: taskId, metadata: { assigneeProfileId: input.assigneeProfileId, source: "registered_tasks" } });
+  return taskId;
 }
 
 /** يحوّل قراراً مُقرراً في اجتماع إلى مهمة قابلة للتتبع، مع ربطها بالاجتماع وذكر مصدرها في المفكرة. */

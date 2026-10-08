@@ -52,6 +52,7 @@ import {
   createJudgeWithAccount,
   createTraineeWithAccount,
   createTask,
+  createManualTask,
   createSelfTask,
   createDepartmentTasks,
   setTaskPinned,
@@ -1634,6 +1635,30 @@ export const courtRouter = router({
           if (uploaderProfile) await addTaskAttachment({ taskId, actorUserId: ctx.user.id, uploaderProfileId: uploaderProfile.id, attachment });
         }
       }
+      return { id: taskId };
+    }),
+    createManualTask: protectedProcedure.input(z.object({
+      title: z.string().trim().min(3).max(2000),
+      description: z.string().trim().max(4000).optional(),
+      assigneeProfileId: z.number().int().positive(),
+      scheduledFor: z.date(),
+      dueAt: z.date().optional(),
+      frequency: z.enum(["none", "daily", "weekly", "monthly", "specific_days"]).optional(),
+      specificDays: z.array(z.number().int().min(0).max(6)).optional(),
+      startDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+      endDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    }).refine(input => !input.dueAt || input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
+      const permission = await permissionForUser(ctx.user);
+      const roles = await rolesForUser(ctx.user);
+      const isLeadership = permission === "full_control";
+      const isDepartmentManager = roles.includes("department_manager");
+      if (!isLeadership && !isDepartmentManager) throw new TRPCError({ code: "FORBIDDEN", message: "إضافة المهام متاحة للقيادة أو مدير القسم فقط." });
+      if (!isLeadership) {
+        const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+        const assignee = await getProfileById(input.assigneeProfileId);
+        if (!assignee?.unitId || !managedUnitIds.includes(assignee.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن إسناد مهمة خارج نطاق قسمك." });
+      }
+      const taskId = await createManualTask({ ...input, frequency: input.frequency && input.frequency !== "none" ? input.frequency : undefined, actorUserId: ctx.user.id });
       return { id: taskId };
     }),
     submitForReview: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), note: z.string().trim().max(4000).optional() })).mutation(async () => {
