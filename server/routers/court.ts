@@ -1733,7 +1733,7 @@ export const courtRouter = router({
       const note = input.note?.trim() || (input.decision === "approved" ? "اعتماد مجمع" : "رفض مجمع");
       return bulkReviewTaskApprovals({ approvalIds: input.approvalIds, decision: input.decision, note, reviewerProfileId: reviewer?.id ?? 0, reviewerUserId: ctx.user.id });
     }),
-    cancel: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), cancellationReason: z.string().trim().min(3).max(2000) })).mutation(async ({ ctx, input }) => {
+    cancel: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), cancellationReason: z.string().trim().min(10).max(2000) })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
       if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بإلغاء هذه المهمة." });

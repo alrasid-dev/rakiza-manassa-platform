@@ -4249,8 +4249,16 @@ export async function cancelTask(input: { taskId: number; actorUserId: number; c
   const reason = input.cancellationReason.trim();
   if (!reason) throw new Error("يجب كتابة سبب إلغاء المهمة.");
 
-  await db.update(tasks).set({ status: "cancelled", cancellationReason: reason, completedAt: null }).where(eq(tasks.id, input.taskId));
+  await db.update(tasks).set({ status: "cancelled", cancellationReason: reason, completedAt: null, archivedAt: new Date(), archivedByUserId: input.actorUserId }).where(eq(tasks.id, input.taskId));
   await markTaskNotificationsRead(input.taskId);
+  // إشعار الموظفة المكلفة بإلغاء مهمتها.
+  if (task.assigneeProfileId) {
+    try {
+      await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "أُلغيت مهمة موكلة إليك", body: `تم إلغاء مهمة "${task.title}". السبب: ${reason}`, dedupeKey: `task-cancelled-${task.id}` });
+    } catch (error) {
+      console.warn("[Tasks] فشل إشعار الإلغاء دون تعطيل", { taskId: input.taskId, error });
+    }
+  }
   // إذا كانت المهمة محالة من موظف في إجازة وألغاها البديل الحالي → سجّل الرفض وأشعر مدير الأصلية.
   if (task.reassignedFromProfileId != null) {
     const actorProfile = await getProfileForUser(input.actorUserId);
