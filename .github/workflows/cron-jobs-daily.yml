@@ -1,16 +1,16 @@
-name: Rakiza Cron Jobs (متكررة)
+name: Rakiza Cron Jobs (يومية)
 
 on:
   schedule:
-    # كل 15 دقيقة للمهام الحساسة للتوقيت.
-    - cron: "*/15 * * * *"
+    # كل ساعة للمهام اليومية/الشهرية (المنطق داخلياً يحدد وقت التنفيذ الصحيح).
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: rakiza-cron-jobs
+  group: rakiza-cron-jobs-daily
   cancel-in-progress: false
 
 jobs:
@@ -18,15 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Trigger Time-Sensitive Jobs
+      - name: Trigger Daily Jobs
         run: |
           BASE_URL="${{ secrets.RAKIZA_BASE_URL }}"
           CRON_SECRET="${{ secrets.RAKIZA_CRON_SECRET }}"
 
           JOBS=(
-            "internal-mail-dispatch"
-            "auto-resume-tasks"
-            "mark-overdue-tasks"
+            "attendance-confirmation"
+            "monthly-settlement"
+            "task-escalation"
+            "daily-task-reminder"
+            "leave-status-refresh"
+            "support-ticket-escalation"
+            "trainee-due-soon"
+            "trainee-excel-sync"
+            "smart-notifications"
           )
 
           for JOB in "${JOBS[@]}"; do
