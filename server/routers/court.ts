@@ -218,6 +218,10 @@ import {
   reviewPerformanceReportEvaluation,
   recordAttendance,
   recordAttendanceCheckout,
+  ownerEditAttendanceCheckIn,
+  ownerEditAttendanceCheckOut,
+  ownerCreateAttendanceRecord,
+  ownerDeleteAttendanceRecord,
   getPendingConfirmationAssignment,
   confirmAttendance,
   getConfirmationSettingsService,
@@ -366,6 +370,14 @@ async function requireAttendancePolicyAccess(user: { id: number; role: "user" | 
   const roles = await rolesForUser(user);
   const allowed = canViewWholePlatform(permission) || roles.some(role => ["court_president", "court_secretary", "human_resources_manager"].includes(role));
   if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "إعداد تأكيد الحضور متاح للرئيس والأمين والموارد البشرية فقط." });
+  return { permission, roles };
+}
+
+async function requireAttendanceOwnerAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
+  const permission = await permissionForUser(user);
+  const roles = await rolesForUser(user);
+  const allowed = canViewWholePlatform(permission) || roles.some(role => ["court_president", "court_secretary"].includes(role));
+  if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "تعديل سجلات الحضور متاح للمالك والرئيس والأمين فقط." });
   return { permission, roles };
 }
 
@@ -2619,6 +2631,22 @@ export const courtRouter = router({
       if (attendanceWindow.kind === "check_in") throw new TRPCError({ code: "CONFLICT", message: "تسجيل الانصراف الذاتي متاح فقط خلال نافذة الانصراف المحددة في ورديتك." });
       if (attendanceWindow.kind !== "check_out" && !attendanceWindow.workingDay) throw new TRPCError({ code: "CONFLICT", message: "تسجيل الانصراف الذاتي متاح في أيام الوردية فقط." });
       return recordAttendanceCheckout({ profileId: profile.id, checkOutAt: new Date(), actorUserId: ctx.user.id });
+    }),
+    ownerEditCheckIn: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), recordDate: z.date(), checkInAt: z.date(), reason: z.string().trim().min(10, "السبب مطلوب (10 أحرف على الأقل).").max(2000) })).mutation(async ({ ctx, input }) => {
+      await requireAttendanceOwnerAccess(ctx.user);
+      return ownerEditAttendanceCheckIn({ ...input, actorUserId: ctx.user.id });
+    }),
+    ownerEditCheckOut: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), recordDate: z.date(), checkOutAt: z.date(), reason: z.string().trim().min(10, "السبب مطلوب (10 أحرف على الأقل).").max(2000) })).mutation(async ({ ctx, input }) => {
+      await requireAttendanceOwnerAccess(ctx.user);
+      return ownerEditAttendanceCheckOut({ ...input, actorUserId: ctx.user.id });
+    }),
+    ownerCreateRecord: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), recordDate: z.date(), checkInAt: z.date().optional(), checkOutAt: z.date().optional(), status: z.enum(["present", "late", "absent", "excused", "on_leave"]), reason: z.string().trim().min(10, "السبب مطلوب (10 أحرف على الأقل).").max(2000) })).mutation(async ({ ctx, input }) => {
+      await requireAttendanceOwnerAccess(ctx.user);
+      return ownerCreateAttendanceRecord({ ...input, actorUserId: ctx.user.id });
+    }),
+    ownerDeleteRecord: protectedProcedure.input(z.object({ recordId: z.number().int().positive(), reason: z.string().trim().min(10, "السبب مطلوب (10 أحرف على الأقل).").max(2000) })).mutation(async ({ ctx, input }) => {
+      await requireAttendanceOwnerAccess(ctx.user);
+      return ownerDeleteAttendanceRecord({ recordId: input.recordId, actorUserId: ctx.user.id, reason: input.reason });
     }),
   }),
 

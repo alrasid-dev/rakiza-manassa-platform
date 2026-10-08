@@ -5222,6 +5222,74 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   return { success: true, attendanceId: existing.id, openTasksCount };
 }
 
+/** تعديل وقت الدخول بواسطة المالك/القيادة (مع تدقيق). */
+export async function ownerEditAttendanceCheckIn(input: { profileId: number; recordDate: Date; checkInAt: Date; actorUserId: number; reason: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
+  if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
+  const oldValue = existing.checkInAt ?? null;
+  await db.update(attendanceRecords).set({ checkInAt: input.checkInAt, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
+  await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_edit", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, field: "checkInAt", oldValue, newValue: input.checkInAt, reason: input.reason } });
+  await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
+  return { success: true, attendanceId: existing.id };
+}
+
+/** تعديل وقت الانصراف بواسطة المالك/القيادة (مع إعادة احتساب الرصيد). */
+export async function ownerEditAttendanceCheckOut(input: { profileId: number; recordDate: Date; checkOutAt: Date; actorUserId: number; reason: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
+  if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
+  if (!existing.checkInAt) throw new TRPCError({ code: "BAD_REQUEST", message: "يجب تسجيل الحضور أولاً قبل ضبط الانصراف." });
+  const oldValue = existing.checkOutAt ?? null;
+  const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
+  const checkInMin = riyadhMinutesOfDay(existing.checkInAt);
+  const checkOutMin = riyadhMinutesOfDay(input.checkOutAt);
+  const { positiveMinutes, negativeMinutes } = computeCheckoutBalance(checkInMin, checkOutMin, shift?.actualEndMinutes ?? ACTUAL_END_MIN);
+  await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, positiveMinutes, negativeMinutes, penaltyMinutes: 0, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
+  await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_edit", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, field: "checkOutAt", oldValue, newValue: input.checkOutAt, reason: input.reason } });
+  await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
+  return { success: true, attendanceId: existing.id };
+}
+
+/** إنشاء سجل حضور بواسطة المالك/القيادة (إن لم يكن موجوداً). */
+export async function ownerCreateAttendanceRecord(input: { profileId: number; recordDate: Date; checkInAt?: Date; checkOutAt?: Date; status: "present" | "late" | "absent" | "excused" | "on_leave"; actorUserId: number; reason: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  const existing = (await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
+  if (existing) throw new TRPCError({ code: "CONFLICT", message: "يوجد سجل حضور بالفعل لهذا الموظف في هذا اليوم." });
+  let positiveMinutes = 0;
+  let negativeMinutes = 0;
+  if (input.checkInAt && input.checkOutAt) {
+    const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
+    const balance = computeCheckoutBalance(riyadhMinutesOfDay(input.checkInAt), riyadhMinutesOfDay(input.checkOutAt), shift?.actualEndMinutes ?? ACTUAL_END_MIN);
+    positiveMinutes = balance.positiveMinutes;
+    negativeMinutes = balance.negativeMinutes;
+  }
+  const inserted = await db.insert(attendanceRecords).values({ profileId: input.profileId, recordDate: dayStart, checkInAt: input.status === "on_leave" ? null : (input.checkInAt ?? null), checkOutAt: input.checkOutAt ?? null, status: input.status, positiveMinutes, negativeMinutes, penaltyMinutes: 0, note: input.reason, createdByUserId: input.actorUserId });
+  const attendanceId = Number(inserted[0].insertId);
+  await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_create", entityType: "attendance", entityId: attendanceId, metadata: { profileId: input.profileId, recordDate: dayStart, status: input.status, checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, reason: input.reason } });
+  await recomputeMonthlyBalance(input.profileId, hijriMonthKey(dayStart));
+  return { success: true, attendanceId };
+}
+
+/** حذف/إلغاء سجل حضور بواسطة المالك/القيادة (مع تدقيق). */
+export async function ownerDeleteAttendanceRecord(input: { recordId: number; actorUserId: number; reason: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const existing = (await db.select().from(attendanceRecords).where(eq(attendanceRecords.id, input.recordId)).limit(1))[0];
+  if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "سجل الحضور غير موجود." });
+  const snapshot = { profileId: existing.profileId, recordDate: existing.recordDate, status: existing.status, checkInAt: existing.checkInAt ?? null, checkOutAt: existing.checkOutAt ?? null, positiveMinutes: existing.positiveMinutes, negativeMinutes: existing.negativeMinutes };
+  await db.delete(attendanceRecords).where(eq(attendanceRecords.id, input.recordId));
+  await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_delete", entityType: "attendance", entityId: input.recordId, metadata: { snapshot, reason: input.reason } });
+  await recomputeMonthlyBalance(existing.profileId, hijriMonthKey(existing.recordDate));
+  return { success: true };
+}
+
 /**
  * يحسب قيم الرصيد الصحيحة وفق سياسة الحضور.
  * - remote: negative=0 وpenalty=0 (معفى من عقوبة الانصراف)؛ الاستئذان يبقى محسوباً.
