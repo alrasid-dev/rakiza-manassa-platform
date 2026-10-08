@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useSelectedUnit } from "@/contexts/SelectedUnitContext";
-import { AlertCircle, AlertTriangle, ChevronLeft, ChevronRight, CheckCircle2, CircleDashed, Clock, Copy, Download, FilePlus2, FileText, ListChecks, Loader2, MessageCircle, Paperclip, Pencil, Pin, PinOff, Play, RefreshCcw, Repeat, RotateCw, Search, Send, ShieldAlert, Sparkles, UserRoundCheck, XCircle, ZoomIn, ZoomOut } from "lucide-react";
+import { AlertCircle, AlertTriangle, ChevronLeft, ChevronRight, CheckCircle2, CircleDashed, ClipboardList, Clock, Copy, Download, FilePlus2, FileText, ListChecks, Loader2, MessageCircle, Paperclip, Pencil, Pin, PinOff, Play, RefreshCcw, Repeat, RotateCw, Search, Send, ShieldAlert, Sparkles, UserRoundCheck, XCircle, ZoomIn, ZoomOut } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
@@ -161,6 +161,13 @@ export function splitTextByQuery(text: string, query: string) {
   return parts.length ? parts : [{ value: text, matches: false }];
 }
 
+const TASK_TABS = ["tasks", "approvals", "future", "records", "shared", "registered"] as const;
+type TaskTab = (typeof TASK_TABS)[number];
+
+function resolveTaskTab(value: string | null | undefined): TaskTab {
+  return TASK_TABS.includes(value as TaskTab) ? (value as TaskTab) : "tasks";
+}
+
 export default function TasksWorkspaceContent() {
   const utils = trpc.useUtils();
   const search = useSearch();
@@ -172,8 +179,8 @@ export default function TasksWorkspaceContent() {
   const requestedTaskAction = useMemo(() => new URLSearchParams(search).get("action"), [search]);
   const requestedTaskFilter = useMemo(() => new URLSearchParams(search).get("filter") ?? "all", [search]);
   const requestedTab = useMemo(() => new URLSearchParams(search).get("tab") ?? "tasks", [search]);
-  const [activeTab, setActiveTab] = useState<"tasks" | "approvals" | "future" | "records" | "shared" | "registered">(requestedTab === "approvals" ? "approvals" : requestedTab === "future" ? "future" : "tasks");
-  useEffect(() => { setActiveTab(requestedTab === "approvals" ? "approvals" : requestedTab === "future" ? "future" : "tasks"); }, [requestedTab]);
+  const [activeTab, setActiveTab] = useState<"tasks" | "approvals" | "future" | "records" | "shared" | "registered">(resolveTaskTab(requestedTab));
+  useEffect(() => { setActiveTab(resolveTaskTab(requestedTab)); }, [requestedTab]);
   useEffect(() => {
     if (activeTab === "approvals") {
       const el = document.getElementById("task-approvals");
@@ -749,6 +756,7 @@ export default function TasksWorkspaceContent() {
         <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
         <Button type="button" size="sm" variant="default" className="bg-[#8a6731]"><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية {futureTasks.data?.length ? <span className="ml-1 rounded-full bg-[#2f7653] px-1.5 text-[10px] text-white">{futureTasks.data.length}</span> : null}</Button>
         {canDirectEdit && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("approvals")}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
+        {canAssign && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("registered")}><ClipboardList className="ml-1 h-4 w-4" />المهام المسجلة</Button>}
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         {(["all", "current_week", "next_week", "end_of_month"] as const).map(range => <Button key={range} type="button" size="sm" variant={futureRange === range ? "default" : "outline"} onClick={() => setFutureRange(range)} className={futureRange === range ? "bg-[#2f7653]" : ""}>{range === "all" ? "📅 الكل" : range === "current_week" ? "📅 الأسبوع الحالي" : range === "next_week" ? "📅 الأسبوع القادم" : "📅 حتى نهاية الشهر"}</Button>)}
@@ -771,6 +779,7 @@ export default function TasksWorkspaceContent() {
         <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")}><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية</Button>
         <Button type="button" size="sm" variant="default" className="bg-[#12352f]"><FileText className="ml-1 h-4 w-4" />السجلات</Button>
+        {canAssign && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("registered")}><ClipboardList className="ml-1 h-4 w-4" />المهام المسجلة</Button>}
       </div>
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <select aria-label="حالة السجل" value={recordsStatus ?? ""} onChange={event => { setRecordsPage(1); setRecordsStatus((event.target.value || undefined) as "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled" | undefined); }} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm">
@@ -810,6 +819,7 @@ export default function TasksWorkspaceContent() {
         <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")}><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
+        {canAssign && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("registered")}><ClipboardList className="ml-1 h-4 w-4" />المهام المسجلة</Button>}
         <Button type="button" size="sm" variant="default" className="bg-[#12352f]"><FileText className="ml-1 h-4 w-4" />مُشاركة معي</Button>
       </div>
       <div className="mt-5 rounded-2xl border border-[#e7e0d4] bg-white p-5">
@@ -886,6 +896,7 @@ export default function TasksWorkspaceContent() {
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")} className=""><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية {futureTasks.data?.length ? <span className="ml-1 rounded-full bg-[#2f7653] px-1.5 text-[10px] text-white">{futureTasks.data.length}</span> : null}</Button>
       {canDirectEdit && <Button type="button" size="sm" variant={activeTab === "approvals" ? "default" : "outline"} onClick={() => setActiveTab("approvals")} className={activeTab === "approvals" ? "bg-[#8a6731]" : ""}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
+      {canAssign && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("registered")}><ClipboardList className="ml-1 h-4 w-4" />المهام المسجلة</Button>}
       {!platformWide && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("shared")}><FileText className="ml-1 h-4 w-4" />مُشاركة معي</Button>}
     </div>
     {holidayInfo.data?.isHoliday && (

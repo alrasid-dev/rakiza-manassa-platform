@@ -87,3 +87,15 @@ describe("مساحة المهام — مودال إلغاء المهمة", () =>
     expect(confirmButton.disabled).toBe(true);
   });
 });
+
+describe("مساحة المهام — تبويب المهام المسجلة", () => {
+  it("يفتح تبويب المهام المسجلة ويعرض الجدول وزر الإضافة", () => {
+    mocks.tasks.push(taskRow);
+    render(<TasksWorkspaceContent />);
+
+    fireEvent.click(screen.getByRole("button", { name: /المهام المسجلة/ }));
+
+    expect(screen.getByRole("button", { name: /إضافة مهمة/ })).toBeTruthy();
+    expect(screen.getByText("مهمة اختبار الواجهة")).toBeTruthy();
+  });
+});
