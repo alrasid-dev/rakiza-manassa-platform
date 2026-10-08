@@ -57,6 +57,7 @@ import DepartmentDocumentsPage from "./pages/DepartmentDocumentsPage";
 import TaskTemplatesPage from "./pages/TaskTemplatesPage";
 import TaskComparisonPage from "./pages/TaskComparisonPage";
 import DepartmentTasksPage from "./pages/DepartmentTasksPage";
+import TasksReassignPage from "./pages/TasksReassignPage";
 import DisciplinaryPage from "./pages/DisciplinaryPage";
 import TeamStatusPage from "./pages/TeamStatusPage";
 
@@ -88,6 +89,7 @@ function Router() {
       <Route path="/report-evaluations" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : PerformanceReportEvaluationsPage} />
       <Route path="/assistants" component={AssistantsPage} />
       <Route path="/tasks" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="tasks" /> : TasksPage} />
+      <Route path="/tasks/reassign" component={TasksReassignPage} />
       <Route path="/guide" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="tasks" /> : UserGuidePage} />
       <Route path="/support" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="tasks" /> : SupportPage} />
       <Route path="/announcements" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="tasks" /> : AnnouncementsPage} />
