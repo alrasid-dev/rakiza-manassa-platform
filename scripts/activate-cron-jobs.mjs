@@ -186,8 +186,8 @@ async function main() {
 
     if (config) {
       await connection.query(
-        "UPDATE scheduled_job_configs SET scheduleCronTaskUid = ?, isActive = 1, updatedAt = NOW() WHERE id = ?",
-        [heartbeat.taskUid, config.id]
+        "UPDATE scheduled_job_configs SET scheduleCronTaskUid = ?, cronExpression = ?, isActive = 1, updatedAt = NOW() WHERE id = ?",
+        [heartbeat.taskUid, job.cronExpression, config.id]
       );
     } else {
       await connection.query(
