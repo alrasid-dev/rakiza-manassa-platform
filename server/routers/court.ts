@@ -1678,7 +1678,7 @@ export const courtRouter = router({
       if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف موظف لرفع المهمة للاعتماد." });
       return submitTaskForApproval({ taskId: input.taskId, submittedByProfileId: profile.id, actorUserId: ctx.user.id, note: input.note });
     }),
-    reviewApproval: protectedProcedure.input(z.object({ approvalId: z.number().int().positive(), decision: z.enum(["approved", "rejected"]), note: z.string().trim().min(3).max(4000), managerRating: z.enum(["excellent", "good", "acceptable"]).optional(), ratingNote: z.string().trim().max(500).optional(), viewerProfileIds: z.array(z.number().int().positive()).optional() })).mutation(async ({ ctx, input }) => {
+    reviewApproval: protectedProcedure.input(z.object({ approvalId: z.number().int().positive(), decision: z.enum(["approved", "rejected", "returned"]), note: z.string().trim().min(3).max(4000), managerRating: z.enum(["excellent", "good", "acceptable"]).optional(), ratingNote: z.string().trim().max(500).optional(), viewerProfileIds: z.array(z.number().int().positive()).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
       const roles = await rolesForUser(ctx.user);
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);

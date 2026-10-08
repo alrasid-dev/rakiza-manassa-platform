@@ -4091,7 +4091,7 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
 }
 
 /** يوافق المدير على المهمة المرفوعة فيُحسب النقاط وتكتمل، أو يرفضها فتعود للتنفيذ. */
-export async function reviewTaskApproval(input: { approvalId: number; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number; managerRating?: "excellent" | "good" | "acceptable"; ratingNote?: string; viewerProfileIds?: number[] }) {
+export async function reviewTaskApproval(input: { approvalId: number; decision: "approved" | "rejected" | "returned"; note: string; reviewerProfileId: number; reviewerUserId: number; managerRating?: "excellent" | "good" | "acceptable"; ratingNote?: string; viewerProfileIds?: number[] }) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
   const approval = (await db.select().from(taskApprovals).where(eq(taskApprovals.id, input.approvalId)).limit(1))[0];
@@ -4101,6 +4101,7 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المرتبطة غير موجودة." });
   // منع الاعتماد الذاتي: لا يجوز لمن قدّم المهمة أن يعتمدها بنفسه.
   if (input.reviewerProfileId && input.reviewerProfileId === approval.submittedByProfileId) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن اعتماد مهمة قدمتها بنفسك." });
+  if (input.decision === "returned" && input.note.trim().length < 10) throw new TRPCError({ code: "BAD_REQUEST", message: "سبب الإرجاع للتصحيح يجب أن يكون 10 أحرف على الأقل." });
   const rating = input.managerRating ?? "good";
   if (!["excellent", "good", "acceptable"].includes(rating)) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "التقييم غير صالح." });
@@ -4118,7 +4119,7 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
   }
 
   // 2) الإدراج الرئيسي: تسجيل قرار الاعتماد — يجب أن ينجح.
-  await db.update(taskApprovals).set({ status: input.decision, reviewedByProfileId: input.reviewerProfileId, reviewedAt: new Date(), reviewNote: input.note.trim(), pointsAwarded, managerRating: input.decision === "approved" ? rating : null, ratingNote: input.ratingNote ?? null }).where(eq(taskApprovals.id, approval.id));
+  await db.update(taskApprovals).set({ status: input.decision === "returned" ? "rejected" : input.decision, reviewedByProfileId: input.reviewerProfileId, reviewedAt: new Date(), reviewNote: input.note.trim(), pointsAwarded, managerRating: input.decision === "approved" ? rating : null, ratingNote: input.ratingNote ?? null }).where(eq(taskApprovals.id, approval.id));
 
   // 3) الخطوات الثانوية — غير محمية حتى لا تكسر القرار الأصلي.
   if (input.decision === "approved" && task.assigneeProfileId) {
@@ -4130,14 +4131,18 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
     } catch (error) {
       console.warn("[score_events] فشل إدراج نقاط التقييم", { taskId: approval.taskId, error });
     }
-  } else if (input.decision === "rejected" && task.assigneeProfileId) {
-    // إشعار الموظف برفض مهمته وإعادتها للتنفيذ.
+  } else if ((input.decision === "rejected" || input.decision === "returned") && task.assigneeProfileId) {
+    // إشعار الموظف برفض مهمته أو إعادتها للتصحيح.
+    const returned = input.decision === "returned";
+    const notifTitle = returned ? "أُعيدت مهمتك للتصحيح" : "رُفضت مهمتك";
+    const notifBody = returned ? `أعاد المدير المهمة «${task.title}» للتصحيح. ${input.note.trim()}` : `تم رفض المهمة «${task.title}» وإعادتها للتنفيذ. ${input.note.trim()}`;
+    const dedupeKey = `task-${returned ? "returned" : "rejected"}-${approval.id}`;
     try {
-      await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "رُفضت مهمتك", body: `تم رفض المهمة «${task.title}» وإعادتها للتنفيذ. ${input.note.trim()}`, dedupeKey: `task-rejected-${approval.id}` }).onDuplicateKeyUpdate({ set: { title: "رُفضت مهمتك" } });
+      await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: notifTitle, body: notifBody, dedupeKey }).onDuplicateKeyUpdate({ set: { title: notifTitle } });
     } catch (error) {
-      console.warn("[notifications] فشل إدراج إشعار رفض المهمة", { taskId: approval.taskId, error });
+      console.warn("[notifications] فشل إدراج إشعار المهمة", { taskId: approval.taskId, error });
     }
-    try { await sendPushForNotification(task.assigneeProfileId, { title: "رُفضت مهمتك", body: `تم رفض المهمة «${task.title}» وإعادتها للتنفيذ.`, url: "/tasks", tag: `task-rejected-${approval.id}` }); } catch (error) { console.warn("[WebPush] فشل إشعار رفض المهمة", { taskId: approval.taskId, error }); }
+    try { await sendPushForNotification(task.assigneeProfileId, { title: notifTitle, body: notifBody, url: "/tasks", tag: dedupeKey }); } catch (error) { console.warn("[WebPush] فشل إشعار المهمة", { taskId: approval.taskId, error }); }
   }
 
   // 3ب) نسخة للاطلاع (CC): إضافة المطّلعين بعد الاعتماد الناجح فقط.
@@ -4159,8 +4164,11 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
     }
   }
 
-  try { await db.insert(taskUpdates).values({ taskId: approval.taskId, actorUserId: input.reviewerUserId, updateType: "approved", note: `قرار الاعتماد: ${input.decision === "approved" ? "معتمد" : "مرفوض"}. ${input.note.trim()}` }); } catch (error) { console.warn("[taskUpdates] فشل إدراج تحديث الاعتماد", { taskId: approval.taskId, error }); }
-  try { await logAudit({ actorUserId: input.reviewerUserId, action: `task.approval_${input.decision}`, entityType: "task_approval", entityId: approval.id, metadata: { taskId: approval.taskId, pointsAwarded, managerRating: input.decision === "approved" ? rating : null } }); } catch (error) { console.warn("[audit] فشل تسجيل قرار الاعتماد", { approvalId: approval.id, error }); }
+  try {
+    const returnedForCorrection = input.decision === "returned";
+    await db.insert(taskUpdates).values({ taskId: approval.taskId, actorUserId: input.reviewerUserId, updateType: returnedForCorrection ? "returned" : "approved", note: returnedForCorrection ? `أُعيدت المهمة للتصحيح. ${input.note.trim()}` : `قرار الاعتماد: ${input.decision === "approved" ? "معتمد" : "مرفوض"}. ${input.note.trim()}` });
+  } catch (error) { console.warn("[taskUpdates] فشل إدراج تحديث الاعتماد", { taskId: approval.taskId, error }); }
+  try { await logAudit({ actorUserId: input.reviewerUserId, action: input.decision === "returned" ? "task.returned_for_correction" : `task.approval_${input.decision}`, entityType: "task_approval", entityId: approval.id, metadata: { taskId: approval.taskId, pointsAwarded, managerRating: input.decision === "approved" ? rating : null } }); } catch (error) { console.warn("[audit] فشل تسجيل قرار الاعتماد", { approvalId: approval.id, error }); }
   return { success: true, approvalId: approval.id, pointsAwarded };
 }
 
