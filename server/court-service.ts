@@ -6344,9 +6344,8 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
   let skipped = 0;
   for (const template of templates) {
     if (!isTemplateDue(template.frequency, template.workdayOnly, now, template.intervalDays, template.lastGeneratedAt, parseSpecificDays(template.specificDays))) { skipped += 1; continue; }
-    // إصلاح الجدولة المتأخرة: إذا تجاوزنا السابعة صباحاً (بتوقيت الرياض)، تُجدول المهمة لليوم التالي
-    const scheduleOffsetMs = now.getTime() > saudiScheduledTime(now, 7).getTime() ? 24 * 60 * 60 * 1000 : 0;
-    const scheduleAnchor = new Date(now.getTime() + scheduleOffsetMs);
+    // تُجدول المهمة لليوم الحالي دائماً (بدون قطع 07:00 وبدون إزاحة لليوم التالي)
+    const scheduleAnchor = now;
     const scheduledFor = saudiScheduledTime(scheduleAnchor, 7);
     // مفتاح منع التكرار: ابحث عن مهمة ضمن نطاق يوم الجدولة الفعلي (scheduleAnchor) لا يوم «الآن»
     const targetRange = dateRangeForSaudiDay(scheduleAnchor);
