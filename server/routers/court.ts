@@ -825,7 +825,9 @@ export const courtRouter = router({
     }),
     setAutoApproval: protectedProcedure.input(z.object({ mode: z.enum(["off", "half", "full"]), scope: z.array(z.enum(["tasks", "requests", "disciplinary", "leaves"])).max(4).optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
-      if (permission !== "full_control") throw new TRPCError({ code: "FORBIDDEN", message: "إعدادات الاعتماد الآلي متاحة للمالك والقيادة العليا (صلاحية كاملة) فقط." });
+      const roles = await rolesForUser(ctx.user);
+      const canManageAutomation = permission === "full_control" || canManageOperations(roles);
+      if (!canManageAutomation) throw new TRPCError({ code: "FORBIDDEN", message: "إعدادات الاعتماد الآلي متاحة للمالك والقيادة العليا ومديري العمليات فقط." });
       const prefs = await getDashboardPreferences(ctx.user.id);
       const autoApproval = normalizeAutoApprovalSettings({ mode: input.mode, scope: input.scope });
       await updateDashboardPreferences({ userId: ctx.user.id, preferences: { ...prefs, autoApproval } });
