@@ -2623,6 +2623,7 @@ export async function getUserEmailSettings(userId: number) {
 }
 
 import { DEFAULT_AUTO_APPROVAL_SETTINGS, normalizeAutoApprovalSettings, runAutoApprovalChecks, type AutoApprovalCheck, type AutoApprovalSettings } from "./approval-automation";
+import { classifyCheckIn, classifyCheckOut } from "./attendance-fingerprint-policy";
 
 export const DASHBOARD_WIDGET_IDS = ["overview", "tasks", "chat", "performance"] as const;
 export const DASHBOARD_NAVIGATION_LABELS = ["الرئيسية", "مهامي", "الإشعارات", "الدردشات", "بريد ركيزة", "AI ركيزة", "الإعلانات الداخلية", "المتعثرات", "رفع التقارير", "دليل المستخدم", "إعدادات الموظف", "إعدادات المنصة"] as const;
@@ -4893,7 +4894,8 @@ export function attendanceWindowKindForShift(shift: Pick<typeof workShifts.$infe
   const minutes = saudiNow.getUTCHours() * 60 + saudiNow.getUTCMinutes();
   const workingDays = shift.workingDays.split(",").map(Number);
   if (!workingDays.includes(weekday)) return "none" as const;
-  if (minutes >= shift.fingerprintOpenMinutes && minutes <= shift.morningCompensationDeadlineMinutes) return "check_in" as const;
+  // سياسة البصمة الدقيقة: الدخول 07:00–14:14، والانصراف 14:15–14:59.
+  if (minutes >= shift.fingerprintOpenMinutes && minutes < shift.actualEndMinutes) return "check_in" as const;
   if (minutes >= shift.actualEndMinutes && minutes <= shift.fingerprintCloseMinutes) return "check_out" as const;
   return "none" as const;
 }
@@ -4971,28 +4973,19 @@ export function formatRiyadhTime(date: Date): string {
   return new Intl.DateTimeFormat("ar-SA", { timeZone: "Asia/Riyadh", hour: "numeric", minute: "2-digit", hour12: true }).format(date);
 }
 
-/** يتحقق أن التسجيل يقع ضمن نافذة الوردية الافتراضية (قراءة من work_shifts). */
+/** يتحقق أن التسجيل يقع ضمن نافذة البصمة (07:00–14:59) وفق سياسة البصمة الدقيقة. */
 export async function checkAttendanceWindow(now: Date, kind: "check_in" | "check_out") {
   if (!isSaudiWorkday(now)) return { allowed: false as const, reason: "اليوم يوم عطلة (الجمعة أو السبت)." };
   if (isOfficialHoliday(now)) return { allowed: false as const, reason: `اليوم إجازة رسمية (${officialHolidayName(now)}).` };
 
-  const db = await getDb();
-  if (!db) return { allowed: false as const, reason: "قاعدة البيانات غير متاحة." };
-  const [shift] = await db.select().from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
-  if (!shift) return { allowed: false as const, reason: "لم يتم ضبط الوردية الافتراضية." };
-
   const nowMin = riyadhMinutesOfDay(now);
-  // نافذة موحّدة: الحضور 07:00–08:15، والانصراف 14:15–14:59 (مطابقة لـ attendanceWindowKindForShift).
   if (kind === "check_in") {
-    if (nowMin < shift.fingerprintOpenMinutes || nowMin > shift.morningCompensationDeadlineMinutes) {
-      return { allowed: false as const, reason: "نافذة تسجيل الحضور من 07:00 ص إلى 08:15 ص." };
-    }
-    return { allowed: true as const, isLate: nowMin > shift.lateStartMinutes };
+    const cls = classifyCheckIn(nowMin);
+    if (!cls.allowed) return { allowed: false as const, reason: cls.status === "too_early" ? "تبدأ نافذة تسجيل الحضور من 07:00 ص." : "انتهت نافذة تسجيل الحضور (بعد 02:59 م)." };
+    return { allowed: true as const, isLate: cls.status === "late" };
   }
-  // check_out: يُسمح فقط ضمن نافذة الانصراف 14:15–14:59.
-  if (nowMin < shift.actualEndMinutes || nowMin > shift.fingerprintCloseMinutes) {
-    return { allowed: false as const, reason: "نافذة تسجيل الانصراف من 02:15 م إلى 02:59 م." };
-  }
+  const cls = classifyCheckOut(nowMin);
+  if (!cls.allowed) return { allowed: false as const, reason: cls.status === "too_early" ? "تبدأ نافذة تسجيل الانصراف من 07:00 ص." : "انتهت نافذة تسجيل الانصراف (بعد 02:59 م)." };
   return { allowed: true as const };
 }
 
@@ -5132,15 +5125,13 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
   )).limit(1);
   if (existingLeaveRecord[0]) throw new TRPCError({ code: "FORBIDDEN", message: "لديك إجازة مسجّلة اليوم." });
   let status = input.status;
+  let earlyCheckInPoints = 0;
   if (input.autoClassify && input.checkInAt && (status === "present" || status === "late")) {
     const window = await checkAttendanceWindow(input.checkInAt, "check_in");
     if (!window.allowed) throw new TRPCError({ code: "BAD_REQUEST", message: window.reason });
-    const profile = (await db.select({ shiftId: personProfiles.shiftId }).from(personProfiles).where(eq(personProfiles.id, input.profileId)).limit(1))[0];
-    const shift = profile?.shiftId ? (await db.select({ lateStartMinutes: workShifts.lateStartMinutes }).from(workShifts).where(eq(workShifts.id, profile.shiftId)).limit(1))[0] : (await db.select({ lateStartMinutes: workShifts.lateStartMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1))[0];
-    if (shift) {
-      const localMinutes = (input.checkInAt.getUTCHours() * 60 + input.checkInAt.getUTCMinutes() + 180) % 1440;
-      status = localMinutes > shift.lateStartMinutes ? "late" : "present";
-    }
+    const cls = classifyCheckIn(riyadhMinutesOfDay(input.checkInAt));
+    status = cls.status === "late" || cls.status === "late_no_penalty" ? "late" : "present";
+    earlyCheckInPoints = cls.points;
   }
   const { autoClassify: _autoClassify, ...attendanceInput } = input;
   // تطبيع recordDate إلى بداية اليوم UTC حتى يعمل الـ unique index (profileId, recordDate) فعلياً
@@ -5151,6 +5142,10 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
     throw new TRPCError({ code: "CONFLICT", message: `تم تسجيل حضورك مسبقاً الساعة ${formatRiyadhTime(existing.checkInAt)}` });
   }
   await db.insert(attendanceRecords).values({ ...attendanceInput, recordDate: dayStart, status, checkInAt: status === "on_leave" ? null : (input.checkInAt ?? null), checkOutAt: input.checkOutAt ?? null, note: input.note ?? null, createdByUserId: input.actorUserId }).onDuplicateKeyUpdate({ set: { checkInAt: status === "on_leave" ? null : (input.checkInAt ?? null), checkOutAt: input.checkOutAt ?? null, status, note: input.note ?? null, createdByUserId: input.actorUserId, updatedAt: new Date() } });
+  // منح نقاط الحضور المبكر (07:00–07:30) عند نجاح تسجيل الدخول.
+  if (earlyCheckInPoints > 0) {
+    await db.insert(scoreEvents).values({ profileId: input.profileId, points: earlyCheckInPoints, reason: "حضور مبكر قبل الموعد", createdByUserId: input.actorUserId });
+  }
   // تفعيل الملف عند أول بصمة دخول فعلية بعد حالة السكون (dormant).
   if (input.checkInAt && attendanceProfile?.status === "dormant") {
     await db.update(personProfiles).set({ status: "active", updatedAt: new Date() }).where(eq(personProfiles.id, input.profileId));
@@ -5199,9 +5194,10 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
 
   await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, positiveMinutes, negativeMinutes, penaltyMinutes: 0, compensationNote: null, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
 
-  // +1 نقطة فقط إذا كان الانصراف ضمن 14:15–14:45؛ قبلها أو بعدها بلا نقاط.
-  if (shift && checkOutMin >= shift.actualEndMinutes && checkOutMin <= shift.eveningCompensationDeadlineMinutes) {
-    await db.insert(scoreEvents).values({ profileId: input.profileId, points: 1, reason: "تسجيل الانصراف في الموعد", createdByUserId: input.actorUserId });
+  // نقاط الانصراف وفق سياسة البصمة الدقيقة: إيجابي عند البقاء ضمن 14:16–14:46.
+  const checkoutClass = classifyCheckOut(checkOutMin);
+  if (checkoutClass.points > 0) {
+    await db.insert(scoreEvents).values({ profileId: input.profileId, points: checkoutClass.points, reason: "التزام بوقت الانصراف", createdByUserId: input.actorUserId });
   }
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.checked_out", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, negativeMinutes } });
   await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
