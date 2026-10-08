@@ -6369,6 +6369,20 @@ export async function createDueSoonNotifications(now = new Date()) {
   return { created, skipped: candidates.length - created };
 }
 
+/** مفتاح التاريخ السعودي "YYYY-MM-DD" للمقارنة بنافذة القوالب (start/end). */
+function saudiDateKey(now: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const field = (name: string) => parts.find(p => p.type === name)?.value || "";
+  return `${field("year")}-${field("month")}-${field("day")}`;
+}
+
+/** يوحّد قيمة DATE (نص أو كائن أو null) إلى "YYYY-MM-DD". */
+function dateKeyOf(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
+}
+
 export async function createRecurringTasksAndNotifications(now = new Date()) {
   if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return { createdTasks: 0, createdNotifications: 0, emailNotifications: 0, skipped: 0 };
   const db = await getDb();
@@ -6380,6 +6394,14 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
   let skipped = 0;
   for (const template of templates) {
     if (!isTemplateDue(template.frequency, template.workdayOnly, now, template.intervalDays, template.lastGeneratedAt, parseSpecificDays(template.specificDays))) { skipped += 1; continue; }
+    // احترام نافذة البدء/الانتهاء إن وُجدت (بتوقيت الرياض)
+    if (template.startDate || template.endDate) {
+      const todayKey = saudiDateKey(now);
+      const startKey = dateKeyOf(template.startDate);
+      const endKey = dateKeyOf(template.endDate);
+      if (startKey && todayKey < startKey) { skipped += 1; continue; }
+      if (endKey && todayKey > endKey) { skipped += 1; continue; }
+    }
     // تُجدول المهمة لليوم الحالي دائماً (بدون قطع 07:00 وبدون إزاحة لليوم التالي)
     const scheduleAnchor = now;
     const scheduledFor = saudiScheduledTime(scheduleAnchor, 7);
