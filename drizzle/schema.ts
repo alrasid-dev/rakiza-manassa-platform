@@ -721,6 +721,8 @@ export const taskTemplates = mysqlTable("task_templates", {
   lastGeneratedAt: timestamp("lastGeneratedAt"),
   intervalDays: int("intervalDays"),
   specificDays: json("specificDays"),
+  startDate: date("startDate"),
+  endDate: date("endDate"),
 }, table => [index("task_templates_unit_active_idx").on(table.unitId, table.isActive)]);
 
 export const tasks = mysqlTable("tasks", {
