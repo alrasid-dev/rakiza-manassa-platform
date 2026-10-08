@@ -65,6 +65,7 @@ import {
   listTaskTimeline,
   listTaskRouteTargets,
   routeTaskToProfile,
+  reassignTaskManual,
   requestTaskExtension,
   deactivateProfile,
   archiveProfile,
@@ -1597,6 +1598,16 @@ export const courtRouter = router({
       const allowed = leadership ? allowedTargets : allowedTargets.filter(target => target.role !== "department_manager" || (target.unitId !== null && managedUnits.includes(target.unitId)));
       if (!allowed.some(target => target.profileId === input.targetProfileId)) throw new TRPCError({ code: "FORBIDDEN", message: "المستلم المحدد ليس ضمن تسلسل الإحالة المصرح." });
       return routeTaskToProfile({ ...input, actorUserId: ctx.user.id });
+    }),
+    reassignTask: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), newAssigneeProfileId: z.number().int().positive(), reason: z.string().trim().min(10).max(500) })).mutation(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "edit");
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+      const roles = await rolesForUser(ctx.user);
+      const leadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const managedUnits = await managedUnitIdsForUser(ctx.user);
+      if (!leadership && !(roles.includes("department_manager") && task.unitId && managedUnits.includes(task.unitId))) throw new TRPCError({ code: "FORBIDDEN", message: "إعادة الإسناد اليدوي متاحة للمدير المباشر والقيادة فقط." });
+      return reassignTaskManual({ taskId: input.taskId, newAssigneeProfileId: input.newAssigneeProfileId, reason: input.reason, actorUserId: ctx.user.id });
     }),
     createSelf: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), taskNotes: z.string().trim().max(4000).optional(), scheduledFor: z.date(), dueAt: z.date(), isOpen: z.boolean().default(false) }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");

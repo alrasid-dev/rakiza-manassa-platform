@@ -3717,6 +3717,34 @@ export async function routeTaskToProfile(input: { taskId: number; targetProfileI
   return { success: true, targetName: target.fullName };
 }
 
+/** إعادة إسناد يدوي من المدير/المالك: ينقل المهمة لموظفة نشطة من نفس القسم مع سبب إلزامي، ويُسجَّل في التدقيق ويُشعَر الطرفان. */
+export async function reassignTaskManual(input: { taskId: number; newAssigneeProfileId: number; reason: string; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
+  if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لا يمكن إعادة إسناد مهمة مكتملة أو ملغاة." });
+  if (task.assigneeProfileId === input.newAssigneeProfileId) throw new TRPCError({ code: "BAD_REQUEST", message: "الموظفة الجديدة هي نفسها المسندة حالياً." });
+  if (input.reason.trim().length < 10) throw new TRPCError({ code: "BAD_REQUEST", message: "سبب إعادة الإسناد يجب أن يكون 10 أحرف على الأقل." });
+  const newAssignee = (await db.select({ id: personProfiles.id, fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(and(eq(personProfiles.id, input.newAssigneeProfileId), eq(personProfiles.status, "active"))).limit(1))[0];
+  if (!newAssignee) throw new TRPCError({ code: "BAD_REQUEST", message: "الموظفة المختارة غير نشطة أو غير موجودة." });
+  if (task.unitId && newAssignee.unitId !== task.unitId) throw new TRPCError({ code: "BAD_REQUEST", message: "يجب أن تكون الموظفة المختارة من نطاق القسم نفسه." });
+  const oldAssigneeId = task.assigneeProfileId ?? null;
+  const oldAssigneeName = oldAssigneeId ? (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, oldAssigneeId)).limit(1))[0]?.fullName ?? null : null;
+  await db.update(tasks).set({ assigneeProfileId: newAssignee.id, reassignedFromProfileId: oldAssigneeId, reassignmentReason: "manual", status: "new", startedAt: null, completedAt: null, completionNote: null, assignedByUserId: input.actorUserId }).where(eq(tasks.id, input.taskId));
+  await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "reassignment_requested", note: `إعادة إسناد يدوي إلى ${newAssignee.fullName}: ${input.reason.trim()}` });
+  try {
+    await db.insert(notifications).values({ profileId: newAssignee.id, category: "task_due", title: "مهمة مسندة إليك", body: `أُسندت إليك المهمة «${task.title}». السبب: ${input.reason.trim()}`, dedupeKey: `task-reassigned-manual-${input.taskId}-${newAssignee.id}` });
+  } catch (error) { console.warn("[notifications] فشل إشعار الموظفة الجديدة", { taskId: input.taskId, error }); }
+  if (oldAssigneeId && oldAssigneeId !== newAssignee.id) {
+    try {
+      await db.insert(notifications).values({ profileId: oldAssigneeId, category: "task_due", title: "سُحبت منك مهمة", body: `أُعيد إسناد المهمة «${task.title}» منك إلى ${newAssignee.fullName}.`, dedupeKey: `task-reassigned-manual-old-${input.taskId}-${oldAssigneeId}` });
+    } catch (error) { console.warn("[notifications] فشل إشعار الموظفة القديمة", { taskId: input.taskId, error }); }
+  }
+  await logAudit({ actorUserId: input.actorUserId, action: "task.reassigned_manual", entityType: "task", entityId: input.taskId, metadata: { oldAssigneeProfileId: oldAssigneeId, newAssigneeProfileId: newAssignee.id, reason: input.reason.trim() } });
+  return { success: true, taskId: input.taskId, oldAssigneeName, newAssigneeName: newAssignee.fullName };
+}
+
 export type TaskExceptionKind = "reassignment" | "obstacle";
 export type TaskExceptionDecision = "approved" | "rejected";
 
