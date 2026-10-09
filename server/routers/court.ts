@@ -473,7 +473,7 @@ async function requireLeadershipWorkloadObservatoryAccess(user: { id: number; ro
 
 async function managedUnitIdsForUser(user: { id: number; role: "user" | "admin"; email?: string | null }) {
   const assignments = await getActiveCourtRoleAssignments(user.id, user.role === "admin");
-  const managed = assignments.filter(assignment => (assignment.role === "trainee_affairs_manager" || assignment.role === "department_manager") && assignment.unitId !== null).map(assignment => assignment.unitId!);
+  const managed = assignments.filter(assignment => (["trainee_affairs_manager", "department_manager", "performance_monitor"].includes(assignment.role)) && assignment.unitId !== null).map(assignment => assignment.unitId!);
   const db = await getDb();
   if (db) {
     const accountIdentity = user.email?.trim().toLowerCase();

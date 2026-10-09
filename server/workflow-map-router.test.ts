@@ -11,9 +11,9 @@ const mocks = vi.hoisted(() => ({
   })),
   listWorkflowStaff: vi.fn(async () => [{ id: 5, fullName: "سعد المطيري", unitId: 3, unitName: "قسم القيود", openWorkload: 1 }]),
   distributeWorkflowSteps: vi.fn(async (input: { mode: string; sourceName: string }) => ({ createdTaskIds: [71], created: [{ order: 1, taskId: 71, assigneeProfileId: 5, title: "استلام الطلب" }], assignments: [{ order: 1, assigneeProfileId: 5, matchReason: "balanced" }], mode: input.mode, sourceName: input.sourceName })),
-  getEffectiveRoles: vi.fn(async (userId: number) => (userId === 12 ? ["department_manager"] : [])),
-  getAccessPermission: vi.fn(async (email: string | null) => (email?.includes("manager") ? "general_view" : "employee")),
-  getActiveCourtRoleAssignments: vi.fn(async (userId: number) => (userId === 12 ? [{ role: "department_manager", unitId: 3, isActive: true }] : [])),
+  getEffectiveRoles: vi.fn(async (userId: number) => (userId === 12 ? ["department_manager"] : userId === 13 ? ["performance_monitor"] : [])),
+  getAccessPermission: vi.fn(async (email: string | null) => (email?.includes("manager") || email?.includes("monitor") ? "general_view" : "employee")),
+  getActiveCourtRoleAssignments: vi.fn(async (userId: number) => (userId === 12 ? [{ role: "department_manager", unitId: 3, isActive: true }] : userId === 13 ? [{ role: "performance_monitor", unitId: 3, isActive: true }] : [])),
   listOrganizationUnits: vi.fn(async () => [{ id: 2, name: "قسم الملازمين" }, { id: 3, name: "قسم القيود" }]),
 }));
 
@@ -38,6 +38,7 @@ import { courtRouter } from "./routers/court";
 const callerFor = (user: { id: number; role: "user" | "admin"; email: string | null }) => courtRouter.createCaller({ user: { ...user, name: "مستخدم اختبار", openId: `u-${user.id}` } } as never);
 const leadershipCaller = () => callerFor({ id: 9, role: "admin", email: "owner@court.example" });
 const managerCaller = () => callerFor({ id: 12, role: "user", email: "manager@court.example" });
+const monitorCaller = () => callerFor({ id: 13, role: "user", email: "monitor@court.example" });
 const employeeCaller = () => callerFor({ id: 77, role: "user", email: "employee@court.example" });
 
 const documentInput = { originalName: "خطة.txt", mimeType: "text/plain", contentBase64: Buffer.from("١- استلام الطلب", "utf8").toString("base64") };
@@ -74,5 +75,13 @@ describe("مسار مخطط سير العمل", () => {
     await expect(managerCaller().workflowMap.distribute({ ...stepsInput, unitId: 2 })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(leadershipCaller().workflowMap.distribute({ ...stepsInput, mode: "manual", steps: [{ order: 1, title: "استلام الطلب وتسجيله", assigneeProfileId: 5, priority: "high" as const }] })).resolves.toMatchObject({ mode: "manual" });
     expect(mocks.distributeWorkflowSteps).toHaveBeenLastCalledWith(expect.objectContaining({ mode: "manual", unitIds: [2, 3], steps: [expect.objectContaining({ assigneeProfileId: 5, priority: "high", dueAt: null })] }));
+  });
+
+  it("يمكّن مدير قسم الأداء والمراقبة من توزيع مخطط سير العمل", async () => {
+    await expect(monitorCaller().workflowMap.staff()).resolves.toEqual([{ id: 5, fullName: "سعد المطيري", unitId: 3, unitName: "قسم القيود", openWorkload: 1 }]);
+    expect(mocks.listWorkflowStaff).toHaveBeenCalledWith({ unitIds: [3] });
+    const result = await monitorCaller().workflowMap.distribute(stepsInput);
+    expect(mocks.distributeWorkflowSteps).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: 13, unitIds: [3], unitId: 3, mode: "auto", sourceName: "خطة.txt" }));
+    expect(result.createdTaskIds).toEqual([71]);
   });
 });
