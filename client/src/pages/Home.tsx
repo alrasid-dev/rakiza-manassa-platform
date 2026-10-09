@@ -3,6 +3,7 @@ import { DASHBOARD_HOME_CARD_IDS, DashboardCustomizationDialog, defaultDashboard
 import GlobalSearchBar from "@/components/GlobalSearchBar";
 import { RakizaIconButton } from "@/components/RakizaIconButton";
 import { StatCardCustomizationDialog } from "@/components/StatCardCustomizationDialog";
+import WelcomeCard from "@/components/WelcomeCard";
 import { trpc } from "@/lib/trpc";
 import { readDashboardPreferencesLocal, writeDashboardPreferencesLocal } from "@/lib/dashboard-preferences-storage";
 import { cn } from "@/lib/utils";
@@ -200,6 +201,7 @@ export default function Home() {
 
   return <DashboardLayout hideUtilityPrompts dashboardCustomization={dashboardCustomizer} navigationPreferences={preferences}>
     <section className="mx-auto max-w-[1240px]" dir="rtl">
+      <WelcomeCard />
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d5ddd2] bg-[#f8f9f4] px-4 py-3 shadow-[0_8px_22px_rgba(36,67,51,0.05)]">
         <div className="flex flex-wrap items-center gap-2">
           <GlobalSearchBar />
