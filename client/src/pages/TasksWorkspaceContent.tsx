@@ -161,7 +161,7 @@ export function splitTextByQuery(text: string, query: string) {
   return parts.length ? parts : [{ value: text, matches: false }];
 }
 
-const TASK_TABS = ["tasks", "approvals", "future", "records", "shared", "registered"] as const;
+const TASK_TABS = ["tasks", "approvals", "future", "records", "shared", "registered", "my"] as const;
 type TaskTab = (typeof TASK_TABS)[number];
 
 function resolveTaskTab(value: string | null | undefined): TaskTab {
@@ -179,7 +179,7 @@ export default function TasksWorkspaceContent() {
   const requestedTaskAction = useMemo(() => new URLSearchParams(search).get("action"), [search]);
   const requestedTaskFilter = useMemo(() => new URLSearchParams(search).get("filter") ?? "all", [search]);
   const requestedTab = useMemo(() => new URLSearchParams(search).get("tab") ?? "tasks", [search]);
-  const [activeTab, setActiveTab] = useState<"tasks" | "approvals" | "future" | "records" | "shared" | "registered">(resolveTaskTab(requestedTab));
+  const [activeTab, setActiveTab] = useState<"tasks" | "approvals" | "future" | "records" | "shared" | "registered" | "my">(resolveTaskTab(requestedTab));
   useEffect(() => { setActiveTab(resolveTaskTab(requestedTab)); }, [requestedTab]);
   useEffect(() => {
     if (activeTab === "approvals") {
@@ -209,6 +209,11 @@ export default function TasksWorkspaceContent() {
   const [futureUnitId, setFutureUnitId] = useState("");
   const [futureAssigneeId, setFutureAssigneeId] = useState<number | null>(null);
   const [futureStatus, setFutureStatus] = useState<string>("");
+  const [myStatus, setMyStatus] = useState<string>("");
+  const [myPeriod, setMyPeriod] = useState<"all" | "daily" | "weekly" | "monthly" | "custom">("all");
+  const [myAssigneeId, setMyAssigneeId] = useState<number | null>(null);
+  const [myFromDate, setMyFromDate] = useState("");
+  const [myToDate, setMyToDate] = useState("");
   const [period, setPeriod] = useState<"all" | "daily" | "weekly" | "monthly" | "historical">("all");
   const platformWide = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary"));
   const isManager = canAssign && !platformWide;
@@ -229,6 +234,26 @@ export default function TasksWorkspaceContent() {
   const statusCounts = trpc.court.tasks.countsByStatus.useQuery(statusCountsQuery, { enabled: taskView === "scope" || Boolean(currentProfile.data?.id) });
   const futureTaskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id, futureRange } : { unitId: futureUnitId ? Number(futureUnitId) : undefined, assigneeProfileId: futureAssigneeId ?? undefined, status: futureStatus ? futureStatus as "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled" : undefined, futureRange };
   const futureTasks = trpc.court.tasks.list.useQuery(futureTaskQuery, { enabled: activeTab === "future" && (taskView === "scope" || Boolean(currentProfile.data?.id)) });
+  const myAssignee = canAssign ? myAssigneeId : (currentProfile.data?.id ?? null);
+  const myTasks = trpc.court.tasks.list.useQuery(
+    myAssignee != null ? { assigneeProfileId: myAssignee, status: myStatus ? myStatus as "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled" : undefined, period: myPeriod === "custom" ? undefined : (myPeriod as "all" | "daily" | "weekly" | "monthly") } : undefined,
+    { enabled: activeTab === "my" && myAssignee != null, refetchInterval: 30000 },
+  );
+  const myVisibleTasks = useMemo(() => {
+    let list = myTasks.data ?? [];
+    if (myPeriod === "custom") {
+      const from = myFromDate ? new Date(`${myFromDate}T00:00:00`) : null;
+      const to = myToDate ? new Date(`${myToDate}T23:59:59`) : null;
+      list = list.filter(t => {
+        const s = t.scheduledFor ? new Date(t.scheduledFor) : null;
+        if (!s) return false;
+        if (from && s.getTime() < from.getTime()) return false;
+        if (to && s.getTime() > to.getTime()) return false;
+        return true;
+      });
+    }
+    return list;
+  }, [myTasks.data, myPeriod, myFromDate, myToDate]);
   const [recordsPage, setRecordsPage] = useState(1);
   const [recordsStatus, setRecordsStatus] = useState<"new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled" | undefined>(undefined);
   const [recordsFromDate, setRecordsFromDate] = useState<Date | undefined>(undefined);
@@ -917,6 +942,89 @@ export default function TasksWorkspaceContent() {
     </section>;
   }
 
+  if (activeTab === "my") {
+    const myActive = (status: string) => !["completed", "cancelled", "under_review"].includes(status);
+    return <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">مهامي</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">{canAssign ? "اختر موظفاً لعرض مهامه، أو راجع مهامك الشخصية مع إجراءات سريعة." : "جدول مهامك الحالية مع إجراءات سريعة، ويتحدّث تلقائياً كل 30 ثانية."}</p></div>
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><ListChecks className="h-6 w-6" /></div>
+      </header>
+      <div className="mt-5 flex flex-wrap gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
+        <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
+        <Button type="button" size="sm" variant="default" className="bg-[#12352f]"><ListChecks className="ml-1 h-4 w-4" />مهامي</Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")}><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية</Button>
+        {canDirectEdit && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("approvals")}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
+        <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
+        {canAssign && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("registered")}><ClipboardList className="ml-1 h-4 w-4" />المهام المسجلة</Button>}
+      </div>
+      <div className="mt-5 flex flex-wrap items-end gap-2">
+        {canAssign && <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الموظف
+          <select value={myAssigneeId ?? ""} onChange={e => setMyAssigneeId(e.target.value ? Number(e.target.value) : null)} className="h-10 min-w-40 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+            <option value="">كل الموظفين (نطاق الإدارة)</option>
+            {(people.data ?? []).filter(p => p.status === "active").map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+          </select>
+        </label>}
+        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الحالة
+          <select value={myStatus} onChange={e => setMyStatus(e.target.value)} className="h-10 min-w-32 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+            <option value="">كل الحالات</option>
+            <option value="new">جديدة</option>
+            <option value="in_progress">قيد التنفيذ</option>
+            <option value="under_review">بانتظار تأكيد المدير</option>
+            <option value="overdue">متأخرة</option>
+            <option value="completed">مكتملة</option>
+            <option value="cancelled">ملغاة</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الفترة
+          <select value={myPeriod} onChange={e => setMyPeriod(e.target.value as typeof myPeriod)} className="h-10 min-w-36 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+            <option value="all">الكل</option>
+            <option value="daily">اليوم</option>
+            <option value="weekly">هذا الأسبوع</option>
+            <option value="monthly">هذا الشهر</option>
+            <option value="custom">من → إلى</option>
+          </select>
+        </label>
+        {myPeriod === "custom" && <>
+          <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">من<input type="date" value={myFromDate} onChange={e => setMyFromDate(e.target.value)} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal" /></label>
+          <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">إلى<input type="date" value={myToDate} onChange={e => setMyToDate(e.target.value)} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal" /></label>
+        </>}
+      </div>
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white">
+        <table className="w-full min-w-[820px] text-sm">
+          <thead className="bg-[#f7fbf7] text-right text-xs font-bold text-[#53675d]">
+            <tr>
+              <th className="px-3 py-3">#</th>
+              <th className="px-3 py-3">المهمة</th>
+              <th className="px-3 py-3">الحالة</th>
+              <th className="px-3 py-3">البدء</th>
+              <th className="px-3 py-3">الاستحقاق</th>
+              <th className="px-3 py-3">الإجراء</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#eee8de]">
+            {myTasks.isLoading ? <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-[#738179]">جارٍ تحميل المهام…</td></tr>
+              : myVisibleTasks.length ? myVisibleTasks.map((t, idx) => (
+                <tr key={t.id} className="hover:bg-[#fafdf9]">
+                  <td className="px-3 py-2.5 text-[#9aa89f]">{idx + 1}</td>
+                  <td className="px-3 py-2.5 font-bold text-[#26473a]">{t.title}</td>
+                  <td className="px-3 py-2.5">{taskStatusLabel(t.status as TaskStatus)}</td>
+                  <td className="px-3 py-2.5 text-[#75837c]">{formatTaskDate(t.scheduledFor)}</td>
+                  <td className="px-3 py-2.5 text-[#75837c]">{formatTaskDate(t.dueAt, t.isOpen)}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(t.status === "new" || t.status === "in_progress") && <Button type="button" size="sm" className="bg-[#2f7653] hover:bg-[#245d41]" onClick={() => { setCompletionNote(""); setCompletionConfirmDialog({ taskId: t.id, title: t.title }); }}><CheckCircle2 className="ml-1 h-3.5 w-3.5" />تمت المعالجة</Button>}
+                      {myActive(t.status) && <Button type="button" size="sm" variant="outline" className="border-[#e0b3a7] text-[#c26a2b]" onClick={() => setObstacleDialog({ taskId: t.id, title: t.title })}><AlertTriangle className="ml-1 h-3.5 w-3.5" />يوجد عائق</Button>}
+                      {myActive(t.status) && <Button type="button" size="sm" variant="outline" className="border-[#c9d6c0] text-[#2d6b4f]" onClick={() => setReassignmentDialog({ taskId: t.id, title: t.title })}><RefreshCcw className="ml-1 h-3.5 w-3.5" />طلب إعادة إسناد</Button>}
+                    </div>
+                  </td>
+                </tr>
+              )) : <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-[#738179]">{canAssign && myAssigneeId == null ? "اختر موظفاً لعرض مهامه." : "لا توجد مهام ضمن هذا النطاق."}</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>;
+  }
+
   const isScopeTable = canAssign && taskView === "scope";
   return <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
     <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -924,6 +1032,7 @@ export default function TasksWorkspaceContent() {
     </header>
     <div className="mt-5 flex gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
       <Button type="button" size="sm" variant={activeTab === "tasks" ? "default" : "outline"} onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }} className={activeTab === "tasks" ? "bg-[#12352f]" : ""}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
+      <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("my")}><ListChecks className="ml-1 h-4 w-4" />مهامي</Button>
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")} className=""><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية {futureTasks.data?.length ? <span className="ml-1 rounded-full bg-[#2f7653] px-1.5 text-[10px] text-white">{futureTasks.data.length}</span> : null}</Button>
       {canDirectEdit && <Button type="button" size="sm" variant={activeTab === "approvals" ? "default" : "outline"} onClick={() => setActiveTab("approvals")} className={activeTab === "approvals" ? "bg-[#8a6731]" : ""}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
