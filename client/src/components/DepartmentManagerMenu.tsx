@@ -41,7 +41,7 @@ export default function DepartmentManagerMenu({ variant = "dark" }: { variant?: 
     <div className="mt-4">
       <p className="text-[11px] font-black tracking-[0.12em] text-[#b18448]">إدارة القسم</p>
       <div className="mt-2 grid gap-2">
-        <button type="button" onClick={() => setLocation("/")} title="لوحة تحكم القسم" aria-label="لوحة تحكم القسم" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><LayoutDashboard className="h-4 w-4" />لوحة تحكم القسم</button>
+        <button type="button" onClick={() => setLocation("/tasks?tab=registered")} title="لوحة تحكم القسم" aria-label="لوحة تحكم القسم" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><LayoutDashboard className="h-4 w-4" />لوحة تحكم القسم</button>
         <button type="button" onClick={() => setOpen(true)} title="إضافة مهام القسم" aria-label="إضافة مهام القسم" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><PlusCircle className="h-4 w-4" />إضافة مهام القسم</button>
         <button type="button" onClick={() => setLocation("/tasks/reassign")} title="إسناد وسحب المهام" aria-label="إسناد وسحب المهام" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><UsersRound className="h-4 w-4" />إسناد وسحب المهام</button>
         {isSecretary && <button type="button" onClick={() => toast.info("إدارة التكاليف قيد التطوير.")} title="إدارة التكاليف" aria-label="إدارة التكاليف" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><Wallet className="h-4 w-4" />إدارة التكاليف</button>}
