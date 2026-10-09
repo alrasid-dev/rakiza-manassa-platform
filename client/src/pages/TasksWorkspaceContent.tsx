@@ -204,6 +204,7 @@ export default function TasksWorkspaceContent() {
   const [selectedAssigneeProfileId, setSelectedAssigneeProfileId] = useState<number | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [dueFilter, setDueFilter] = useState<"all" | "overdue" | "dueSoon" | "completed">("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [futureRange, setFutureRange] = useState<"all" | "current_week" | "next_week" | "end_of_month">("all");
   const [period, setPeriod] = useState<"all" | "daily" | "weekly" | "monthly" | "historical">("all");
   const platformWide = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary"));
@@ -538,6 +539,7 @@ export default function TasksWorkspaceContent() {
     const filter = requestedTaskFilter as DashboardTaskFilterValue;
     let filtered = filter === "all" ? (tasks.data ?? []) : (tasks.data ?? []).filter(task => taskMatchesDashboardFilter({ status: task.status as TaskStatus, dueAt: task.dueAt, isOpen: task.isOpen, scheduledFor: task.scheduledFor }, filter));
     if (!showCompleted && dueFilter !== "completed") filtered = filtered.filter(task => task.status !== "completed" && task.status !== "cancelled");
+    if (statusFilter !== "all") filtered = filtered.filter(task => task.status === statusFilter);
     return [...filtered].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
   }, [tasks.data, requestedTaskFilter, showCompleted, dueFilter]);
 
@@ -938,8 +940,9 @@ export default function TasksWorkspaceContent() {
       <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="عدّادات الحالات">
         <span className="text-[11px] font-bold text-[#7a8980]">الحالات (إجمالي النطاق):</span>
         {(["in_progress", "overdue", "completed", "new", "under_review", "paused", "cancelled"] as const).map(status => (
-          <span key={status} className="rounded-full border border-[#d7e6d8] bg-white px-2.5 py-1 text-[11px] font-bold text-[#355d4b]">{taskStatusLabel(status)}: {statusCounts.data?.[status] ?? 0}</span>
+          <button key={status} type="button" onClick={() => setStatusFilter(prev => prev === status ? "all" : status)} className={`cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-bold transition hover:bg-slate-100 active:ring-2 active:ring-[#2f7653] ${statusFilter === status ? "border-[#2f7653] bg-[#e4f0e4] text-[#2d684a]" : "border-[#d7e6d8] bg-white text-[#355d4b]"}`}>{taskStatusLabel(status)}: {statusCounts.data?.[status] ?? 0}</button>
         ))}
+        {statusFilter !== "all" && <button type="button" onClick={() => setStatusFilter("all")} className="cursor-pointer text-[11px] font-bold text-[#a04a35] hover:underline">إلغاء الفلتر</button>}
       </div>
     )}
 
