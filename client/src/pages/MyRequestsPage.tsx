@@ -91,7 +91,7 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
 }
 
 export default function MyRequestsPage() {
-  const [tab, setTab] = useState<"submitted" | "toReview" | "returned" | "disciplinary">("submitted");
+  const [tab, setTab] = useState<"submitted" | "toReview" | "returned" | "disciplinary" | "records">("submitted");
   const [dialog, setDialog] = useState<{ item: Item; action: DecisionAction; rating?: "excellent" | "good" | "acceptable" } | null>(null);
   const [reason, setReason] = useState("");
   const dash = trpc.court.requests.myDashboard.useQuery(undefined, { refetchInterval: 30000 });
@@ -118,9 +118,15 @@ export default function MyRequestsPage() {
     { key: "toReview" as const, label: "📥 اعتماداتي" },
     { key: "returned" as const, label: "🔄 العائد إليّ" },
     { key: "disciplinary" as const, label: "⚖️ مساءلاتي" },
+    { key: "records" as const, label: "🗂️ السجلات" },
   ];
 
-  const list = dash.data?.[tab] ?? [];
+  const FINAL_STATUSES = ["approved", "rejected", "closed", "returned", "saved", "cancelled", "completed"];
+  const list = tab === "submitted"
+    ? (dash.data?.submitted ?? []).filter((item: Item) => !FINAL_STATUSES.includes(item.status))
+    : tab === "records"
+      ? (dash.data?.submitted ?? []).filter((item: Item) => FINAL_STATUSES.includes(item.status))
+      : (dash.data?.[tab] ?? []);
 
   const openDialog = (item: Item, action: DecisionAction, rating?: "excellent" | "good" | "acceptable") => {
     setReason("");
