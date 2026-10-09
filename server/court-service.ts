@@ -4472,13 +4472,15 @@ export async function getTaskDetails(taskId: number) {
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const task = await getTaskById(taskId);
   if (!task) throw new Error("المهمة غير موجودة.");
-  const [comments, timeline, attachments, approvals, assigneeRows] = await Promise.all([
+  const [comments, timeline, attachments, approvals, assigneeRows, reassignedFromRows] = await Promise.all([
     listTaskComments(taskId),
     listTaskTimeline(taskId),
     listTaskAttachments(taskId),
     db.select().from(taskApprovals).where(eq(taskApprovals.taskId, taskId)).orderBy(desc(taskApprovals.createdAt)),
     task.assigneeProfileId ? db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, task.assigneeProfileId)).limit(1) : Promise.resolve([] as { id: number; fullName: string }[]),
+    task.reassignedFromProfileId ? db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, task.reassignedFromProfileId)).limit(1) : Promise.resolve([] as { id: number; fullName: string }[]),
   ]);
+  const reassignedFromName = reassignedFromRows[0]?.fullName ?? null;
   const reviewerIds = [...new Set(approvals.map(a => a.reviewedByProfileId).filter((v): v is number => v != null))];
   const reviewerRows = reviewerIds.length ? await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(inArray(personProfiles.id, reviewerIds)) : [];
   const reviewerNames = new Map(reviewerRows.map(p => [p.id, p.fullName]));
@@ -4512,7 +4514,7 @@ export async function getTaskDetails(taskId: number) {
     }
   }
   const allEmployeeAttachments = [...allAttachmentsMap.values()];
-  return { task, assigneeName: assigneeRows[0]?.fullName ?? null, comments, timeline, attachments, approvals: approvalsWithReviewer, lastEmployeeSubmission, allEmployeeAttachments };
+  return { task, assigneeName: assigneeRows[0]?.fullName ?? null, reassignedFromName, comments, timeline, attachments, approvals: approvalsWithReviewer, lastEmployeeSubmission, allEmployeeAttachments };
 }
 
 export async function decideApproval(input: { approvalId: number; actorUserId: number; decision: "approved" | "returned" | "rejected"; note?: string; nextRole?: ApprovalRole | null }) {
