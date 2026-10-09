@@ -162,6 +162,7 @@ import {
   listNotificationsForProfile,
   listOrganizationUnits,
   listRemoteAttendanceReport,
+  listAttendanceForProfileRange,
   countOnLeaveProfiles,
   listPlatformUsersForRoleAssignment,
   listPersonalDisciplinaryActions,
@@ -2670,6 +2671,10 @@ export const courtRouter = router({
       if (attendanceWindow.kind === "check_in") throw new TRPCError({ code: "CONFLICT", message: "تسجيل الانصراف الذاتي متاح فقط خلال نافذة الانصراف المحددة في ورديتك." });
       if (attendanceWindow.kind !== "check_out" && !attendanceWindow.workingDay) throw new TRPCError({ code: "CONFLICT", message: "تسجيل الانصراف الذاتي متاح في أيام الوردية فقط." });
       return recordAttendanceCheckout({ profileId: profile.id, checkOutAt: new Date(), actorUserId: ctx.user.id });
+    }),
+    monthlyReport: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), startAt: z.date(), endAt: z.date() })).query(async ({ ctx, input }) => {
+      await requireAttendanceOwnerAccess(ctx.user);
+      return listAttendanceForProfileRange(input.profileId, input.startAt, input.endAt);
     }),
     ownerEditCheckIn: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), recordDate: z.date(), checkInAt: z.date(), reason: z.string().trim().min(10, "السبب مطلوب (10 أحرف على الأقل).").max(2000) })).mutation(async ({ ctx, input }) => {
       await requireAttendanceOwnerAccess(ctx.user);

@@ -5568,6 +5568,26 @@ export async function listAttendanceForProfile(profileId: number, date?: Date) {
   return db.select({ attendance: attendanceRecords, profileName: personProfiles.fullName, personType: personProfiles.personType }).from(attendanceRecords).innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId)).where(and(eq(attendanceRecords.profileId, profileId), gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end))).orderBy(desc(attendanceRecords.recordDate)).limit(200);
 }
 
+/** سجل حضور موظف واحد ضمن نطاق زمني (لصفحة التعديل الشهري للمالك). */
+export async function listAttendanceForProfileRange(profileId: number, startAt: Date, endAt: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    attendance: attendanceRecords,
+    profileId: personProfiles.id,
+    profileName: personProfiles.fullName,
+    personType: personProfiles.personType,
+    attendanceMode: personProfiles.attendanceMode,
+    unitId: personProfiles.unitId,
+    unitName: organizationUnits.name,
+  }).from(attendanceRecords)
+    .innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId))
+    .leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId))
+    .where(and(eq(attendanceRecords.profileId, profileId), gte(attendanceRecords.recordDate, startAt), lt(attendanceRecords.recordDate, endAt)))
+    .orderBy(asc(attendanceRecords.recordDate))
+    .limit(500);
+}
+
 export async function getTodayAttendanceForProfile(profileId: number) {
   const db = await getDb();
   if (!db) return null;

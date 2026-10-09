@@ -56,6 +56,7 @@ import NotificationSettingsPage from "./pages/NotificationSettingsPage";
 import DepartmentDocumentsPage from "./pages/DepartmentDocumentsPage";
 import TaskTemplatesPage from "./pages/TaskTemplatesPage";
 import TaskComparisonPage from "./pages/TaskComparisonPage";
+import AttendanceMonthlyPage from "./pages/AttendanceMonthlyPage";
 import DepartmentTasksPage from "./pages/DepartmentTasksPage";
 import TasksReassignPage from "./pages/TasksReassignPage";
 import DisciplinaryPage from "./pages/DisciplinaryPage";
@@ -109,6 +110,7 @@ function Router() {
       <Route path="/reports/task-comparison" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : TaskComparisonPage} />
       <Route path="/report-upload" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : ReportUploadPage} />
       <Route path="/status" component={StatusAndLeavePage} />
+<Route path="/attendance/monthly" component={AttendanceMonthlyPage} />
       <Route path="/assets" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : AssetsPage} />
       <Route path="/imports" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="imports" /> : ImportsPage} />
       <Route path="/register" component={RegistrationPage} />
