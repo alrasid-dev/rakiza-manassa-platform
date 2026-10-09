@@ -238,7 +238,7 @@ function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, v
         const isOpen = !section.collapsible || Boolean(openSections[section.heading]);
         return (
         <section key={section.heading} aria-label={section.heading}>
-          <button type="button" onClick={() => section.collapsible && setOpenSections(current => ({ ...current, [section.heading]: !current[section.heading] }))} className={`mb-1.5 flex w-full items-center justify-between px-2.5 text-right text-[11px] font-bold tracking-[0.08em] ${variant === "dark" ? "text-[#c2d6c5]/70 hover:text-[#eaf3e9]" : "text-[#75847b] hover:text-[#245f43]"} ${section.collapsible ? "cursor-pointer" : "cursor-default"}`} aria-expanded={section.collapsible ? isOpen : undefined}>
+          <button type="button" onClick={() => section.collapsible && setOpenSections(current => ({ ...current, [section.heading]: !current[section.heading] }))} className={`mb-1.5 flex w-full items-center justify-between px-2.5 text-right text-xs font-bold tracking-[0.08em] ${variant === "dark" ? "text-[#c2d6c5]/70 hover:text-[#eaf3e9]" : "text-[#75847b] hover:text-[#245f43]"} ${section.collapsible ? "cursor-pointer" : "cursor-default"}`} aria-expanded={section.collapsible ? isOpen : undefined}>
             <span>{section.heading}</span>{section.collapsible && <span aria-hidden="true" className="text-base leading-none">{isOpen ? "−" : "+"}</span>}
           </button>
           {isOpen && <div className="space-y-1">
@@ -250,7 +250,7 @@ function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, v
                 <button key={`${item.path}-${item.label}`} type="button" onClick={() => { setLocation(item.path); onNavigate?.(); }} className={["group flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-right text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]", variant === "dark" ? (active ? "border-r-2 border-[#a8c98f] bg-[#1f6147] text-white shadow-[0_6px_16px_rgba(20,69,48,0.2)" : "text-white/85 hover:bg-[#214c3d] hover:text-white") : (active ? "border-r-2 border-[#7faa82] bg-[#e0ecdf] text-[#245f43] shadow-[0_5px_14px_rgba(50,94,68,0.09)]" : "text-[#4f6258] hover:bg-[#e9eee7] hover:text-[#245f43]")].join(" ")}>
                   <RakizaIconButton icon={item.icon} gradient={tone === "alert" ? "from-red-500 to-red-600" : tone === "gold" ? "from-amber-500 to-amber-600" : "from-emerald-500 to-emerald-600"} />
                   <span>{item.label}</span>
-                  {unreadCount > 0 && <span aria-label={unreadLabel} className={`mr-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[10px] font-black ${variant === "dark" ? "bg-[#b6d3aa] text-[#173c2d]" : "bg-[#b84d3e] text-white"}`}>{unreadCount > 99 ? "99+" : unreadCount}</span>}
+                  {unreadCount > 0 && <span aria-label={unreadLabel} className={`mr-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[11px] font-black ${variant === "dark" ? "bg-[#b6d3aa] text-[#173c2d]" : "bg-[#b84d3e] text-white"}`}>{unreadCount > 99 ? "99+" : unreadCount}</span>}
                 </button>
               );
             })}
@@ -442,9 +442,9 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
               </label>
             )}
             <button type="button" onClick={() => setLocation("/announcements")} className="order-3 flex w-full min-w-0 items-center gap-3 rounded-xl border border-[#d2d9cf] bg-[#f1f2ec] px-3 py-2.5 text-right transition hover:bg-[#e5ece2] md:order-none md:flex-1 lg:max-w-[34rem]" aria-label="لوحة التعاميم والإعلانات">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#dce9da] text-[#2d6b4f]"><Megaphone className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" /></span>
-              <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-[11px] font-black text-[#315348]">لوحة التعاميم والإعلانات</span>{announcementCopy.isNew ? <span className="rounded-full bg-[#e0eadf] px-1.5 py-0.5 text-[9px] font-black text-[#2d6b4f]">جديد</span> : null}</span><span className="mt-1 block truncate text-xs font-bold text-[#365548]">{announcementCopy.title}</span><span className="mt-0.5 hidden truncate text-[10px] text-[#748078] sm:block">{announcementCopy.summary}</span></span>
-              <ArrowLeft className="h-4 w-4 shrink-0 text-[#698075]" aria-hidden="true" />
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#dce9da] text-[#2d6b4f]"><Megaphone className={`h-5 w-5 ${oliveIconMotionClass}`} aria-hidden="true" /></span>
+              <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-xs font-black text-[#315348]">لوحة التعاميم والإعلانات</span>{announcementCopy.isNew ? <span className="rounded-full bg-[#e0eadf] px-1.5 py-0.5 text-[10px] font-black text-[#2d6b4f]">جديد</span> : null}</span><span className="mt-1 block truncate text-xs font-bold text-[#365548]">{announcementCopy.title}</span><span className="mt-0.5 hidden truncate text-[11px] text-[#748078] sm:block">{announcementCopy.summary}</span></span>
+              <ArrowLeft className="h-5 w-5 shrink-0 text-[#698075]" aria-hidden="true" />
             </button>
             <div dir="ltr" className="rakiza-toolbar relative flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:gap-3">
               <button type="button" aria-label="الإشعارات" title="الإشعارات" onClick={() => setNotificationsOpen(!notificationsOpen)} className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886] ${unreadNotifications.length > 0 ? "border-[#e3b3a8] bg-[#fff3ef] text-[#b5443a]" : "border-[#cfd7ca] bg-[#f1f3ed] text-[#2d6b4f] hover:bg-[#e0ecdf]"}`}>

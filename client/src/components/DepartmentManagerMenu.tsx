@@ -39,7 +39,7 @@ export default function DepartmentManagerMenu({ variant = "dark" }: { variant?: 
   const buttonClass = variant === "dark" ? "border-white/10 text-[#cfe3c6] hover:bg-white/10" : "border-[#d9e4d7] text-[#2d6b4f] hover:bg-[#dce9da]";
   return (
     <div className="mt-4">
-      <p className="text-[11px] font-black tracking-[0.12em] text-[#b18448]">إدارة القسم</p>
+      <p className="text-xs font-black tracking-[0.12em] text-[#b18448]">إدارة القسم</p>
       <div className="mt-2 grid gap-2">
         <button type="button" onClick={() => setLocation("/tasks?tab=registered")} title="لوحة تحكم القسم" aria-label="لوحة تحكم القسم" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><LayoutDashboard className="h-4 w-4" />لوحة تحكم القسم</button>
         <button type="button" onClick={() => setOpen(true)} title="إضافة مهام القسم" aria-label="إضافة مهام القسم" className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold ${buttonClass}`}><PlusCircle className="h-4 w-4" />إضافة مهام القسم</button>
