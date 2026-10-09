@@ -23,7 +23,7 @@ function saudiGregorianParts(date: Date): { year: number; month: number; day: nu
   return { year, month, day };
 }
 
-function isOfficialHoliday(date: Date): boolean {
+export function isOfficialHoliday(date: Date): boolean {
   const { month: m, day: d } = saudiGregorianParts(date);
   if (m === 2 && d === 22) return true;
   if (m === 9 && d === 23) return true;
@@ -33,7 +33,7 @@ function isOfficialHoliday(date: Date): boolean {
   return false;
 }
 
-function isSaudiWorkday(now: Date): boolean {
+export function isSaudiWorkday(now: Date): boolean {
   const { year, month, day } = saudiGregorianParts(now);
   const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
   return weekday >= 0 && weekday <= 4;

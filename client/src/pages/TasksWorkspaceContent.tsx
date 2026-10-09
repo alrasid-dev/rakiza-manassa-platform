@@ -11,7 +11,7 @@ import { AlertCircle, AlertTriangle, ChevronLeft, ChevronRight, CheckCircle2, Ci
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
-import { taskWorkCountdownLabel } from "@/lib/work-hours";
+import { taskWorkCountdownLabel, isSaudiWorkday, isOfficialHoliday } from "@/lib/work-hours";
 
 type TaskStatus = "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled" | "paused";
 
@@ -206,6 +206,9 @@ export default function TasksWorkspaceContent() {
   const [dueFilter, setDueFilter] = useState<"all" | "overdue" | "dueSoon" | "completed">("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [futureRange, setFutureRange] = useState<"all" | "current_week" | "next_week" | "end_of_month">("all");
+  const [futureUnitId, setFutureUnitId] = useState("");
+  const [futureAssigneeId, setFutureAssigneeId] = useState<number | null>(null);
+  const [futureStatus, setFutureStatus] = useState<string>("");
   const [period, setPeriod] = useState<"all" | "daily" | "weekly" | "monthly" | "historical">("all");
   const platformWide = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary"));
   const isManager = canAssign && !platformWide;
@@ -224,7 +227,7 @@ export default function TasksWorkspaceContent() {
   const tasks = trpc.court.tasks.list.useQuery(taskQuery, { enabled: taskView === "scope" || Boolean(currentProfile.data?.id) });
   const statusCountsQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id } : { unitId: selectedUnitId || undefined, assigneeProfileId: selectedAssigneeProfileId || undefined };
   const statusCounts = trpc.court.tasks.countsByStatus.useQuery(statusCountsQuery, { enabled: taskView === "scope" || Boolean(currentProfile.data?.id) });
-  const futureTaskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id, futureRange } : { unitId: selectedUnitId || undefined, assigneeProfileId: selectedAssigneeProfileId || undefined, futureRange };
+  const futureTaskQuery = taskView === "mine" && currentProfile.data?.id ? { assigneeProfileId: currentProfile.data.id, futureRange } : { unitId: futureUnitId ? Number(futureUnitId) : undefined, assigneeProfileId: futureAssigneeId ?? undefined, status: futureStatus ? futureStatus as "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled" : undefined, futureRange };
   const futureTasks = trpc.court.tasks.list.useQuery(futureTaskQuery, { enabled: activeTab === "future" && (taskView === "scope" || Boolean(currentProfile.data?.id)) });
   const [recordsPage, setRecordsPage] = useState(1);
   const [recordsStatus, setRecordsStatus] = useState<"new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled" | undefined>(undefined);
@@ -760,11 +763,36 @@ export default function TasksWorkspaceContent() {
         {canDirectEdit && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("approvals")}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
         {canAssign && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("registered")}><ClipboardList className="ml-1 h-4 w-4" />المهام المسجلة</Button>}
       </div>
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap items-end gap-2">
+        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">القسم
+          <select value={futureUnitId} onChange={e => { setFutureUnitId(e.target.value); setFutureAssigneeId(null); }} className="h-10 min-w-36 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+            <option value="">كل الأقسام</option>
+            {(units.data ?? []).map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الموظف
+          <select value={futureAssigneeId ?? ""} onChange={e => setFutureAssigneeId(e.target.value ? Number(e.target.value) : null)} className="h-10 min-w-36 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+            <option value="">كل الموظفين</option>
+            {(people.data ?? []).filter(p => !futureUnitId || p.unitId === Number(futureUnitId)).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الحالة
+          <select value={futureStatus} onChange={e => setFutureStatus(e.target.value)} className="h-10 min-w-32 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+            <option value="">كل الحالات</option>
+            <option value="new">جديدة</option>
+            <option value="in_progress">قيد التنفيذ</option>
+            <option value="under_review">بانتظار تأكيد المدير</option>
+            <option value="overdue">متأخرة</option>
+            <option value="completed">مكتملة</option>
+            <option value="cancelled">ملغاة</option>
+          </select>
+        </label>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
         {(["all", "current_week", "next_week", "end_of_month"] as const).map(range => <Button key={range} type="button" size="sm" variant={futureRange === range ? "default" : "outline"} onClick={() => setFutureRange(range)} className={futureRange === range ? "bg-[#2f7653]" : ""}>{range === "all" ? "📅 الكل" : range === "current_week" ? "📅 الأسبوع الحالي" : range === "next_week" ? "📅 الأسبوع القادم" : "📅 حتى نهاية الشهر"}</Button>)}
       </div>
       <div className="mt-5 rounded-2xl border border-[#e7e0d4] bg-white p-5">
-        {futureTasks.isLoading ? <p className="py-6 text-center text-sm text-[#6e7e75]">جارٍ تحميل المهام المستقبلية…</p> : futureTasks.data?.length ? <div className="divide-y divide-[#eee8de]">{futureTasks.data.map(task => <article key={task.id} className="flex flex-col gap-2 py-4 opacity-70 pointer-events-none"><div className="flex flex-wrap items-center justify-between gap-2"><p className="break-words font-bold text-[#26473a]">{task.title}</p><span className="rounded-full bg-[#fff3d6] px-2 py-0.5 text-[11px] font-bold text-[#a8601f]">⏳ لم يحن الموعد بعد</span></div><p className="text-xs text-[#75837c]">موعد البدء: {formatTaskDate(task.scheduledFor)} · الاستحقاق: {formatTaskDate(task.dueAt, task.isOpen)}</p></article>)}</div> : <p className="py-10 text-center text-sm text-[#738179]">لا توجد مهام مستقبلية ضمن هذا النطاق.</p>}
+        {futureTasks.isLoading ? <p className="py-6 text-center text-sm text-[#6e7e75]">جارٍ تحميل المهام المستقبلية…</p> : futureTasks.data?.length ? <div className="divide-y divide-[#eee8de]">{futureTasks.data.map(task => { const scheduled = task.scheduledFor ? new Date(task.scheduledFor) : null; const onNonWorkday = scheduled && (!isSaudiWorkday(scheduled) || isOfficialHoliday(scheduled)); return <article key={task.id} className="flex flex-col gap-2 py-4 opacity-70 pointer-events-none"><div className="flex flex-wrap items-center justify-between gap-2"><p className="break-words font-bold text-[#26473a]">{task.title}</p><span className="rounded-full bg-[#fff3d6] px-2 py-0.5 text-[11px] font-bold text-[#a8601f]">⏳ لم يحن الموعد بعد</span></div><div className="flex flex-wrap items-center gap-2"><p className="text-xs text-[#75837c]">موعد البدء: {formatTaskDate(task.scheduledFor)} · الاستحقاق: {formatTaskDate(task.dueAt, task.isOpen)}</p>{onNonWorkday && <span className="rounded-full bg-[#fbe9e7] px-2 py-0.5 text-[11px] font-bold text-[#a04a35]">⚠️ مجدولة في يوم إجازة</span>}</div></article>; })}</div> : <p className="py-10 text-center text-sm text-[#738179]">لا توجد مهام مستقبلية ضمن هذا النطاق.</p>}
       </div>
     </section>;
   }
