@@ -567,7 +567,7 @@ export default function TasksWorkspaceContent() {
   const visibleTasks = useMemo(() => {
     const filter = requestedTaskFilter as DashboardTaskFilterValue;
     let filtered = filter === "all" ? (tasks.data ?? []) : (tasks.data ?? []).filter(task => taskMatchesDashboardFilter({ status: task.status as TaskStatus, dueAt: task.dueAt, isOpen: task.isOpen, scheduledFor: task.scheduledFor }, filter));
-    if (!showCompleted && dueFilter !== "completed") filtered = filtered.filter(task => task.status !== "completed" && task.status !== "cancelled");
+    if (!showCompleted && dueFilter !== "completed" && statusFilter !== "completed" && statusFilter !== "cancelled") filtered = filtered.filter(task => task.status !== "completed" && task.status !== "cancelled");
     if (statusFilter !== "all") filtered = filtered.filter(task => task.status === statusFilter);
     return [...filtered].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
   }, [tasks.data, requestedTaskFilter, showCompleted, dueFilter, statusFilter]);
