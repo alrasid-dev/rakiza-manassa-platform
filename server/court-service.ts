@@ -1971,7 +1971,10 @@ export async function listTaskTitlesForComparison(unitId?: number) {
   if (!db) return [];
   const conditions = [eq(taskTemplates.isActive, true)];
   if (unitId) conditions.push(eq(taskTemplates.unitId, unitId));
-  return db.select({ id: taskTemplates.id, title: taskTemplates.title, unitId: taskTemplates.unitId }).from(taskTemplates).where(and(...conditions)).orderBy(taskTemplates.title);
+  const rows = await db.select({ id: taskTemplates.id, title: taskTemplates.title, unitId: taskTemplates.unitId }).from(taskTemplates).where(and(...conditions)).orderBy(taskTemplates.title);
+  // إزالة التكرار: عنوان المهمة نفسه يظهر مرة واحدة فقط في قائمة الاختيار.
+  const seen = new Set<string>();
+  return rows.filter(r => { if (seen.has(r.title)) return false; seen.add(r.title); return true; });
 }
 
 export type ComparisonTaskRow = { assigneeProfileId: number | null; status: string; dueAt: Date | null; completedAt: Date | null; scheduledFor: Date | null };
