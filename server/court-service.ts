@@ -521,7 +521,7 @@ export async function reviewPerformanceReportEvaluation(input: { documentId: num
   await db.update(performanceReportEvaluations).set({ managerDecision: input.decision, managerPoints, managerNote: input.managerNote?.trim() || null, reviewedByUserId: input.reviewerUserId, reviewedAt: now, updatedAt: now }).where(eq(performanceReportEvaluations.id, row.evaluation.id));
   await db.update(documentRecords).set({ reviewStatus: input.decision === "accepted" ? "accepted" : input.decision === "rejected" ? "rejected" : "submitted" }).where(eq(documentRecords.id, input.documentId));
   if (row.document.linkedTaskId) {
-    if (input.decision === "accepted") await db.update(tasks).set({ status: "completed", completedAt: now, updatedAt: now }).where(eq(tasks.id, row.document.linkedTaskId));
+    if (input.decision === "accepted") await db.update(tasks).set({ status: "completed", completedAt: now, archivedAt: now, updatedAt: now }).where(eq(tasks.id, row.document.linkedTaskId));
     await db.insert(taskUpdates).values({ taskId: row.document.linkedTaskId, actorUserId: input.reviewerUserId, updateType: input.decision === "accepted" ? "approved" : "returned", note: `${input.decision === "accepted" ? "اعتمد" : input.decision === "returned" ? "أعيد" : "رفض"} تقرير الإنجاز: ${input.managerNote?.trim() || "دون ملاحظة إضافية"}` });
   }
   if (input.decision === "accepted" && row.document.profileId) await db.insert(scoreEvents).values({ profileId: row.document.profileId, taskId: row.document.linkedTaskId ?? null, points: input.managerPoints!, reason: `اعتماد مدير لتقرير ${row.document.reportPeriod}: ${row.document.title}`, createdByUserId: input.reviewerUserId });
@@ -993,7 +993,7 @@ export async function resolveSupportTicket(input: { ticketId: number; actorProfi
   if (!ticket) throw new Error("التذكرة غير موجودة");
   await db.update(supportTickets).set({ status: "resolved", resolvedAt: new Date(), resolutionNote: input.resolutionNote }).where(eq(supportTickets.id, input.ticketId));
   await db.insert(supportTicketComments).values({ ticketId: input.ticketId, authorProfileId: input.actorProfileId, authorUserId: input.actorUserId, body: input.resolutionNote, isInternal: false });
-  if (ticket.linkedTaskId) await db.update(tasks).set({ status: "completed", completedAt: new Date(), completionNote: input.resolutionNote }).where(eq(tasks.id, ticket.linkedTaskId));
+  if (ticket.linkedTaskId) await db.update(tasks).set({ status: "completed", completedAt: new Date(), archivedAt: new Date(), completionNote: input.resolutionNote }).where(eq(tasks.id, ticket.linkedTaskId));
   await db.insert(scoreEvents).values({ profileId: input.actorProfileId, taskId: ticket.linkedTaskId ?? null, points: 3, reason: "إغلاق تذكرة دعم تقني", createdByUserId: SYSTEM_ACTOR_ID });
   await db.insert(notifications).values({ profileId: ticket.requesterProfileId, category: "support_ticket", title: `تمت معالجة تذكرة الدعم #${ticket.id}`, body: input.resolutionNote, dedupeKey: `support-ticket-resolved-${ticket.id}` });
   await logAudit({ actorUserId: input.actorUserId, action: "support_ticket.resolved", entityType: "support_ticket", entityId: input.ticketId });
@@ -1766,7 +1766,8 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
       if (!todayAttendance?.checkInAt) return [];
     }
   }
-  const conditions = [isNull(tasks.archivedAt)];
+  const showArchived = filters?.status === "completed" || filters?.dueFilter === "completed";
+  const conditions = showArchived ? [] : [isNull(tasks.archivedAt)];
   const periodWindow = filters?.period ? taskPeriodWindow(filters.period, new Date()) : null;
   const futureWindow = filters?.futureRange ? futureRangeWindow(filters.futureRange, new Date()) : null;
   // المهام المستقبلية (scheduledFor بعد الآن) تظهر دائماً في القائمة النشطة دون حجب.
@@ -4246,7 +4247,7 @@ export async function reviewTaskApproval(input: { approvalId: number; decision: 
 
   // 1) الإدراج الرئيسي: تحديث حالة المهمة — يجب أن ينجح أولاً.
   if (input.decision === "approved") {
-    await db.update(tasks).set({ status: "completed", completedAt: new Date() }).where(eq(tasks.id, approval.taskId));
+    await db.update(tasks).set({ status: "completed", completedAt: new Date(), archivedAt: new Date() }).where(eq(tasks.id, approval.taskId));
   } else {
     await db.update(tasks).set({ status: "in_progress", completedAt: null }).where(eq(tasks.id, approval.taskId));
   }
@@ -4412,7 +4413,7 @@ export async function markTaskAsProcessed(input: { taskId: number; actorUserId: 
   if (task.status === "cancelled") throw new Error("لا يمكن إتمام مهمة ملغاة.");
   if (task.status === "completed") throw new Error("المهمة مكتملة مسبقاً.");
   const completedAt = new Date();
-  await db.update(tasks).set({ status: "completed", completedAt, completionNote: input.note ?? null }).where(eq(tasks.id, input.taskId));
+  await db.update(tasks).set({ status: "completed", completedAt, archivedAt: completedAt, completionNote: input.note ?? null }).where(eq(tasks.id, input.taskId));
   await markTaskNotificationsRead(input.taskId);
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "approved", note: input.note?.trim() || "تمت معالجة المهمة وإتمامها." });
   await awardTaskCompletionPoints(input.taskId, input.actorUserId);
@@ -4887,7 +4888,7 @@ export async function routeCorrespondence(input: { correspondenceId: number; act
   await db.update(correspondences).set({ currentLevelId: isForward ? next?.id ?? null : correspondence.currentLevelId, status }).where(eq(correspondences.id, correspondence.id));
   if (correspondence.linkedTaskId) {
     if (isForward && next) await db.update(tasks).set({ assigneeProfileId: next.managerProfileId, status: "in_progress", updatedAt: new Date() }).where(eq(tasks.id, correspondence.linkedTaskId));
-    else if (input.action === "approved") await db.update(tasks).set({ status: "completed", completedAt: new Date(), completionNote: input.note ?? "تم اعتماد المراسلة" }).where(eq(tasks.id, correspondence.linkedTaskId));
+    else if (input.action === "approved") await db.update(tasks).set({ status: "completed", completedAt: new Date(), archivedAt: new Date(), completionNote: input.note ?? "تم اعتماد المراسلة" }).where(eq(tasks.id, correspondence.linkedTaskId));
     else if (input.action === "rejected") await db.update(tasks).set({ status: "cancelled", completionNote: input.note ?? "تم رفض المراسلة" }).where(eq(tasks.id, correspondence.linkedTaskId));
   }
   await db.insert(correspondenceActions).values({ correspondenceId: correspondence.id, fromLevelId: correspondence.currentLevelId ?? null, toLevelId: isForward ? next?.id ?? null : correspondence.currentLevelId ?? null, actorUserId: input.actorUserId, action: input.action, note: input.note ?? null });
