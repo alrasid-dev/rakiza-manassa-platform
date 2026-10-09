@@ -1823,7 +1823,7 @@ export async function listTasksForProfile(profileId: number, status?: "new" | "i
 }
 
 /** سجلات المهام (تبويب «السجلات»): المؤرشفة + المنتهية/الملغاة + القديمة غير المعالجة، مع فلاتر وترقيم. */
-export async function listTasksRecords(input: { assigneeProfileId?: number; unitId?: number; status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; fromDate?: Date; toDate?: Date; page?: number; pageSize?: number }) {
+export async function listTasksRecords(input: { assigneeProfileId?: number; unitIds?: number[]; status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; fromDate?: Date; toDate?: Date; page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) return { records: [], total: 0, page: 1, pageSize: 20 };
   const page = input.page && input.page > 0 ? input.page : 1;
@@ -1842,13 +1842,13 @@ export async function listTasksRecords(input: { assigneeProfileId?: number; unit
     )!,
   ];
   if (input.assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, input.assigneeProfileId));
-  if (input.unitId) conditions.push(eq(tasks.unitId, input.unitId));
+  if (input.unitIds?.length) conditions.push(inArray(tasks.unitId, input.unitIds));
   if (input.status) conditions.push(eq(tasks.status, input.status));
   if (input.fromDate) conditions.push(gte(tasks.scheduledFor, input.fromDate));
   if (input.toDate) conditions.push(lt(tasks.scheduledFor, input.toDate));
   const countRows = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(...conditions));
   const total = Number(countRows[0]?.count ?? 0);
-  const records = await db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, reassignedFromName: sql<string | null>`(SELECT fullName FROM person_profiles WHERE id = ${tasks.reassignedFromProfileId})` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.scheduledFor)).limit(pageSize).offset((page - 1) * pageSize);
+  const records = await db.select({ ...getTableColumns(tasks), managerRating: sql<string | null>`(SELECT managerRating FROM task_approvals WHERE taskId = ${tasks.id} AND status = 'approved' ORDER BY id DESC LIMIT 1)`, attachmentsCount: sql<number>`(SELECT COUNT(*) FROM task_attachments WHERE taskId = ${tasks.id})`, lastApprovalStatus: sql<string | null>`(SELECT status FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, lastApprovalNote: sql<string | null>`(SELECT reviewNote FROM task_approvals WHERE taskId = ${tasks.id} ORDER BY id DESC LIMIT 1)`, reassignedFromName: sql<string | null>`(SELECT fullName FROM person_profiles WHERE id = ${tasks.reassignedFromProfileId})` }).from(tasks).where(and(...conditions)).orderBy(desc(tasks.archivedAt), desc(tasks.scheduledFor)).limit(pageSize).offset((page - 1) * pageSize);
   return { records, total, page, pageSize };
 }
 

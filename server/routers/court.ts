@@ -1492,9 +1492,15 @@ export const courtRouter = router({
     listRecords: protectedProcedure.input(z.object({ assigneeProfileId: z.number().int().positive().optional(), status: z.enum(["new", "in_progress", "under_review", "completed", "overdue", "cancelled"]).optional(), fromDate: z.date().optional(), toDate: z.date().optional(), page: z.number().int().min(1).optional(), pageSize: z.number().int().min(1).max(100).optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
       const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      if (isLeadership) {
+        return listTasksRecords({ status: input?.status, fromDate: input?.fromDate, toDate: input?.toDate, page: input?.page, pageSize: input?.pageSize, assigneeProfileId: input?.assigneeProfileId });
+      }
+      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+      if (managedUnitIds.length) {
+        return listTasksRecords({ status: input?.status, fromDate: input?.fromDate, toDate: input?.toDate, page: input?.page, pageSize: input?.pageSize, unitIds: managedUnitIds });
+      }
       const viewerProfile = await getProfileForUser(ctx.user.id);
-      const targetProfileId = isLeadership ? (input?.assigneeProfileId ?? undefined) : (viewerProfile?.id ?? undefined);
-      return listTasksRecords({ status: input?.status, fromDate: input?.fromDate, toDate: input?.toDate, page: input?.page, pageSize: input?.pageSize, assigneeProfileId: targetProfileId });
+      return listTasksRecords({ status: input?.status, fromDate: input?.fromDate, toDate: input?.toDate, page: input?.page, pageSize: input?.pageSize, assigneeProfileId: viewerProfile?.id });
     }),
     todayCounts: protectedProcedure.input(z.object({ profileId: z.number().int().positive().optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
