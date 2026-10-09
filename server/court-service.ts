@@ -1743,6 +1743,16 @@ export function isDueSoon(task: { dueAt?: Date | null; scheduledFor?: Date | nul
   return false;
 }
 
+/** شرط «الظهور في القائمة النشطة»: متأخرة أو بلا جدولة أو جدولتها اليوم أو لاحقاً — يوحّد منطق الإخفاء بين القائمة والعدّاد. */
+function activeTaskVisibilityCondition(now: Date) {
+  const todayStart = dateRangeForSaudiDay(now).start;
+  return or(
+    eq(tasks.status, "overdue"),
+    isNull(tasks.scheduledFor),
+    gte(tasks.scheduledFor, todayStart),
+  )!;
+}
+
 export async function listTasks(filters?: { status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled"; assigneeProfileId?: number; visibleProfileId?: number; dueFilter?: "overdue" | "dueSoon" | "completed"; futureRange?: FutureRange; period?: TaskPeriod }) {
   const db = await getDb();
   if (!db) return [];
@@ -1780,12 +1790,7 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
   }
   // إخفاء المهام القديمة غير المعالجة (scheduledFor قبل اليوم) من القائمة النشطة — تنتقل إلى تبويب «السجلات».
   if (!periodWindow && !futureWindow && !filters?.status && !filters?.dueFilter) {
-    const todayStart = dateRangeForSaudiDay(new Date()).start;
-    conditions.push(or(
-      eq(tasks.status, "overdue"),
-      isNull(tasks.scheduledFor),
-      gte(tasks.scheduledFor, todayStart),
-    )!);
+    conditions.push(activeTaskVisibilityCondition(new Date()));
   }
   if (filters?.status === "overdue" || filters?.dueFilter === "overdue") {
     // "متأخرة" = عُلّمت overdue آلياً بواسطة دورة الحياة (accumulateWorkMinutes)؛ الحالة هي المرجع الوحيد.
@@ -1880,6 +1885,7 @@ export async function countTasksByStatus(input: { assigneeProfileId?: number; un
   const conditions = [isNull(tasks.archivedAt)];
   if (input.assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, input.assigneeProfileId));
   if (input.unitId) conditions.push(eq(tasks.unitId, input.unitId));
+  conditions.push(activeTaskVisibilityCondition(new Date()));
   const rows = await db.select({ status: tasks.status, isOpen: tasks.isOpen }).from(tasks).where(and(...conditions));
   const counts: Record<string, number> = { ...empty };
   for (const row of rows) {
