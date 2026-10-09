@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appliesNewPolicy, DEFAULT_EARLY_OPEN_HOURS, hasExplicitSchedule, NEW_POLICY_CUTOFF, taskOpenAt } from "./task-automation";
+import { appliesNewPolicy, DEFAULT_EARLY_OPEN_HOURS, hasExplicitSchedule, NEW_POLICY_CUTOFF, NOTIFY_WORK_MINUTES, taskOpenAt, workMinutesDeadlineAt } from "./task-automation";
 
 // CUTOFF = 2026-10-06 21:00 UTC = 2026-10-07 00:00 الرياض.
 const after = new Date("2026-10-07T07:00:00.000Z"); // غداً (10:00 الرياض)
@@ -22,8 +22,8 @@ describe("سياسة الفلتر الزمني (NEW_POLICY_CUTOFF)", () => {
     expect(taskOpenAt({ scheduledFor: after, dueAt, isOpen: false }).toISOString()).toBe(after.toISOString());
   });
 
-  it("المهمة ذات dueAt الافتراضي (6 ساعات) تُفتح مبكراً 4 ساعات", () => {
-    const dueAt = new Date(after.getTime() + 6 * 60 * 60 * 1000);
+  it("المهمة ذات dueAt الافتراضي (450 دقيقة عمل) تُفتح مبكراً 4 ساعات", () => {
+    const dueAt = workMinutesDeadlineAt(after, NOTIFY_WORK_MINUTES);
     expect(hasExplicitSchedule({ scheduledFor: after, dueAt, isOpen: false })).toBe(false);
     expect(taskOpenAt({ scheduledFor: after, dueAt, isOpen: false }).getTime()).toBe(after.getTime() - DEFAULT_EARLY_OPEN_HOURS * 60 * 60 * 1000);
   });

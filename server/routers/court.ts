@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { NOTIFY_WORK_MINUTES, workMinutesDeadlineAt } from "../task-automation";
 import { z } from "zod";
 import { previousReportRange, reportStart } from "../reporting";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
@@ -985,7 +986,7 @@ export const courtRouter = router({
       const unitIds = await manageableTemplateUnitIds(ctx.user);
       if (!unitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إنشاء مهمة خارج نطاق قسمك." });
       const scheduledFor = new Date();
-      const dueAt = input.dueAt ?? new Date(Date.now() + 6 * 60 * 60 * 1000);
+      const dueAt = input.dueAt ?? workMinutesDeadlineAt(new Date(), NOTIFY_WORK_MINUTES);
       return { id: await createTask({ title: input.title, unitId: input.unitId, assigneeProfileId: input.assigneeProfileId, priority: "normal", scheduledFor, dueAt, assignedByUserId: ctx.user.id }) };
     }),
     uploadDocument: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), title: z.string().trim().min(2).max(240), originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(120), contentBase64: z.string().min(1).max(12_000_000) })).mutation(async ({ ctx, input }) => {

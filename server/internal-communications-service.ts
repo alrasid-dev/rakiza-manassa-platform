@@ -1,6 +1,7 @@
 import * as archiverModule from "archiver";
 const ZipArchive = (archiverModule as unknown as { ZipArchive?: new (options?: { zlib?: { level: number } }) => any }).ZipArchive;
 import { and, asc, desc, eq, gt, inArray, isNull, like, ne, or, sql } from "drizzle-orm";
+import { NOTIFY_WORK_MINUTES, workMinutesDeadlineAt } from "./task-automation";
 import {
   accessGrants,
   conversationAttachments,
@@ -570,7 +571,7 @@ export async function createFlexibleCorrespondence(input: { userId: number; corr
   const targets = await db.select().from(personProfiles).where(inArray(personProfiles.id, recipientIds));
   if (targets.length !== recipientIds.length || targets.some(target => target.status !== "active")) throw new Error("أحد المستلمين غير متاح.");
   const now = new Date();
-  const taskId = await createTask({ title: `${input.correspondenceType === "request" ? "طلب" : "مراسلة"}: ${input.subject}`, assigneeProfileId: recipientIds[0], unitId: profile.unitId ?? undefined, priority: "normal", scheduledFor: now, dueAt: new Date(now.getTime() + 6 * 60 * 60 * 1000), assignedByUserId: input.userId });
+  const taskId = await createTask({ title: `${input.correspondenceType === "request" ? "طلب" : "مراسلة"}: ${input.subject}`, assigneeProfileId: recipientIds[0], unitId: profile.unitId ?? undefined, priority: "normal", scheduledFor: now, dueAt: workMinutesDeadlineAt(now, NOTIFY_WORK_MINUTES), assignedByUserId: input.userId });
   const result = await db.insert(correspondences).values({ correspondenceType: input.correspondenceType, senderProfileId: profile.id, recipientProfileId: recipientIds[0], subject: input.subject.trim(), body: input.body.trim(), currentLevelId: null, linkedTaskId: taskId, status: "in_review" });
   const correspondenceId = Number(result[0].insertId);
   for (const profileId of recipientIds) {

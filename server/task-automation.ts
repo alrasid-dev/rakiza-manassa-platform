@@ -114,8 +114,9 @@ export type TaskScheduleShape = { scheduledFor: Date; dueAt?: Date | null; isOpe
 export function hasExplicitSchedule(task: TaskScheduleShape): boolean {
   if (task.isOpen) return true;
   if (!task.dueAt) return false;
-  const diffHours = (task.dueAt.getTime() - task.scheduledFor.getTime()) / (60 * 60 * 1000);
-  return diffHours !== 6 && diffHours !== 24;
+  // الموعد الافتراضي الجديد = 450 دقيقة عمل من scheduledFor (نافذة 07:00–14:15 + مهلة خروج).
+  const defaultDueAt = workMinutesDeadlineAt(task.scheduledFor, NOTIFY_WORK_MINUTES);
+  return Math.abs(task.dueAt.getTime() - defaultDueAt.getTime()) > 30 * 60 * 1000;
 }
 
 /** هل تنطبق السياسة الجديدة (7.5س/15س/14:45) على المهمة؟ */
@@ -226,24 +227,4 @@ export function nextSaudiWorkStart(now: Date) {
     candidate = new Date(candidate.getTime() + 24 * 60 * 60 * 1000);
   }
   return now;
-}
-
-export function escalationAt(scheduledFor: Date) {
-  return new Date(scheduledFor.getTime() + 6 * 60 * 60 * 1000);
-}
-
-export function taskEscalationDeadline(scheduledFor: Date, dueAt: Date) {
-  const sixHourDeadline = escalationAt(scheduledFor);
-  return dueAt.getTime() < sixHourDeadline.getTime() ? dueAt : sixHourDeadline;
-}
-
-export function shouldEscalateTask(scheduledFor: Date, dueAt: Date, now: Date) {
-  return taskEscalationDeadline(scheduledFor, dueAt).getTime() <= now.getTime();
-}
-
-export function escalationStage(scheduledFor: Date, dueAt: Date, now: Date) {
-  const firstDeadline = taskEscalationDeadline(scheduledFor, dueAt);
-  if (now.getTime() < firstDeadline.getTime()) return "none" as const;
-  const supervisoryDeadline = new Date(firstDeadline.getTime() + 6 * 60 * 60 * 1000);
-  return now.getTime() >= supervisoryDeadline.getTime() ? "supervisory" as const : "first" as const;
 }

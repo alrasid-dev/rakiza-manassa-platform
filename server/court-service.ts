@@ -110,7 +110,7 @@ import { CONFIRMATION_WINDOW_MINUTES } from "./confirmation-cadence";
 import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
 import { safeWaitUntil } from "./_core/wait-until";
-import { accumulateWorkMinutes, appliesNewPolicy, dateRangeForSaudiDay, EARLY_OPEN_HOURS, escalationStage, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, NEW_POLICY_CUTOFF, nextSaudiWorkStart, parseSpecificDays, saudiScheduledTime, taskLifecycleStage } from "./task-automation";
+import { accumulateWorkMinutes, appliesNewPolicy, dateRangeForSaudiDay, EARLY_OPEN_HOURS, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, NEW_POLICY_CUTOFF, nextSaudiWorkStart, NOTIFY_WORK_MINUTES, parseSpecificDays, saudiScheduledTime, taskLifecycleStage, workMinutesDeadlineAt } from "./task-automation";
 import { isOfficialHoliday, officialHolidayName, workHoursFor } from "./holidays";
 import { detectExcelChangeCandidates } from "./excel-change-detector";
 import { completedTaskTransition, taskAssignmentNotifications } from "./task-response-policy";
@@ -547,7 +547,7 @@ async function createTasksFromPerformanceReport(input: { documentId: number; uni
   const assignedCandidateIndexes = new Set(assignments.map(item => `${item.candidate.source}:${item.candidate.title}`));
   let createdTasks = 0;
   for (const assignment of assignments) {
-    const taskResult = await db.insert(tasks).values({ title: `متابعة أداء: ${assignment.candidate.title}`, status: "new", priority: "high", unitId: input.unitId, assigneeProfileId: assignment.assigneeId, assignedByUserId: input.actorUserId, scheduledFor, dueAt: new Date(scheduledFor.getTime() + 6 * 60 * 60 * 1000) });
+    const taskResult = await db.insert(tasks).values({ title: `متابعة أداء: ${assignment.candidate.title}`, status: "new", priority: "high", unitId: input.unitId, assigneeProfileId: assignment.assigneeId, assignedByUserId: input.actorUserId, scheduledFor, dueAt: workMinutesDeadlineAt(scheduledFor, NOTIFY_WORK_MINUTES) });
     const taskId = Number(taskResult[0].insertId);
     await db.insert(taskUpdates).values({ taskId, updateType: "progress", note: `أُنشئت المهمة من تقرير مراقبة الأداء رقم ${input.documentId}.`, actorUserId: input.actorUserId });
     await db.insert(notifications).values({ profileId: assignment.assigneeId, category: "task_due", title: "مهمة جديدة من تقرير مراقبة الأداء", body: `تم إسناد مهمة: ${assignment.candidate.title}.`, dedupeKey: `performance-report-${input.documentId}-task-${taskId}` });
@@ -3500,7 +3500,7 @@ export async function createManualTask(input: {
     taskNotes: input.description?.trim() || undefined,
     assigneeProfileId: input.assigneeProfileId,
     scheduledFor: input.scheduledFor,
-    dueAt: input.dueAt ?? new Date(input.scheduledFor.getTime() + 6 * 60 * 60 * 1000),
+    dueAt: input.dueAt ?? workMinutesDeadlineAt(input.scheduledFor, NOTIFY_WORK_MINUTES),
     priority: "normal",
     taskType: "permanent",
     recurrence: input.frequency ?? "none",
@@ -4682,7 +4682,7 @@ export async function createCorrespondence(input: { correspondenceType: "request
   const assigneeProfileId = firstLevel?.managerProfileId ?? input.departmentManagerProfileId;
   if (!assigneeProfileId) throw new Error("يلزم اختيار مدير في التسلسل أو مستلم مباشر لمعالجة الطلب.");
   const now = new Date();
-  const taskId = await createTask({ title: `${input.correspondenceType === "request" ? "طلب" : "مراسلة"}: ${input.subject}`, assigneeProfileId, priority: "normal", scheduledFor: now, dueAt: new Date(now.getTime() + 6 * 60 * 60 * 1000), assignedByUserId: input.actorUserId });
+  const taskId = await createTask({ title: `${input.correspondenceType === "request" ? "طلب" : "مراسلة"}: ${input.subject}`, assigneeProfileId, priority: "normal", scheduledFor: now, dueAt: workMinutesDeadlineAt(now, NOTIFY_WORK_MINUTES), assignedByUserId: input.actorUserId });
   const result = await db.insert(correspondences).values({ correspondenceType: input.correspondenceType, senderProfileId: input.senderProfileId, recipientProfileId: input.recipientProfileId ?? null, subject: input.subject, body: input.body, currentLevelId: firstLevel?.id ?? null, linkedTaskId: taskId, status: "in_review" });
   const id = Number(result[0].insertId);
   const copyProfileIds = Array.from(new Set([...(input.copyProfileIds ?? []), ...(input.traineeCopyProfileId ? [input.traineeCopyProfileId] : [])]));
@@ -4870,7 +4870,7 @@ async function createTasksFromExcelChanges(input: { importBatchId: number; conte
     const profile = candidate.relatedName ? (await db.select().from(personProfiles).where(eq(personProfiles.fullName, candidate.relatedName)).limit(1))[0] : undefined;
     const fallback = fallbackAssignees.length ? fallbackAssignees[createdTasks % fallbackAssignees.length] : undefined;
     const assignee = profile ?? fallback;
-    const taskResult = await db.insert(tasks).values({ title: `تحديث Excel: ${candidate.title}`, status: "new", priority: "high", assigneeProfileId: assignee?.id ?? null, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt: new Date(scheduledFor.getTime() + 6 * 60 * 60 * 1000) });
+    const taskResult = await db.insert(tasks).values({ title: `تحديث Excel: ${candidate.title}`, status: "new", priority: "high", assigneeProfileId: assignee?.id ?? null, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt: workMinutesDeadlineAt(scheduledFor, NOTIFY_WORK_MINUTES) });
     const taskId = Number(taskResult[0].insertId);
     await db.insert(excelChangeEvents).values({ importBatchId: input.importBatchId, sourceKey: candidate.sourceKey, fingerprint: candidate.fingerprint, changeType: previous[0] ? "modified" : "added", title: candidate.title, relatedProfileId: assignee?.id ?? null, linkedTaskId: taskId, rawSummary: candidate.summary });
     if (assignee?.id && isWithinSaudiWorkHours(now)) {
