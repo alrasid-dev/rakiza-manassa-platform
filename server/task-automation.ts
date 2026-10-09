@@ -9,10 +9,14 @@ export type TaskFrequency = "daily" | "weekly" | "monthly" | "quarterly" | "year
 
 /** بداية يوم العمل التشغيلي (07:00 بتوقيت الرياض). */
 export const WORK_DAY_START_MINUTES = 420;
-/** نهاية يوم العمل الفعلي (14:15) + 15 دقيقة مهلة خروج = 14:30. */
-export const WORK_DAY_END_MINUTES = 870;
+/** نهاية نافذة العمل الفعلية (14:15 بتوقيت الرياض) = 435 دقيقة عمل. */
+export const WORK_WINDOW_END_MINUTES = 855;
+/** مهلة الخروج الإضافية بعد نافذة العمل (15 دقيقة). */
+export const EXIT_GRACE_MINUTES = 15;
+/** نهاية يوم العمل الفعلي = نافذة العمل + مهلة الخروج = 14:30. */
+export const WORK_DAY_END_MINUTES = WORK_WINDOW_END_MINUTES + EXIT_GRACE_MINUTES;
 /** عدد دقائق العمل في اليوم التشغيلي = 450 (7.5 ساعة). */
-export const WORK_DAY_MINUTES = 450;
+export const WORK_DAY_MINUTES = WORK_DAY_END_MINUTES - WORK_DAY_START_MINUTES;
 /** عند تراكم 450 دقيقة عمل (7.5 ساعة) → تنبيه (بدون مساءلة). */
 export const NOTIFY_WORK_MINUTES = 450;
 /** عند تراكم 900 دقيقة عمل (15 ساعة) → مرحلة المهلة الإضافية. */
@@ -46,10 +50,12 @@ export function accumulateWorkMinutes(from: Date, to: Date): number {
   const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
   while (cursor.getTime() < to.getTime()) {
     if (isSaudiWorkday(cursor) && !isOfficialHoliday(cursor)) {
-      // 07:00 الرياض = 04:00 UTC، و14:30 الرياض = 11:30 UTC.
-      const dayStart = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate(), 4, 0, 0));
-      const dayEnd = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate(), 11, 30, 0));
-      const overlapStart = Math.max(dayStart.getTime(), from.getTime());
+      // نافذة العمل 07:00→14:15 بتوقيت الرياض = 04:00→11:15 UTC (435 دقيقة)،
+      // ثم مهلة الخروج 15 دقيقة (14:15→14:30 = 11:15→11:30 UTC) = 450 دقيقة/يوم.
+      const windowStart = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate(), 4, 0, 0));
+      const windowEnd = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate(), 11, 15, 0));
+      const dayEnd = new Date(windowEnd.getTime() + EXIT_GRACE_MINUTES * 60000);
+      const overlapStart = Math.max(windowStart.getTime(), from.getTime());
       const overlapEnd = Math.min(dayEnd.getTime(), to.getTime());
       if (overlapStart < overlapEnd) total += (overlapEnd - overlapStart) / 60000;
     }

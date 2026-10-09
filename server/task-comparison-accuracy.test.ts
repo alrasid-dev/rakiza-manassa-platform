@@ -16,10 +16,10 @@ describe("دقة تقرير مقارنة المهام", () => {
     expect(s.stillOverdue).toBe(1);
   });
 
-  it("يحسب ساعات العمل فقط (بلا ليالٍ): 24 ساعة جدارية = 435 د عمل وليس 1440 د", () => {
+  it("يحسب ساعات العمل فقط (بلا ليالٍ): 24 ساعة جدارية = 450 د عمل (نافذة + مهلة خروج) وليس 1440 د", () => {
     const start = new Date("2026-09-27T05:00:00Z"); // الأحد 08:00 الرياض
     const end = new Date("2026-09-28T05:00:00Z"); // الاثنين 08:00 الرياض
-    expect(calculateWorkMinutesBetween(start, end)).toBe(435);
+    expect(calculateWorkMinutesBetween(start, end)).toBe(450);
   });
 
   it("لا ينتج قيماً سالبة عند الإنجاز قبل البدء", () => {

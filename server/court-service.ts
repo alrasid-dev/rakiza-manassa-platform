@@ -2124,21 +2124,8 @@ export function isAutomationEscalationWindow(now: Date): boolean {
 
 /** تحويل المهام المتجاوزة لموعدها (غير المكتملة/الملغاة/الموقوفة/المرفوعة للاعتماد) إلى حالة overdue. */
 export function calculateWorkMinutesBetween(start: Date, end: Date): number {
-  if (start >= end) return 0;
-  let workMinutes = 0;
-  const current = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
-  while (current < end) {
-    if (isSaudiWorkday(current) && !isOfficialHoliday(current)) {
-      // دوام العمل: 07:00–14:15 بتوقيت الرياض = 04:00–11:15 UTC
-      const dayStartUtc = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 4, 0, 0));
-      const dayEndUtc = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 11, 15, 0));
-      const overlapStart = new Date(Math.max(dayStartUtc.getTime(), start.getTime()));
-      const overlapEnd = new Date(Math.min(dayEndUtc.getTime(), end.getTime()));
-      if (overlapStart < overlapEnd) workMinutes += (overlapEnd.getTime() - overlapStart.getTime()) / 60000;
-    }
-    current.setUTCDate(current.getUTCDate() + 1);
-  }
-  return Math.floor(workMinutes);
+  // تفويض للمرجع الموحّد (accumulateWorkMinutes) لتفادي تعريف مكرر لنافذة العمل.
+  return accumulateWorkMinutes(start, end);
 }
 
 /**
