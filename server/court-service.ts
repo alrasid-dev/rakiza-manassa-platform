@@ -4144,6 +4144,15 @@ export async function submitTaskForApproval(input: { taskId: number; submittedBy
     try { await sendPushForNotification(assignee.directManagerProfileId, { title: "مهمة بانتظار اعتمادك", body: `${assignee.fullName}: ${task.title}`, url: "/tasks?tab=approvals", tag: notification.dedupeKey }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار اعتماد المهمة", { taskId: input.taskId, error }); }
   }
 
+  // إشعار الموظف بأن مهمته أُرسلت للمدير بانتظار الاعتماد.
+  await db.insert(notifications).values({
+    profileId: input.submittedByProfileId,
+    category: "task_due" as const,
+    title: "تم إرسال مهمتك للمدير",
+    body: `أُرسلت مهمة «${task.title}» إلى مديرك المباشر بانتظار الاعتماد.`,
+    dedupeKey: `task-submitted-confirmation-${approvalId}`,
+  }).onDuplicateKeyUpdate({ set: { title: "تم إرسال مهمتك للمدير" } });
+
   return approvalId;
 }
 
