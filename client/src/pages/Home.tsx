@@ -233,8 +233,8 @@ export default function Home() {
           <p className="text-[11px] font-semibold text-[#7a8980]">مؤشراتك السريعة</p>
           <button type="button" onClick={() => setStatCardCustomizationOpen(true)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#c6d4c7] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#355d4b] transition hover:bg-[#e8f0e7]"><Settings2 className="h-3.5 w-3.5" aria-hidden="true" />تخصيص</button>
         </div>
-        <div className="w-full overflow-hidden rounded-2xl bg-white/50 shadow-sm ring-1 ring-black/5 backdrop-blur-sm">
-          <div className="flex flex-row divide-x divide-white/30 rtl:divide-x-reverse">
+        <div className="w-full overflow-x-auto rounded-2xl bg-white/50 shadow-sm ring-1 ring-black/5 backdrop-blur-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex flex-row flex-nowrap divide-x divide-white/30 rtl:divide-x-reverse">
             {statsCards.map((card, idx) => {
               const Icon = card.icon;
               return (
@@ -243,8 +243,8 @@ export default function Home() {
                   type="button"
                   onClick={card.onClick}
                   className={cn(
-                    "group relative flex flex-1 flex-col items-center justify-center overflow-hidden",
-                    "aspect-square min-w-0",
+                    "group relative flex w-24 shrink-0 snap-start flex-col items-center justify-center overflow-hidden",
+                    "min-h-20",
                     "bg-gradient-to-br",
                     idx === 0 && "rounded-s-2xl",
                     idx === statsCards.length - 1 && "rounded-e-2xl",
@@ -258,8 +258,8 @@ export default function Home() {
                 >
                   {card.pulse && <span aria-hidden="true" className="pointer-events-none absolute inset-0 animate-pulse bg-red-400/30" />}
                   <span className={cn("absolute top-1.5 right-1.5", "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 backdrop-blur-sm", "border text-[10px] font-black tabular-nums", card.darkText ? "border-black/10 bg-black/15 text-gray-900" : "border-white/50 bg-white/30 text-white")}>{formatUnreadBadgeCount(card.value)}</span>
-                  <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl backdrop-blur-sm ring-1 transition-transform duration-200", "group-hover:scale-110 group-hover:rotate-3", card.darkText ? "bg-white/50 ring-white/70" : "bg-white/20 ring-white/40")}><Icon className={cn("h-5 w-5", card.darkText ? "text-gray-800" : "text-white")} strokeWidth={2.2} /></span>
-                  <span className={cn("mt-1.5 line-clamp-2 text-center text-[10px] font-bold leading-tight", card.darkText ? "text-gray-900/90" : "text-white/95")}>{card.label}</span>
+                  <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl backdrop-blur-sm ring-1 transition-transform duration-200", "group-hover:scale-110 group-hover:rotate-3", card.darkText ? "bg-white/50 ring-white/70" : "bg-white/20 ring-white/40")}><Icon className={cn("h-7 w-7", card.darkText ? "text-gray-800" : "text-white")} strokeWidth={2.2} /></span>
+                  <span className={cn("mt-1 line-clamp-2 text-center text-xs font-bold leading-snug", card.darkText ? "text-gray-900/90" : "text-white/95")}>{card.label}</span>
                 </button>
               );
             })}
