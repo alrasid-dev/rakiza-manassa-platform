@@ -173,7 +173,7 @@ export function parseSpecificDays(value: unknown): number[] | null {
 }
 
 export function isTemplateDue(frequency: TaskFrequency, workdayOnly: boolean, now: Date, intervalDays: number | null = null, lastGeneratedAt: Date | null = null, specificDays: number[] | null = null): boolean {
-  if (workdayOnly && !isSaudiWorkday(now)) return false;
+  if (workdayOnly && (!isSaudiWorkday(now) || isOfficialHoliday(now))) return false;
   const { year, month, day } = riyadhParts(now);
   // دعم الأيام المحددة
   if (frequency === "specific_days" && specificDays && specificDays.length > 0) {
