@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { hijriMonthKey, hijriMonthRange, recentHijriMonths } from "@/lib/hijri-months";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -74,7 +75,7 @@ export default function AttendanceMonthlyPage() {
 
   const [unitId, setUnitId] = useState("");
   const [profileId, setProfileId] = useState<number | null>(null);
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => hijriMonthKey(new Date()));
   const [modal, setModal] = useState<ModalState | null>(null);
 
   const isOwner = permission.data === "full_control";
@@ -84,12 +85,7 @@ export default function AttendanceMonthlyPage() {
     [people.data, activeUnitId],
   );
 
-  const range = useMemo(() => {
-    const [y, m] = month.split("-").map(Number);
-    const startAt = new Date(Date.UTC(y, m - 1, 1));
-    const endAt = new Date(Date.UTC(y, m, 1));
-    return { startAt, endAt };
-  }, [month]);
+  const range = useMemo(() => hijriMonthRange(month) ?? { startAt: new Date(), endAt: new Date() }, [month]);
 
   const attendanceApi = trpc.court.attendance as any;
   const report = attendanceApi?.monthlyReport?.useQuery
@@ -150,10 +146,12 @@ export default function AttendanceMonthlyPage() {
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الشهر
-                <input type="month" value={month} onChange={e => setMonth(e.target.value)} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm" />
+                <select value={month} onChange={e => setMonth(e.target.value)} className="h-10 min-w-40 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+                  {recentHijriMonths(14).map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
               </label>
               {profileId != null && (
-                <button type="button" onClick={() => setModal({ mode: "create", recordDate: `${month}-01`, checkInAt: "", checkOutAt: "", status: "present", reason: "" })} className="h-10 rounded-lg bg-[#006c35] px-4 text-sm font-bold text-white hover:bg-[#00552b]">➕ إضافة سجل</button>
+                <button type="button" onClick={() => setModal({ mode: "create", recordDate: range.startAt.toISOString().slice(0, 10), checkInAt: "", checkOutAt: "", status: "present", reason: "" })} className="h-10 rounded-lg bg-[#006c35] px-4 text-sm font-bold text-white hover:bg-[#00552b]">➕ إضافة سجل</button>
               )}
             </div>
 
