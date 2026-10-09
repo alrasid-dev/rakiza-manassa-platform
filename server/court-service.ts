@@ -761,6 +761,19 @@ export async function listDepartmentTaskTemplates(unitIds: number[]) {
     .orderBy(asc(organizationUnits.name), asc(taskTemplates.id));
 }
 
+/** قوالب المهام المُسنَدة إلى موظف معيّن (لعرض «مهامي المخطَّطة»). */
+export async function listMyTemplates(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const profile = await getProfileForUser(userId);
+  if (!profile) return [];
+  return db.select({ template: taskTemplates, unitName: organizationUnits.name })
+    .from(taskTemplates)
+    .leftJoin(organizationUnits, eq(organizationUnits.id, taskTemplates.unitId))
+    .where(and(eq(taskTemplates.defaultAssigneeProfileId, profile.id), eq(taskTemplates.isActive, true)))
+    .orderBy(asc(organizationUnits.name), asc(taskTemplates.id));
+}
+
 export async function getTaskTemplateUnitId(templateId: number) {
   const db = await getDb();
   if (!db) return null;

@@ -243,6 +243,7 @@ import {
   endDepartmentManagerAssignment,
   syncDirectManagers,
   listDepartmentTaskTemplates,
+  listMyTemplates,
   getTaskTemplateUnitId,
   setDepartmentTaskTemplateActive,
   setDepartmentTaskTemplateAssignee,
@@ -1000,6 +1001,7 @@ export const courtRouter = router({
   }),
 
   templates: router({
+    myTemplates: protectedProcedure.query(async ({ ctx }) => listMyTemplates(ctx.user.id)),
     list: protectedProcedure.query(async ({ ctx }) => {
       const unitIds = await manageableTemplateUnitIds(ctx.user);
       return listDepartmentTaskTemplates(unitIds);
