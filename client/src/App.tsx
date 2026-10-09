@@ -39,6 +39,7 @@ import ManagerAssignmentRequestPage from "./pages/ManagerAssignmentRequestPage";
 import RakizaMailPage from "./pages/RakizaMailPage";
 import DepartmentTemplatesPage from "./pages/DepartmentTemplatesPage";
 import WorkflowMapPage from "./pages/WorkflowMapPage";
+import PlannedTasksPage from "./pages/PlannedTasksPage";
 import MessagesPage from "./pages/MessagesPage";
 import DataExportsPage from "./pages/DataExportsPage";
 import DashboardOptionsPage from "./pages/DashboardOptionsPage";
@@ -126,6 +127,7 @@ function Router() {
       <Route path="/internal-mail" component={() => <Redirect to="/rakiza-mail" />} />
       <Route path="/department-templates" component={DepartmentTemplatesPage} />
       <Route path="/task-templates" component={TaskTemplatesPage} />
+      <Route path="/templates" component={PlannedTasksPage} />
       <Route path="/department/:unitId/tasks" component={DepartmentTasksPage} />
                             <Route path="/workflow-map" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : WorkflowMapPage} />
       <Route path="/messages" component={MessagesPage} />

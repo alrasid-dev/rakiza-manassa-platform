@@ -777,6 +777,15 @@ export async function setDepartmentTaskTemplateActive(input: { templateId: numbe
   return { success: true as const };
 }
 
+/** إعادة إسناد قالب مهمة (تحديث الموظف الافتراضي للمهمة المولّدة). */
+export async function setDepartmentTaskTemplateAssignee(input: { templateId: number; assigneeProfileId: number | null; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  await db.update(taskTemplates).set({ defaultAssigneeProfileId: input.assigneeProfileId, updatedAt: new Date() }).where(eq(taskTemplates.id, input.templateId));
+  await logAudit({ actorUserId: input.actorUserId, action: "task_template.reassigned", entityType: "task_template", entityId: input.templateId, metadata: { assigneeProfileId: input.assigneeProfileId } });
+  return { success: true as const };
+}
+
 /** إنشاء قالب مهمة قسم جديد. */
 export async function createTaskTemplate(input: { unitId: number; title: string; frequency: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | "custom" | "specific_days"; intervalDays?: number | null; specificDays?: number[] | null; dueHourLocal: number; workdayOnly: boolean; defaultAssigneeProfileId?: number | null; createdByUserId: number }) {
   const db = await getDb();
