@@ -43,8 +43,8 @@ export default function TeamStatusPage() {
           <p className="mt-2 text-sm leading-7 text-[#60736a]">غيّر حالة أي موظف في قسمك (حاضر / إجازة / غير نشط) مع سبب إلزامي، وينعكس التغيير فوراً على مهامه وحضوره وتقاريره.</p>
         </header>
 
-        <div className="overflow-hidden rounded-2xl border border-[#e7e0d4] bg-white shadow-sm">
-          <table className="w-full text-right text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white shadow-sm">
+          <table className="w-full min-w-[640px] text-right text-sm">
             <thead className="bg-[#f7f5ef] text-xs font-bold text-[#12352f]">
               <tr>
                 <th className="px-4 py-3">الاسم</th>

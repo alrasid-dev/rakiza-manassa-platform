@@ -54,12 +54,12 @@ export default function DepartmentManagerMenu({ variant = "dark" }: { variant?: 
           </DialogHeader>
           <div className="space-y-3">
             <label className="block text-xs font-bold text-[#6a786f]">عنوان المهمة<input value={form.title} onChange={event => setForm({ ...form, title: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" placeholder="مثال: إعداد تقرير شهري" /></label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block text-xs font-bold text-[#6a786f]">نوع المهمة<select value={form.taskType} onChange={event => setForm({ ...form, taskType: event.target.value as "permanent" | "urgent" })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="permanent">دائمة</option><option value="urgent">طارئة</option></select></label>
               <label className="block text-xs font-bold text-[#6a786f]">الأولوية<select value={form.priority} onChange={event => setForm({ ...form, priority: event.target.value as "normal" | "high" | "critical" })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="normal">عادية</option><option value="high">عالية</option><option value="critical">حرجة</option></select></label>
             </div>
             <label className="block text-xs font-bold text-[#6a786f]">القسم<select value={form.unitId} onChange={event => setForm({ ...form, unitId: event.target.value, assigneeProfileIds: [] })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="">اختر القسم</option>{units.data?.map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block text-xs font-bold text-[#6a786f]">وقت البدء<input type="datetime-local" value={form.scheduledFor} onChange={event => setForm({ ...form, scheduledFor: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" /></label>
               <label className="block text-xs font-bold text-[#6a786f]">وقت التسليم<input type="datetime-local" value={form.dueAt} onChange={event => setForm({ ...form, dueAt: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" /></label>
             </div>
