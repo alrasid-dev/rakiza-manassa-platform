@@ -570,7 +570,7 @@ export default function TasksWorkspaceContent() {
     if (!showCompleted && dueFilter !== "completed") filtered = filtered.filter(task => task.status !== "completed" && task.status !== "cancelled");
     if (statusFilter !== "all") filtered = filtered.filter(task => task.status === statusFilter);
     return [...filtered].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-  }, [tasks.data, requestedTaskFilter, showCompleted, dueFilter]);
+  }, [tasks.data, requestedTaskFilter, showCompleted, dueFilter, statusFilter]);
 
   useEffect(() => {
     if (completionSuccessTaskId === null) return;
