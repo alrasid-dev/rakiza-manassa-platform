@@ -5306,6 +5306,7 @@ export async function ownerEditAttendanceCheckIn(input: { profileId: number; rec
   await db.update(attendanceRecords).set({ checkInAt: input.checkInAt, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_edit", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, field: "checkInAt", oldValue, newValue: input.checkInAt, reason: input.reason } });
   await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
+  await db.insert(notifications).values({ profileId: input.profileId, category: "attendance_modified", title: "تم تعديل سجل حضورك", body: `تم تعديل وقت دخولك بتاريخ ${existing.recordDate.toISOString().slice(0, 10)}. السبب: ${input.reason}` });
   return { success: true, attendanceId: existing.id };
 }
 
@@ -5325,6 +5326,7 @@ export async function ownerEditAttendanceCheckOut(input: { profileId: number; re
   await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, positiveMinutes, negativeMinutes, penaltyMinutes: 0, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_edit", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, field: "checkOutAt", oldValue, newValue: input.checkOutAt, reason: input.reason } });
   await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
+  await db.insert(notifications).values({ profileId: input.profileId, category: "attendance_modified", title: "تم تعديل سجل حضورك", body: `تم تعديل وقت انصرافك بتاريخ ${existing.recordDate.toISOString().slice(0, 10)}. السبب: ${input.reason}` });
   return { success: true, attendanceId: existing.id };
 }
 
@@ -5347,6 +5349,7 @@ export async function ownerCreateAttendanceRecord(input: { profileId: number; re
   const attendanceId = Number(inserted[0].insertId);
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_create", entityType: "attendance", entityId: attendanceId, metadata: { profileId: input.profileId, recordDate: dayStart, status: input.status, checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, reason: input.reason } });
   await recomputeMonthlyBalance(input.profileId, hijriMonthKey(dayStart));
+  await db.insert(notifications).values({ profileId: input.profileId, category: "attendance_modified", title: "تم إضافة سجل حضور لك", body: `أُضيف سجل حضور بتاريخ ${dayStart.toISOString().slice(0, 10)}. السبب: ${input.reason}` });
   return { success: true, attendanceId };
 }
 
@@ -5360,6 +5363,7 @@ export async function ownerDeleteAttendanceRecord(input: { recordId: number; act
   await db.delete(attendanceRecords).where(eq(attendanceRecords.id, input.recordId));
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_delete", entityType: "attendance", entityId: input.recordId, metadata: { snapshot, reason: input.reason } });
   await recomputeMonthlyBalance(existing.profileId, hijriMonthKey(existing.recordDate));
+  await db.insert(notifications).values({ profileId: existing.profileId, category: "attendance_modified", title: "تم حذف سجل حضور لك", body: `حُذف سجل حضورك بتاريخ ${existing.recordDate.toISOString().slice(0, 10)}. السبب: ${input.reason}` });
   return { success: true };
 }
 
