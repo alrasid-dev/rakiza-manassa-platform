@@ -86,6 +86,7 @@ import {
   taskUpdateMentions,
   taskExceptionRequests,
   taskModificationRequests,
+  taskReassignments,
   taskApprovals,
   taskCc,
   taskTemplates,
@@ -3748,7 +3749,7 @@ export async function routeTaskToProfile(input: { taskId: number; targetProfileI
 }
 
 /** إعادة إسناد يدوي من المدير/المالك: ينقل المهمة لموظفة نشطة من نفس القسم مع سبب إلزامي، ويُسجَّل في التدقيق ويُشعَر الطرفان. */
-export async function reassignTaskManual(input: { taskId: number; newAssigneeProfileId: number; reason: string; actorUserId: number }) {
+export async function reassignTaskManual(input: { taskId: number; newAssigneeProfileId: number; reason: string; actorUserId: number; durationDays?: number | null }) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
   const task = await getTaskById(input.taskId);
@@ -3762,6 +3763,19 @@ export async function reassignTaskManual(input: { taskId: number; newAssigneePro
   const oldAssigneeId = task.assigneeProfileId ?? null;
   const oldAssigneeName = oldAssigneeId ? (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, oldAssigneeId)).limit(1))[0]?.fullName ?? null : null;
   await db.update(tasks).set({ assigneeProfileId: newAssignee.id, reassignedFromProfileId: oldAssigneeId, reassignmentReason: "manual", status: "new", startedAt: null, completedAt: null, completionNote: null, assignedByUserId: input.actorUserId }).where(eq(tasks.id, input.taskId));
+  if (oldAssigneeId != null) {
+    const duration = input.durationDays && input.durationDays > 0 ? input.durationDays : null;
+    const autoReturnAt = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null;
+    await db.insert(taskReassignments).values({
+      taskId: input.taskId,
+      fromProfileId: oldAssigneeId,
+      toProfileId: newAssignee.id,
+      reason: input.reason.trim(),
+      durationDays: duration,
+      autoReturnAt,
+      createdBy: input.actorUserId,
+    });
+  }
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "reassignment_requested", note: `إعادة إسناد يدوي إلى ${newAssignee.fullName}: ${input.reason.trim()}` });
   try {
     await db.insert(notifications).values({ profileId: newAssignee.id, category: "task_due", title: "مهمة مسندة إليك", body: `أُسندت إليك المهمة «${task.title}». السبب: ${input.reason.trim()}`, dedupeKey: `task-reassigned-manual-${input.taskId}-${newAssignee.id}` });
@@ -3773,6 +3787,34 @@ export async function reassignTaskManual(input: { taskId: number; newAssigneePro
   }
   await logAudit({ actorUserId: input.actorUserId, action: "task.reassigned_manual", entityType: "task", entityId: input.taskId, metadata: { oldAssigneeProfileId: oldAssigneeId, newAssigneeProfileId: newAssignee.id, reason: input.reason.trim() } });
   return { success: true, taskId: input.taskId, oldAssigneeName, newAssigneeName: newAssignee.fullName };
+}
+
+/** يعيد المهام المُسنَدة مؤقتاً إلى موظفها الأصلي بعد انتهاء مدة الإسناد (تُستدعى يومياً من الـ cron). */
+export async function returnExpiredReassignments() {
+  const db = await getDb();
+  if (!db) return { returned: 0 };
+  const now = new Date();
+  const expired = await db.select().from(taskReassignments).where(and(isNotNull(taskReassignments.autoReturnAt), lte(taskReassignments.autoReturnAt, now), isNull(taskReassignments.returnedAt)));
+  let returned = 0;
+  for (const r of expired) {
+    try {
+      const task = await getTaskById(r.taskId);
+      if (!task) continue;
+      if (task.status === "completed" || task.status === "cancelled") {
+        await db.update(taskReassignments).set({ returnedAt: now }).where(eq(taskReassignments.id, r.id));
+        continue;
+      }
+      await db.update(tasks).set({ assigneeProfileId: r.fromProfileId, reassignedFromProfileId: null, status: "new", startedAt: null, completedAt: null, completionNote: null }).where(eq(tasks.id, r.taskId));
+      await db.update(taskReassignments).set({ returnedAt: now }).where(eq(taskReassignments.id, r.id));
+      const fromName = (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, r.fromProfileId)).limit(1))[0]?.fullName ?? "الموظف الأصلي";
+      await db.insert(notifications).values({ profileId: r.fromProfileId, category: "task_due", title: "عادت إليك مهمة", body: `انتهت مدة الإسناد المؤقت وعادت المهمة «${task.title}» إليك.`, dedupeKey: `task-auto-returned-${r.id}` }).onDuplicateKeyUpdate({ set: { title: "عادت إليك مهمة" } });
+      await db.insert(taskUpdates).values({ taskId: r.taskId, actorUserId: r.createdBy, updateType: "reassignment_requested", note: `عودة تلقائية إلى ${fromName} بعد انتهاء مدة الإسناد المؤقت.` });
+      returned += 1;
+    } catch (error) {
+      console.warn("[returnExpiredReassignments] فشل", { reassignmentId: r.id, error });
+    }
+  }
+  return { returned };
 }
 
 export type TaskExceptionKind = "reassignment" | "obstacle";

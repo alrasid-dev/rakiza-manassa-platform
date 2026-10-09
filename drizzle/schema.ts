@@ -780,6 +780,22 @@ export const tasks = mysqlTable("tasks", {
   index("idx_tasks_sourceTaskId").on(table.sourceTaskId),
 ]);
 
+export const taskReassignments = mysqlTable("task_reassignments", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  fromProfileId: int("fromProfileId").notNull(),
+  toProfileId: int("toProfileId").notNull(),
+  reason: text("reason").notNull(),
+  durationDays: int("durationDays"),
+  autoReturnAt: timestamp("autoReturnAt"),
+  returnedAt: timestamp("returnedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdBy: int("createdBy").notNull(),
+}, table => [
+  index("task_reassignments_task_idx").on(table.taskId),
+  index("task_reassignments_auto_return_idx").on(table.autoReturnAt),
+]);
+
 export const taskCc = mysqlTable("task_cc", {
   id: int("id").autoincrement().primaryKey(),
   taskId: int("taskId").notNull(),

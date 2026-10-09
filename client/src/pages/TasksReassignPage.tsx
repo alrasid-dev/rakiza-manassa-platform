@@ -38,13 +38,14 @@ export default function TasksReassignPage() {
   const tasks = trpc.court.tasks.list.useQuery({ unitId: unitId ?? undefined }, { enabled: Boolean(canReassign) });
 
   const reassign = trpc.court.tasks.reassignTask.useMutation({
-    onSuccess: (r) => { utils.court.tasks.list.invalidate(); setDialog(null); setReason(""); setNewAssigneeId(""); toast.success(`تم نقل المهمة إلى ${r.newAssigneeName}.`); },
+    onSuccess: (r) => { utils.court.tasks.list.invalidate(); setDialog(null); setReason(""); setNewAssigneeId(""); setDurationDays(""); toast.success(`تم نقل المهمة إلى ${r.newAssigneeName}.`); },
     onError: (error) => toast.error(error.message || "تعذر نقل المهمة."),
   });
 
   const [dialog, setDialog] = useState<{ taskId: number; title: string; oldAssigneeProfileId: number | null; unitId: number | null } | null>(null);
   const [newAssigneeId, setNewAssigneeId] = useState("");
   const [reason, setReason] = useState("");
+  const [durationDays, setDurationDays] = useState("");
 
   const peopleById = useMemo(() => new Map((people.data ?? []).map((p) => [p.id, p])), [people.data]);
   const unitById = useMemo(() => new Map((units.data ?? []).map((u) => [u.id, u])), [units.data]);
@@ -65,7 +66,7 @@ export default function TasksReassignPage() {
     if (!dialog) return;
     if (!newAssigneeId) { toast.error("اختر الموظفة الجديدة."); return; }
     if (reason.trim().length < 10) { toast.error("سبب النقل يجب أن يكون 10 أحرف على الأقل."); return; }
-    reassign.mutate({ taskId: dialog.taskId, newAssigneeProfileId: Number(newAssigneeId), reason: reason.trim() });
+    reassign.mutate({ taskId: dialog.taskId, newAssigneeProfileId: Number(newAssigneeId), reason: reason.trim(), durationDays: durationDays ? Number(durationDays) : null });
   };
 
   return (
@@ -157,9 +158,14 @@ export default function TasksReassignPage() {
               </select>
             </label>
             <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="سبب النقل (إلزامي، 10-500 حرف)…" className="min-h-24" />
+            <label className="block text-xs font-bold text-[#6a786f]">
+              مدة الإسناد المؤقت (اختياري، بالأيام)
+              <input type="number" min={1} max={365} value={durationDays} onChange={(e) => setDurationDays(e.target.value)} placeholder="مثال: 7 — اتركه فارغاً لإسناد دائم" className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" />
+              <span className="mt-1 block font-normal text-[#8a978f]">إن حددت مدة، تعود المهمة تلقائياً إلى الموظفة الأصلية بعد انتهائها.</span>
+            </label>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => { setDialog(null); setReason(""); setNewAssigneeId(""); }}>إلغاء</Button>
+            <Button type="button" variant="outline" onClick={() => { setDialog(null); setReason(""); setNewAssigneeId(""); setDurationDays(""); }}>إلغاء</Button>
             <Button type="button" disabled={reassign.isPending || !newAssigneeId || reason.trim().length < 10} onClick={submitReassign} className="bg-[#2f7653] hover:bg-[#245d41]">
               {reassign.isPending ? "جارٍ النقل…" : "تأكيد النقل"}
             </Button>

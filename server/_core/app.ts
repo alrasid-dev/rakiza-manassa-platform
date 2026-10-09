@@ -13,6 +13,7 @@ import { handleInternalMailSchedule } from "../scheduled/internal-mail";
 import { handleSmartNotificationsSchedule } from "../scheduled/smart-notifications-cron";
 import { handleAutoResumeTasksSchedule } from "../scheduled/auto-resume-tasks";
 import { handleMarkOverdueTasksSchedule } from "../scheduled/mark-overdue-tasks";
+import { handleTaskReassignmentReturnSchedule } from "../scheduled/task-reassignment-return";
 import { trpcMutationOriginGuard } from "./originGuard";
 import { securityHeaders } from "./securityHeaders";
 import { dataConnectionsStatus } from "./data-connections";
@@ -42,6 +43,7 @@ export function createExpressApp() {
   app.post("/api/scheduled/smart-notifications", handleSmartNotificationsSchedule);
   app.post("/api/scheduled/auto-resume-tasks", handleAutoResumeTasksSchedule);
   app.post("/api/scheduled/mark-overdue-tasks", handleMarkOverdueTasksSchedule);
+  app.post("/api/scheduled/task-reassignment-return", handleTaskReassignmentReturnSchedule);
   app.use(
     "/api/trpc",
     trpcMutationOriginGuard,
