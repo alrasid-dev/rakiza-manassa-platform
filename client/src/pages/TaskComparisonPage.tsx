@@ -91,8 +91,8 @@ export default function TaskComparisonPage() {
             <div className="flex items-center gap-2">
               <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#e3eef5] text-[#2c5d77]"><UserCog className="h-5 w-5" /></span>
               <div>
-                <p className="text-sm font-black text-[#12352f]">عدّاد موظف</p>
-                <p className="text-xs text-[#66766e]">اختر موظفاً لعرض أرقام مهامه اليوم</p>
+                <p className="text-sm font-black text-[#12352f]">عدّاد الموظف — اليوم</p>
+                <p className="text-xs text-[#66766e]">أرقام يوم واحد فقط (اليوم). للمقارنة الكاملة استخدم جدول «المُقيَّمون» أدناه.</p>
               </div>
             </div>
             <select aria-label="اختر موظفاً" value={employeeId?.toString() ?? ""} onChange={e => setEmployeeId(e.target.value ? Number(e.target.value) : null)} className="h-10 min-w-56 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm text-[#12352f]">
@@ -102,10 +102,10 @@ export default function TaskComparisonPage() {
           </div>
           {employeeId != null && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">📊 إجمالي: {employeeCounts.data?.total ?? 0}</span>
-              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">✅ منجزة: {employeeCounts.data?.completed ?? 0}</span>
-              <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-xs font-bold text-[#80642b]">⏳ معلّقة: {employeeCounts.data?.pending ?? 0}</span>
-              <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-xs font-bold text-[#a8493b]">🔴 متأخرة: {employeeCounts.data?.overdue ?? 0}</span>
+              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">📊 إجمالي (اليوم): {employeeCounts.data?.total ?? 0}</span>
+              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">✅ منجزة (اليوم): {employeeCounts.data?.completed ?? 0}</span>
+              <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-xs font-bold text-[#80642b]">⏳ معلّقة (اليوم): {employeeCounts.data?.pending ?? 0}</span>
+              <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-xs font-bold text-[#a8493b]">🔴 متأخرة (اليوم): {employeeCounts.data?.overdue ?? 0}</span>
             </div>
           )}
         </section>
@@ -144,7 +144,8 @@ export default function TaskComparisonPage() {
         : rows.length === 0 ? <p className="mt-5 py-10 text-center text-sm text-[#738179]">لا توجد بيانات للمعايير المختارة.</p>
         : <div className="mt-5 grid gap-4 lg:grid-cols-3">
           <div className="overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white p-4 lg:col-span-2">
-            <p className="mb-3 text-sm font-bold text-[#12352f]">المُقيَّمون</p>
+            <p className="mb-1 text-sm font-bold text-[#12352f]">المُقيَّمون — الفترة المحددة</p>
+            <p className="mb-3 text-xs text-[#66766e]">{fromDate || toDate ? `الفترة: ${fromDate || "البداية"} → ${toDate || "اليوم"}` : "الفترة: كامل النطاق (كل التواريخ، لا اليوم فقط)"}</p>
             <table className="w-full min-w-[560px] text-sm">
               <thead><tr className="border-b border-[#eee8de] text-[#6b5b45]">
                 <th className="px-3 py-2 text-right font-medium">الترتيب</th><th className="px-3 py-2 font-medium">الموظف</th><th className="px-3 py-2 font-medium">الإجمالي</th><th className="px-3 py-2 font-medium">منجزة</th><th className="px-3 py-2 font-medium">في الوقت</th><th className="px-3 py-2 font-medium">أنجزت متأخرة</th><th className="px-3 py-2 font-medium">لم تُنجز</th><th className="px-3 py-2 font-medium">متوسط ساعات العمل</th><th className="px-3 py-2 font-medium">النقاط</th><th className="px-3 py-2 font-medium">الالتزام</th>
