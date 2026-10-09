@@ -6555,37 +6555,51 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
     const targetRange = dateRangeForSaudiDay(scheduleAnchor);
     const existing = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.templateId, template.id), gte(tasks.scheduledFor, targetRange.start), lt(tasks.scheduledFor, targetRange.end))).limit(1);
     if (existing[0]) { skipped += 1; continue; }
-    // عزل الإسناد على موظفي قسم القالب فقط
-    const assigneeConditions = [eq(personProfiles.personType, "administrative"), eq(personProfiles.status, "active")];
-    if (template.unitId != null) assigneeConditions.push(eq(personProfiles.unitId, template.unitId));
-    const assignees = await db.select().from(personProfiles).where(and(...assigneeConditions)).orderBy(personProfiles.id);
-    if (assignees.length === 0) { console.warn(`[recurring] لا موظفين في القسم ${template.unitId} للقالب ${template.id}`); skipped += 1; continue; }
-    const autoAssignee = assignees[(template.id - 1) % assignees.length];
-    const configuredAdministrativeAssignee = assignees.find(profile => profile.id === template.defaultAssigneeProfileId);
-    let assigneeProfileId: number | null = configuredAdministrativeAssignee?.id ?? autoAssignee?.id ?? null;
+    // تحديد مُسند المهمة (بدون سقوط عشوائي round-robin):
+    // 1) مُسند القالب إن كان نشطاً، 2) البديل المعتمد أثناء الإجازة، 3) وإلا تبقى غير مُسندة + إشعار للمدير.
+    let assigneeProfileId: number | null = null;
     let reassignedFromProfileId: number | null = null;
     let reassignmentReason: string | null = null;
-    // إذا كان صاحب القالب الافتراضي في إجازة/استئذان معتمد → أُسند المهمة للبديل المعتمد.
-    if (template.defaultAssigneeProfileId && !configuredAdministrativeAssignee) {
-      const defaultAssignee = (await db.select({ id: personProfiles.id, status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, template.defaultAssigneeProfileId)).limit(1))[0];
-      if (defaultAssignee?.status === "on_leave") {
-        const [sub] = await db.select({ substituteProfileId: leaveRequests.substituteProfileId, requestType: leaveRequests.requestType }).from(leaveRequests).where(and(eq(leaveRequests.profileId, defaultAssignee.id), inArray(leaveRequests.status, ["approved", "active"]), lte(leaveRequests.startAt, scheduledFor), gte(leaveRequests.endAt, scheduledFor))).limit(1);
+    let assignmentWarning: string | null = null;
+    if (template.defaultAssigneeProfileId) {
+      const configuredAssignee = (await db.select({ id: personProfiles.id, status: personProfiles.status }).from(personProfiles).where(eq(personProfiles.id, template.defaultAssigneeProfileId)).limit(1))[0];
+      if (configuredAssignee?.status === "active") {
+        assigneeProfileId = configuredAssignee.id;
+      } else if (configuredAssignee?.status === "on_leave") {
+        // بديل الإجازة/الاستئذان المعتمد
+        const [sub] = await db.select({ substituteProfileId: leaveRequests.substituteProfileId, requestType: leaveRequests.requestType }).from(leaveRequests).where(and(eq(leaveRequests.profileId, configuredAssignee.id), inArray(leaveRequests.status, ["approved", "active"]), lte(leaveRequests.startAt, scheduledFor), gte(leaveRequests.endAt, scheduledFor))).limit(1);
         if (sub?.substituteProfileId) {
           // تخطّي البديل الذي رفض مهمة سابقة في نفس الإجازة.
-          const [rejected] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.reassignedFromProfileId, defaultAssignee.id), eq(tasks.rejectedBySubstituteProfileId, sub.substituteProfileId))).limit(1);
+          const [rejected] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.reassignedFromProfileId, configuredAssignee.id), eq(tasks.rejectedBySubstituteProfileId, sub.substituteProfileId))).limit(1);
           if (!rejected) {
             assigneeProfileId = sub.substituteProfileId;
-            reassignedFromProfileId = defaultAssignee.id;
+            reassignedFromProfileId = configuredAssignee.id;
             reassignmentReason = sub.requestType;
+          } else {
+            assignmentWarning = "المُسند في إجازة والبديل المعتمد رفض مهمة سابقة.";
           }
+        } else {
+          assignmentWarning = "المُسند في إجازة ولا يوجد بديل معتمد.";
         }
+      } else {
+        assignmentWarning = `المُسند غير نشط (${configuredAssignee?.status ?? "غير موجود"}).`;
       }
+    } else {
+      assignmentWarning = "القالب بلا مُسند افتراضي.";
     }
-    if (!assigneeProfileId) { skipped += 1; continue; }
     const dueAt = saudiScheduledTime(scheduleAnchor, template.dueHourLocal);
     const taskResult = await db.insert(tasks).values({ templateId: template.id, unitId: template.unitId ?? null, title: template.title, status: "new", priority: "normal", assigneeProfileId, reassignedFromProfileId, reassignmentReason, assignedByUserId: SYSTEM_ACTOR_ID, scheduledFor, dueAt, recurrence: template.frequency, recurrenceInterval: template.intervalDays ?? null, specificDays: template.specificDays ?? null });
+    const taskId = Number(taskResult[0].insertId);
     await db.update(taskTemplates).set({ lastGeneratedAt: now }).where(eq(taskTemplates.id, template.id));
-    await logAudit({ actorUserId: SYSTEM_ACTOR_ID, action: "task.created", entityType: "task", entityId: Number(taskResult[0].insertId), metadata: { source: "template", templateId: template.id } });
+    await logAudit({ actorUserId: SYSTEM_ACTOR_ID, action: "task.created", entityType: "task", entityId: taskId, metadata: { source: "template", templateId: template.id } });
+    if (assignmentWarning) {
+      console.warn(`[recurring] ${assignmentWarning} (القالب ${template.id}: ${template.title})`);
+      // إشعار مدير الوحدة/القسم بأن المهمة بُقيت غير مُسندة ليتولّى الإسناد يدوياً.
+      const managerProfileId = template.unitId != null ? await findManagerProfileIdForUnit(template.unitId) : null;
+      if (managerProfileId) {
+        await db.insert(notifications).values({ profileId: managerProfileId, category: "task_due", title: "⚠️ مهمة لم تُسند", body: `المهمة «${template.title}» لم تُسند تلقائياً — السبب: ${assignmentWarning}. يرجى إسنادها يدوياً.`, dedupeKey: `unassigned-template-task-${taskId}` }).onDuplicateKeyUpdate({ set: { title: "⚠️ مهمة لم تُسند" } });
+      }
+    }
     createdTasks += 1;
   }
   const scheduledTasks = await db.select().from(tasks).where(and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end), inArray(tasks.status, ["new", "in_progress"])));
