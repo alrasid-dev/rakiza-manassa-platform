@@ -43,6 +43,17 @@ export default function TaskComparisonPage() {
   const [sortBy, setSortBy] = useState<"completed" | "totalPoints" | "avgCompletionMinutes" | "complianceRate">("totalPoints");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [period, setPeriod] = useState<"all" | "today" | "week" | "month" | "custom">("custom");
+
+  const applyPeriod = (p: typeof period) => {
+    setPeriod(p);
+    const now = new Date();
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (p === "all") { setFromDate(""); setToDate(""); return; }
+    if (p === "today") { setFromDate(fmt(now)); setToDate(fmt(now)); return; }
+    if (p === "week") { const start = new Date(now); start.setDate(now.getDate() - now.getDay()); setFromDate(fmt(start)); setToDate(fmt(now)); return; }
+    if (p === "month") { setFromDate(fmt(new Date(now.getFullYear(), now.getMonth(), 1))); setToDate(fmt(now)); return; }
+  };
 
   const activeUnitId = isLeadership && unitId ? Number(unitId) : undefined;
   const titles = trpc.court.reports.listTaskTitles.useQuery(isLeadership ? { unitId: activeUnitId } : undefined);
@@ -126,8 +137,17 @@ export default function TaskComparisonPage() {
             {(titles.data ?? []).map(t => <option key={t.id} value={t.title}>{t.title}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">من<input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm" /></label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">إلى<input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm" /></label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الفترة
+          <select value={period} onChange={e => applyPeriod(e.target.value as typeof period)} className="h-10 min-w-36 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+            <option value="all">الكل</option>
+            <option value="today">اليوم</option>
+            <option value="week">هذا الأسبوع</option>
+            <option value="month">هذا الشهر</option>
+            <option value="custom">من → إلى</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">من<input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPeriod("custom"); }} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm" /></label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">إلى<input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPeriod("custom"); }} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm" /></label>
         <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">معيار الترتيب
           <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} className="h-10 min-w-44 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm">
             <option value="totalPoints">الأعلى نقاط</option><option value="completed">الأكثر إنجازاً</option><option value="avgCompletionMinutes">الأسرع</option><option value="complianceRate">الأعلى التزاماً</option>
