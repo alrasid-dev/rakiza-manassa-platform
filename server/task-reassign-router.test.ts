@@ -37,7 +37,7 @@ describe("court.tasks.reassignTask", () => {
 
     await caller.tasks.reassignTask({ taskId: 1, newAssigneeProfileId: 30, reason: "نقل المهمة بسبب عبء العمل" });
 
-    expect(mocks.reassignTaskManual).toHaveBeenCalledWith({ taskId: 1, newAssigneeProfileId: 30, reason: "نقل المهمة بسبب عبء العمل", actorUserId: 1 });
+    expect(mocks.reassignTaskManual).toHaveBeenCalledWith({ taskId: 1, newAssigneeProfileId: 30, reason: "نقل المهمة بسبب عبء العمل", actorUserId: 1, durationDays: null });
   });
 
   it("non-manager cannot reassign", async () => {
