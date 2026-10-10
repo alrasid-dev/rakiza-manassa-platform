@@ -33,14 +33,17 @@ function combineDateTime(dateStr: string, timeStr: string): Date | null {
   const [y, m, d] = dateStr.split("-").map(Number);
   const [h, min] = timeStr.split(":").map(Number);
   if ([y, m, d, h, min].some(n => Number.isNaN(n))) return null;
-  return new Date(Date.UTC(y, m - 1, d, h, min, 0));
+  // يُدخل المستخدم الوقت بتوقيت الرياض (UTC+3)، لذا نطرح 3 ساعات لتحويله إلى UTC للتخزين.
+  return new Date(Date.UTC(y, m - 1, d, h - 3, min, 0));
 }
 
 function timeOf(d: Date | string | number | null | undefined): string {
   if (!d) return "";
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return "";
-  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")}`;
+  // يُخزَّن الوقت UTC، لذا نضيف 3 ساعات لعرضه بتوقيت الرياض في نافذة التعديل.
+  const riyadh = new Date(date.getTime() + 3 * 60 * 60 * 1000);
+  return `${String(riyadh.getUTCHours()).padStart(2, "0")}:${String(riyadh.getUTCMinutes()).padStart(2, "0")}`;
 }
 
 type Row = {
