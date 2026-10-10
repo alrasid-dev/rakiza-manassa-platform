@@ -642,7 +642,7 @@ export default function TasksWorkspaceContent() {
 
   const submitSelf = (event: FormEvent) => {
     event.preventDefault();
-    createSelf.mutate({ title: selfForm.title, priority: selfForm.priority, taskType: selfForm.taskType, taskNotes: selfForm.taskNotes.trim() || undefined, scheduledFor: new Date(selfForm.scheduledFor), dueAt: selfForm.isOpen ? new Date("2099-12-31T23:59:59Z") : new Date(selfForm.dueAt), isOpen: selfForm.isOpen });
+    createSelf.mutate({ title: selfForm.title, priority: selfForm.priority, taskType: selfForm.taskType, taskNotes: selfForm.taskNotes.trim() || undefined, scheduledFor: new Date(selfForm.scheduledFor), dueAt: selfForm.isOpen ? new Date("2037-12-31T23:59:59Z") : new Date(selfForm.dueAt), isOpen: selfForm.isOpen });
   };
 
   const submit = (event: FormEvent) => {
@@ -660,7 +660,7 @@ export default function TasksWorkspaceContent() {
       unitId: assigneeUnitId ? Number(assigneeUnitId) : undefined,
       traineeCopyProfileId: selectedCopy,
       scheduledFor: new Date(form.scheduledFor),
-      dueAt: form.isOpen ? new Date("2099-12-31T23:59:59Z") : new Date(form.dueAt),
+      dueAt: form.isOpen ? new Date("2037-12-31T23:59:59Z") : new Date(form.dueAt),
       isOpen: form.isOpen,
       watcherProfileId: form.watcherProfileId ? Number(form.watcherProfileId) : undefined,
       recurrence: isRecurring ? recurrence : "none",
@@ -727,7 +727,7 @@ export default function TasksWorkspaceContent() {
       priority: editForm.priority,
       taskType: editForm.taskType,
       scheduledFor: new Date(editForm.scheduledFor),
-      dueAt: editForm.isOpen ? new Date("2099-12-31T23:59:59Z") : new Date(editForm.dueAt),
+      dueAt: editForm.isOpen ? new Date("2037-12-31T23:59:59Z") : new Date(editForm.dueAt),
       isOpen: editForm.isOpen,
       assigneeProfileId: editForm.assigneeProfileId ? Number(editForm.assigneeProfileId) : null,
       unitId: editUnitId ? Number(editUnitId) : null,

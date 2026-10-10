@@ -3503,7 +3503,7 @@ export async function createTask(input: { title: string; unitId?: number; assign
   const result = await db.insert(tasks).values({
     ...taskInput,
     isOpen: input.isOpen ?? false,
-    dueAt: input.isOpen ? new Date("2099-12-31T23:59:59Z") : input.dueAt,
+    dueAt: input.isOpen ? new Date("2037-12-31T23:59:59Z") : input.dueAt,
     specificDays: specificDaysJson,
   });
   const id = Number(result[0].insertId);
