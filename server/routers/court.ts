@@ -1856,11 +1856,17 @@ export const courtRouter = router({
       return setTaskNotes({ taskId: input.taskId, actorUserId: ctx.user.id, notes: input.notes });
     }),
     createDepartment: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), unitId: z.number().int().positive(), assigneeProfileIds: z.array(z.number().int().positive()).min(1).max(50), taskType: z.enum(["permanent", "urgent"]), priority: z.enum(["normal", "high", "critical"]), scheduledFor: z.date(), dueAt: z.date() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد البدء." })).mutation(async ({ ctx, input }) => {
-      const roles = await requireOperationsManager(ctx.user);
-      const managedUnitIds = await managedUnitIdsForUser(ctx.user);
-      const isLeadership = roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
-      if (!isLeadership && !managedUnitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إنشاء مهام خارج نطاق قسمك المفوض." });
-      return createDepartmentTasks({ ...input, assignedByUserId: ctx.user.id });
+      try {
+        const roles = await requireOperationsManager(ctx.user);
+        const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+        const isLeadership = roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
+        if (!isLeadership && !managedUnitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك إنشاء مهام خارج نطاق قسمك المفوض." });
+        return createDepartmentTasks({ ...input, assignedByUserId: ctx.user.id });
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[createDepartment] فشل:", error);
+        throw new TRPCError({ code: "BAD_REQUEST", message: `تعذر إنشاء المهام: ${(error as Error)?.message || "سبب غير معروف"}` });
+      }
     }),
     exceptions: router({
       request: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), kind: z.enum(["reassignment", "obstacle"]), reason: z.string().trim().min(3).max(4000) })).mutation(async ({ ctx, input }) => {
