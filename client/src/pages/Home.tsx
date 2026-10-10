@@ -233,7 +233,7 @@ export default function Home() {
           <p className="text-[11px] font-semibold text-[#7a8980]">مؤشراتك السريعة</p>
           <button type="button" onClick={() => setStatCardCustomizationOpen(true)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#c6d4c7] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#355d4b] transition hover:bg-[#e8f0e7]"><Settings2 className="h-3.5 w-3.5" aria-hidden="true" />تخصيص</button>
         </div>
-        <div className="w-full overflow-x-auto rounded-2xl bg-white/50 shadow-sm ring-1 ring-black/5 backdrop-blur-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="w-full snap-x overflow-x-auto rounded-2xl bg-white/50 shadow-sm ring-1 ring-black/5 backdrop-blur-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex flex-row flex-nowrap divide-x divide-white/30 rtl:divide-x-reverse">
             {statsCards.map((card, idx) => {
               const Icon = card.icon;

@@ -41,7 +41,7 @@ export default function TeamBalancesTable() {
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[520px] text-sm">
           <thead>
             <tr className="border-b border-[#eee4d3] text-[#6b5b45]">
               <th className="px-3 py-2 text-right font-medium">الموظف</th>
