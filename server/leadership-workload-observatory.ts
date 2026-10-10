@@ -34,7 +34,7 @@ export function buildLeadershipWorkloadObservatory(input: { now: Date; units: Wo
   const unitRows = activeUnits.map(unit => {
     const unitTasks = input.tasks.filter(task => task.unitId === unit.id && OPEN_STATUSES.has(task.status));
     const assigned = unitTasks.filter(task => task.assigneeProfileId && profileById.has(task.assigneeProfileId));
-    const overdueTasks = unitTasks.filter(task => task.status === "overdue" || Boolean(task.dueAt && task.dueAt < input.now));
+    const overdueTasks = unitTasks.filter(task => task.status === "overdue");
     const dueSoonTasks = unitTasks.filter(task => Boolean(task.dueAt && task.dueAt >= input.now && task.dueAt.getTime() - input.now.getTime() <= 48 * 60 * 60 * 1000));
     const highPriorityTasks = unitTasks.filter(task => task.priority === "high" || task.priority === "critical");
     for (const task of assigned) assignedOpen.set(task.assigneeProfileId!, (assignedOpen.get(task.assigneeProfileId!) ?? 0) + 1);

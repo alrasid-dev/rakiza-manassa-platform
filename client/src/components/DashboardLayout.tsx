@@ -298,7 +298,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   const myDashboard = myDashboardProcedure?.useQuery ? myDashboardProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 30_000 }) : { data: { counts: { total: 0 } } };
   const myRequestsCount = Number(myDashboard.data?.counts?.total || 0);
   const taskAttentionCount = (assignedTasks.data || []).filter((task: { status?: string }) => ["new", "in_progress", "under_review", "overdue"].includes(task.status || "")).length;
-  const overdueTaskCount = (assignedTasks.data || []).filter((task: { status?: string; dueAt?: Date | string | number }) => task.status === "overdue" || Boolean(task.dueAt && new Date(task.dueAt).getTime() < Date.now())).length;
+  const overdueTaskCount = (assignedTasks.data || []).filter((task: { status?: string }) => task.status === "overdue").length;
   const acknowledgeTaskProcedure = (trpc.court as any).tasks?.acknowledge;
   const acknowledgeTask = acknowledgeTaskProcedure?.useMutation ? acknowledgeTaskProcedure.useMutation({ onSuccess: () => { void assignedTasks.refetch?.(); toast.success("تم تسجيل بدء المهمة."); } }) : { mutate: () => undefined, isPending: false };
   const announcementsProcedure = trpc.court.announcements?.list;

@@ -1183,10 +1183,7 @@ export async function getManagedUnitDashboard(unitIds: number[], userId: number)
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
       inArray(tasks.unitId, unitIds),
       isNull(tasks.archivedAt),
-      or(
-        eq(tasks.status, "overdue"),
-        and(lt(tasks.dueAt, now), inArray(tasks.status, ["new", "in_progress", "under_review"]))
-      )
+      eq(tasks.status, "overdue")
     )),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(and(inArray(delayRecords.unitId, unitIds), eq(delayRecords.status, "under_follow_up"))),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(and(inArray(delayRecords.unitId, unitIds), eq(delayRecords.status, "overdue"))),
@@ -2163,7 +2160,7 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
     conditions.push(or(isNull(tasks.scheduledFor), lte(tasks.scheduledFor, new Date()))!);
   }
   if (status === "overdue" || dueFilter === "overdue") {
-    conditions.push(and(notInArray(tasks.status, ["completed", "cancelled"]), lt(tasks.dueAt, new Date()))!);
+    conditions.push(eq(tasks.status, "overdue"));
   } else if (status) {
     conditions.push(eq(tasks.status, status));
   } else if (dueFilter === "dueSoon") {
