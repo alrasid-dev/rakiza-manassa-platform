@@ -205,9 +205,9 @@ export default function Home() {
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d5ddd2] bg-[#f8f9f4] px-4 py-3 shadow-[0_8px_22px_rgba(36,67,51,0.05)]">
         <div className="flex flex-wrap items-center gap-2">
           <GlobalSearchBar />
-          <button type="button" onClick={() => setLocation("/tasks?filter=active")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#e6efe4] px-3 py-1.5 text-[11px] font-bold text-[#2d6b4f] transition hover:opacity-80"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />{activeCount > 0 ? `${activeCount} مهام اليوم النشطة` : "لا مهام نشطة اليوم"}</button>
-          <button type="button" onClick={() => setLocation("/tasks?filter=overdue")} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold transition hover:opacity-80 ${lateCount > 0 ? "bg-[#f8e6e1] text-[#963e33]" : "bg-[#e6efe4] text-[#2d6b4f]"}`}><AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />{lateCount > 0 ? `${lateCount} متأخر` : "لا متأخرات"}</button>
-          <button type="button" onClick={() => setLocation("/notifications")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#eaf4ff] px-3 py-1.5 text-[11px] font-bold text-[#26628d] transition hover:opacity-80"><BellRing className="h-3.5 w-3.5" aria-hidden="true" />{unreadNotifications > 0 ? `${formatUnreadBadgeCount(unreadNotifications)} تنبيه جديد` : "لا تنبيهات جديدة"}</button>
+          <button type="button" onClick={() => setLocation("/tasks?filter=active")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#e6efe4] px-3 py-1.5 text-sm font-bold text-[#2d6b4f] transition hover:opacity-80 sm:text-[11px]"><CheckCircle2 className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />{activeCount > 0 ? `${activeCount} مهام اليوم النشطة` : "لا مهام نشطة اليوم"}</button>
+          <button type="button" onClick={() => setLocation("/tasks?filter=overdue")} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold transition hover:opacity-80 sm:text-[11px] ${lateCount > 0 ? "bg-[#f8e6e1] text-[#963e33]" : "bg-[#e6efe4] text-[#2d6b4f]"}`}><AlertTriangle className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />{lateCount > 0 ? `${lateCount} متأخر` : "لا متأخرات"}</button>
+          <button type="button" onClick={() => setLocation("/notifications")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#eaf4ff] px-3 py-1.5 text-sm font-bold text-[#26628d] transition hover:opacity-80 sm:text-[11px]"><BellRing className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />{unreadNotifications > 0 ? `${formatUnreadBadgeCount(unreadNotifications)} تنبيه جديد` : "لا تنبيهات جديدة"}</button>
         </div>
       </header>
 
@@ -216,14 +216,14 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <RakizaIconButton icon={ListChecks} gradient="from-emerald-500 to-emerald-600" />
             <div>
-              <p className="text-sm font-black text-[#12352f]">مهامي اليوم</p>
+              <p className="text-base font-black text-[#12352f] sm:text-sm">مهامي اليوم</p>
               <p className="text-xs text-[#66766e]">إجمالي: {todayCounts.data?.total ?? 0} مهمة · <span className="font-bold text-[#2d6b4f]">عرض الكل ←</span></p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">منجزة: {todayCounts.data?.completed ?? 0}</span>
-            <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-xs font-bold text-[#80642b]">معلّقة: {todayCounts.data?.pending ?? 0}</span>
-            <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-xs font-bold text-[#a8493b]">متأخرات: {todayCounts.data?.overdue ?? 0}</span>
+            <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-sm font-bold text-[#2d684a] sm:text-xs">منجزة: {todayCounts.data?.completed ?? 0}</span>
+            <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-sm font-bold text-[#80642b] sm:text-xs">معلّقة: {todayCounts.data?.pending ?? 0}</span>
+            <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-sm font-bold text-[#a8493b] sm:text-xs">متأخرات: {todayCounts.data?.overdue ?? 0}</span>
           </div>
         </div>
       </section>
@@ -258,8 +258,8 @@ export default function Home() {
                 >
                   {card.pulse && <span aria-hidden="true" className="pointer-events-none absolute inset-0 animate-pulse bg-red-400/30" />}
                   <span className={cn("absolute top-1.5 right-1.5", "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 backdrop-blur-sm", "border text-[10px] font-black tabular-nums", card.darkText ? "border-black/10 bg-black/15 text-gray-900" : "border-white/50 bg-white/30 text-white")}>{formatUnreadBadgeCount(card.value)}</span>
-                  <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl backdrop-blur-sm ring-1 transition-transform duration-200", "group-hover:scale-110 group-hover:rotate-3", card.darkText ? "bg-white/50 ring-white/70" : "bg-white/20 ring-white/40")}><Icon className={cn("h-7 w-7", card.darkText ? "text-gray-800" : "text-white")} strokeWidth={2.2} /></span>
-                  <span className={cn("mt-1 line-clamp-2 text-center text-xs font-bold leading-snug", card.darkText ? "text-gray-900/90" : "text-white/95")}>{card.label}</span>
+                  <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl backdrop-blur-sm ring-1 transition-transform duration-200", "group-hover:scale-110 group-hover:rotate-3", card.darkText ? "bg-white/50 ring-white/70" : "bg-white/20 ring-white/40")}><Icon className={cn("h-9 w-9 sm:h-8 sm:w-8", card.darkText ? "text-gray-800" : "text-white")} strokeWidth={2.2} /></span>
+                  <span className={cn("mt-1 line-clamp-2 text-center text-sm font-bold leading-snug", card.darkText ? "text-gray-900/90" : "text-white/95")}>{card.label}</span>
                 </button>
               );
             })}

@@ -92,7 +92,11 @@ export default function AttendanceMonthlyPage() {
     ? attendanceApi.monthlyReport.useQuery(profileId != null ? { profileId, startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: profileId != null && isOwner })
     : { data: [] as Row[], isLoading: false };
 
-  const invalidate = () => utils.court.attendance.monthlyReport?.invalidate?.();
+  const invalidate = () => {
+    if (profileId != null) {
+      utils.court.attendance.monthlyReport?.invalidate?.({ profileId, startAt: range.startAt, endAt: range.endAt });
+    }
+  };
 
   const editCheckIn = attendanceApi?.ownerEditCheckIn?.useMutation({ onSuccess: () => { invalidate(); toast.success("تم تعديل وقت الدخول."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر التعديل") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
   const editCheckOut = attendanceApi?.ownerEditCheckOut?.useMutation({ onSuccess: () => { invalidate(); toast.success("تم تعديل وقت الانصراف."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر التعديل") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
