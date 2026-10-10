@@ -3498,7 +3498,7 @@ export async function createTask(input: { title: string; unitId?: number; assign
       if (blocked) throw new TRPCError({ code: "CONFLICT", message: blocked });
     }
   }
-  const { traineeCopyProfileId, specificDays, ...taskInput } = input;
+  const { traineeCopyProfileId, specificDays, startDate, endDate, allowBlockedAssignees, ...taskInput } = input;
   const specificDaysJson = input.recurrence === "specific_days" && specificDays && specificDays.length ? JSON.stringify(specificDays) : null;
   const result = await db.insert(tasks).values({
     ...taskInput,

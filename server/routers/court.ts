@@ -1641,25 +1641,32 @@ export const courtRouter = router({
       return createSelfTask({ ...input, profileId: profile.id, actorUserId: ctx.user.id });
     }),
     create: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), traineeCopyProfileId: z.number().int().positive().optional(), watcherProfileId: z.number().int().positive().optional(), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), scheduledFor: z.date(), dueAt: z.date(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "quarterly", "yearly", "custom", "specific_days"]).default("none"), recurrenceInterval: z.number().int().min(1).max(365).optional(), recurrenceEndAt: z.date().optional(), specificDays: z.array(z.number().int().min(0).max(6)).optional(), isConfidential: z.boolean().default(false), confidentialityExpiresAt: z.date().optional(), taskNotes: z.string().trim().max(4000).optional(), isOpen: z.boolean().default(false), startDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), endDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(12_000_000) })).max(5).optional() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
-      const roles = await requireOperationsManager(ctx.user);
-      const isLeadership = roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
-      let taskId: number;
-      if (!isLeadership && roles.includes("trainee_affairs_manager")) {
-        if (!input.assigneeProfileId) throw new TRPCError({ code: "BAD_REQUEST", message: "يجب اختيار المكلف عند إسناد مهمة من مستوى القسم." });
-        const assignee = await getProfileById(input.assigneeProfileId);
-        const managedUnitIds = await managedUnitIdsForUser(ctx.user);
-        if (!assignee?.unitId || !managedUnitIds.includes(assignee.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن إسناد مهمة خارج نطاق القسم المفوض لك." });
-        taskId = await createTask({ ...input, unitId: assignee.unitId, assignedByUserId: ctx.user.id });
-      } else {
-        taskId = await createTask({ ...input, assignedByUserId: ctx.user.id });
-      }
-      if (input.attachments?.length) {
-        const uploaderProfile = await getProfileForUser(ctx.user.id);
-        for (const attachment of input.attachments) {
-          if (uploaderProfile) await addTaskAttachment({ taskId, actorUserId: ctx.user.id, uploaderProfileId: uploaderProfile.id, attachment });
+      try {
+        const { attachments, ...taskPayload } = input;
+        const roles = await requireOperationsManager(ctx.user);
+        const isLeadership = roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
+        let taskId: number;
+        if (!isLeadership && roles.includes("trainee_affairs_manager")) {
+          if (!taskPayload.assigneeProfileId) throw new TRPCError({ code: "BAD_REQUEST", message: "يجب اختيار المكلف عند إسناد مهمة من مستوى القسم." });
+          const assignee = await getProfileById(taskPayload.assigneeProfileId);
+          const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+          if (!assignee?.unitId || !managedUnitIds.includes(assignee.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن إسناد مهمة خارج نطاق القسم المفوض لك." });
+          taskId = await createTask({ ...taskPayload, unitId: assignee.unitId, assignedByUserId: ctx.user.id });
+        } else {
+          taskId = await createTask({ ...taskPayload, assignedByUserId: ctx.user.id });
         }
+        if (attachments?.length) {
+          const uploaderProfile = await getProfileForUser(ctx.user.id);
+          for (const attachment of attachments) {
+            if (uploaderProfile) await addTaskAttachment({ taskId, actorUserId: ctx.user.id, uploaderProfileId: uploaderProfile.id, attachment });
+          }
+        }
+        return { id: taskId };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[tasks.create] فشل:", error);
+        throw new TRPCError({ code: "BAD_REQUEST", message: `تعذر إنشاء المهمة: ${(error as Error)?.message || "سبب غير معروف"}` });
       }
-      return { id: taskId };
     }),
     createManualTask: protectedProcedure.input(z.object({
       title: z.string().trim().min(3).max(2000),
@@ -1672,18 +1679,24 @@ export const courtRouter = router({
       startDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
       endDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
     }).refine(input => !input.dueAt || input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
-      const permission = await permissionForUser(ctx.user);
-      const roles = await rolesForUser(ctx.user);
-      const isLeadership = permission === "full_control";
-      const isDepartmentManager = roles.includes("department_manager");
-      if (!isLeadership && !isDepartmentManager) throw new TRPCError({ code: "FORBIDDEN", message: "إضافة المهام متاحة للقيادة أو مدير القسم فقط." });
-      if (!isLeadership) {
-        const managedUnitIds = await managedUnitIdsForUser(ctx.user);
-        const assignee = await getProfileById(input.assigneeProfileId);
-        if (!assignee?.unitId || !managedUnitIds.includes(assignee.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن إسناد مهمة خارج نطاق قسمك." });
+      try {
+        const permission = await permissionForUser(ctx.user);
+        const roles = await rolesForUser(ctx.user);
+        const isLeadership = permission === "full_control";
+        const isDepartmentManager = roles.includes("department_manager");
+        if (!isLeadership && !isDepartmentManager) throw new TRPCError({ code: "FORBIDDEN", message: "إضافة المهام متاحة للقيادة أو مدير القسم فقط." });
+        if (!isLeadership) {
+          const managedUnitIds = await managedUnitIdsForUser(ctx.user);
+          const assignee = await getProfileById(input.assigneeProfileId);
+          if (!assignee?.unitId || !managedUnitIds.includes(assignee.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن إسناد مهمة خارج نطاق قسمك." });
+        }
+        const taskId = await createManualTask({ ...input, frequency: input.frequency && input.frequency !== "none" ? input.frequency : undefined, actorUserId: ctx.user.id });
+        return { id: taskId };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[createManualTask] فشل:", error);
+        throw new TRPCError({ code: "BAD_REQUEST", message: `تعذر إنشاء المهمة: ${(error as Error)?.message || "سبب غير معروف"}` });
       }
-      const taskId = await createManualTask({ ...input, frequency: input.frequency && input.frequency !== "none" ? input.frequency : undefined, actorUserId: ctx.user.id });
-      return { id: taskId };
     }),
     submitForReview: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), note: z.string().trim().max(4000).optional() })).mutation(async () => {
       // [مؤرشف] المسار القديم معطَّل؛ توحيد مسار الاعتماد على submitForApproval فقط.
