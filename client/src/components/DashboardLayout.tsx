@@ -413,7 +413,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
     <div dir="rtl" className="rakiza-theme-root min-h-screen overflow-x-clip bg-[var(--rakiza-canvas)] text-[var(--rakiza-ink)]" style={{ fontFamily: "var(--rakiza-font-family, Tajawal, sans-serif)" }}>
       <div dir="ltr" className="mx-auto min-h-screen w-full max-w-[1800px] overflow-x-clip lg:flex">
         <main dir="rtl" className="w-full min-w-0 px-4 pb-8 pt-4 sm:px-7 sm:pt-6 lg:flex-1 lg:px-8 lg:pt-5">
-          <header className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--rakiza-border)] bg-[var(--rakiza-surface)] px-3 py-3 shadow-[0_4px_16px_rgba(35,63,50,0.04)] sm:mb-7 sm:gap-3 sm:px-5 lg:mb-6 lg:min-h-[5.6rem] lg:flex-nowrap">
+          <header className="relative z-10 mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--rakiza-border)] bg-[var(--rakiza-surface)] px-3 py-3 shadow-[0_4px_16px_rgba(35,63,50,0.04)] sm:mb-7 sm:gap-3 sm:px-5 lg:mb-6 lg:min-h-[5.6rem] lg:flex-nowrap">
             <div dir="rtl" className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
@@ -441,7 +441,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
                 </select>
               </label>
             )}
-            <button type="button" onClick={() => setLocation("/announcements")} className="order-3 flex w-full min-w-0 items-center gap-3 rounded-xl border border-[#d2d9cf] bg-[#f1f2ec] px-3 py-2.5 text-right transition hover:bg-[#e5ece2] md:order-none md:flex-1 lg:max-w-[34rem]" aria-label="لوحة التعاميم والإعلانات">
+            <button type="button" onClick={() => setLocation("/announcements")} className="order-3 flex min-w-0 items-center gap-3 rounded-xl border border-[#d2d9cf] bg-[#f1f2ec] px-3 py-2.5 text-right transition hover:bg-[#e5ece2] md:order-none md:w-auto md:flex-1 lg:max-w-[34rem]" aria-label="لوحة التعاميم والإعلانات">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#dce9da] text-[#2d6b4f]"><Megaphone className={`h-5 w-5 ${oliveIconMotionClass}`} aria-hidden="true" /></span>
               <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-xs font-black text-[#315348]">لوحة التعاميم والإعلانات</span>{announcementCopy.isNew ? <span className="rounded-full bg-[#e0eadf] px-1.5 py-0.5 text-[10px] font-black text-[#2d6b4f]">جديد</span> : null}</span><span className="mt-1 block truncate text-xs font-bold text-[#365548]">{announcementCopy.title}</span><span className="mt-0.5 hidden truncate text-[11px] text-[#748078] sm:block">{announcementCopy.summary}</span></span>
               <ArrowLeft className="h-5 w-5 shrink-0 text-[#698075]" aria-hidden="true" />
