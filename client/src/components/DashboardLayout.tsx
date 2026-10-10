@@ -413,7 +413,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
     <div dir="rtl" className="rakiza-theme-root min-h-screen overflow-x-clip bg-[var(--rakiza-canvas)] text-[var(--rakiza-ink)]" style={{ fontFamily: "var(--rakiza-font-family, Tajawal, sans-serif)" }}>
       <div dir="ltr" className="mx-auto min-h-screen w-full max-w-[1800px] overflow-x-clip lg:flex">
         <main dir="rtl" className="w-full min-w-0 px-4 pb-8 pt-4 sm:px-7 sm:pt-6 lg:flex-1 lg:px-8 lg:pt-5">
-          <header className="relative z-10 mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--rakiza-border)] bg-[var(--rakiza-surface)] px-3 py-3 shadow-[0_4px_16px_rgba(35,63,50,0.04)] sm:mb-7 sm:gap-3 sm:px-5 lg:mb-6 lg:min-h-[5.6rem] lg:flex-nowrap">
+          <header className="rakiza-top-header relative z-10 mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--rakiza-border)] bg-[var(--rakiza-surface)] px-3 py-3 shadow-[0_4px_16px_rgba(35,63,50,0.04)] sm:mb-7 sm:gap-3 sm:px-5 lg:mb-6 lg:min-h-[5.6rem] lg:flex-nowrap">
             <div dir="rtl" className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
