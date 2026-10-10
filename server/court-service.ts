@@ -1107,20 +1107,21 @@ export async function getDashboardSummary(userId: number, isPlatformAdmin: boole
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const today = dateRangeForSaudiDay(now); // نطاق اليوم بتوقيت الرياض (UTC+3)
+  const tomorrow = saudiTomorrowRange(now); // نطاق «غداً» لتوحيد تعريف «قرب موعدها»
   const [roles, profileRows, templateRows, delayRows, overdueRows, taskRows, openTaskRows, overdueTaskRows, unreadRows, announcementRows] = await Promise.all([
     getEffectiveRoles(userId, isPlatformAdmin),
     db.select({ count: sql<number>`count(*)` }).from(personProfiles),
     db.select({ count: sql<number>`count(*)` }).from(taskTemplates).where(eq(taskTemplates.isActive, true)),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(eq(delayRecords.status, "under_follow_up")),
     db.select({ count: sql<number>`count(*)` }).from(delayRecords).where(eq(delayRecords.status, "overdue")),
-    // قرب موعدها: مهام اليوم فقط (scheduledFor = TODAY) + استحقاق خلال 24 ساعة.
+    // قرب موعدها: استحقاق خلال 24 ساعة أو مجدولة ليوم غدٍ (توحيداً مع isDueSoon وبقية اللوحات).
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
       isNull(tasks.archivedAt),
       notInArray(tasks.status, ["completed", "cancelled", "paused"]),
-      gte(tasks.scheduledFor, today.start),
-      lt(tasks.scheduledFor, today.end),
-      gte(tasks.dueAt, now),
-      lt(tasks.dueAt, in24h),
+      or(
+        and(gte(tasks.dueAt, now), lt(tasks.dueAt, in24h)),
+        and(gte(tasks.scheduledFor, tomorrow.start), lt(tasks.scheduledFor, tomorrow.end))
+      )
     )),
     // قيد التنفيذ: مهام اليوم فقط (scheduledFor = TODAY) بحالة new/in_progress.
     db.select({ count: sql<number>`count(*)` }).from(tasks).where(and(
