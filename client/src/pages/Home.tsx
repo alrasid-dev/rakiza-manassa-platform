@@ -71,7 +71,7 @@ function WidgetCard({ label, icon: Icon, tone, count, sub, pulse = false, onClic
       {typeof count === "number" && <span className="absolute left-3 top-3 rounded-full bg-white/25 px-2.5 py-1 text-sm font-black tabular-nums">{formatUnreadBadgeCount(count)}</span>}
       <span className="flex flex-1 items-center justify-center"><Icon className="h-6 w-6 text-white" strokeWidth={2} aria-hidden="true" /></span>
       <span className="mt-2 block text-base font-black leading-tight">{label}</span>
-      {sub ? <span className="mt-0.5 block text-[11px] font-semibold text-white/80">{sub}</span> : null}
+      {sub ? <span className="mt-0.5 block text-sm font-semibold text-white/80 sm:text-xs">{sub}</span> : null}
     </button>
   );
 }
@@ -195,7 +195,7 @@ export default function Home() {
   const restoreAllHomeCards = () => applyPreferences({ ...preferences, hiddenHomeCardIds: [] });
 
   const dashboardCustomizer = <>
-    <button type="button" onClick={() => setDashboardCustomizationOpen(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-3 py-2.5 text-xs font-black text-white/85 transition hover:bg-white/10"><Settings2 className="h-4 w-4" aria-hidden="true" />تخصيص شريط العمل السريع</button>
+    <button type="button" onClick={() => setDashboardCustomizationOpen(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-3 py-2.5 text-sm font-black text-white/85 transition hover:bg-white/10 sm:text-xs"><Settings2 className="h-4 w-4" aria-hidden="true" />تخصيص شريط العمل السريع</button>
     <DashboardCustomizationDialog open={dashboardCustomizationOpen} onOpenChange={setDashboardCustomizationOpen} preferences={preferences} onChange={setPreferences} onSave={() => saveDashboardPreferences.mutate(preferences)} isSaving={Boolean(saveDashboardPreferences.isPending)} />
   </>;
 
@@ -217,7 +217,7 @@ export default function Home() {
             <RakizaIconButton icon={ListChecks} gradient="from-emerald-500 to-emerald-600" />
             <div>
               <p className="text-base font-black text-[#12352f] sm:text-sm">مهامي اليوم</p>
-              <p className="text-xs text-[#66766e]">إجمالي: {todayCounts.data?.total ?? 0} مهمة · <span className="font-bold text-[#2d6b4f]">عرض الكل ←</span></p>
+              <p className="text-sm text-[#66766e] sm:text-xs">إجمالي: {todayCounts.data?.total ?? 0} مهمة · <span className="font-bold text-[#2d6b4f]">عرض الكل ←</span></p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -230,7 +230,7 @@ export default function Home() {
 
             <section aria-label="الشبكة الرئيسية" className="mt-5">
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-[11px] font-semibold text-[#7a8980]">مؤشراتك السريعة</p>
+          <p className="text-sm font-semibold text-[#7a8980] sm:text-xs">مؤشراتك السريعة</p>
           <button type="button" onClick={() => setStatCardCustomizationOpen(true)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#c6d4c7] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#355d4b] transition hover:bg-[#e8f0e7]"><Settings2 className="h-3.5 w-3.5" aria-hidden="true" />تخصيص</button>
         </div>
         <div className="w-full snap-x overflow-x-auto rounded-2xl bg-white/50 shadow-sm ring-1 ring-black/5 backdrop-blur-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

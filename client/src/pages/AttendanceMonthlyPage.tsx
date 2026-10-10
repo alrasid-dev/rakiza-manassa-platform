@@ -137,19 +137,19 @@ export default function AttendanceMonthlyPage() {
         ) : (
           <>
             <div className="mt-5 flex flex-wrap items-end gap-3 rounded-2xl border border-[#e7e0d4] bg-white p-4">
-              <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">القسم
+              <label className="flex flex-col gap-1 text-sm font-bold text-[#53675d] sm:text-xs">القسم
                 <select value={unitId} onChange={e => { setUnitId(e.target.value); setProfileId(null); }} className="h-10 min-w-44 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
                   <option value="">كل الأقسام</option>
                   {(units.data ?? []).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الموظف
+              <label className="flex flex-col gap-1 text-sm font-bold text-[#53675d] sm:text-xs">الموظف
                 <select value={profileId?.toString() ?? ""} onChange={e => setProfileId(e.target.value ? Number(e.target.value) : null)} className="h-10 min-w-52 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
                   <option value="">اختر موظفاً…</option>
                   {peopleInUnit.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الشهر
+              <label className="flex flex-col gap-1 text-sm font-bold text-[#53675d] sm:text-xs">الشهر
                 <select value={month} onChange={e => setMonth(e.target.value)} className="h-10 min-w-40 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
                   {recentHijriMonths(14).map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
@@ -161,7 +161,7 @@ export default function AttendanceMonthlyPage() {
 
             <div className="mt-5 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white">
               <table className="w-full min-w-[720px] text-sm">
-                <thead className="bg-[#f7fbf7] text-right text-xs font-bold text-[#53675d]">
+                <thead className="bg-[#f7fbf7] text-right text-sm font-bold text-[#53675d] sm:text-xs">
                   <tr>
                     <th className="px-3 py-3">التاريخ</th>
                     <th className="px-3 py-3">اليوم</th>
@@ -185,7 +185,7 @@ export default function AttendanceMonthlyPage() {
                         <td className="px-3 py-2.5 text-[#53675d]">{dayName}</td>
                         <td className="px-3 py-2.5">{fmtTime(a.checkInAt)}</td>
                         <td className="px-3 py-2.5">{fmtTime(a.checkOutAt)}</td>
-                        <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${a.status === "present" ? "bg-[#e4f0e4] text-[#2d684a]" : a.status === "absent" ? "bg-[#f8e6e1] text-[#a8493b]" : a.status === "late" ? "bg-[#f5edd8] text-[#80642b]" : "bg-[#e3eef5] text-[#2c5d77]"}`}>{statusLabels[a.status] ?? a.status}</span></td>
+                        <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs ${a.status === "present" ? "bg-[#e4f0e4] text-[#2d684a]" : a.status === "absent" ? "bg-[#f8e6e1] text-[#a8493b]" : a.status === "late" ? "bg-[#f5edd8] text-[#80642b]" : "bg-[#e3eef5] text-[#2c5d77]"}`}>{statusLabels[a.status] ?? a.status}</span></td>
                         <td className="px-3 py-2.5 font-bold" dir="ltr">{points > 0 ? `+${points}` : points}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex flex-wrap gap-1.5">

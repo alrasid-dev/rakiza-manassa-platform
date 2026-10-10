@@ -17,7 +17,7 @@ export default function WelcomeCard({ now }: { now?: Date }) {
 
   return (
     <div className="mt-4 flex flex-col items-start gap-1 py-4">
-      <span className="text-xs text-[#8a82aa]">
+      <span className="text-sm text-[#8a82aa] sm:text-xs">
         {isMorning ? "☀️ صباح الخير" : "🌙 مساء الخير"}{name ? ` يا ${name}` : ""}
       </span>
       <div className="inline-flex items-center gap-2 rounded-2xl bg-[#f5f3fb] px-4 py-2">
