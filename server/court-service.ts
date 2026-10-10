@@ -5441,7 +5441,16 @@ export async function ownerEditAttendanceCheckIn(input: { profileId: number; rec
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
   const oldValue = existing.checkInAt ?? null;
-  await db.update(attendanceRecords).set({ checkInAt: input.checkInAt, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
+  // إعادة تصنيف الحالة بناءً على وقت الدخول الجديد (07:00–08:00 حاضر، 08:16+ متأخر).
+  const cls = classifyCheckIn(riyadhMinutesOfDay(input.checkInAt));
+  const newStatus = (cls.status === "late" || cls.status === "late_no_penalty") ? "late" : "present";
+  // حماية: إن كان الوقت خارج نافذة التسجيل → لا نغيّر الحالة.
+  const shouldUpdateStatus = cls.allowed !== false;
+  await db.update(attendanceRecords).set({
+    checkInAt: input.checkInAt,
+    ...(shouldUpdateStatus ? { status: newStatus } : {}),
+    updatedAt: new Date()
+  }).where(eq(attendanceRecords.id, existing.id));
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_edit", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, field: "checkInAt", oldValue, newValue: input.checkInAt, reason: input.reason } });
   await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
   await db.insert(notifications).values({ profileId: input.profileId, category: "attendance_modified", title: "تم تعديل سجل حضورك", body: `تم تعديل وقت دخولك بتاريخ ${existing.recordDate.toISOString().slice(0, 10)}. السبب: ${input.reason}` });
