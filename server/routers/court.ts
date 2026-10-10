@@ -280,6 +280,7 @@ import {
   submitTaskForApproval,
   reviewTaskApproval,
   listPendingTaskApprovals,
+  listDecidedTaskApprovals,
   bulkReviewTaskApprovals,
   requestOtpCode,
   verifyOtpCode,
@@ -2503,13 +2504,22 @@ export const courtRouter = router({
         ...myDisciplinary.filter((d: any) => d.status === "returned" || d.status === "rejected").map(discItem),
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+      // الاعتمادات التي بتّ فيها المستخدم (حالات نهائية فقط، دون "returned" الذي له تبويب خاص).
+      const FINAL_DECIDED = ["approved", "rejected", "closed", "cancelled", "completed"];
+      const decidedTaskApprovals = profile ? await listDecidedTaskApprovals(profile.id) : [];
+      const decided = [
+        ...pendingLeave.filter((l: any) => FINAL_DECIDED.includes(l.request.status)).map(leaveItem),
+        ...pendingDisciplinary.filter((d: any) => FINAL_DECIDED.includes(d.status)).map(discItem),
+        ...decidedTaskApprovals.map((a: any) => ({ id: a.approval.id, type: "task_approval" as const, requestType: "task" as const, status: a.approval.status, createdAt: a.approval.createdAt, title: a.task?.title ?? "مهمة", submitterName: a.submitterName ?? "" })),
+      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
       const counts = {
         disciplinary: pendingDisciplinary.filter((d: any) => d.status === "pending" || d.status === "under_review").length,
         leaves: pendingLeave.filter((l: any) => l.request.status === "pending").length,
         tasks: pendingTaskApprovals.length,
       };
 
-      return { submitted, toReview, returned, disciplinary: myDisciplinary.map(discItem), counts: { ...counts, total: counts.disciplinary + counts.leaves + counts.tasks } };
+      return { submitted, toReview, decided, returned, disciplinary: myDisciplinary.map(discItem), counts: { ...counts, total: counts.disciplinary + counts.leaves + counts.tasks } };
     }),
     review: protectedProcedure.input(z.object({ requestId: z.number().int().positive(), requestType: z.enum(["leave", "permission", "disciplinary", "task"]), decision: z.enum(["approve", "reject"]), reason: z.string().trim().max(1000).optional(), managerRating: z.enum(["excellent", "good", "acceptable"]).optional(), ratingNote: z.string().trim().max(500).optional() })).mutation(async ({ ctx, input }) => {
       await requireOperationsManager(ctx.user);

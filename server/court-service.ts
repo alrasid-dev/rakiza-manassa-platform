@@ -4332,6 +4332,21 @@ export async function listPendingTaskApprovals(options: { unitIds?: number[]; su
   return result;
 }
 
+/** قائمة اعتمادات المهام التي بتّ فيها المستخدم (غير المعلّقة) — مُثراة باسم المهمة ومقدمها. */
+export async function listDecidedTaskApprovals(reviewedByProfileId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const approvals = await db.select().from(taskApprovals).where(and(eq(taskApprovals.reviewedByProfileId, reviewedByProfileId), inArray(taskApprovals.status, ["approved", "rejected"]))).orderBy(desc(taskApprovals.createdAt)).limit(200);
+  if (!approvals.length) return [];
+  const taskIds = approvals.map(a => a.taskId);
+  const taskRows = await db.select({ id: tasks.id, title: tasks.title }).from(tasks).where(inArray(tasks.id, taskIds));
+  const taskMap = new Map(taskRows.map(t => [t.id, t]));
+  const submitterIds = [...new Set(approvals.map(a => a.submittedByProfileId))];
+  const submitterRows = await db.select({ id: personProfiles.id, fullName: personProfiles.fullName }).from(personProfiles).where(inArray(personProfiles.id, submitterIds));
+  const submitterMap = new Map(submitterRows.map(p => [p.id, p.fullName]));
+  return approvals.map(a => ({ approval: a, task: taskMap.get(a.taskId) ?? null, submitterName: submitterMap.get(a.submittedByProfileId) ?? null }));
+}
+
 /** اعتماد/رفض مجمع لمجموعة اعتمادات، مع الاستمرار عند فشل بعضها. */
 export async function bulkReviewTaskApprovals(input: { approvalIds: number[]; decision: "approved" | "rejected"; note: string; reviewerProfileId: number; reviewerUserId: number }) {
   let processed = 0;

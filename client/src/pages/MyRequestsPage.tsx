@@ -125,7 +125,10 @@ export default function MyRequestsPage() {
   const list = tab === "submitted"
     ? (dash.data?.submitted ?? []).filter((item: Item) => !FINAL_STATUSES.includes(item.status))
     : tab === "records"
-      ? (dash.data?.submitted ?? []).filter((item: Item) => FINAL_STATUSES.includes(item.status))
+      ? [
+          ...(dash.data?.submitted ?? []).filter((item: Item) => FINAL_STATUSES.includes(item.status)),
+          ...(dash.data?.decided ?? []).filter((item: Item) => FINAL_STATUSES.includes(item.status)),
+        ].filter((item: Item) => item.status !== "returned")
       : (dash.data?.[tab] ?? []);
 
   const openDialog = (item: Item, action: DecisionAction, rating?: "excellent" | "good" | "acceptable") => {
