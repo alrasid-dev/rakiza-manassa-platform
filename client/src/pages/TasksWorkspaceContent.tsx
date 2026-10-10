@@ -760,7 +760,7 @@ export default function TasksWorkspaceContent() {
         <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">المهام المستقبلية</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">عرض المهام المجدولة لوقت لاحق دون إمكانية العمل عليها قبل موعدها.</p></div>
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><ListChecks className="h-6 w-6" /></div>
       </header>
-      <div className="mt-5 flex gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
+      <div className="mt-5 flex flex-nowrap gap-2 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white p-2 [&>button]:shrink-0 [&>button]:whitespace-nowrap" role="tablist" aria-label="عرض المهام">
         <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
         <Button type="button" size="sm" variant="default" className="bg-[#8a6731]"><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية {futureTasks.data?.length ? <span className="ml-1 rounded-full bg-[#2f7653] px-1.5 text-[10px] text-white">{futureTasks.data.length}</span> : null}</Button>
         {canDirectEdit && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("approvals")}><CheckCircle2 className="ml-1 h-4 w-4" />الاعتمادات</Button>}
@@ -808,7 +808,7 @@ export default function TasksWorkspaceContent() {
         <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">سجلات المهام</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">المهام المؤرشفة والمنتهية والملغاة والقديمة، مع فلاتر التاريخ والحالة وترقيم الصفحات.</p></div>
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><FileText className="h-6 w-6" /></div>
       </header>
-      <div className="mt-5 flex gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
+      <div className="mt-5 flex flex-nowrap gap-2 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white p-2 [&>button]:shrink-0 [&>button]:whitespace-nowrap" role="tablist" aria-label="عرض المهام">
         <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")}><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية</Button>
         <Button type="button" size="sm" variant="default" className="bg-[#12352f]"><FileText className="ml-1 h-4 w-4" />السجلات</Button>
@@ -848,7 +848,7 @@ export default function TasksWorkspaceContent() {
         <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">مُشاركة معي</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">المهام التي أُضفتَ كمطّلع عليها (نسخة للاطلاع فقط).</p></div>
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><FileText className="h-6 w-6" /></div>
       </header>
-      <div className="mt-5 flex gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
+      <div className="mt-5 flex flex-nowrap gap-2 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white p-2 [&>button]:shrink-0 [&>button]:whitespace-nowrap" role="tablist" aria-label="عرض المهام">
         <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")}><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
@@ -876,7 +876,7 @@ export default function TasksWorkspaceContent() {
           <Button type="button" onClick={() => { setAddForm({ title: "", description: "", assigneeProfileId: "", scheduledFor: "", dueAt: "", frequency: "none", specificDays: [], startDate: "", endDate: "" }); setAddDialog(true); }} className="min-h-[44px] bg-[#12352f] hover:bg-[#1d5245]"><FilePlus2 className="ml-1 h-4 w-4" />إضافة مهمة</Button>
         </div>
       </header>
-      <div className="mt-5 flex gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
+      <div className="mt-5 flex flex-nowrap gap-2 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white p-2 [&>button]:shrink-0 [&>button]:whitespace-nowrap" role="tablist" aria-label="عرض المهام">
         <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")}><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
@@ -968,7 +968,7 @@ export default function TasksWorkspaceContent() {
     <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">{canAssign ? "المهام والمتابعة" : "مهامي وطلباتي"}</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">{canAssign ? "إسناد مباشر ومتابعة مسار المعالجة، مع اختيار ملازم كنسخة تنبيه عند الحاجة." : "تظهر هنا المهام المخولة لك فقط، ويمكنك تأكيد المعالجة أو إرسال تعليق ضمن المسار المعتمد."}</p></div><div className="flex items-center gap-2"><Button type="button" onClick={() => setLocation("/correspondence?type=request")} variant="outline" className="border-[#b6d5bd] text-[#1d6243]"><Send className="ml-1 h-4 w-4" />إنشاء طلب</Button><div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><ListChecks className="h-6 w-6" /></div></div>
     </header>
-    <div className="mt-5 flex gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
+    <div className="mt-5 flex flex-nowrap gap-2 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white p-2 [&>button]:shrink-0 [&>button]:whitespace-nowrap" role="tablist" aria-label="عرض المهام">
       <Button type="button" size="sm" variant={activeTab === "tasks" ? "default" : "outline"} onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }} className={activeTab === "tasks" ? "bg-[#12352f]" : ""}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("my")}><ListChecks className="ml-1 h-4 w-4" />مهامي</Button>
       <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")} className=""><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية {futureTasks.data?.length ? <span className="ml-1 rounded-full bg-[#2f7653] px-1.5 text-[10px] text-white">{futureTasks.data.length}</span> : null}</Button>

@@ -94,7 +94,7 @@ export default function AttendanceMonthlyPage() {
 
   const invalidate = () => {
     if (profileId != null) {
-      utils.court.attendance.monthlyReport?.invalidate?.({ profileId, startAt: range.startAt, endAt: range.endAt });
+      utils.court.attendance.monthlyReport.invalidate({ profileId, startAt: range.startAt, endAt: range.endAt });
     }
   };
 
