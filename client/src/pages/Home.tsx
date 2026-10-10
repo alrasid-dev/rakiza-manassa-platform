@@ -243,7 +243,7 @@ export default function Home() {
                   type="button"
                   onClick={card.onClick}
                   className={cn(
-                    "group relative flex w-24 shrink-0 snap-start flex-col items-center justify-center overflow-hidden",
+                    "group relative flex w-24 shrink-0 snap-start flex-col items-center justify-center overflow-hidden sm:flex-1",
                     "min-h-20",
                     "bg-gradient-to-br",
                     idx === 0 && "rounded-s-2xl",
