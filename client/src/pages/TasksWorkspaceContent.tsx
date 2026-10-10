@@ -92,6 +92,33 @@ function formatTaskDate(value: Date | string | number | null, isOpen?: boolean) 
   return new Intl.DateTimeFormat("ar-SA", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
+/** مفتاح تجميع لعنوان مهمة (تطبيع إملائي خفيف) لدمج العناوين المتكررة في جدول «المهام المسجلة». */
+function taskTitleGroupKey(title: string): string {
+  return String(title ?? "")
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/[\u0649ى]/g, "ي")
+    .replace(/ة/g, "ه")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(w => (w.length >= 4 && w.startsWith("ال") ? w.slice(2) : w))
+    .join(" ");
+}
+
+/** أولوية الحالة لعرض «أعلى أولوية» في صف المجموعة. */
+const TASK_STATUS_PRIORITY: Record<string, number> = { new: 6, in_progress: 5, overdue: 4, under_review: 3, paused: 2, completed: 1, cancelled: 0 };
+
+function groupPriorityStatus(taskList: Array<{ status: string }>): string {
+  let best = taskList[0]?.status ?? "completed";
+  for (const t of taskList) {
+    if ((TASK_STATUS_PRIORITY[t.status] ?? 0) > (TASK_STATUS_PRIORITY[best] ?? 0)) best = t.status;
+  }
+  return best;
+}
+
 function toDatetimeLocal(value: Date | string | number | null) {
   if (value == null) return "";
   const date = new Date(value);
@@ -234,6 +261,7 @@ export default function TasksWorkspaceContent() {
   const [recordsStatus, setRecordsStatus] = useState<"new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled" | undefined>(undefined);
   const [recordsFromDate, setRecordsFromDate] = useState<Date | undefined>(undefined);
   const [recordsToDate, setRecordsToDate] = useState<Date | undefined>(undefined);
+  const [expandedRegisteredGroup, setExpandedRegisteredGroup] = useState<string | null>(null);
   const records = trpc.court.tasks.listRecords.useQuery({ status: recordsStatus, fromDate: recordsFromDate, toDate: recordsToDate, page: recordsPage, pageSize: 20 }, { enabled: activeTab === "records" });
   const sharedTasks = trpc.court.tasks.listSharedWithMe.useQuery(undefined, { enabled: activeTab === "shared" });
   const taskGroups = useMemo(() => {
@@ -868,6 +896,15 @@ export default function TasksWorkspaceContent() {
       const q = registeredSearch.trim();
       return t.title.includes(q) || (nameMap.get(t.assigneeProfileId ?? -1) ?? "").includes(q);
     });
+    // تجميع المهام حسب العنوان المطبَّع (سطر واحد لكل عنوان).
+    const groupsMap = new Map<string, { title: string; tasks: typeof filtered }>();
+    for (const t of filtered) {
+      const key = taskTitleGroupKey(t.title);
+      const existing = groupsMap.get(key);
+      if (existing) existing.tasks.push(t);
+      else groupsMap.set(key, { title: t.title, tasks: [t] });
+    }
+    const groups = [...groupsMap.values()];
     return <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">المهام المسجلة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">جدول المهام المسجلة في نطاقك، مع إمكانية الإضافة والتعديل والإلغاء وإعادة الإسناد.</p></div>
@@ -890,27 +927,42 @@ export default function TasksWorkspaceContent() {
               <th className="px-3 py-3">المهمة</th>
               <th className="px-3 py-3">المُسند</th>
               <th className="px-3 py-3">الحالة</th>
-              <th className="px-3 py-3">البدء</th>
-              <th className="px-3 py-3">إجراءات</th>
+              <th className="px-3 py-3 w-10"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#eee8de]">
-            {filtered.length ? filtered.map((t, idx) => (
-              <tr key={t.id} className="hover:bg-[#fafdf9]">
-                <td className="px-3 py-2.5 text-[#9aa89f]">{idx + 1}</td>
-                <td className="px-3 py-2.5 font-bold text-[#26473a]">{t.title}</td>
-                <td className="px-3 py-2.5 text-[#53675d]">{nameMap.get(t.assigneeProfileId ?? -1) ?? "—"}</td>
-                <td className="px-3 py-2.5">{taskStatusLabel(t.status as TaskStatus)}</td>
-                <td className="px-3 py-2.5 text-[#75837c]">{formatTaskDate(t.scheduledFor)}</td>
-                <td className="px-3 py-2.5">
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(t)}><Pencil className="ml-1 h-3.5 w-3.5" />تعديل</Button>
-                    <Button type="button" size="sm" variant="outline" className="border-[#e0b3a7] text-[#a04a35]" onClick={() => { setCancelDialog({ taskId: t.id, title: t.title }); setCancelReason(""); }}><XCircle className="ml-1 h-3.5 w-3.5" />إلغاء</Button>
-                    <Button type="button" size="sm" variant="outline" className="border-[#c9d6c0] text-[#2d6b4f]" onClick={() => setLocation("/tasks/reassign")}><RefreshCcw className="ml-1 h-3.5 w-3.5" />إعادة إسناد</Button>
-                  </div>
-                </td>
-              </tr>
-            )) : <tr><td colSpan={6} className="px-3 py-10 text-center text-sm text-[#738179]">لا توجد مهام مسجلة.</td></tr>}
+            {groups.length ? groups.flatMap((g, idx) => {
+              const key = taskTitleGroupKey(g.title);
+              const isExpanded = expandedRegisteredGroup === key;
+              const assigneeIds = [...new Set(g.tasks.map(t => t.assigneeProfileId))];
+              const assigneeLabel = assigneeIds.length === 1 ? (nameMap.get(assigneeIds[0] ?? -1) ?? "—") : `${assigneeIds.length} موظفين`;
+              const headRow = (
+                <tr key={`head-${key}`} className="cursor-pointer hover:bg-[#fafdf9]" onClick={() => setExpandedRegisteredGroup(isExpanded ? null : key)}>
+                  <td className="px-3 py-2.5 text-[#9aa89f]">{idx + 1}</td>
+                  <td className="px-3 py-2.5 font-bold text-[#26473a]">{g.title} <span className="font-normal text-[#9aa89f]">({g.tasks.length})</span></td>
+                  <td className="px-3 py-2.5 text-[#53675d]">{assigneeLabel}</td>
+                  <td className="px-3 py-2.5">{taskStatusLabel(groupPriorityStatus(g.tasks) as TaskStatus)}</td>
+                  <td className="px-3 py-2.5 text-center text-[#9aa89f]">{isExpanded ? "▲" : "▼"}</td>
+                </tr>
+              );
+              const subRows = isExpanded ? g.tasks.map(t => (
+                <tr key={t.id} className="bg-[#fafdf9]">
+                  <td colSpan={5} className="px-4 py-2">
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <span className="font-bold text-[#355d4b]">↳ {nameMap.get(t.assigneeProfileId ?? -1) ?? "—"}</span>
+                      <span className="text-[#75837c]">{formatTaskDate(t.scheduledFor)}</span>
+                      <span className="text-[#53675d]">{taskStatusLabel(t.status as TaskStatus)}</span>
+                      <div className="ms-auto flex flex-wrap gap-1.5">
+                        <Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(t)}><Pencil className="ml-1 h-3.5 w-3.5" />تعديل</Button>
+                        <Button type="button" size="sm" variant="outline" className="border-[#e0b3a7] text-[#a04a35]" onClick={() => { setCancelDialog({ taskId: t.id, title: t.title }); setCancelReason(""); }}><XCircle className="ml-1 h-3.5 w-3.5" />إلغاء</Button>
+                        <Button type="button" size="sm" variant="outline" className="border-[#c9d6c0] text-[#2d6b4f]" onClick={() => setLocation("/tasks/reassign")}><RefreshCcw className="ml-1 h-3.5 w-3.5" />إعادة إسناد</Button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )) : [];
+              return [headRow, ...subRows];
+            }) : <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-[#738179]">لا توجد مهام مسجلة.</td></tr>}
           </tbody>
         </table>
       </div>

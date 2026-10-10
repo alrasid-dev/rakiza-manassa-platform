@@ -2013,6 +2013,21 @@ function normalizeTaskTitleKey(value: string): string {
     .join(" ");
 }
 
+/** توحيد العبارات المتشابهة بعد التطبيع الإملائي (يُطبَّق على النص المطبَّع: توجية→توجيه، على→علي). */
+const PHRASE_ALIASES: Array<[RegExp, string]> = [
+  // «حسب توجيه» و«بتوجيه من» = نفس معنى فرز الأحكام.
+  [/حسب توجيه/g, "بتوجيه من"],
+  // «متابعه علي» و«متابعه» = نفس مهمة متابعة البريد.
+  [/متابعه علي/g, "متابعه"],
+];
+
+/** مفتاح موحّد (كنسي) لعنوان مهمة: تطبيع إملائي + توحيد عبارات. */
+function canonicalTaskTitleKey(value: string): string {
+  let s = normalizeTaskTitleKey(value);
+  for (const [re, replacement] of PHRASE_ALIASES) s = s.replace(re, replacement);
+  return s;
+}
+
 export async function listTaskTitlesForComparison(unitId?: number) {
   const db = await getDb();
   if (!db) return [];
@@ -2021,7 +2036,7 @@ export async function listTaskTitlesForComparison(unitId?: number) {
   const rows = await db.select({ id: taskTemplates.id, title: taskTemplates.title, unitId: taskTemplates.unitId }).from(taskTemplates).where(and(...conditions)).orderBy(taskTemplates.title);
   // إزالة التكرار: عنوان المهمة نفسه يظهر مرة واحدة فقط (بمطابقة مطبَّعة إملائياً).
   const seen = new Set<string>();
-  return rows.filter(r => { const key = normalizeTaskTitleKey(r.title); if (!key || seen.has(key)) return false; seen.add(key); return true; });
+  return rows.filter(r => { const key = canonicalTaskTitleKey(r.title); if (!key || seen.has(key)) return false; seen.add(key); return true; });
 }
 
 export type ComparisonTaskRow = { assigneeProfileId: number | null; status: string; dueAt: Date | null; completedAt: Date | null; scheduledFor: Date | null };
@@ -2058,9 +2073,9 @@ export async function compareTaskPerformance(input: { title?: string; templateId
   const conditions = [...scopeConditions];
   if (input.title) {
     // مطابقة العنوان بتطبيع إملائي: يدمج «استقبال مستفيدات» و«استقبال المستفيدات» في تقرير واحد.
-    const targetKey = normalizeTaskTitleKey(input.title);
+    const targetKey = canonicalTaskTitleKey(input.title);
     const titleRows = await db.select({ title: tasks.title }).from(tasks).where(and(...scopeConditions));
-    const matchedTitles = [...new Set(titleRows.map(r => r.title).filter(t => normalizeTaskTitleKey(t) === targetKey))];
+    const matchedTitles = [...new Set(titleRows.map(r => r.title).filter(t => canonicalTaskTitleKey(t) === targetKey))];
     conditions.push(matchedTitles.length ? inArray(tasks.title, matchedTitles) : sql`1 = 0`);
   }
   if (input.templateId) conditions.push(eq(tasks.templateId, input.templateId));
