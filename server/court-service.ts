@@ -1996,15 +1996,32 @@ export async function listTasksSharedWithProfile(profileId: number) {
 }
 
 // ===== تقارير مقارنة المهام =====
+
+/** تطبيع عنوان مهمة للمقارنة: يوحّد الهمزات والتاء المربوطة والألف المقصورة والتشكيل، ويحذف «ال» التعريف (مع حارس طول) لدمج الاختلافات الإملائية. */
+function normalizeTaskTitleKey(value: string): string {
+  return String(value ?? "")
+    .replace(/[\u064B-\u065F\u0670]/g, "")   // تشكيل
+    .replace(/[أإآ]/g, "ا")                  // همزات الألف
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .replace(/[\u0649ى]/g, "ي")              // ألف مقصورة
+    .replace(/ة/g, "ه")                      // تاء مربوطة
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(w => (w.length >= 4 && w.startsWith("ال") ? w.slice(2) : w))
+    .join(" ");
+}
+
 export async function listTaskTitlesForComparison(unitId?: number) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(taskTemplates.isActive, true)];
   if (unitId) conditions.push(eq(taskTemplates.unitId, unitId));
   const rows = await db.select({ id: taskTemplates.id, title: taskTemplates.title, unitId: taskTemplates.unitId }).from(taskTemplates).where(and(...conditions)).orderBy(taskTemplates.title);
-  // إزالة التكرار: عنوان المهمة نفسه يظهر مرة واحدة فقط في قائمة الاختيار.
+  // إزالة التكرار: عنوان المهمة نفسه يظهر مرة واحدة فقط (بمطابقة مطبَّعة إملائياً).
   const seen = new Set<string>();
-  return rows.filter(r => { if (seen.has(r.title)) return false; seen.add(r.title); return true; });
+  return rows.filter(r => { const key = normalizeTaskTitleKey(r.title); if (!key || seen.has(key)) return false; seen.add(key); return true; });
 }
 
 export type ComparisonTaskRow = { assigneeProfileId: number | null; status: string; dueAt: Date | null; completedAt: Date | null; scheduledFor: Date | null };
@@ -2033,12 +2050,20 @@ export function computeTaskPerformanceStats(taskRows: ComparisonTaskRow[]) {
 export async function compareTaskPerformance(input: { title?: string; templateId?: number; fromDate?: Date; toDate?: Date; unitId?: number; sortBy?: "completed" | "totalPoints" | "avgCompletionMinutes" | "complianceRate" }) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [isNull(tasks.archivedAt)];
-  if (input.title) conditions.push(eq(tasks.title, input.title));
+  const scopeConditions = [isNull(tasks.archivedAt)];
+  if (input.unitId) scopeConditions.push(eq(tasks.unitId, input.unitId));
+  if (input.fromDate) scopeConditions.push(gte(tasks.scheduledFor, input.fromDate));
+  if (input.toDate) scopeConditions.push(lt(tasks.scheduledFor, input.toDate));
+
+  const conditions = [...scopeConditions];
+  if (input.title) {
+    // مطابقة العنوان بتطبيع إملائي: يدمج «استقبال مستفيدات» و«استقبال المستفيدات» في تقرير واحد.
+    const targetKey = normalizeTaskTitleKey(input.title);
+    const titleRows = await db.select({ title: tasks.title }).from(tasks).where(and(...scopeConditions));
+    const matchedTitles = [...new Set(titleRows.map(r => r.title).filter(t => normalizeTaskTitleKey(t) === targetKey))];
+    conditions.push(matchedTitles.length ? inArray(tasks.title, matchedTitles) : sql`1 = 0`);
+  }
   if (input.templateId) conditions.push(eq(tasks.templateId, input.templateId));
-  if (input.unitId) conditions.push(eq(tasks.unitId, input.unitId));
-  if (input.fromDate) conditions.push(gte(tasks.scheduledFor, input.fromDate));
-  if (input.toDate) conditions.push(lt(tasks.scheduledFor, input.toDate));
   const taskRows = await db.select({ id: tasks.id, assigneeProfileId: tasks.assigneeProfileId, status: tasks.status, dueAt: tasks.dueAt, completedAt: tasks.completedAt, scheduledFor: tasks.scheduledFor }).from(tasks).where(and(...conditions));
   const byProfile = computeTaskPerformanceStats(taskRows as ComparisonTaskRow[]);
 
