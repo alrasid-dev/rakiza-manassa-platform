@@ -53,6 +53,28 @@ describe("navigation sections", () => {
     expect(isNavigationSectionAllowed("لوحة القيادة", "employee", "تسليم الأحكام", "judgments_delivery")).toBe(true);
   });
 
+  it("يعزل مدير القسم على قسمه دون رئاسة المحكمة أو الموارد البشرية", () => {
+    const fahadRoles = ["trainee_affairs_manager", "department_manager"];
+    expect(isNavigationSectionAllowed("شؤون الملازمين", "general_view", "شؤون الملازمين", "trainee_affairs", fahadRoles)).toBe(true);
+    expect(isNavigationSectionAllowed("الإدارة والتقارير", "general_view", "شؤون الملازمين", "trainee_affairs", fahadRoles)).toBe(true);
+    expect(isNavigationSectionAllowed("لوحة القيادة", "general_view", "شؤون الملازمين", "trainee_affairs", fahadRoles)).toBe(true);
+    expect(isNavigationSectionAllowed("العمل والتقارير", "general_view", "شؤون الملازمين", "trainee_affairs", fahadRoles)).toBe(true);
+    expect(isNavigationSectionAllowed("رئاسة المحكمة", "general_view", "شؤون الملازمين", "trainee_affairs", fahadRoles)).toBe(false);
+    expect(isNavigationSectionAllowed("الموارد البشرية", "general_view", "شؤون الملازمين", "trainee_affairs", fahadRoles)).toBe(false);
+  });
+
+  it("يمنح رئيس المحكمة إدارة المستخدمين دون المساس بصلاحيات المالك", () => {
+    const presidentRoles = ["court_president"];
+    // الرئيس (قيادة) يرى قسم الإدارة والتقارير الذي يضم إدارة المستخدمين
+    expect(isNavigationSectionAllowed("الإدارة والتقارير", "full_control", undefined, undefined, presidentRoles)).toBe(true);
+    // العنصر أصبح presidentOnly (متاح للرئيس والمالك) بدل ownerOnly
+    const accessManagement = navigationSections.flatMap(section => section.items).find(item => item.path === "/access-management");
+    expect(accessManagement).toMatchObject({ presidentOnly: true });
+    expect(accessManagement?.ownerOnly).toBeUndefined();
+    // المالك ما زال يرى العنصر عبر شرط isOwner في الفلتر
+    expect(navigationSections.flatMap(section => section.items).filter(item => item.ownerOnly).some(item => item.path === "/access-management")).toBe(false);
+  });
+
   it("exposes owner access management and human resources without duplicate registration navigation", () => {
     const paths = navigationSections.flatMap(section => section.items.map(item => item.path));
     expect(paths).not.toContain("/register");
