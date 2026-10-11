@@ -1807,6 +1807,11 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
     )!);
   } else if (filters?.dueFilter === "completed") {
     conditions.push(eq(tasks.status, "completed"));
+    // 🅱️ «المكتملة»: غير المؤرشفة + المؤرشفة خلال آخر 24 ساعة فقط (الأقدم تذهب للسجلات).
+    conditions.push(or(
+      isNull(tasks.archivedAt),
+      gte(tasks.archivedAt, new Date(Date.now() - 24 * 60 * 60 * 1000)),
+    )!);
   }
   if (filters?.assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, filters.assigneeProfileId));
   if (filters?.visibleProfileId) {
@@ -2146,7 +2151,8 @@ export async function archiveTask(input: { taskId: number; actorUserId: number }
 export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number, assigneeProfileId?: number, dueFilter?: "overdue" | "dueSoon" | "completed", futureRange?: FutureRange, period?: TaskPeriod) {
   const db = await getDb();
   if (!db || !unitIds.length) return [];
-  const conditions = [inArray(tasks.unitId, unitIds), isNull(tasks.archivedAt)];
+  const conditions = [inArray(tasks.unitId, unitIds)];
+  if (dueFilter !== "completed") conditions.push(isNull(tasks.archivedAt));
   const periodWindow = period ? taskPeriodWindow(period, new Date()) : null;
   const futureWindow = futureRange ? futureRangeWindow(futureRange, new Date()) : null;
   const shouldHideFuture = !futureWindow && !periodWindow && dueFilter !== "dueSoon" && dueFilter !== "completed";
@@ -2176,6 +2182,11 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
     )!);
   } else if (dueFilter === "completed") {
     conditions.push(eq(tasks.status, "completed"));
+    // 🅱️ «المكتملة»: غير المؤرشفة + المؤرشفة خلال آخر 24 ساعة فقط (الأقدم تذهب للسجلات).
+    conditions.push(or(
+      isNull(tasks.archivedAt),
+      gte(tasks.archivedAt, new Date(Date.now() - 24 * 60 * 60 * 1000)),
+    )!);
   }
   if (assigneeProfileId) conditions.push(eq(tasks.assigneeProfileId, assigneeProfileId));
   if (visibleProfileId) {
