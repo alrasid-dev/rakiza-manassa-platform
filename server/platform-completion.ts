@@ -1,6 +1,7 @@
 /** قواعد تشغيل مجانية للمنصة الداخلية: صلاحيات، حضور، تقارير، بحث، تذكير، مداورة. */
 
 export type WorkMode = "employee" | "manager";
+export type Theme = "light" | "dark";
 export type AttendancePeriod = "daily" | "weekly" | "monthly";
 export type NotificationFilter = "all" | "unread" | "tasks" | "mail" | "attendance" | "leave" | "escalation";
 export type DeadlineNudgeKind = "none" | "24h" | "12h";
@@ -229,6 +230,7 @@ export function defaultWorkPreferences() {
     notificationsEnabled: true,
     dndUntil: null as string | null,
     seenHelpKeys: [] as string[],
+    theme: "light" as Theme,
   };
 }
 

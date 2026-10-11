@@ -1314,6 +1314,7 @@ export const userWorkPreferences = mysqlTable("user_work_preferences", {
   notificationsEnabled: boolean("notificationsEnabled").default(true).notNull(),
   dndUntil: timestamp("dndUntil"),
   seenHelpKeys: text("seenHelpKeys"),
+  theme: mysqlEnum("theme", ["light", "dark"]).default("light").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => [uniqueIndex("user_work_preferences_user_unique").on(table.userId)]);

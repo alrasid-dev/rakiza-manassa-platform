@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
 
 type Theme = "light" | "dark";
 
@@ -16,18 +18,32 @@ interface ThemeProviderProps {
   switchable?: boolean;
 }
 
+function themeStorageKey(userId?: number | string | null) {
+  return userId != null ? `rakiza:theme:${userId}` : "rakiza:theme";
+}
+
 export function ThemeProvider({
   children,
   defaultTheme = "light",
   switchable = false,
 }: ThemeProviderProps) {
+  const { user } = useAuth();
+  const prefs = trpc.court.workPreferences.mine.useQuery(undefined, { enabled: switchable && Boolean(user) });
+  const updatePrefs = trpc.court.workPreferences.update.useMutation();
+
   const [theme, setTheme] = useState<Theme>(() => {
-    if (switchable) {
-      const stored = localStorage.getItem("theme");
-      return (stored as Theme) || defaultTheme;
-    }
-    return defaultTheme;
+    if (!switchable) return defaultTheme;
+    if (typeof window === "undefined") return defaultTheme;
+    const stored = window.localStorage.getItem(themeStorageKey(user?.id));
+    return stored === "dark" || stored === "light" ? stored : defaultTheme;
   });
+
+  // عند وصول تفضيلات الخادم (المصدر الموثوق) → طبّقها وحدّث الـ cache
+  useEffect(() => {
+    if (switchable && prefs.data?.theme) {
+      setTheme(prefs.data.theme);
+    }
+  }, [prefs.data?.theme, switchable]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -40,13 +56,17 @@ export function ThemeProvider({
     }
 
     if (switchable) {
-      localStorage.setItem("theme", theme);
+      window.localStorage.setItem(themeStorageKey(user?.id), theme);
     }
-  }, [theme, switchable]);
+  }, [theme, switchable, user?.id]);
 
   const toggleTheme = switchable
     ? () => {
-        setTheme(prev => (prev === "light" ? "dark" : "light"));
+        setTheme(prev => {
+          const next: Theme = prev === "light" ? "dark" : "light";
+          if (user) updatePrefs.mutate({ theme: next });
+          return next;
+        });
       }
     : undefined;
 

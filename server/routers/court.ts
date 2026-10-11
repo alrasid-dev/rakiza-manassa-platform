@@ -2961,7 +2961,7 @@ export const courtRouter = router({
 
   workPreferences: router({
     mine: protectedProcedure.query(({ ctx }) => getWorkPreferences(ctx.user.id)),
-    update: protectedProcedure.input(z.object({ workMode: z.enum(["employee", "manager"]).optional(), notificationsEnabled: z.boolean().optional(), dndUntil: z.date().nullable().optional(), seenHelpKeys: z.array(z.string().trim().min(1).max(80)).max(80).optional() })).mutation(({ ctx, input }) => updateWorkPreferences({ userId: ctx.user.id, ...input })),
+    update: protectedProcedure.input(z.object({ workMode: z.enum(["employee", "manager"]).optional(), notificationsEnabled: z.boolean().optional(), dndUntil: z.date().nullable().optional(), seenHelpKeys: z.array(z.string().trim().min(1).max(80)).max(80).optional(), theme: z.enum(["light", "dark"]).optional() })).mutation(({ ctx, input }) => updateWorkPreferences({ userId: ctx.user.id, ...input })),
   }),
 
   delegation: router({

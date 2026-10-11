@@ -1,8 +1,23 @@
 // @vitest-environment jsdom
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { ThemeProvider, useTheme } from "./ThemeContext";
+
+vi.mock("@/_core/hooks/useAuth", () => ({
+  useAuth: () => ({ user: { id: 1 } }),
+}));
+
+vi.mock("@/lib/trpc", () => ({
+  trpc: {
+    court: {
+      workPreferences: {
+        mine: { useQuery: () => ({ data: undefined }) },
+        update: { useMutation: () => ({ mutate: vi.fn() }) },
+      },
+    },
+  },
+}));
 
 function Probe() {
   const { theme, toggleTheme } = useTheme();
@@ -25,7 +40,7 @@ describe("ThemeProvider", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(true);
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(document.documentElement.style.colorScheme).toBe("dark");
-    expect(localStorage.getItem("theme")).toBe("dark");
+    expect(localStorage.getItem("rakiza:theme:1")).toBe("dark");
     fireEvent.click(button);
     expect(button.textContent).toBe("light");
     expect(document.documentElement.classList.contains("dark")).toBe(false);

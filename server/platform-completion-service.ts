@@ -31,6 +31,7 @@ import {
   rankSearchResults,
   scoreSearchHit,
   type WorkMode,
+  type Theme,
 } from "./platform-completion";
 import { reportStart } from "./reporting";
 import { calculateComplianceRate } from "./attendance-confirmation-policy";
@@ -61,10 +62,11 @@ export async function getWorkPreferences(userId: number) {
     notificationsEnabled: Boolean(row.notificationsEnabled),
     dndUntil: row.dndUntil ? row.dndUntil.toISOString() : null,
     seenHelpKeys,
+    theme: (row.theme as Theme) ?? "light",
   };
 }
 
-export async function updateWorkPreferences(input: { userId: number; workMode?: WorkMode; notificationsEnabled?: boolean; dndUntil?: Date | null; seenHelpKeys?: string[] }) {
+export async function updateWorkPreferences(input: { userId: number; workMode?: WorkMode; notificationsEnabled?: boolean; dndUntil?: Date | null; seenHelpKeys?: string[]; theme?: Theme }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const current = await getWorkPreferences(input.userId);
@@ -73,6 +75,7 @@ export async function updateWorkPreferences(input: { userId: number; workMode?: 
     notificationsEnabled: input.notificationsEnabled ?? current.notificationsEnabled,
     dndUntil: input.dndUntil === undefined ? (current.dndUntil ? new Date(current.dndUntil) : null) : input.dndUntil,
     seenHelpKeys: JSON.stringify(input.seenHelpKeys ?? current.seenHelpKeys),
+    theme: input.theme ?? current.theme,
   };
   const existing = (await db.select({ id: userWorkPreferences.id }).from(userWorkPreferences).where(eq(userWorkPreferences.userId, input.userId)).limit(1))[0];
   if (existing) await db.update(userWorkPreferences).set({ ...next, updatedAt: new Date() }).where(eq(userWorkPreferences.id, existing.id));
