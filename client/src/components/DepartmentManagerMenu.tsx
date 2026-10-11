@@ -65,7 +65,7 @@ export default function DepartmentManagerMenu({ variant = "dark" }: { variant?: 
             </div>
             <div>
               <p className="text-xs font-bold text-[#6a786f]">الموظفون المسندة إليهم</p>
-              <div className="mt-1 flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded-md border border-input bg-white p-2">{people.data?.filter(person => person.userId).map(person => { const selected = form.assigneeProfileIds.includes(person.id); return <button key={person.id} type="button" onClick={() => toggleAssignee(person.id)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${selected ? "bg-[#12352f] text-white" : "bg-[#eef2ec] text-[#486455]"}`}>{person.fullName}</button>; })}</div>
+              <div className="mt-1 flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded-md border border-input bg-white p-2">{people.data?.filter(person => person.userId && person.status === "active").map(person => { const selected = form.assigneeProfileIds.includes(person.id); return <button key={person.id} type="button" onClick={() => toggleAssignee(person.id)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${selected ? "bg-[#12352f] text-white" : "bg-[#eef2ec] text-[#486455]"}`}>{person.fullName}</button>; })}</div>
             </div>
           </div>
           <DialogFooter className="gap-2">

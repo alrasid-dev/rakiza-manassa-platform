@@ -78,7 +78,7 @@ export default function DepartmentManagementActions({ variant = "dark" }: { vari
               الحساب
               <select value={assignForm.userId} onChange={event => setAssignForm({ ...assignForm, userId: event.target.value })} className={inputClass}>
                 <option value="">اختر الحساب</option>
-                {people.data?.filter(person => person.userId).map(person => <option key={person.id} value={person.userId as number}>{person.fullName}{person.email ? ` · ${person.email}` : ""}</option>)}
+                {people.data?.filter(person => person.userId && person.status === "active").map(person => <option key={person.id} value={person.userId as number}>{person.fullName}{person.email ? ` · ${person.email}` : ""}</option>)}
               </select>
             </label>
             <label className="block text-xs font-bold text-[#6a786f]">
