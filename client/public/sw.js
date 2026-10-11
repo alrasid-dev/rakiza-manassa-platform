@@ -1,6 +1,10 @@
 // عامل خدمة خفيف: لا يخزن بيانات تشغيلية، ويعالج إشعارات Web Push فقط.
 // ملاحظة مهمة: التنظيف الصريح لكل الكاش في `activate` يمنع بقاء نسخة HTML/أصول قديمة
 // على أجهزة المستخدمين بعد أي نشر جديد (وهو السبب الشائع للشاشة البيضاء).
+// رقم إصدار صريح — غيّره عند كل نشر لإجبار المتصفح على تنزيل نسخة SW جديدة ومسح الكاش القديم.
+const CACHE_VERSION = 'v2026-10-11-01';
+const CACHE_NAME = `rakiza-${CACHE_VERSION}`;
+
 function scopedAsset(path) {
   try {
     return new URL(String(path).replace(/^\//, ""), self.registration.scope).href;
