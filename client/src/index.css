@@ -181,6 +181,18 @@
 .dark [class*="text-[#4a785a]"], .dark [class*="text-[#758279]"] { color: #b4cdb8 !important; }
 .dark [class*="text-[#a8493b]"], .dark [class*="text-[#a64b3c]"] { color: #f3c5bb !important; }
 .dark [class*="text-[#80642b]"] { color: #ead69c !important; }
+/* توسيع الداكن: تغطية درجات النصوص والخلفيات الأكثر استخدامًا غير المغطاة سابقًا (الحدود مغطاة بقاعدة catch-all). */
+.dark [class*="text-[#65766d]"], .dark [class*="text-[#6a786f]"], .dark [class*="text-[#53675d]"], .dark [class*="text-[#75837c]"], .dark [class*="text-[#738179]"], .dark [class*="text-[#6e7e75]"], .dark [class*="text-[#7a887f]"], .dark [class*="text-[#52665b]"], .dark [class*="text-[#6d7d74]"] { color: #b4cdb8 !important; }
+.dark [class*="text-[#b18448]"], .dark [class*="text-[#8a6731]"], .dark [class*="text-[#8a6d20]"], .dark [class*="text-[#4a3b28]"], .dark [class*="text-[#805d27]"] { color: #d4b478 !important; }
+.dark [class*="text-[#a04a35]"], .dark [class*="text-[#9a4634]"] { color: #f3c5bb !important; }
+.dark [class*="text-[#355d4b]"], .dark [class*="text-[#386048]"], .dark [class*="text-[#1f5a47]"], .dark [class*="text-[#315f49]"], .dark [class*="text-[#315c4a]"], .dark [class*="text-[#28623f]"] { color: #d5e7d4 !important; }
+.dark [class*="text-[#2f7653]"] { color: #b5dc9e !important; }
+.dark [class*="text-[#18352c]"] { color: #eef4e9 !important; }
+.dark [class*="bg-[#00552b]"], .dark [class*="bg-[#1d5245]"], .dark [class*="bg-[#2f7653]"], .dark [class*="bg-[#245d41]"], .dark [class*="bg-[#0e6a40]"], .dark [class*="bg-[#174b3c]"] { background-color: #1f7a4d !important; }
+.dark [class*="bg-[#f2f6f1]"], .dark [class*="bg-[#d1e4d1]"], .dark [class*="bg-[#eef4f0]"], .dark [class*="bg-[#e7f2e9]"], .dark [class*="bg-[#e8f1e8]"], .dark [class*="bg-[#e5eee4]"], .dark [class*="bg-[#e2ebe0]"] { background-color: #1d2d24 !important; }
+.dark [class*="bg-[#f3e5bf]"], .dark [class*="bg-[#fff8ec]"], .dark [class*="bg-[#efe4c0]"] { background-color: #403720 !important; }
+.dark [class*="bg-[#b18448]"] { background-color: #6b5a2e !important; }
+.dark [class*="bg-[#14251c]"] { background-color: #101914 !important; }
 
 @layer base {
   html {
