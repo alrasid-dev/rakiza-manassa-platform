@@ -22,6 +22,24 @@ function themeStorageKey(userId?: number | string | null) {
   return userId != null ? `rakiza:theme:${userId}` : "rakiza:theme";
 }
 
+// يقرأ الثيم المخزَّن (rakiza:theme:{userId} ثم legacy) مطابقًا لسكربت <head> — يمنع الوميض عند الإقلاع.
+function readCachedTheme(defaultTheme: Theme): Theme {
+  if (typeof window === "undefined") return defaultTheme;
+  try {
+    const keys = Object.keys(window.localStorage);
+    for (const key of keys) {
+      if (key.indexOf("rakiza:theme:") === 0) {
+        const value = window.localStorage.getItem(key);
+        return value === "dark" || value === "light" ? value : defaultTheme;
+      }
+    }
+    const legacy = window.localStorage.getItem("theme");
+    return legacy === "dark" || legacy === "light" ? legacy : defaultTheme;
+  } catch {
+    return defaultTheme;
+  }
+}
+
 export function ThemeProvider({
   children,
   defaultTheme = "light",
@@ -33,9 +51,7 @@ export function ThemeProvider({
 
   const [theme, setTheme] = useState<Theme>(() => {
     if (!switchable) return defaultTheme;
-    if (typeof window === "undefined") return defaultTheme;
-    const stored = window.localStorage.getItem(themeStorageKey(user?.id));
-    return stored === "dark" || stored === "light" ? stored : defaultTheme;
+    return readCachedTheme(defaultTheme);
   });
 
   // عند وصول تفضيلات الخادم (المصدر الموثوق) → طبّقها وحدّث الـ cache
