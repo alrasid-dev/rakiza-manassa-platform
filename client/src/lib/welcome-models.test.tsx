@@ -22,6 +22,13 @@ describe("نماذج الترحيب اليومية", () => {
     expect(getWelcomeItem(new Date(2026, 0, 15, 20, 0, 0)).kind).toBe("evening");
   });
 
+  it("يحدد الصباح والمساء بتوقيت الرياض (UTC+3) بغضّ النظر عن منطقة المتصفح", () => {
+    // 05:00 UTC = 08:00 الرياض → صباح
+    expect(getWelcomeItem(new Date(Date.UTC(2026, 0, 15, 5, 0, 0))).kind).toBe("morning");
+    // 09:00 UTC = 12:00 الرياض → مساء
+    expect(getWelcomeItem(new Date(Date.UTC(2026, 0, 15, 9, 0, 0))).kind).toBe("evening");
+  });
+
   it("يتجدد يومياً ويغطي كل الآيات مرة واحدة خلال 30 يوماً", () => {
     const seen = new Set<string>();
     for (let d = 0; d < 30; d++) {

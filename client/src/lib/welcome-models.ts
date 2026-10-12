@@ -80,7 +80,10 @@ export type WelcomeItem =
 
 export function getWelcomeItem(now: Date): WelcomeItem {
   const dayOfYear = getDayOfYear(now);
-  const isMorning = now.getHours() >= 4 && now.getHours() < 12;
+  // توقيت الرياض (UTC+3) بدل توقيت المتصفح المحلي — يمنع ظهور "مساء الخير" في الصباح.
+  const riyadh = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  const hour = riyadh.getUTCHours();
+  const isMorning = hour >= 4 && hour < 12;
   if (isMorning) {
     const m = MORNING_AYAHS[dayOfYear % MORNING_AYAHS.length];
     return { kind: "morning", ayah: m.ayah, reference: m.reference };
