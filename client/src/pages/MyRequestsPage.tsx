@@ -91,7 +91,7 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
 }
 
 export default function MyRequestsPage() {
-  const [tab, setTab] = useState<"submitted" | "toReview" | "returned" | "disciplinary" | "records">("submitted");
+  const [tab, setTab] = useState<"submitted" | "toReview" | "adminApprovals" | "returned" | "disciplinary" | "records">("submitted");
   const [dialog, setDialog] = useState<{ item: Item; action: DecisionAction; rating?: "excellent" | "good" | "acceptable" } | null>(null);
   const [reason, setReason] = useState("");
   const dash = trpc.court.requests.myDashboard.useQuery(undefined, { refetchInterval: 15000 });
@@ -112,13 +112,17 @@ export default function MyRequestsPage() {
   const canEscalate = isOwner || isLeadership || isSecretary || isManager;
   const canReturn = isOwner || isLeadership || isManager;
   const canActOnItem = (item: Item) => !isOwner || item.status === "escalated" || roleList.includes("court_secretary") || roleList.includes("court_president");
+  const operationsRoles = ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager"];
+  const mayManageOperations = isOwner || roleList.some(r => operationsRoles.includes(r));
+  const adminApprovals = trpc.court.approvals.pending.useQuery(undefined, { enabled: mayManageOperations, refetchInterval: 30000 });
 
   const tabs = [
-    { key: "submitted" as const, label: "📤 طلباتي" },
     { key: "toReview" as const, label: "📥 اعتماداتي" },
-    { key: "returned" as const, label: "🔄 العائد إليّ" },
-    { key: "disciplinary" as const, label: "⚖️ مساءلاتي" },
-    { key: "records" as const, label: "🗂️ السجلات" },
+    ...(mayManageOperations ? [{ key: "adminApprovals" as const, label: "⚙️ الاعتمادات الإدارية" }] : []),
+    { key: "submitted" as const, label: "📤 طلباتي" },
+    { key: "returned" as const, label: "↩️ العائد إليّ" },
+    { key: "disciplinary" as const, label: "⚠️ مساءلاتي" },
+    { key: "records" as const, label: "📋 السجلات" },
   ];
 
   const FINAL_STATUSES = ["approved", "rejected", "closed", "returned", "saved", "cancelled", "completed"];
@@ -129,7 +133,9 @@ export default function MyRequestsPage() {
           ...(dash.data?.submitted ?? []).filter((item: Item) => FINAL_STATUSES.includes(item.status)),
           ...(dash.data?.decided ?? []).filter((item: Item) => FINAL_STATUSES.includes(item.status)),
         ].filter((item: Item) => item.status !== "returned")
-      : (dash.data?.[tab] ?? []);
+      : tab === "adminApprovals"
+        ? []
+        : (dash.data?.[tab] ?? []);
 
   const openDialog = (item: Item, action: DecisionAction, rating?: "excellent" | "good" | "acceptable") => {
     setReason("");
@@ -171,7 +177,21 @@ export default function MyRequestsPage() {
           ))}
         </div>
         <div className="mt-4 space-y-3">
-          {dash.isLoading ? <p className="text-gray-500">جارٍ التحميل…</p> : list.length ? list.map((item: Item) => { const actionable = canActOnItem(item); return <Card key={`${item.type}-${item.id}`} item={item} reviewable={tab === "toReview"} canApprove={canApprove && actionable} canReject={canReject && actionable} canEscalate={canEscalate && actionable} canReturn={canReturn && actionable} onAction={openDialog} />; }) : <p className="text-gray-500">لا توجد عناصر في هذا التبويب.</p>}
+          {tab === "adminApprovals" ? (
+            <>
+              <a href="/approvals" className="inline-block text-sm font-bold text-[#2f7653] underline">فتح صفحة الاعتمادات الإدارية</a>
+              {adminApprovals.isLoading ? <p className="text-gray-500">جارٍ التحميل…</p> : (adminApprovals.data ?? []).length ? (adminApprovals.data ?? []).map((approval: any) => (
+                <div key={approval.id} className="rounded-xl border border-[#e7e0d4] bg-white p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="rounded bg-[#eef4f0] px-2 py-0.5 text-xs text-[#2f7653]">{approval.entityType}</span>
+                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{approval.currentRole}</span>
+                  </div>
+                  <p className="mt-2 text-sm font-bold text-[#29463b]">طلب اعتماد #{approval.id}</p>
+                  <p className="mt-1 text-xs text-[#75837c]">{approval.createdAt ? new Date(approval.createdAt).toLocaleDateString("ar-SA") : ""}</p>
+                </div>
+              )) : <p className="text-gray-500">لا توجد اعتمادات إدارية معلّقة.</p>}
+            </>
+          ) : dash.isLoading ? <p className="text-gray-500">جارٍ التحميل…</p> : list.length ? list.map((item: Item) => { const actionable = canActOnItem(item); return <Card key={`${item.type}-${item.id}`} item={item} reviewable={tab === "toReview"} canApprove={canApprove && actionable} canReject={canReject && actionable} canEscalate={canEscalate && actionable} canReturn={canReturn && actionable} onAction={openDialog} />; }) : <p className="text-gray-500">لا توجد عناصر في هذا التبويب.</p>}
         </div>
       </section>
 

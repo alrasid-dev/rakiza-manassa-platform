@@ -87,9 +87,9 @@ describe("navigation sections", () => {
   });
 
   it("يعرض شارات المهام والاعتمادات كعدادات موجزة لا تكشف محتوى الحدث", () => {
-    expect(navigationBadgeForItem("مهامي", { mail: 1, chat: 2, taskAttention: 4, pendingApprovals: 3 })).toEqual({ count: 4, accessibleLabel: "4 مهام تتطلب متابعة" });
-    expect(navigationBadgeForItem("طلبات الاعتماد", { mail: 1, chat: 2, taskAttention: 4, pendingApprovals: 3 })).toEqual({ count: 3, accessibleLabel: "3 طلبات اعتماد معلقة" });
-    expect(navigationSections.flatMap(section => section.items).find(item => item.label === "طلبات الاعتماد")).toMatchObject({ path: "/approvals", audiences: expect.arrayContaining(["employee"]) });
+    expect(navigationBadgeForItem("مهامي", { mail: 1, chat: 2, taskAttention: 4, pendingApprovals: 3, taskApprovals: 0, myRequests: 2 })).toEqual({ count: 4, accessibleLabel: "4 مهام تتطلب متابعة" });
+    expect(navigationBadgeForItem("الطلبات والاعتمادات", { mail: 1, chat: 2, taskAttention: 4, pendingApprovals: 3, taskApprovals: 0, myRequests: 2 })).toEqual({ count: 2, accessibleLabel: "2 طلب بانتظار قرارك" });
+    expect(navigationSections.flatMap(section => section.items).find(item => item.label === "الطلبات والاعتمادات")).toMatchObject({ path: "/my-requests", audiences: expect.arrayContaining(["employee"]) });
   });
 
   it("يميز أيقونات الإعدادات والتفويض والتسجيل حتى لا تتشابه على المستخدم", () => {
