@@ -97,8 +97,10 @@ export default function AttendanceMonthlyPage() {
 
   const invalidate = () => {
     if (profileId != null) {
-      utils.court.attendance.monthlyReport.invalidate({ profileId, startAt: range.startAt, endAt: range.endAt });
+      utils.court.attendance.monthlyReport.invalidate();
     }
+    // خط ثانٍ: refetch مباشر لضمان التحديث الفوري.
+    (report as { refetch?: () => void } | undefined)?.refetch?.();
   };
 
   const updateRecord = attendanceApi?.ownerUpdateAttendance?.useMutation({ onSuccess: () => { invalidate(); toast.success("تم حفظ التعديل."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر الحفظ") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
