@@ -1222,7 +1222,7 @@ export const departmentAccountDelegations = mysqlTable("department_account_deleg
 export const internalConversations = mysqlTable("internal_conversations", {
   id: int("id").autoincrement().primaryKey(),
   subject: varchar("subject", { length: 255 }),
-  conversationType: mysqlEnum("conversationType", ["direct", "department", "custom", "general", "task"]).default("direct").notNull(),
+  conversationType: mysqlEnum("conversationType", ["direct", "department", "custom", "general", "task", "support"]).default("direct").notNull(),
   unitId: int("unitId"),
   taskId: int("taskId"),
   createdByProfileId: int("createdByProfileId").notNull(),

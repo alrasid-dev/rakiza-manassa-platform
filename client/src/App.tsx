@@ -14,6 +14,7 @@ import { JudgesPage } from "./pages/JudgesPage";
 import { LeadershipAccessPage } from "./pages/LeadershipAccessPage";
 import { SupportPage } from "./pages/SupportPage";
 import { EmailRequiredModal } from "./components/EmailRequiredModal";
+import { LiveChatWidget } from "./components/LiveChatWidget";
 import { UserGuidePage } from "./pages/UserGuidePage";
 import { AnnouncementsPage } from "./pages/AnnouncementsPage";
 import { DecisionsPage } from "./pages/DecisionsPage";
@@ -171,6 +172,7 @@ export default function App() {
           <SelectedUnitProvider>
             <Router />
             <EmailRequiredModal />
+            <LiveChatWidget />
           </SelectedUnitProvider>
         </TooltipProvider>
       </ThemeProvider>

@@ -26,7 +26,7 @@ import {
 import { getDb } from "./db";
 import { storageGetSignedUrl } from "./storage";
 import { TRPCError } from "@trpc/server";
-import { createTask, logAudit } from "./court-service";
+import { createTask, getSupportProfilesByRole, logAudit } from "./court-service";
 import { sendPushForNotification } from "./push-service";
 
 const LEADERSHIP_ROLES = new Set(["court_president", "assistant_president", "court_secretary", "human_resources_manager", "performance_monitor"]);
@@ -172,7 +172,7 @@ export async function listFrequentContacts(userId: number) {
   return rows;
 }
 
-export async function createInternalConversation(input: { userId: number; participantProfileIds: number[]; subject?: string; body: string; conversationType?: "direct" | "department" | "custom" | "general" | "task"; taskId?: number; unitId?: number | null; attachments?: Array<{ originalName: string; mimeType: string; contentBase64: string }> }) {
+export async function createInternalConversation(input: { userId: number; participantProfileIds: number[]; subject?: string; body: string; conversationType?: "direct" | "department" | "custom" | "general" | "task" | "support"; taskId?: number; unitId?: number | null; attachments?: Array<{ originalName: string; mimeType: string; contentBase64: string }> }) {
   const { db, profile } = await getActorContext(input.userId);
   const participantIds = Array.from(new Set([profile.id, ...input.participantProfileIds]));
   if (participantIds.length < 2) throw new Error("اختر موظفاً واحداً على الأقل لبدء المحادثة.");
@@ -187,6 +187,33 @@ export async function createInternalConversation(input: { userId: number; partic
   for (const attachment of input.attachments ?? []) await addConversationAttachment({ db, messageId, profileId: profile.id, attachment });
   await logAudit({ actorUserId: input.userId, action: "internal_conversation.created", entityType: "internal_conversation", entityId: conversationId, metadata: { participants: participantIds.length, attachments: input.attachments?.length ?? 0 } });
   return { conversationId, messageId };
+}
+
+/** يجد أو ينشئ محادثة دعم فني مرتبطة بأقل موظف دعم تحميلًا. */
+export async function ensureSupportConversation(userId: number): Promise<{ conversationId: number }> {
+  const { db, profile } = await getActorContext(userId);
+
+  const [existing] = await db
+    .select({ id: internalConversations.id })
+    .from(internalConversations)
+    .innerJoin(conversationParticipants, eq(conversationParticipants.conversationId, internalConversations.id))
+    .where(and(eq(internalConversations.conversationType, "support"), eq(conversationParticipants.profileId, profile.id)))
+    .limit(1);
+  if (existing) return { conversationId: existing.id };
+
+  const agents = await getSupportProfilesByRole("technical_support_agent");
+  const agent = agents.find(item => item.profile.id !== profile.id);
+  if (!agent) throw new Error("لا يوجد موظف دعم متاح حالياً. حاول لاحقاً.");
+
+  const created = await createInternalConversation({
+    userId,
+    participantProfileIds: [agent.profile.id],
+    subject: "محادثة الدعم الفني",
+    body: "بدء محادثة الدعم الفني",
+    conversationType: "support",
+  });
+
+  return { conversationId: created.conversationId };
 }
 
 export function canCreateCustomConversation(roles: Array<{ role: string }>, permission?: string | null) {

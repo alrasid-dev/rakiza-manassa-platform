@@ -311,7 +311,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { sdk } from "../_core/sdk";
 import { assignCourtAsset, canClearProfile, countOpenCustodies, createCourtAsset, listCourtAssets, returnCourtAsset } from "../assets-service";
-import { archiveManagerTemplate, buildUnitDataExport, createFlexibleCorrespondence, createCustomConversation, createInternalConversation, createManagerTemplate, forwardInternalConversationMessage, getInternalConversation, getUnreadConversationCount, listCommunicationUnits, listDataExportJobs, listFrequentContacts, listInternalConversations, listManagerTemplates, requestUnitDataExport, searchInternalConversationMessages, searchInternalPeople, sendInternalMessage, setInternalConversationPinnedMessage, setInternalConversationTyping, toggleInternalConversationMessageReaction, updateManagerTemplate } from "../internal-communications-service";
+import { archiveManagerTemplate, buildUnitDataExport, createFlexibleCorrespondence, createCustomConversation, createInternalConversation, createManagerTemplate, ensureSupportConversation, forwardInternalConversationMessage, getInternalConversation, getUnreadConversationCount, listCommunicationUnits, listDataExportJobs, listFrequentContacts, listInternalConversations, listManagerTemplates, requestUnitDataExport, searchInternalConversationMessages, searchInternalPeople, sendInternalMessage, setInternalConversationPinnedMessage, setInternalConversationTyping, toggleInternalConversationMessageReaction, updateManagerTemplate } from "../internal-communications-service";
 import { departmentAccounts } from "../../drizzle/schema";
 import { isRamadan, officialHolidayName, workHoursFor } from "../holidays";
 import { getPoliciesForRoles } from "../policies/policy-content";
@@ -2854,6 +2854,7 @@ export const courtRouter = router({
     createFlexible: protectedProcedure.input(z.object({ correspondenceType: z.enum(["request", "letter"]), participantProfileIds: z.array(z.number().int().positive()).min(1).max(50), subject: z.string().trim().min(2).max(255), body: z.string().trim().min(1).max(20_000) })).mutation(({ ctx, input }) => createFlexibleCorrespondence({ userId: ctx.user.id, ...input })),
     conversations: router({
       unreadCount: protectedProcedure.query(({ ctx }) => getUnreadConversationCount(ctx.user.id)),
+      createSupport: protectedProcedure.mutation(({ ctx }) => ensureSupportConversation(ctx.user.id)),
       list: protectedProcedure.query(({ ctx }) => listInternalConversations(ctx.user.id)),
       get: protectedProcedure.input(z.object({ conversationId: z.number().int().positive() })).query(({ ctx, input }) => getInternalConversation(ctx.user.id, input.conversationId)),
       searchMessages: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), query: z.string().trim().min(2).max(160) })).query(({ ctx, input }) => searchInternalConversationMessages({ userId: ctx.user.id, ...input })),
