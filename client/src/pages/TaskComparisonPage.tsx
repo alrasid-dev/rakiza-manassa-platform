@@ -163,7 +163,7 @@ export default function TaskComparisonPage() {
         : !title ? <p className="mt-5 py-10 text-center text-sm text-[#738179]">اختر نوع مهمة لعرض المقارنة.</p>
         : rows.length === 0 ? <p className="mt-5 py-10 text-center text-sm text-[#738179]">لا توجد بيانات للمعايير المختارة.</p>
         : <div className="mt-5 grid gap-4 lg:grid-cols-3">
-          <div className="overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white p-4 lg:col-span-2">
+          <div className="overflow-x-auto overflow-touch rounded-2xl border border-[#e7e0d4] bg-white p-4 lg:col-span-2">
             <p className="mb-1 text-sm font-bold text-[#12352f]">المُقيَّمون — الفترة المحددة</p>
             <p className="mb-3 text-xs text-[#66766e]">{fromDate || toDate ? `الفترة: ${fromDate || "البداية"} → ${toDate || "اليوم"}` : "الفترة: كامل النطاق (كل التواريخ، لا اليوم فقط)"}</p>
             <table className="w-full min-w-[560px] text-sm">

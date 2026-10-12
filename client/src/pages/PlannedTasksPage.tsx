@@ -102,7 +102,7 @@ export default function PlannedTasksPage() {
       </label>
     </div>
 
-    <div className="mt-5 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white">
+    <div className="mt-5 overflow-x-auto overflow-touch rounded-2xl border border-[#e7e0d4] bg-white">
       <table className="w-full min-w-[820px] text-sm">
         <thead className="bg-[#f7fbf7] text-right text-xs font-bold text-[#53675d]">
           <tr><th className="px-3 py-3">#</th><th className="px-3 py-3">المهمة</th><th className="px-3 py-3">النوع</th><th className="px-3 py-3">التكرار</th><th className="px-3 py-3">المُسند</th><th className="px-3 py-3">الحالة</th><th className="px-3 py-3">إجراء</th></tr>

@@ -94,7 +94,7 @@ export default function TaskTemplatesPage() {
     <div className="mt-6 rounded-[1.5rem] border border-[#e7e0d4] bg-white p-5">
       <div className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-[#2d6b4f]" /><h2 className="text-lg font-bold text-[#12352f]">القوالب الحالية ({templates.data?.length ?? 0})</h2></div>
       {templates.isLoading ? <p className="mt-4 text-sm text-[#65766d]">جارٍ التحميل…</p> : !(templates.data?.length) ? <p className="mt-4 text-sm text-[#65766d]">لا توجد قوالب ضمن نطاق صلاحيتك بعد.</p> : (
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4 overflow-x-auto overflow-touch">
           <table className="w-full min-w-[640px] text-right text-sm">
             <thead><tr className="border-b border-[#eee7da] text-xs text-[#8a9189]"><th className="py-2 font-bold">العنوان</th><th className="py-2 font-bold">القسم</th><th className="py-2 font-bold">التكرار</th><th className="py-2 font-bold">الفترة</th><th className="py-2 font-bold">الساعة</th><th className="py-2 font-bold">الحالة</th></tr></thead>
             <tbody>

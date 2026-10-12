@@ -97,7 +97,7 @@ export default function TasksReassignPage() {
             </div>
 
             <div className="mt-5 overflow-hidden rounded-2xl border border-[#e7e0d4] bg-white shadow-[0_10px_30px_rgba(30,51,42,0.05)]">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-touch">
                 <table className="w-full min-w-[720px] text-right text-sm">
                   <thead className="bg-[#f4f6f2] text-xs font-bold text-[#53675d]">
                     <tr>

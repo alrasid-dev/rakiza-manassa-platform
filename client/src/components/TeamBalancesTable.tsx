@@ -40,7 +40,7 @@ export default function TeamBalancesTable() {
         />
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-touch">
         <table className="w-full min-w-[520px] text-sm">
           <thead>
             <tr className="border-b border-[#eee4d3] text-[#6b5b45]">

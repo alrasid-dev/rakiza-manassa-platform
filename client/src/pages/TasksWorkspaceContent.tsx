@@ -919,7 +919,7 @@ export default function TasksWorkspaceContent() {
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
         <Button type="button" size="sm" variant="default" className="bg-[#12352f]"><FileText className="ml-1 h-4 w-4" />المهام المسجلة</Button>
       </div>
-      <div className="mt-5 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white">
+      <div className="mt-5 overflow-x-auto overflow-touch rounded-2xl border border-[#e7e0d4] bg-white">
         <table className="w-full min-w-[820px] text-sm">
           <thead className="bg-[#f7fbf7] text-right text-xs font-bold text-[#53675d]">
             <tr>
@@ -981,7 +981,7 @@ export default function TasksWorkspaceContent() {
         <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تشغيل ومتابعة</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">مهامي</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">قوالب مهامك المخطَّطة الثابتة (التكرار)، دون النسخ المولَّدة يومياً.</p></div>
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><ListChecks className="h-6 w-6" /></div>
       </header>
-      <div className="mt-5 flex flex-wrap gap-2 rounded-2xl border border-[#e7e0d4] bg-white p-2" role="tablist" aria-label="عرض المهام">
+      <div className="mt-5 flex flex-nowrap gap-2 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white p-2 [&>button]:shrink-0 [&>button]:whitespace-nowrap" role="tablist" aria-label="عرض المهام">
         <Button type="button" size="sm" variant="outline" onClick={() => { setActiveTab("tasks"); setLocation("/tasks"); }}><ListChecks className="ml-1 h-4 w-4" />المهام والمتابعة</Button>
         <Button type="button" size="sm" variant="default" className="bg-[#12352f]"><ListChecks className="ml-1 h-4 w-4" />مهامي</Button>
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("future")}><Clock className="ml-1 h-4 w-4" />📅 مهام مستقبلية</Button>
@@ -989,7 +989,7 @@ export default function TasksWorkspaceContent() {
         <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("records")}><FileText className="ml-1 h-4 w-4" />السجلات</Button>
         {canAssign && <Button type="button" size="sm" variant="outline" onClick={() => setActiveTab("registered")}><ClipboardList className="ml-1 h-4 w-4" />المهام المسجلة</Button>}
       </div>
-      <div className="mt-5 overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white">
+      <div className="mt-5 overflow-x-auto overflow-touch rounded-2xl border border-[#e7e0d4] bg-white">
         <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-[#f7fbf7] text-right text-xs font-bold text-[#53675d]">
             <tr>

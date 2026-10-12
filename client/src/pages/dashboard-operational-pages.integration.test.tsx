@@ -79,7 +79,7 @@ describe("الصفحات التشغيلية داخل جلسة قيادية", () 
 
   it("يحتوي مساحة المحتوى على الجوال ولا يترك امتداداً أفقياً في التخطيط", () => {
     const { container } = render(<DashboardLayout><div>محتوى جوال تجريبي</div></DashboardLayout>);
-    expect(container.firstElementChild?.classList.contains("overflow-x-hidden")).toBe(true);
+    expect(container.firstElementChild?.classList.contains("overflow-x-clip")).toBe(true);
     const main = screen.getByText("محتوى جوال تجريبي").closest("main");
     expect(main?.classList.contains("w-full")).toBe(true);
     expect(main?.classList.contains("min-w-0")).toBe(true);
