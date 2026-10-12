@@ -77,49 +77,49 @@ export default function PlannedTasksPage() {
   return <DashboardLayout><section dir="rtl" className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">إدارة المهام المتكررة</p>
-        <h1 className="mt-2 text-3xl font-bold text-[#12352f]">المهام المخطَّطة</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">قوالب المهام المتكررة المُسنَدة لموظفين، مع إمكانية الإضافة والإيقاف وإعادة الإسناد.</p>
+        <p className="text-xs font-bold tracking-[0.14em] text-[var(--rakiza-gold)]">إدارة المهام المتكررة</p>
+        <h1 className="mt-2 text-3xl font-bold text-[var(--rakiza-ink)]">المهام المخطَّطة</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--rakiza-muted)]">قوالب المهام المتكررة المُسنَدة لموظفين، مع إمكانية الإضافة والإيقاف وإعادة الإسناد.</p>
       </div>
       <div className="flex items-center gap-2">
-        <Button type="button" onClick={() => setAddOpen(true)} className="min-h-[44px] bg-[#12352f] hover:bg-[#1d5245]"><Plus className="ml-1 h-4 w-4" />إضافة قالب</Button>
-        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><CalendarClock className="h-6 w-6" /></div>
+        <Button type="button" onClick={() => setAddOpen(true)} className="min-h-[44px] bg-[var(--rakiza-olive-strong)] hover:bg-[var(--rakiza-olive-strong)]"><Plus className="ml-1 h-4 w-4" />إضافة قالب</Button>
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--rakiza-olive-soft)] text-[var(--rakiza-olive-strong)]"><CalendarClock className="h-6 w-6" /></div>
       </div>
     </header>
 
     <div className="mt-6 flex flex-wrap items-end gap-2">
-      <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">القسم
-        <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)} className="h-10 min-w-40 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal"><option value="">كل الأقسام</option>{activeUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+      <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">القسم
+        <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)} className="h-10 min-w-40 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal"><option value="">كل الأقسام</option>{activeUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
       </label>
-      <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">المُسند
-        <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="h-10 min-w-40 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal"><option value="">كل الموظفين</option>{(people.data ?? []).filter(p => !unitFilter || p.unitId === Number(unitFilter)).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}</select>
+      <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">المُسند
+        <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)} className="h-10 min-w-40 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal"><option value="">كل الموظفين</option>{(people.data ?? []).filter(p => !unitFilter || p.unitId === Number(unitFilter)).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}</select>
       </label>
-      <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">النوع
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="h-10 min-w-36 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal"><option value="">كل الأنواع</option>{FREQUENCIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}</select>
+      <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">النوع
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="h-10 min-w-36 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal"><option value="">كل الأنواع</option>{FREQUENCIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}</select>
       </label>
-      <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الحالة
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="h-10 min-w-32 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal"><option value="">الكل</option><option value="active">نشط</option><option value="inactive">متوقف</option></select>
+      <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">الحالة
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="h-10 min-w-32 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal"><option value="">الكل</option><option value="active">نشط</option><option value="inactive">متوقف</option></select>
       </label>
     </div>
 
-    <div className="mt-5 overflow-x-auto overflow-touch rounded-2xl border border-[#e7e0d4] bg-white">
+    <div className="mt-5 overflow-x-auto overflow-touch rounded-2xl border border-[var(--rakiza-border)] bg-white">
       <table className="w-full min-w-[820px] text-sm">
-        <thead className="bg-[#f7fbf7] text-right text-xs font-bold text-[#53675d]">
+        <thead className="bg-[#f7fbf7] text-right text-xs font-bold text-[var(--rakiza-muted)]">
           <tr><th className="px-3 py-3">#</th><th className="px-3 py-3">المهمة</th><th className="px-3 py-3">النوع</th><th className="px-3 py-3">التكرار</th><th className="px-3 py-3">المُسند</th><th className="px-3 py-3">الحالة</th><th className="px-3 py-3">إجراء</th></tr>
         </thead>
         <tbody className="divide-y divide-[#eee8de]">
-          {templates.isLoading ? <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[#738179]">جارٍ التحميل…</td></tr>
+          {templates.isLoading ? <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">جارٍ التحميل…</td></tr>
             : filtered.length ? filtered.map((row, idx) => (
               <tr key={row.template.id} className="hover:bg-[#fafdf9]">
                 <td className="px-3 py-2.5 text-[#9aa89f]">{idx + 1}</td>
                 <td className="px-3 py-2.5 font-bold text-[#26473a]">{row.template.title}</td>
-                <td className="px-3 py-2.5 text-[#53675d]">{frequencyLabel(row.template.frequency)}</td>
-                <td className="px-3 py-2.5 text-[#53675d]">{recurrenceLabel(row.template)}</td>
-                <td className="px-3 py-2.5 text-[#53675d]">{row.template.defaultAssigneeProfileId ? peopleById.get(row.template.defaultAssigneeProfileId)?.fullName ?? `#${row.template.defaultAssigneeProfileId}` : "—"}</td>
-                <td className="px-3 py-2.5"><button type="button" onClick={() => toggleActive.mutate({ templateId: row.template.id, isActive: !row.template.isActive })} className={`rounded-full px-3 py-1 text-xs font-bold ${row.template.isActive ? "bg-[#e7f3e9] text-[#2f7653]" : "bg-[#f1f1ef] text-[#8a9189]"}`}>{row.template.isActive ? "نشط" : "متوقف"}</button></td>
-                <td className="px-3 py-2.5"><Button type="button" size="sm" variant="outline" className="border-[#c9d6c0] text-[#2d6b4f]" onClick={() => { setReassignId(row.template.id); setReassignProfileId(row.template.defaultAssigneeProfileId ? String(row.template.defaultAssigneeProfileId) : ""); }}><UserRoundCog className="ml-1 h-3.5 w-3.5" />إعادة إسناد</Button></td>
+                <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">{frequencyLabel(row.template.frequency)}</td>
+                <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">{recurrenceLabel(row.template)}</td>
+                <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">{row.template.defaultAssigneeProfileId ? peopleById.get(row.template.defaultAssigneeProfileId)?.fullName ?? `#${row.template.defaultAssigneeProfileId}` : "—"}</td>
+                <td className="px-3 py-2.5"><button type="button" onClick={() => toggleActive.mutate({ templateId: row.template.id, isActive: !row.template.isActive })} className={`rounded-full px-3 py-1 text-xs font-bold ${row.template.isActive ? "bg-[#e7f3e9] text-[var(--rakiza-olive-strong)]" : "bg-[#f1f1ef] text-[#8a9189]"}`}>{row.template.isActive ? "نشط" : "متوقف"}</button></td>
+                <td className="px-3 py-2.5"><Button type="button" size="sm" variant="outline" className="border-[#c9d6c0] text-[var(--rakiza-olive)]" onClick={() => { setReassignId(row.template.id); setReassignProfileId(row.template.defaultAssigneeProfileId ? String(row.template.defaultAssigneeProfileId) : ""); }}><UserRoundCog className="ml-1 h-3.5 w-3.5" />إعادة إسناد</Button></td>
               </tr>
-            )) : <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[#738179]">لا توجد مهام مخطَّطة ضمن نطاقك.</td></tr>}
+            )) : <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">لا توجد مهام مخطَّطة ضمن نطاقك.</td></tr>}
         </tbody>
       </table>
     </div>
@@ -127,20 +127,20 @@ export default function PlannedTasksPage() {
       <DialogContent dir="rtl" className="max-w-lg">
         <DialogHeader><DialogTitle>إضافة مهمة مخطَّطة</DialogTitle><DialogDescription>حدّد المهمة والموظف والنوع وأيام التكرار، وسيولّد النظام نسخة من المهمة تلقائياً وفق التكرار.</DialogDescription></DialogHeader>
         <div className="space-y-3">
-          <label className="block text-xs font-bold text-[#6a786f]">المهمة<input value={addForm.title} onChange={e => setAddForm({ ...addForm, title: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" placeholder="مثال: تقرير شهري" /></label>
+          <label className="block text-xs font-bold text-[var(--rakiza-muted)]">المهمة<input value={addForm.title} onChange={e => setAddForm({ ...addForm, title: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" placeholder="مثال: تقرير شهري" /></label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-bold text-[#6a786f]">القسم<select value={addForm.unitId} onChange={e => { setAddForm({ ...addForm, unitId: e.target.value, assigneeProfileId: "" }); }} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="">اختر القسم</option>{activeUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
-            <label className="block text-xs font-bold text-[#6a786f]">الموظف (اختياري)<select value={addForm.assigneeProfileId} onChange={e => setAddForm({ ...addForm, assigneeProfileId: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="">غير مسند</option>{assigneesForUnit(addForm.unitId).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}</select></label>
+            <label className="block text-xs font-bold text-[var(--rakiza-muted)]">القسم<select value={addForm.unitId} onChange={e => { setAddForm({ ...addForm, unitId: e.target.value, assigneeProfileId: "" }); }} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="">اختر القسم</option>{activeUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
+            <label className="block text-xs font-bold text-[var(--rakiza-muted)]">الموظف (اختياري)<select value={addForm.assigneeProfileId} onChange={e => setAddForm({ ...addForm, assigneeProfileId: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="">غير مسند</option>{assigneesForUnit(addForm.unitId).map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}</select></label>
           </div>
-          <label className="block text-xs font-bold text-[#6a786f]">النوع<select value={addForm.frequency} onChange={e => setAddForm({ ...addForm, frequency: e.target.value as Frequency })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm">{FREQUENCIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}</select></label>
-          {addForm.frequency === "custom" && <label className="block text-xs font-bold text-[#6a786f]">كل كم يوم؟ (1-365)<input type="number" min={1} max={365} value={addForm.intervalDays} onChange={e => setAddForm({ ...addForm, intervalDays: Number(e.target.value) })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" /></label>}
-          {addForm.frequency === "specific_days" && <div><label className="text-xs font-bold text-[#6a786f]">أيام التكرار</label><div className="mt-1 flex flex-wrap gap-2">{DAY_NAMES.map((name, day) => <label key={day} className="flex items-center gap-1 text-sm"><input type="checkbox" checked={specificDays.includes(day)} onChange={e => { if (e.target.checked) setSpecificDays([...specificDays, day]); else setSpecificDays(specificDays.filter(d => d !== day)); }} className="h-4 w-4 accent-[#2d6b4f]" />{name}</label>)}</div></div>}
-          <label className="block text-xs font-bold text-[#6a786f]">ساعة الاستحقاق<select value={addForm.dueHourLocal} onChange={e => setAddForm({ ...addForm, dueHourLocal: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm">{Array.from({ length: 24 }, (_, h) => <option key={h} value={String(h)}>{String(h).padStart(2, "0")}:00</option>)}</select></label>
-          <label className="flex items-center gap-2 text-xs font-bold text-[#6a786f]"><input type="checkbox" checked={addForm.workdayOnly} onChange={e => setAddForm({ ...addForm, workdayOnly: e.target.checked })} className="h-4 w-4 accent-[#2d6b4f]" />أيام العمل فقط (الأحد–الخميس)</label>
+          <label className="block text-xs font-bold text-[var(--rakiza-muted)]">النوع<select value={addForm.frequency} onChange={e => setAddForm({ ...addForm, frequency: e.target.value as Frequency })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm">{FREQUENCIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}</select></label>
+          {addForm.frequency === "custom" && <label className="block text-xs font-bold text-[var(--rakiza-muted)]">كل كم يوم؟ (1-365)<input type="number" min={1} max={365} value={addForm.intervalDays} onChange={e => setAddForm({ ...addForm, intervalDays: Number(e.target.value) })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" /></label>}
+          {addForm.frequency === "specific_days" && <div><label className="text-xs font-bold text-[var(--rakiza-muted)]">أيام التكرار</label><div className="mt-1 flex flex-wrap gap-2">{DAY_NAMES.map((name, day) => <label key={day} className="flex items-center gap-1 text-sm"><input type="checkbox" checked={specificDays.includes(day)} onChange={e => { if (e.target.checked) setSpecificDays([...specificDays, day]); else setSpecificDays(specificDays.filter(d => d !== day)); }} className="h-4 w-4 accent-[#2d6b4f]" />{name}</label>)}</div></div>}
+          <label className="block text-xs font-bold text-[var(--rakiza-muted)]">ساعة الاستحقاق<select value={addForm.dueHourLocal} onChange={e => setAddForm({ ...addForm, dueHourLocal: e.target.value })} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm">{Array.from({ length: 24 }, (_, h) => <option key={h} value={String(h)}>{String(h).padStart(2, "0")}:00</option>)}</select></label>
+          <label className="flex items-center gap-2 text-xs font-bold text-[var(--rakiza-muted)]"><input type="checkbox" checked={addForm.workdayOnly} onChange={e => setAddForm({ ...addForm, workdayOnly: e.target.checked })} className="h-4 w-4 accent-[#2d6b4f]" />أيام العمل فقط (الأحد–الخميس)</label>
         </div>
         <DialogFooter className="gap-2">
           <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>إلغاء</Button>
-          <Button type="button" disabled={create.isPending} onClick={submitAdd} className="bg-[#2f7653] hover:bg-[#245d41]">{create.isPending ? "جارٍ الحفظ…" : "حفظ القالب"}</Button>
+          <Button type="button" disabled={create.isPending} onClick={submitAdd} className="bg-[var(--rakiza-olive-strong)] hover:bg-[#245d41]">{create.isPending ? "جارٍ الحفظ…" : "حفظ القالب"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -148,11 +148,11 @@ export default function PlannedTasksPage() {
     <Dialog open={reassignId != null} onOpenChange={open => { if (!open) setReassignId(null); }}>
       <DialogContent dir="rtl" className="max-w-md">
         <DialogHeader><DialogTitle>إعادة إسناد المهمة المخطَّطة</DialogTitle><DialogDescription>غيّر الموظف الافتراضي لهذا القالب.</DialogDescription></DialogHeader>
-        {reassignTarget && <p className="rounded-lg bg-[#f7f5ef] px-3 py-2 text-sm font-bold text-[#355d4b]">{reassignTarget.template.title}</p>}
-        <label className="mt-3 block text-xs font-bold text-[#6a786f]">الموظف<select value={reassignProfileId} onChange={e => setReassignProfileId(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="">غير مسند</option>{assigneesForUnit(reassignTarget ? String(reassignTarget.template.unitId ?? "") : "").map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}</select></label>
+        {reassignTarget && <p className="rounded-lg bg-[#f7f5ef] px-3 py-2 text-sm font-bold text-[var(--rakiza-olive)]">{reassignTarget.template.title}</p>}
+        <label className="mt-3 block text-xs font-bold text-[var(--rakiza-muted)]">الموظف<select value={reassignProfileId} onChange={e => setReassignProfileId(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm"><option value="">غير مسند</option>{assigneesForUnit(reassignTarget ? String(reassignTarget.template.unitId ?? "") : "").map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}</select></label>
         <DialogFooter className="gap-2">
           <Button type="button" variant="outline" onClick={() => setReassignId(null)}>إلغاء</Button>
-          <Button type="button" disabled={setAssignee.isPending} onClick={() => reassignId != null && setAssignee.mutate({ templateId: reassignId, assigneeProfileId: reassignProfileId ? Number(reassignProfileId) : null })} className="bg-[#2f7653] hover:bg-[#245d41]">{setAssignee.isPending ? "جارٍ الحفظ…" : "حفظ"}</Button>
+          <Button type="button" disabled={setAssignee.isPending} onClick={() => reassignId != null && setAssignee.mutate({ templateId: reassignId, assigneeProfileId: reassignProfileId ? Number(reassignProfileId) : null })} className="bg-[var(--rakiza-olive-strong)] hover:bg-[#245d41]">{setAssignee.isPending ? "جارٍ الحفظ…" : "حفظ"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

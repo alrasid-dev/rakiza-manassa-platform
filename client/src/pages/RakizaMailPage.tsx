@@ -548,10 +548,10 @@ export default function RakizaMailPage() {
       >
         <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-black tracking-[0.14em] text-[#b18448]">
+            <p className="text-xs font-black tracking-[0.14em] text-[var(--rakiza-gold)]">
               مراسلات داخلية آمنة
             </p>
-            <h1 className="mt-1 text-3xl font-black text-[#12352f]">
+            <h1 className="mt-1 text-3xl font-black text-[var(--rakiza-ink)]">
               بريد ركيزة
             </h1>
             <p className="mt-1 text-sm text-[#6d7f75]">
@@ -853,7 +853,7 @@ export default function RakizaMailPage() {
                             </span>
                           </span>
                           <span
-                            className={`mt-1 block truncate text-xs ${isUnread ? "font-black text-[#12352f]" : "font-bold text-[#446155]"}`}
+                            className={`mt-1 block truncate text-xs ${isUnread ? "font-black text-[var(--rakiza-ink)]" : "font-bold text-[#446155]"}`}
                           >
                             {row.message.subject}
                           </span>

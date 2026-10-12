@@ -92,8 +92,8 @@ export default function TaskComparisonPage() {
   return <DashboardLayout hideUtilityPrompts>
     <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6" dir="rtl">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div><p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">تقارير الأداء</p><h1 className="mt-2 text-3xl font-bold text-[#12352f]">تقارير مقارنة المهام</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[#65766d]">قارن أداء الموظفين على مهمة معيّنة (الإنجاز، النقاط، الالتزام، السرعة).</p></div>
-        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9f0ea] text-[#1f5a47]"><BarChart3 className="h-6 w-6" /></div>
+        <div><p className="text-xs font-bold tracking-[0.14em] text-[var(--rakiza-gold)]">تقارير الأداء</p><h1 className="mt-2 text-3xl font-bold text-[var(--rakiza-ink)]">تقارير مقارنة المهام</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--rakiza-muted)]">قارن أداء الموظفين على مهمة معيّنة (الإنجاز، النقاط، الالتزام، السرعة).</p></div>
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--rakiza-olive-soft)] text-[var(--rakiza-olive-strong)]"><BarChart3 className="h-6 w-6" /></div>
       </header>
 
       {canPickEmployee && (
@@ -102,11 +102,11 @@ export default function TaskComparisonPage() {
             <div className="flex items-center gap-2">
               <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#e3eef5] text-[#2c5d77]"><UserCog className="h-5 w-5" /></span>
               <div>
-                <p className="text-sm font-black text-[#12352f]">عدّاد الموظف — اليوم</p>
+                <p className="text-sm font-black text-[var(--rakiza-ink)]">عدّاد الموظف — اليوم</p>
                 <p className="text-xs text-[#66766e]">أرقام يوم واحد فقط (اليوم). للمقارنة الكاملة استخدم جدول «المُقيَّمون» أدناه.</p>
               </div>
             </div>
-            <select aria-label="اختر موظفاً" value={employeeId?.toString() ?? ""} onChange={e => setEmployeeId(e.target.value ? Number(e.target.value) : null)} className="h-10 min-w-56 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm text-[#12352f]">
+            <select aria-label="اختر موظفاً" value={employeeId?.toString() ?? ""} onChange={e => setEmployeeId(e.target.value ? Number(e.target.value) : null)} className="h-10 min-w-56 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm text-[var(--rakiza-ink)]">
               <option value="">اختر موظفاً…</option>
               {(people.data ?? []).map(person => <option key={person.id} value={person.id}>{person.fullName}</option>)}
             </select>
@@ -122,23 +122,23 @@ export default function TaskComparisonPage() {
         </section>
       )}
 
-      <div className="mt-5 flex flex-wrap items-end gap-3 rounded-2xl border border-[#e7e0d4] bg-white p-4">
+      <div className="mt-5 flex flex-wrap items-end gap-3 rounded-2xl border border-[var(--rakiza-border)] bg-white p-4">
         {isLeadership && (
-          <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">القسم
-            <select value={unitId} onChange={e => setUnitId(e.target.value)} className="h-10 min-w-44 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+          <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">القسم
+            <select value={unitId} onChange={e => setUnitId(e.target.value)} className="h-10 min-w-44 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal">
               <option value="">كل الأقسام</option>
               {(units.data ?? []).map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
             </select>
           </label>
         )}
-        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">نوع المهمة
-          <select value={title} onChange={e => setTitle(e.target.value)} className="h-10 min-w-56 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm">
+        <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">نوع المهمة
+          <select value={title} onChange={e => setTitle(e.target.value)} className="h-10 min-w-56 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm">
             <option value="">اختر مهمة…</option>
             {(titles.data ?? []).map(t => <option key={t.id} value={t.title}>{t.title}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">الفترة
-          <select value={period} onChange={e => applyPeriod(e.target.value as typeof period)} className="h-10 min-w-36 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm font-normal">
+        <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">الفترة
+          <select value={period} onChange={e => applyPeriod(e.target.value as typeof period)} className="h-10 min-w-36 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal">
             <option value="all">الكل</option>
             <option value="today">اليوم</option>
             <option value="week">هذا الأسبوع</option>
@@ -146,28 +146,28 @@ export default function TaskComparisonPage() {
             <option value="custom">من → إلى</option>
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">من<input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPeriod("custom"); }} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm" /></label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">إلى<input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPeriod("custom"); }} className="h-10 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm" /></label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-[#53675d]">معيار الترتيب
-          <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} className="h-10 min-w-44 rounded-lg border border-[#d9e3d8] bg-white px-3 text-sm">
+        <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">من<input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPeriod("custom"); }} className="h-10 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm" /></label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">إلى<input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPeriod("custom"); }} className="h-10 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm" /></label>
+        <label className="flex flex-col gap-1 text-xs font-bold text-[var(--rakiza-muted)]">معيار الترتيب
+          <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} className="h-10 min-w-44 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm">
             <option value="totalPoints">الأعلى نقاط</option><option value="completed">الأكثر إنجازاً</option><option value="avgCompletionMinutes">الأسرع</option><option value="complianceRate">الأعلى التزاماً</option>
           </select>
         </label>
         <div className="ml-auto flex gap-2">
-          <button type="button" onClick={exportPdf} disabled={!assignedRows.length} className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileText className="h-4 w-4" />PDF</button>
-          <button type="button" onClick={exportCsv} disabled={!assignedRows.length} className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[#355d4b] disabled:opacity-40"><FileSpreadsheet className="h-4 w-4" />CSV</button>
+          <button type="button" onClick={exportPdf} disabled={!assignedRows.length} className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[var(--rakiza-olive)] disabled:opacity-40"><FileText className="h-4 w-4" />PDF</button>
+          <button type="button" onClick={exportCsv} disabled={!assignedRows.length} className="inline-flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-bold text-[var(--rakiza-olive)] disabled:opacity-40"><FileSpreadsheet className="h-4 w-4" />CSV</button>
         </div>
       </div>
 
-      {comparison.isLoading ? <p className="mt-5 py-10 text-center text-sm text-[#6e7e75]">جارٍ التحميل…</p>
-        : !title ? <p className="mt-5 py-10 text-center text-sm text-[#738179]">اختر نوع مهمة لعرض المقارنة.</p>
-        : rows.length === 0 ? <p className="mt-5 py-10 text-center text-sm text-[#738179]">لا توجد بيانات للمعايير المختارة.</p>
+      {comparison.isLoading ? <p className="mt-5 py-10 text-center text-sm text-[var(--rakiza-muted)]">جارٍ التحميل…</p>
+        : !title ? <p className="mt-5 py-10 text-center text-sm text-[var(--rakiza-muted)]">اختر نوع مهمة لعرض المقارنة.</p>
+        : rows.length === 0 ? <p className="mt-5 py-10 text-center text-sm text-[var(--rakiza-muted)]">لا توجد بيانات للمعايير المختارة.</p>
         : <div className="mt-5 grid gap-4 lg:grid-cols-3">
-          <div className="overflow-x-auto overflow-touch rounded-2xl border border-[#e7e0d4] bg-white p-4 lg:col-span-2">
-            <p className="mb-1 text-sm font-bold text-[#12352f]">المُقيَّمون — الفترة المحددة</p>
+          <div className="overflow-x-auto overflow-touch rounded-2xl border border-[var(--rakiza-border)] bg-white p-4 lg:col-span-2">
+            <p className="mb-1 text-sm font-bold text-[var(--rakiza-ink)]">المُقيَّمون — الفترة المحددة</p>
             <p className="mb-3 text-xs text-[#66766e]">{fromDate || toDate ? `الفترة: ${fromDate || "البداية"} → ${toDate || "اليوم"}` : "الفترة: كامل النطاق (كل التواريخ، لا اليوم فقط)"}</p>
             <table className="w-full min-w-[560px] text-sm">
-              <thead><tr className="border-b border-[#eee8de] text-[#6b5b45]">
+              <thead><tr className="border-b border-[var(--rakiza-border)] text-[#6b5b45]">
                 <th className="px-3 py-2 text-right font-medium">الترتيب</th><th className="px-3 py-2 font-medium">الموظف</th><th className="px-3 py-2 font-medium">الإجمالي</th><th className="px-3 py-2 font-medium">منجزة</th><th className="px-3 py-2 font-medium">في الوقت</th><th className="px-3 py-2 font-medium">أنجزت متأخرة</th><th className="px-3 py-2 font-medium">لم تُنجز</th><th className="px-3 py-2 font-medium">متوسط ساعات العمل</th><th className="px-3 py-2 font-medium">النقاط</th><th className="px-3 py-2 font-medium">الالتزام</th>
               </tr></thead>
               <tbody>{assignedRows.map((r, i) => <tr key={r.profileId} className="border-b border-[#f3ecdf]">
@@ -184,28 +184,28 @@ export default function TaskComparisonPage() {
               </tr>)}</tbody>
             </table>
           </div>
-          <div className="rounded-2xl border border-[#e7e0d4] bg-white p-4">
-            <p className="mb-3 text-sm font-bold text-[#12352f]">النقاط (مقارنة)</p>
+          <div className="rounded-2xl border border-[var(--rakiza-border)] bg-white p-4">
+            <p className="mb-3 text-sm font-bold text-[var(--rakiza-ink)]">النقاط (مقارنة)</p>
             {assignedRows.map((r, i) => <div key={r.profileId} className="mb-2">
               <div className="flex items-center justify-between text-xs"><span>{medal(i + 1)} {r.name}</span><span className="font-bold">{r.totalPoints}</span></div>
               <div className="mt-1 h-3 overflow-hidden rounded-full bg-[#f1efe9]">
-                <div className={`h-full rounded-full ${r.totalPoints >= 0 ? "bg-[#2f7653]" : "bg-[#c22b2b]"}`} style={{ width: `${Math.min(100, Math.abs(r.totalPoints) / maxPoints * 100)}%` }} />
+                <div className={`h-full rounded-full ${r.totalPoints >= 0 ? "bg-[var(--rakiza-olive-strong)]" : "bg-[#c22b2b]"}`} style={{ width: `${Math.min(100, Math.abs(r.totalPoints) / maxPoints * 100)}%` }} />
               </div>
             </div>)}
           </div>
-          {notStartedRows.length > 0 && <div className="rounded-2xl border border-[#e7e0d4] bg-[#f3f3ef] p-4 lg:col-span-3">
+          {notStartedRows.length > 0 && <div className="rounded-2xl border border-[var(--rakiza-border)] bg-[#f3f3ef] p-4 lg:col-span-3">
             <p className="mb-3 text-sm font-bold text-[#6d7d74]">لم يبدأ (أُسندت ولم تُنجز)</p>
             <div className="flex flex-wrap gap-2">
               {notStartedRows.map(r => <span key={r.profileId} className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[#6d7d74]">{r.name}</span>)}
             </div>
           </div>}
-          {notAssignedRows.length > 0 && <div className="rounded-2xl border border-[#e7e0d4] bg-[#f3f3ef] p-4 lg:col-span-3">
+          {notAssignedRows.length > 0 && <div className="rounded-2xl border border-[var(--rakiza-border)] bg-[#f3f3ef] p-4 lg:col-span-3">
             <p className="mb-3 text-sm font-bold text-[#6d7d74]">لم يُسند له</p>
             <div className="flex flex-wrap gap-2">
               {notAssignedRows.map(r => <span key={r.profileId} className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[#6d7d74]">{r.name}</span>)}
             </div>
           </div>}
-          {onLeaveRows.length > 0 && <div className="rounded-2xl border border-[#e7e0d4] bg-[#f3f3ef] p-4 lg:col-span-3">
+          {onLeaveRows.length > 0 && <div className="rounded-2xl border border-[var(--rakiza-border)] bg-[#f3f3ef] p-4 lg:col-span-3">
             <p className="mb-3 text-sm font-bold text-[#6d7d74]">مجاز 🏖️</p>
             <div className="divide-y divide-[#e3e3db]">
               {onLeaveRows.map(r => <div key={r.profileId} className="flex flex-wrap items-center justify-between gap-2 py-3 text-[#7b8980]">

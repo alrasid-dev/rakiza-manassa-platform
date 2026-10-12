@@ -29,16 +29,16 @@ export default function PasskeyEnrollmentGate({ officialEmail }: { officialEmail
   };
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="passkey-gate-title" className="fixed inset-0 z-[70] grid place-items-center bg-[#14251c]/50 p-4">
-      <section dir="rtl" className="w-full max-w-md rounded-[1.6rem] bg-[#f8f8f3] p-6 shadow-2xl">
+      <section dir="rtl" className="w-full max-w-md rounded-[1.6rem] bg-[var(--rakiza-surface)] p-6 shadow-2xl">
         <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#2d6b4f] text-white"><Fingerprint className="h-5 w-5" /></span>
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--rakiza-olive)] text-white"><Fingerprint className="h-5 w-5" /></span>
           <div>
             <p className="text-xs font-black text-[#4a785a]">بعد التسجيل الأول</p>
             <h2 id="passkey-gate-title" className="text-xl font-black text-[#183d2d]">سجّل بصمة هذا الجهاز</h2>
           </div>
         </div>
         <p className="mt-4 text-sm leading-7 text-[#5f7266]">الدخول التالي يكون بالبصمة أو Face ID على هذا الجهاز. لا تُرسل بيانات البصمة إلى المنصة، وتبقى داخل جهازك فقط.</p>
-        <button type="button" onClick={() => void enroll()} className="mt-5 w-full rounded-xl bg-[#2d6b4f] py-3 text-sm font-black text-white">تسجيل البصمة الآن</button>
+        <button type="button" onClick={() => void enroll()} className="mt-5 w-full rounded-xl bg-[var(--rakiza-olive)] py-3 text-sm font-black text-white">تسجيل البصمة الآن</button>
       </section>
     </div>
   );

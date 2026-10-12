@@ -26,15 +26,15 @@ export default function GlobalSearchBar() {
         <Search className="h-4 w-4" />
       </button>
       {open && (
-        <div className="fixed inset-x-3 top-[4.5rem] z-50 w-auto rounded-2xl border border-[#cbd6ca] bg-[#f8f8f3] p-3 shadow-[0_18px_40px_rgba(36,67,51,0.16)] sm:absolute sm:inset-x-auto sm:left-0 sm:top-12 sm:w-[min(22rem,calc(100vw-2rem))]" dir="rtl">
+        <div className="fixed inset-x-3 top-[4.5rem] z-50 w-auto rounded-2xl border border-[#cbd6ca] bg-[var(--rakiza-surface)] p-3 shadow-[0_18px_40px_rgba(36,67,51,0.16)] sm:absolute sm:inset-x-auto sm:left-0 sm:top-12 sm:w-[min(22rem,calc(100vw-2rem))]" dir="rtl">
           <input autoFocus value={query} onChange={event => setQuery(event.target.value)} placeholder="ابحث في المهام والبريد والتقارير والموظفين…" className="h-10 w-full rounded-xl border border-[#d5e0d4] bg-white px-3 text-sm" />
           <div className="mt-2 max-h-72 overflow-y-auto">
-            {results.isFetching ? <p className="p-3 text-xs text-[#718078]">جارٍ البحث…</p> : results.data?.length ? results.data.map(item => (
+            {results.isFetching ? <p className="p-3 text-xs text-[var(--rakiza-muted)]">جارٍ البحث…</p> : results.data?.length ? results.data.map(item => (
               <button type="button" key={`${item.type}-${item.id}`} onClick={() => { setOpen(false); setLocation(item.href); }} className="block w-full rounded-xl px-3 py-2 text-right hover:bg-[#eef5ee]">
                 <p className="text-xs font-black text-[#274738]">{item.title}</p>
-                <p className="mt-0.5 text-[10px] text-[#718078]">{item.type} · {item.subtitle}</p>
+                <p className="mt-0.5 text-[10px] text-[var(--rakiza-muted)]">{item.type} · {item.subtitle}</p>
               </button>
-            )) : query.trim().length >= 2 ? <p className="p-3 text-xs text-[#718078]">لا توجد نتائج مطابقة.</p> : <p className="p-3 text-xs text-[#718078]">اكتب حرفين على الأقل. اختصار: Ctrl+K</p>}
+            )) : query.trim().length >= 2 ? <p className="p-3 text-xs text-[var(--rakiza-muted)]">لا توجد نتائج مطابقة.</p> : <p className="p-3 text-xs text-[var(--rakiza-muted)]">اكتب حرفين على الأقل. اختصار: Ctrl+K</p>}
           </div>
         </div>
       )}

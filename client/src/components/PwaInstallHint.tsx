@@ -53,17 +53,17 @@ export function PwaInstallHint({ alwaysVisible = false }: { alwaysVisible?: bool
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         {deferredPrompt ? (
-          <button type="button" onClick={() => void install()} disabled={isRequesting} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#006c35] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#00582c] disabled:opacity-60">
+          <button type="button" onClick={() => void install()} disabled={isRequesting} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--rakiza-olive-strong)] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#00582c] disabled:opacity-60">
             <Download className="h-4 w-4" aria-hidden="true" />
             {isRequesting ? "جارٍ الفتح" : "تثبيت"}
           </button>
         ) : surface === "ios" ? (
-          <span className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#12352f] px-3 py-2 text-xs font-bold text-white">
+          <span className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--rakiza-olive-strong)] px-3 py-2 text-xs font-bold text-white">
             <Share className="h-4 w-4" aria-hidden="true" />
             مشاركة ثم الشاشة الرئيسية
           </span>
         ) : surface === "android" ? (
-          <a href={ANDROID_APK_URL} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#006c35] px-3 py-2 text-xs font-bold text-white hover:bg-[#00582c]">
+          <a href={ANDROID_APK_URL} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--rakiza-olive-strong)] px-3 py-2 text-xs font-bold text-white hover:bg-[#00582c]">
             <Download className="h-4 w-4" aria-hidden="true" />
             تحميل أندرويد
           </a>

@@ -236,12 +236,12 @@ function formatLastSeen(value: Date | string | number | null | undefined) {
 function CourtMark() {
   return (
     <div className="flex items-center gap-3">
-      <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#2d6b4f] text-[#f5f7ef] shadow-[0_8px_18px_rgba(41,91,66,0.16)]">
+      <div className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--rakiza-olive)] text-[#f5f7ef] shadow-[0_8px_18px_rgba(41,91,66,0.16)]">
         <CourtEmblem className={`h-6 w-6 ${oliveIconMotionClass}`} />
       </div>
       <div className="min-w-0">
-        <p className="text-2xl font-black tracking-tight text-[#245f43] sm:text-3xl">{RAKIZA_BRAND_LINE}</p>
-        <p className="mt-0.5 text-[11px] font-medium text-[#718078]">الرياض · متابعة يومية آمنة</p>
+        <p className="text-2xl font-black tracking-tight text-[var(--rakiza-olive-strong)] sm:text-3xl">{RAKIZA_BRAND_LINE}</p>
+        <p className="mt-0.5 text-[11px] font-medium text-[var(--rakiza-muted)]">الرياض · متابعة يومية آمنة</p>
       </div>
     </div>
   );
@@ -270,7 +270,7 @@ function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, v
         const isOpen = !section.collapsible || Boolean(openSections[section.heading]);
         return (
         <section key={section.heading} aria-label={section.heading}>
-          <button type="button" onClick={() => section.collapsible && setOpenSections(current => ({ ...current, [section.heading]: !current[section.heading] }))} className={`mb-1.5 flex w-full items-center justify-between px-2.5 text-right text-sm font-bold tracking-[0.08em] sm:text-xs ${variant === "dark" ? "text-[#c2d6c5]/70 hover:text-[#eaf3e9]" : "text-[#75847b] hover:text-[#245f43]"} ${section.collapsible ? "cursor-pointer" : "cursor-default"}`} aria-expanded={section.collapsible ? isOpen : undefined}>
+          <button type="button" onClick={() => section.collapsible && setOpenSections(current => ({ ...current, [section.heading]: !current[section.heading] }))} className={`mb-1.5 flex w-full items-center justify-between px-2.5 text-right text-sm font-bold tracking-[0.08em] sm:text-xs ${variant === "dark" ? "text-[#c2d6c5]/70 hover:text-[#eaf3e9]" : "text-[#75847b] hover:text-[var(--rakiza-olive-strong)]"} ${section.collapsible ? "cursor-pointer" : "cursor-default"}`} aria-expanded={section.collapsible ? isOpen : undefined}>
             <span>{section.heading}</span>{section.collapsible && <span aria-hidden="true" className="text-base leading-none">{isOpen ? "−" : "+"}</span>}
           </button>
           {isOpen && <div className="space-y-1">
@@ -279,7 +279,7 @@ function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, v
               const tone = navigationIconTone(section.heading, item.label);
               const { count: unreadCount, accessibleLabel: unreadLabel } = navigationBadgeForItem(item.label, { mail: mailUnreadCount, chat: chatUnreadCount, taskAttention: taskAttentionCount, pendingApprovals: pendingApprovalCount, taskApprovals: taskApprovalCount, myRequests: myRequestsCount });
               return (
-                <button key={`${item.path}-${item.label}`} type="button" onClick={() => { setLocation(item.path); onNavigate?.(); }} className={["group flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-right text-base font-semibold sm:text-sm transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]", variant === "dark" ? (active ? "border-r-2 border-[#a8c98f] bg-[#1f6147] text-white shadow-[0_6px_16px_rgba(20,69,48,0.2)" : "text-white/85 hover:bg-[#214c3d] hover:text-white") : (active ? "border-r-2 border-[#7faa82] bg-[#e0ecdf] text-[#245f43] shadow-[0_5px_14px_rgba(50,94,68,0.09)]" : "text-[#4f6258] hover:bg-[#e9eee7] hover:text-[#245f43]")].join(" ")}>
+                <button key={`${item.path}-${item.label}`} type="button" onClick={() => { setLocation(item.path); onNavigate?.(); }} className={["group flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-right text-base font-semibold sm:text-sm transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]", variant === "dark" ? (active ? "border-r-2 border-[#a8c98f] bg-[#1f6147] text-white shadow-[0_6px_16px_rgba(20,69,48,0.2)" : "text-white/85 hover:bg-[#214c3d] hover:text-white") : (active ? "border-r-2 border-[#7faa82] bg-[#e0ecdf] text-[var(--rakiza-olive-strong)] shadow-[0_5px_14px_rgba(50,94,68,0.09)]" : "text-[#4f6258] hover:bg-[#e9eee7] hover:text-[var(--rakiza-olive-strong)]")].join(" ")}>
                   <RakizaIconButton icon={item.icon} gradient={tone === "alert" ? "from-red-500 to-red-600" : tone === "gold" ? "from-amber-500 to-amber-600" : "from-emerald-500 to-emerald-600"} />
                   <span>{item.label}</span>
                   {unreadCount > 0 && <span aria-label={unreadLabel} className={`mr-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[11px] font-black ${variant === "dark" ? "bg-[#b6d3aa] text-[#173c2d]" : "bg-[#b84d3e] text-white"}`}>{unreadCount > 99 ? "99+" : unreadCount}</span>}
@@ -422,18 +422,18 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
     return (
       <div dir="rtl" className="rakiza-theme-root grid min-h-screen place-items-center bg-[var(--rakiza-canvas)] p-5" style={{ fontFamily: "var(--rakiza-font-family, Tajawal, sans-serif)" }}>
         <section className="w-full max-w-md rounded-[2rem] border border-[#e8e1d2] bg-white p-8 text-center shadow-[0_24px_70px_rgba(34,54,46,0.12)]">
-          <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-2xl bg-[#12352f] text-[#f1d794]">
+          <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-2xl bg-[var(--rakiza-olive-strong)] text-[#f1d794]">
             <CourtEmblem className="h-9 w-9" />
           </div>
-          <h1 className="text-2xl font-bold text-[#12352f]">بوابة {RAKIZA_BRAND} الداخلية</h1>
+          <h1 className="text-2xl font-bold text-[var(--rakiza-ink)]">بوابة {RAKIZA_BRAND} الداخلية</h1>
           <p className="mt-3 text-sm leading-7 text-[#66756d]">يدخل الموظف المعتمد برمز تحقق إلى البريد الرسمي، ويمكن للموظف الجديد إرسال طلب تسجيل دون إنشاء حساب Manus.</p>
-          <Button onClick={() => setLocation("/login")} className="mt-7 w-full bg-[#12352f] py-6 text-base hover:bg-[#1e5045]">
+          <Button onClick={() => setLocation("/login")} className="mt-7 w-full bg-[var(--rakiza-olive-strong)] py-6 text-base hover:bg-[#1e5045]">
             الدخول المستقل إلى رَكيزة
           </Button>
           <button type="button" onClick={() => setLocation("/register")} className="mt-3 w-full rounded-xl border border-[#d9e4d7] px-4 py-3 text-sm font-bold text-[#397057] hover:bg-[#f3f8f2]">
             طلب تسجيل جديد
           </button>
-          <button type="button" onClick={() => setLocation("/recover")} className="mt-2 w-full rounded-xl px-4 py-2 text-sm font-bold text-[#718078] hover:text-[#245f43]">
+          <button type="button" onClick={() => setLocation("/recover")} className="mt-2 w-full rounded-xl px-4 py-2 text-sm font-bold text-[var(--rakiza-muted)] hover:text-[var(--rakiza-olive-strong)]">
             استعادة الدخول
           </button>
         </section>
@@ -451,11 +451,11 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
                 type="button"
                 aria-label="فتح القائمة"
                 onClick={() => setMobileOpen(true)}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#cfd7ca] bg-[#f2f3ed] text-[#245f43] lg:hidden"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[var(--rakiza-border)] bg-[#f2f3ed] text-[var(--rakiza-olive-strong)] lg:hidden"
               >
                 <Menu className={`h-5 w-5 ${oliveIconMotionClass}`} aria-hidden="true" />
               </button>
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#2d6b4f] text-[#f5f7ef] shadow-[0_7px_16px_rgba(45,107,79,0.16)]" aria-label="شعار رَكيزة">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--rakiza-olive)] text-[#f5f7ef] shadow-[0_7px_16px_rgba(45,107,79,0.16)]" aria-label="شعار رَكيزة">
                 <CourtEmblem className={`h-6 w-6 ${oliveIconMotionClass}`} />
               </div>
               <div className="min-w-0 leading-tight">
@@ -465,8 +465,8 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
             </div>
             {canSwitchDepartment && (
               <label className="order-5 flex items-center gap-2 rounded-xl border border-[#d2d9cf] bg-[#f1f2ec] px-3 py-2.5 lg:order-none">
-                <Building2 className="h-4 w-4 shrink-0 text-[#2d6b4f]" aria-hidden="true" />
-                <span className="text-[11px] font-bold text-[#6a786f]">القسم</span>
+                <Building2 className="h-4 w-4 shrink-0 text-[var(--rakiza-olive)]" aria-hidden="true" />
+                <span className="text-[11px] font-bold text-[var(--rakiza-muted)]">القسم</span>
                 <select aria-label="اختر القسم لعرض بياناته" value={selectedUnitId ?? ""} onChange={event => setSelectedUnitId(event.target.value ? Number(event.target.value) : null)} className="max-w-[12rem] bg-transparent text-xs font-black text-[#315348] focus:outline-none">
                   <option value="">كل الأقسام</option>
                   {(units.data ?? []).map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
@@ -474,24 +474,24 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
               </label>
             )}
             <button type="button" onClick={() => setLocation("/announcements")} className="order-3 flex min-w-0 items-center gap-3 rounded-xl border border-[#d2d9cf] bg-[#f1f2ec] px-3 py-2.5 text-right transition hover:bg-[#e5ece2] md:order-none md:w-auto md:flex-1 lg:max-w-[34rem]" aria-label="لوحة التعاميم والإعلانات">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#dce9da] text-[#2d6b4f]"><Megaphone className={`h-5 w-5 ${oliveIconMotionClass}`} aria-hidden="true" /></span>
-              <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-xs font-black text-[#315348]">لوحة التعاميم والإعلانات</span>{announcementCopy.isNew ? <span className="rounded-full bg-[#e0eadf] px-1.5 py-0.5 text-[10px] font-black text-[#2d6b4f]">جديد</span> : null}</span><span className="mt-1 block truncate text-xs font-bold text-[#365548]">{announcementCopy.title}</span><span className="mt-0.5 hidden truncate text-[11px] text-[#748078] sm:block">{announcementCopy.summary}</span></span>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#dce9da] text-[var(--rakiza-olive)]"><Megaphone className={`h-5 w-5 ${oliveIconMotionClass}`} aria-hidden="true" /></span>
+              <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-xs font-black text-[#315348]">لوحة التعاميم والإعلانات</span>{announcementCopy.isNew ? <span className="rounded-full bg-[#e0eadf] px-1.5 py-0.5 text-[10px] font-black text-[var(--rakiza-olive)]">جديد</span> : null}</span><span className="mt-1 block truncate text-xs font-bold text-[#365548]">{announcementCopy.title}</span><span className="mt-0.5 hidden truncate text-[11px] text-[#748078] sm:block">{announcementCopy.summary}</span></span>
               <ArrowLeft className="h-5 w-5 shrink-0 text-[#698075]" aria-hidden="true" />
             </button>
             <div dir="ltr" className="rakiza-toolbar relative flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:gap-3">
-              <button type="button" aria-label="الإشعارات" title="الإشعارات" onClick={() => setNotificationsOpen(!notificationsOpen)} className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886] ${unreadNotifications.length > 0 ? "border-[#e3b3a8] bg-[#fff3ef] text-[#b5443a]" : "border-[#cfd7ca] bg-[#f1f3ed] text-[#2d6b4f] hover:bg-[#e0ecdf]"}`}>
+              <button type="button" aria-label="الإشعارات" title="الإشعارات" onClick={() => setNotificationsOpen(!notificationsOpen)} className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886] ${unreadNotifications.length > 0 ? "border-[#e3b3a8] bg-[#fff3ef] text-[#b5443a]" : "border-[var(--rakiza-border)] bg-[#f1f3ed] text-[var(--rakiza-olive)] hover:bg-[#e0ecdf]"}`}>
                 <Bell className={`h-4 w-4 ${unreadNotifications.length > 0 ? "animate-pulse" : ""}`} aria-hidden="true" />
                 {unreadNotifications.length > 0 && <span aria-hidden="true" className="absolute -left-0.5 -top-0.5 flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e0473e] opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-[#e0473e]" /></span>}
-                {unreadNotifications.length > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#b18448] px-1 text-[9px] font-bold text-[#1c2b23]">{unreadNotifications.length > 9 ? "9+" : unreadNotifications.length}</span>}
+                {unreadNotifications.length > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--rakiza-gold)] px-1 text-[9px] font-bold text-[#1c2b23]">{unreadNotifications.length > 9 ? "9+" : unreadNotifications.length}</span>}
               </button>
-              {toggleTheme && <button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? "التبديل إلى النمط الفاتح" : "التبديل إلى النمط الداكن"} title={theme === "dark" ? "النمط الفاتح" : "النمط الداكن"} aria-pressed={theme === "dark"} data-testid="theme-toggle" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-[#cfd7ca] bg-[#f1f3ed] text-[#2d6b4f] transition-colors hover:bg-[#e0ecdf] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]">{theme === "dark" ? <Sun className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" /> : <Moon className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" />}</button>}
+              {toggleTheme && <button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? "التبديل إلى النمط الفاتح" : "التبديل إلى النمط الداكن"} title={theme === "dark" ? "النمط الفاتح" : "النمط الداكن"} aria-pressed={theme === "dark"} data-testid="theme-toggle" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-[var(--rakiza-border)] bg-[#f1f3ed] text-[var(--rakiza-olive)] transition-colors hover:bg-[#e0ecdf] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]">{theme === "dark" ? <Sun className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" /> : <Moon className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" />}</button>}
               <div dir="rtl" className="flex min-w-0 items-center gap-2">
                 <div className="min-w-0 text-right">
                   <p className="max-w-44 truncate text-xs font-bold text-[#284239]">{permission.data === "full_control" ? "مالك المنصة" : (user?.name || "وضع المعاينة")}</p>
                   <p className="mt-0.5 max-w-44 truncate text-[11px] text-[#77867d]">{user?.email || "بيانات مصدر مستوردة · معاينة"}</p>
-                  {(currentProfile.data as any)?.attendanceMode === "in_person" ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#718078]">🏢 حضور مكتبي</p> : <>{todayAttendance.data?.checkInAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#16834b]">✓ الحضور: {new Date(todayAttendance.data.checkInAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}{todayAttendance.data?.checkOutAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#16834b]">✓ الانصراف: {new Date(todayAttendance.data.checkOutAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}</>}
-                  <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-[#718078]" title={formatLastSeen(currentProfile.data?.lastActiveAt)}>
-                    <span className={`h-2 w-2 rounded-full ${displayedActivityState === "active" ? "bg-[#16834b]" : displayedActivityState === "chatting" ? "bg-[#b18448]" : "bg-[#b64d3d]"}`} aria-hidden="true" />
+                  {(currentProfile.data as any)?.attendanceMode === "in_person" ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-muted)]">🏢 حضور مكتبي</p> : <>{todayAttendance.data?.checkInAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#16834b]">✓ الحضور: {new Date(todayAttendance.data.checkInAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}{todayAttendance.data?.checkOutAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#16834b]">✓ الانصراف: {new Date(todayAttendance.data.checkOutAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}</>}
+                  <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-[var(--rakiza-muted)]" title={formatLastSeen(currentProfile.data?.lastActiveAt)}>
+                    <span className={`h-2 w-2 rounded-full ${displayedActivityState === "active" ? "bg-[#16834b]" : displayedActivityState === "chatting" ? "bg-[var(--rakiza-gold)]" : "bg-[#b64d3d]"}`} aria-hidden="true" />
                     <span>{activityStateLabel(displayedActivityState)}</span>
                     <span className="sr-only">{formatLastSeen(currentProfile.data?.lastActiveAt)}</span>
                   </div>
@@ -511,7 +511,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
         <aside dir="rtl" className="rakiza-sidebar hidden w-64 shrink-0 bg-sidebar px-4 py-6 text-sidebar-foreground shadow-[-8px_0_22px_rgba(18,53,47,0.12)] lg:block">
           <div className="sticky top-5 flex min-h-[calc(100vh-2.5rem)] flex-col">
             <div className="border-b border-white/10 pb-6 text-center">
-              <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eff4ec] text-[#2d6b4f] shadow-[0_10px_30px_rgba(0,0,0,0.16)]"><CourtEmblem className={`h-9 w-9 ${oliveIconMotionClass}`} /></div>
+              <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eff4ec] text-[var(--rakiza-olive)] shadow-[0_10px_30px_rgba(0,0,0,0.16)]"><CourtEmblem className={`h-9 w-9 ${oliveIconMotionClass}`} /></div>
               <p className="mt-3 text-xl font-black">لوحة القيادة</p>
               <p className="mt-1 text-sm text-white/70">{permission.data === "full_control" ? "مالك المنصة" : (currentProfile.data?.unitName || "وحدة شؤون الملازمين")}</p>
             </div>
@@ -520,11 +520,11 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
               <div className="flex items-center justify-between gap-2"><span className="text-[10px] font-bold text-white/60">أدوات مساندة</span>
                 {unreadRecommendations.length > 0 ? <button type="button" aria-label={`${unreadRecommendations.length} توصية جديدة`} onClick={() => setNotificationsOpen(!notificationsOpen)} className="relative grid h-8 w-8 place-items-center rounded-lg text-white/85 transition hover:bg-white/10">
                   <Sparkles className="h-4 w-4" aria-hidden="true" />
-                  <span aria-hidden="true" className="absolute -left-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#b18448] px-1 text-[9px] font-bold text-[#1c2b23]">{unreadRecommendations.length > 9 ? "9+" : unreadRecommendations.length}</span>
+                  <span aria-hidden="true" className="absolute -left-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--rakiza-gold)] px-1 text-[9px] font-bold text-[#1c2b23]">{unreadRecommendations.length > 9 ? "9+" : unreadRecommendations.length}</span>
                 </button> : null}
               </div>
               <div className="flex flex-wrap items-center gap-1.5 text-[#eaf2e6]"><BackButton /></div>
-              {departmentIdentity.data?.identities.length ? <label className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-1.5 text-[10px] font-bold text-white/85"><Building className="h-3.5 w-3.5 shrink-0 text-[#a8c98f]" /><span className="sr-only">الهوية الفعالة</span><select aria-label="الهوية الفعالة" disabled={switchDepartmentIdentity.isPending} value={departmentIdentity.data.activeAccountId?.toString() ?? "personal"} onChange={event => switchDepartmentIdentity.mutate({ departmentAccountId: event.target.value === "personal" ? null : Number(event.target.value) })} className="min-w-0 bg-transparent text-[10px] font-bold text-white/90 outline-none"><option className="text-[#12352f]" value="personal">هويتي الشخصية</option>{departmentIdentity.data.identities.map((identity: { account: { id: number; displayName: string } }) => <option className="text-[#12352f]" key={identity.account.id} value={identity.account.id}>{identity.account.displayName}</option>)}</select></label> : null}
+              {departmentIdentity.data?.identities.length ? <label className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-1.5 text-[10px] font-bold text-white/85"><Building className="h-3.5 w-3.5 shrink-0 text-[#a8c98f]" /><span className="sr-only">الهوية الفعالة</span><select aria-label="الهوية الفعالة" disabled={switchDepartmentIdentity.isPending} value={departmentIdentity.data.activeAccountId?.toString() ?? "personal"} onChange={event => switchDepartmentIdentity.mutate({ departmentAccountId: event.target.value === "personal" ? null : Number(event.target.value) })} className="min-w-0 bg-transparent text-[10px] font-bold text-white/90 outline-none"><option className="text-[var(--rakiza-ink)]" value="personal">هويتي الشخصية</option>{departmentIdentity.data.identities.map((identity: { account: { id: number; displayName: string } }) => <option className="text-[var(--rakiza-ink)]" key={identity.account.id} value={identity.account.id}>{identity.account.displayName}</option>)}</select></label> : null}
             </div>
             <div className="mt-6"><NavigationMenu variant="dark" permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} taskApprovalCount={taskApprovalCount} myRequestsCount={myRequestsCount} leadershipRoles={roles.data ?? []} workMode={workMode} /></div>
             <DepartmentManagementActions variant="dark" />

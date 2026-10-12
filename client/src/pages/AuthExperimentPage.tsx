@@ -100,28 +100,28 @@ export function AuthExperimentPage() {
     <div className="mx-auto max-w-3xl">
       <header className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-bold tracking-[.16em] text-[#b18448]">رَكيزة · دخول مستقل</p>
-          <h1 className="mt-2 text-3xl font-black text-[#12352f] sm:text-4xl">{mode === "owner" ? "دخول المالك" : "الدخول إلى رَكيزة"}</h1>
+          <p className="text-xs font-bold tracking-[.16em] text-[var(--rakiza-gold)]">رَكيزة · دخول مستقل</p>
+          <h1 className="mt-2 text-3xl font-black text-[var(--rakiza-ink)] sm:text-4xl">{mode === "owner" ? "دخول المالك" : "الدخول إلى رَكيزة"}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[#6c7b73]">
             {mode === "owner"
               ? "مسار مخصص لبريد مالك المنصة الاستثنائي، عبر حساب Google فقط ودون كلمة مرور تقليدية."
               : "أدخل بريدك الرسمي @moj.gov.sa. إذا كانت أول مرة، ستُنشئ رمز مرور من 6 أرقام يُعتمد للدخول بعدها."}
           </p>
         </div>
-        <ShieldCheck aria-hidden="true" className="h-11 w-11 shrink-0 text-[#006c35]" />
+        <ShieldCheck aria-hidden="true" className="h-11 w-11 shrink-0 text-[var(--rakiza-olive-strong)]" />
       </header>
 
-      {isPublicStaticHost() && <p role="status" className="mt-5 rounded-2xl border border-[#ecdcb9] bg-[#fffaf0] px-4 py-3 text-sm leading-7 text-[#746445]">{STATIC_HOST_LOGIN_MESSAGE}{operationalLoginHref() ? <> <a className="font-black text-[#006c35] underline" href={operationalLoginHref()}>افتح رابط التشغيل</a></> : null}</p>}
+      {isPublicStaticHost() && <p role="status" className="mt-5 rounded-2xl border border-[#ecdcb9] bg-[#fffaf0] px-4 py-3 text-sm leading-7 text-[#746445]">{STATIC_HOST_LOGIN_MESSAGE}{operationalLoginHref() ? <> <a className="font-black text-[var(--rakiza-olive-strong)] underline" href={operationalLoginHref()}>افتح رابط التشغيل</a></> : null}</p>}
       <div className="mt-6"><PwaInstallHint alwaysVisible /></div>
 
-      <section className="mt-6 rounded-[1.7rem] border border-[#e7e0d4] bg-white p-6 shadow-[0_15px_40px_rgba(30,51,42,.06)] sm:p-8">
+      <section className="mt-6 rounded-[1.7rem] border border-[var(--rakiza-border)] bg-white p-6 shadow-[0_15px_40px_rgba(30,51,42,.06)] sm:p-8">
         {mode === "owner"
           ? <OwnerGoogleLogin onNotice={setNotice} />
           : <>
             <div>
               <label className="block text-xs font-bold text-[#52665a]" htmlFor="rakiza-login-email">البريد الإلكتروني الرسمي</label>
               <input id="rakiza-login-email" aria-label="البريد الإلكتروني الرسمي" value={email} onChange={event => setEmail(event.target.value)} type="email" dir="ltr" inputMode="email" autoComplete="username" placeholder="name@moj.gov.sa" className="mt-2 h-11 w-full rounded-xl border border-input px-3 text-sm" />
-              <p className="mt-1 text-[11px] leading-5 text-[#718078]">موظف جديد؟ أدخل بريدك الرسمي وسيُطلب منك إنشاء رمز مرور من 6 أرقام تلقائياً.</p>
+              <p className="mt-1 text-[11px] leading-5 text-[var(--rakiza-muted)]">موظف جديد؟ أدخل بريدك الرسمي وسيُطلب منك إنشاء رمز مرور من 6 أرقام تلقائياً.</p>
               {email.trim().length > 0 && !validLoginEmail && <p role="alert" className="mt-2 text-xs font-bold text-[#9a4634]">لا يُقبل إلا بريد رسمي من نطاق moj.gov.sa أو بريد مالك رَكيزة المعتمد.</p>}
               {email.trim().length > 0 && validLoginEmail && isOwnerAccount && <p role="status" className="mt-2 text-xs font-bold text-[#246047]">حساب مالك معتمد: يُسمح بالدخول دون شرط النطاق الرسمي.</p>}
             </div>
@@ -130,17 +130,17 @@ export function AuthExperimentPage() {
 
         {notice && <p role="status" className="mt-4 rounded-xl bg-[#f3f6f1] p-3 text-xs leading-6 text-[#426253]">{notice}</p>}
 
-        {mode === "owner" && <button type="button" onClick={openEmployeeLogin} aria-label="رجوع إلى دخول الموظفين" className="mt-4 w-full text-center text-xs font-bold text-[#006c35] underline">رجوع إلى دخول الموظفين</button>}
+        {mode === "owner" && <button type="button" onClick={openEmployeeLogin} aria-label="رجوع إلى دخول الموظفين" className="mt-4 w-full text-center text-xs font-bold text-[var(--rakiza-olive-strong)] underline">رجوع إلى دخول الموظفين</button>}
       </section>
 
       {mode === "employee" && <section className="mt-6 rounded-[1.7rem] border border-[#e2dccd] bg-[#fbf9f4] p-6 shadow-sm">
         <div className="flex items-center gap-2">
-          <Fingerprint aria-hidden="true" className="h-5 w-5 text-[#006c35]" />
-          <h2 className="text-sm font-black text-[#29463b]">تسجيل الدخول بالبصمة</h2>
+          <Fingerprint aria-hidden="true" className="h-5 w-5 text-[var(--rakiza-olive-strong)]" />
+          <h2 className="text-sm font-black text-[var(--rakiza-ink)]">تسجيل الدخول بالبصمة</h2>
         </div>
-        <p className="mt-2 text-xs leading-6 text-[#718078]">بصمة جهازك تبقى داخل جهازك ولا تُرسل إلى المنصة. فعّل البصمة بعد أول دخول برمز المرور، ثم ادخل بها مباشرة.</p>
+        <p className="mt-2 text-xs leading-6 text-[var(--rakiza-muted)]">بصمة جهازك تبقى داخل جهازك ولا تُرسل إلى المنصة. فعّل البصمة بعد أول دخول برمز المرور، ثم ادخل بها مباشرة.</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={() => void enrollPasskey()} aria-label="تفعيل الدخول بالبصمة على هذا الجهاز" className="rounded-xl bg-[#006c35] px-4 py-3 text-xs font-black text-white shadow-sm transition hover:bg-[#00552b]">تفعيل البصمة على هذا الجهاز</button>
+          <button type="button" onClick={() => void enrollPasskey()} aria-label="تفعيل الدخول بالبصمة على هذا الجهاز" className="rounded-xl bg-[var(--rakiza-olive-strong)] px-4 py-3 text-xs font-black text-white shadow-sm transition hover:bg-[var(--rakiza-olive-strong)]">تفعيل البصمة على هذا الجهاز</button>
           <button type="button" onClick={() => void signInWithPasskey()} aria-label="الدخول بالبصمة المسجلة على هذا الجهاز" className="rounded-xl border border-[#bfd3c2] bg-white px-4 py-3 text-xs font-black text-[#246047] transition hover:bg-[#edf6ee]">الدخول بالبصمة</button>
         </div>
         {passkeyNotice && <p role="status" className="mt-3 rounded-xl bg-white p-3 text-xs leading-6 text-[#426253]">{passkeyNotice}</p>}
@@ -148,9 +148,9 @@ export function AuthExperimentPage() {
     </div>
 
     <nav aria-label="اختصارات الدخول" className="fixed bottom-4 left-4 z-20 flex flex-col gap-2 sm:bottom-6 sm:left-6">
-      <button type="button" onClick={openOwnerLogin} className="flex items-center gap-2 rounded-2xl border border-[#d9e5d9] bg-white/95 px-3 py-2 text-xs font-black text-[#12352f] shadow-lg backdrop-blur hover:border-[#006c35]" title="دخول المالك" aria-label="دخول المالك"><UserRoundCog aria-hidden="true" className="h-4 w-4 text-[#006c35]" /><span>دخول المالك</span></button>
-      <a href={platformHref("register")} className="flex items-center gap-2 rounded-2xl border border-[#d9e5d9] bg-white/95 px-3 py-2 text-xs font-black text-[#12352f] shadow-lg backdrop-blur hover:border-[#006c35]" title="تسجيل موظف جديد"><UserPlus aria-hidden="true" className="h-4 w-4 text-[#006c35]" /><span>تسجيل موظف جديد</span></a>
-      <a href={platformHref("guide")} className="flex items-center gap-2 rounded-2xl border border-[#d9e5d9] bg-white/95 px-3 py-2 text-xs font-black text-[#12352f] shadow-lg backdrop-blur hover:border-[#006c35]" title="الحصول على المساعدة"><Headset aria-hidden="true" className="h-4 w-4 text-[#006c35]" /><span>الحصول على المساعدة</span></a>
+      <button type="button" onClick={openOwnerLogin} className="flex items-center gap-2 rounded-2xl border border-[#d9e5d9] bg-white/95 px-3 py-2 text-xs font-black text-[var(--rakiza-ink)] shadow-lg backdrop-blur hover:border-[var(--rakiza-olive-strong)]" title="دخول المالك" aria-label="دخول المالك"><UserRoundCog aria-hidden="true" className="h-4 w-4 text-[var(--rakiza-olive-strong)]" /><span>دخول المالك</span></button>
+      <a href={platformHref("register")} className="flex items-center gap-2 rounded-2xl border border-[#d9e5d9] bg-white/95 px-3 py-2 text-xs font-black text-[var(--rakiza-ink)] shadow-lg backdrop-blur hover:border-[var(--rakiza-olive-strong)]" title="تسجيل موظف جديد"><UserPlus aria-hidden="true" className="h-4 w-4 text-[var(--rakiza-olive-strong)]" /><span>تسجيل موظف جديد</span></a>
+      <a href={platformHref("guide")} className="flex items-center gap-2 rounded-2xl border border-[#d9e5d9] bg-white/95 px-3 py-2 text-xs font-black text-[var(--rakiza-ink)] shadow-lg backdrop-blur hover:border-[var(--rakiza-olive-strong)]" title="الحصول على المساعدة"><Headset aria-hidden="true" className="h-4 w-4 text-[var(--rakiza-olive-strong)]" /><span>الحصول على المساعدة</span></a>
     </nav>
   </main>;
 }

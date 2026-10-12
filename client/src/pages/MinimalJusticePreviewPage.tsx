@@ -49,7 +49,7 @@ export default function MinimalJusticePreviewPage() {
         <aside className="relative border-b border-white/10 bg-[#10392f] px-4 py-5 text-[#eef7ee] lg:border-b-0 lg:border-l lg:px-5 lg:py-7">
           <div className="absolute left-0 top-0 h-28 w-28 rounded-full bg-[#d7ad59]/10 blur-3xl" aria-hidden="true" />
           <div className="relative flex items-center gap-3 border-b border-white/10 pb-5">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-[#e7c878]/35 bg-[#006c35] text-[#f6dda0] shadow-[0_0_24px_rgba(216,178,91,0.24)]">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl border border-[#e7c878]/35 bg-[var(--rakiza-olive-strong)] text-[#f6dda0] shadow-[0_0_24px_rgba(216,178,91,0.24)]">
               <Scale className="h-5 w-5" strokeWidth={1.8} />
             </div>
             <div>
@@ -78,14 +78,14 @@ export default function MinimalJusticePreviewPage() {
         <main className="min-w-0 p-4 sm:p-7 lg:p-8">
           <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ded6c7] pb-5">
             <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl border border-[#dfe7df] bg-[#f2f8f2] text-[#006c35]"><Landmark className="h-5 w-5" strokeWidth={1.8} /></span>
+              <span className="grid h-10 w-10 place-items-center rounded-xl border border-[#dfe7df] bg-[#f2f8f2] text-[var(--rakiza-olive-strong)]"><Landmark className="h-5 w-5" strokeWidth={1.8} /></span>
               <div><p className="text-[11px] font-bold tracking-[0.12em] text-[#ad8341]">MINIMAL JUSTICE GRID</p><h1 className="mt-1 text-xl font-black tracking-tight text-[#173b31] sm:text-2xl">لوحة القيادة المعيارية</h1></div>
             </div>
             <a href="/" className="inline-flex items-center gap-2 rounded-xl border border-[#cfc4b0] bg-white px-3 py-2 text-xs font-black text-[#315a4a] transition-colors hover:border-[#9ebca7] hover:bg-[#f2f7f2]"><ChevronLeft className="h-4 w-4" />العودة للمنصة</a>
           </header>
 
           <section className="mt-6 rounded-2xl border border-[#d9d0bf] bg-[#fbfaf5] p-4 shadow-[0_8px_28px_rgba(38,62,50,0.045)] sm:p-5">
-            <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black text-[#006c35]">معاينة مرئية</p><h2 className="mt-1 text-lg font-black text-[#24473b]">وضوح إداري بلا ازدحام</h2><p className="mt-1 max-w-2xl text-xs leading-6 text-[#6a796f]">هذه صفحة مراجعة للتصميم المقترح، ولا تعرض أرقام تشغيلية أو تغيّر بيانات المنصة.</p></div><div className="flex items-center gap-2 rounded-xl bg-[#edf5ee] px-3 py-2 text-xs font-bold text-[#2e6a4d]"><ShieldCheck className="h-4 w-4" />هوية ركيزة الخضراء</div></div>
+            <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black text-[var(--rakiza-olive-strong)]">معاينة مرئية</p><h2 className="mt-1 text-lg font-black text-[#24473b]">وضوح إداري بلا ازدحام</h2><p className="mt-1 max-w-2xl text-xs leading-6 text-[#6a796f]">هذه صفحة مراجعة للتصميم المقترح، ولا تعرض أرقام تشغيلية أو تغيّر بيانات المنصة.</p></div><div className="flex items-center gap-2 rounded-xl bg-[#edf5ee] px-3 py-2 text-xs font-bold text-[#2e6a4d]"><ShieldCheck className="h-4 w-4" />هوية ركيزة الخضراء</div></div>
           </section>
 
           <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -98,7 +98,7 @@ export default function MinimalJusticePreviewPage() {
 
           <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
             <article className="rounded-2xl border border-[#d9d0bf] bg-white p-4 shadow-[0_10px_32px_rgba(38,62,50,0.045)] sm:p-5">
-              <div className="flex items-center justify-between gap-3 border-b border-[#eee8dc] pb-4"><div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#eaf4ec] text-[#006c35]"><ListTodo className="h-4 w-4" /></span><div><h2 className="text-sm font-black text-[#24473b]">مسار العمل اليومي</h2><p className="mt-0.5 text-[10px] font-semibold text-[#8a978f]">شكل مقترح لقائمة الأعمال</p></div></div><button type="button" className="rounded-lg border border-[#d4e0d5] px-2.5 py-1.5 text-[10px] font-black text-[#2d6849]">عرض الكل</button></div>
+              <div className="flex items-center justify-between gap-3 border-b border-[#eee8dc] pb-4"><div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-[#eaf4ec] text-[var(--rakiza-olive-strong)]"><ListTodo className="h-4 w-4" /></span><div><h2 className="text-sm font-black text-[#24473b]">مسار العمل اليومي</h2><p className="mt-0.5 text-[10px] font-semibold text-[#8a978f]">شكل مقترح لقائمة الأعمال</p></div></div><button type="button" className="rounded-lg border border-[#d4e0d5] px-2.5 py-1.5 text-[10px] font-black text-[#2d6849]">عرض الكل</button></div>
               <div className="divide-y divide-[#eee8dc]">{samples.map((item, index) => <div key={item.title} className="flex items-center gap-3 py-4"><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${item.tone === "gold" ? "bg-[#fff5d8] text-[#966e1d]" : item.tone === "green" ? "bg-[#eaf6ed] text-[#24734b]" : "bg-[#f0f3f4] text-[#5c7376]"}`}><ClipboardCheck className="h-4 w-4" strokeWidth={1.8} /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-[#2a493d]">{item.title}</p><p className="mt-1 truncate text-[11px] text-[#78867e]">{item.context}</p></div><span className={`hidden rounded-full px-2.5 py-1 text-[10px] font-black sm:block ${item.tone === "gold" ? "bg-[#fff7e4] text-[#8b6825]" : item.tone === "green" ? "bg-[#edf8f0] text-[#237047]" : "bg-[#f1f3f4] text-[#61727a]"}`}>{item.state}</span><ChevronLeft className="h-4 w-4 text-[#8b9b90]" /></div>)}</div>
             </article>
 

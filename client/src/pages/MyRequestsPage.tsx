@@ -54,20 +54,20 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
   const showTimeline = item.type !== "task_approval";
   const isDisciplinary = item.type === "disciplinary";
   return (
-    <div className="rounded-xl border border-[#e7e0d4] bg-white p-4">
+    <div className="rounded-xl border border-[var(--rakiza-border)] bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <span className="rounded bg-[#eef4f0] px-2 py-0.5 text-xs text-[#2f7653]">{typeLabels[item.type] ?? item.type}</span>
-          <span className="ml-2 text-xs font-bold text-[#29463b]">{item.title}</span>
+          <span className="rounded bg-[#eef4f0] px-2 py-0.5 text-xs text-[var(--rakiza-olive-strong)]">{typeLabels[item.type] ?? item.type}</span>
+          <span className="ml-2 text-xs font-bold text-[var(--rakiza-ink)]">{item.title}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{statusLabels[item.status] ?? item.status}</span>
           <span className="text-xs text-gray-500">{item.createdAt ? new Date(item.createdAt).toLocaleDateString("ar-SA") : ""}</span>
         </div>
       </div>
-      <p className="mt-1 text-xs text-[#75837c]">مقدم الطلب: {item.submitterName}</p>
+      <p className="mt-1 text-xs text-[var(--rakiza-muted)]">مقدم الطلب: {item.submitterName}</p>
       {showTimeline && <RequestRouteTimeline requestId={item.id} requestType={item.requestType as "leave" | "permission" | "disciplinary"} />}
-      {item.type === "task_approval" && <a href="/tasks?tab=approvals" className="mt-2 inline-block text-xs font-bold text-[#2f7653] underline">فتح الاعتماد</a>}
+      {item.type === "task_approval" && <a href="/tasks?tab=approvals" className="mt-2 inline-block text-xs font-bold text-[var(--rakiza-olive-strong)] underline">فتح الاعتماد</a>}
       {reviewable && item.type === "task_approval" && (
         <div className="mt-3 flex flex-wrap gap-2">
           <a href="/tasks?tab=approvals" className="rounded-lg px-3 py-1.5 text-xs font-bold bg-blue-600 text-white hover:bg-blue-700">📄 تفاصيل</a>
@@ -170,24 +170,24 @@ export default function MyRequestsPage() {
   return (
     <DashboardLayout>
       <section dir="rtl" className="mx-auto max-w-5xl p-6">
-        <h1 className="text-2xl font-bold text-[#12352f]">طلباتي واعتماداتي</h1>
+        <h1 className="text-2xl font-bold text-[var(--rakiza-ink)]">طلباتي واعتماداتي</h1>
         <div className="mt-4 flex flex-wrap gap-2">
           {tabs.map(t => (
-            <button key={t.key} type="button" onClick={() => setTab(t.key)} className={`rounded-full px-4 py-1.5 text-sm font-bold ${tab === t.key ? "bg-[#12352f] text-white" : "bg-[#eef4f0] text-[#2f7653]"}`}>{t.label}</button>
+            <button key={t.key} type="button" onClick={() => setTab(t.key)} className={`rounded-full px-4 py-1.5 text-sm font-bold ${tab === t.key ? "bg-[var(--rakiza-olive-strong)] text-white" : "bg-[#eef4f0] text-[var(--rakiza-olive-strong)]"}`}>{t.label}</button>
           ))}
         </div>
         <div className="mt-4 space-y-3">
           {tab === "adminApprovals" ? (
             <>
-              <a href="/approvals" className="inline-block text-sm font-bold text-[#2f7653] underline">فتح صفحة الاعتمادات الإدارية</a>
+              <a href="/approvals" className="inline-block text-sm font-bold text-[var(--rakiza-olive-strong)] underline">فتح صفحة الاعتمادات الإدارية</a>
               {adminApprovals.isLoading ? <p className="text-gray-500">جارٍ التحميل…</p> : (adminApprovals.data ?? []).length ? (adminApprovals.data ?? []).map((approval: any) => (
-                <div key={approval.id} className="rounded-xl border border-[#e7e0d4] bg-white p-4">
+                <div key={approval.id} className="rounded-xl border border-[var(--rakiza-border)] bg-white p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="rounded bg-[#eef4f0] px-2 py-0.5 text-xs text-[#2f7653]">{approval.entityType}</span>
+                    <span className="rounded bg-[#eef4f0] px-2 py-0.5 text-xs text-[var(--rakiza-olive-strong)]">{approval.entityType}</span>
                     <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{approval.currentRole}</span>
                   </div>
-                  <p className="mt-2 text-sm font-bold text-[#29463b]">طلب اعتماد #{approval.id}</p>
-                  <p className="mt-1 text-xs text-[#75837c]">{approval.createdAt ? new Date(approval.createdAt).toLocaleDateString("ar-SA") : ""}</p>
+                  <p className="mt-2 text-sm font-bold text-[var(--rakiza-ink)]">طلب اعتماد #{approval.id}</p>
+                  <p className="mt-1 text-xs text-[var(--rakiza-muted)]">{approval.createdAt ? new Date(approval.createdAt).toLocaleDateString("ar-SA") : ""}</p>
                 </div>
               )) : <p className="text-gray-500">لا توجد اعتمادات إدارية معلّقة.</p>}
             </>
@@ -197,14 +197,14 @@ export default function MyRequestsPage() {
 
       {dialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" dir="rtl">
-          <div className="w-full max-w-md rounded-2xl border border-[#e7e0d4] bg-white p-5 shadow-xl">
-            <h2 className="text-lg font-bold text-[#12352f]">{dialog.action === "approve" && dialog.rating ? `اعتماد المهمة (${ratingLabels[dialog.rating]})` : dialogLabels[dialog.action].title}</h2>
-            <p className="mt-1 text-xs text-[#75837c]">{dialog.item.title} — {dialog.item.submitterName}</p>
-            <label className="mt-4 block text-xs font-bold text-[#65766d]">{dialog.action === "approve" && dialog.rating ? "ملاحظة التقييم (اختياري)" : dialogLabels[dialog.action].hint}</label>
-            <textarea value={reason} onChange={e => setReason(e.target.value)} className="mt-1 w-full rounded-lg border border-[#d8d1c5] p-2 text-sm" rows={3} maxLength={1000} />
+          <div className="w-full max-w-md rounded-2xl border border-[var(--rakiza-border)] bg-white p-5 shadow-xl">
+            <h2 className="text-lg font-bold text-[var(--rakiza-ink)]">{dialog.action === "approve" && dialog.rating ? `اعتماد المهمة (${ratingLabels[dialog.rating]})` : dialogLabels[dialog.action].title}</h2>
+            <p className="mt-1 text-xs text-[var(--rakiza-muted)]">{dialog.item.title} — {dialog.item.submitterName}</p>
+            <label className="mt-4 block text-xs font-bold text-[var(--rakiza-muted)]">{dialog.action === "approve" && dialog.rating ? "ملاحظة التقييم (اختياري)" : dialogLabels[dialog.action].hint}</label>
+            <textarea value={reason} onChange={e => setReason(e.target.value)} className="mt-1 w-full rounded-lg border border-[var(--rakiza-border)] p-2 text-sm" rows={3} maxLength={1000} />
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setDialog(null)} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold text-[#53675d]">إلغاء</button>
-              <button type="button" onClick={submitDecision} disabled={reviewMutation.isPending || escalateMutation.isPending || returnMutation.isPending || (requireReason && reason.trim().length < 3)} className="rounded-lg bg-[#12352f] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">تنفيذ</button>
+              <button type="button" onClick={() => setDialog(null)} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold text-[var(--rakiza-muted)]">إلغاء</button>
+              <button type="button" onClick={submitDecision} disabled={reviewMutation.isPending || escalateMutation.isPending || returnMutation.isPending || (requireReason && reason.trim().length < 3)} className="rounded-lg bg-[var(--rakiza-olive-strong)] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">تنفيذ</button>
             </div>
           </div>
         </div>

@@ -304,7 +304,7 @@ export default function MailComposeWindow({
         onDoubleClick={() => {
           if (!mobile) toggleMaximize();
         }}
-        className="flex shrink-0 cursor-move select-none items-center gap-2 rounded-t-2xl bg-[#12352f] px-4 py-2.5 text-white"
+        className="flex shrink-0 cursor-move select-none items-center gap-2 rounded-t-2xl bg-[var(--rakiza-olive-strong)] px-4 py-2.5 text-white"
       >
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-black">{title}</p>

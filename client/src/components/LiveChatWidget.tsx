@@ -141,7 +141,7 @@ export function LiveChatWidget() {
             {attachments.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
                 {attachments.map((file, index) => (
-                  <span key={index} className="flex items-center gap-1 rounded-full bg-[#eef5ec] px-2 py-1 text-xs text-[#245f43]">
+                  <span key={index} className="flex items-center gap-1 rounded-full bg-[#eef5ec] px-2 py-1 text-xs text-[var(--rakiza-olive-strong)]">
                     {file.originalName}
                     <button type="button" onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))} aria-label={`إزالة ${file.originalName}`}>×</button>
                   </span>

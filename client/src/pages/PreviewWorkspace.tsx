@@ -27,7 +27,7 @@ export default function PreviewWorkspace({ workspace }: { workspace: Workspace }
             <div className="grid h-14 w-14 place-items-center rounded-2xl border border-white/20 bg-white/10 text-[#f2d88e]"><Icon className="h-7 w-7" /></div>
           </div>
         </div>
-        <div className="mt-6 grid gap-4 md:grid-cols-3">{item.items.map((text, index) => <article key={text} className="rounded-2xl border border-[#e2e7de] bg-white p-5 shadow-[0_10px_25px_rgba(24,66,43,0.05)]"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#edf4ee] text-xs font-bold text-[#006c35]">0{index + 1}</span><p className="mt-5 text-sm font-bold leading-6 text-[#254d38]">{text}</p></article>)}</div>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">{item.items.map((text, index) => <article key={text} className="rounded-2xl border border-[#e2e7de] bg-white p-5 shadow-[0_10px_25px_rgba(24,66,43,0.05)]"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#edf4ee] text-xs font-bold text-[var(--rakiza-olive-strong)]">0{index + 1}</span><p className="mt-5 text-sm font-bold leading-6 text-[#254d38]">{text}</p></article>)}</div>
         <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-[#e3d8bd] bg-[#fffaf0] p-5 sm:flex-row sm:items-center"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#f5e6bf] text-[#8b6828]"><ShieldCheck className="h-5 w-5" /></div><div><h2 className="font-bold text-[#325541]">وضع المعاينة الداخلي</h2><p className="mt-1 text-sm leading-6 text-[#6d785b]">{item.control}</p></div></div>
       </section>
     </DashboardLayout>

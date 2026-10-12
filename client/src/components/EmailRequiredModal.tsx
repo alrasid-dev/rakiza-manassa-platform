@@ -87,7 +87,7 @@ export function EmailRequiredModal() {
       <DialogContent className="sm:max-w-md">
         <div className="space-y-4" dir="rtl">
           <div className="text-center">
-            <Mail className="mx-auto h-12 w-12 text-[#b18448]" />
+            <Mail className="mx-auto h-12 w-12 text-[var(--rakiza-gold)]" />
             <h2 className="mt-2 text-lg font-bold">{step === "email" ? "أضف بريدك الشخصي" : "أدخل رمز التحقق"}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {step === "email"

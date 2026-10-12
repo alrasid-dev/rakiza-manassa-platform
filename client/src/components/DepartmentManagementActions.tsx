@@ -50,12 +50,12 @@ export default function DepartmentManagementActions({ variant = "dark" }: { vari
 
   const buttonClass = variant === "dark"
     ? "border-white/10 text-[#cfe3c6] hover:bg-white/10"
-    : "border-[#d9e4d7] text-[#2d6b4f] hover:bg-[#dce9da]";
+    : "border-[#d9e4d7] text-[var(--rakiza-olive)] hover:bg-[#dce9da]";
 
 
   return (
     <div className="mt-4">
-      <p className="text-[11px] font-black tracking-[0.12em] text-[#b18448]">إدارة التكليفات</p>
+      <p className="text-[11px] font-black tracking-[0.12em] text-[var(--rakiza-gold)]">إدارة التكليفات</p>
       <div className="mt-2 grid grid-cols-2 gap-2">
         <button type="button" onClick={() => setAssignOpen(true)} title="تكليف بإدارة إدارة" aria-label="تكليف بإدارة إدارة" className={`flex flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-[11px] font-bold leading-4 ${buttonClass}`}>
           <UserPlus className="h-5 w-5" />
@@ -68,20 +68,20 @@ export default function DepartmentManagementActions({ variant = "dark" }: { vari
       </div>
 
       <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-        <DialogContent dir="rtl" className="border-[#cfd7ca] bg-[#fbfaf6]">
+        <DialogContent dir="rtl" className="border-[var(--rakiza-border)] bg-[var(--rakiza-surface)]">
           <DialogHeader>
             <DialogTitle>تكليف بإدارة إدارة</DialogTitle>
             <DialogDescription>اختر الحساب والقسم لتكليف مدير قسم جديد. يُنهى تلقائياً أي تكليف نشط سابق على القسم نفسه.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <label className="block text-xs font-bold text-[#6a786f]">
+            <label className="block text-xs font-bold text-[var(--rakiza-muted)]">
               الحساب
               <select value={assignForm.userId} onChange={event => setAssignForm({ ...assignForm, userId: event.target.value })} className={inputClass}>
                 <option value="">اختر الحساب</option>
                 {people.data?.filter(person => person.userId && person.status === "active").map(person => <option key={person.id} value={person.userId as number}>{person.fullName}{person.email ? ` · ${person.email}` : ""}</option>)}
               </select>
             </label>
-            <label className="block text-xs font-bold text-[#6a786f]">
+            <label className="block text-xs font-bold text-[var(--rakiza-muted)]">
               القسم
               <select value={assignForm.unitId} onChange={event => setAssignForm({ ...assignForm, unitId: event.target.value })} className={inputClass}>
                 <option value="">اختر القسم</option>
@@ -90,14 +90,14 @@ export default function DepartmentManagementActions({ variant = "dark" }: { vari
             </label>
           </div>
           <DialogFooter className="gap-2">
-            <button type="button" onClick={() => setAssignOpen(false)} className="rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-black text-[#355d4b]">إلغاء</button>
-            <button type="button" disabled={assign.isPending} onClick={submitAssign} className="rounded-lg bg-[#12352f] px-3 py-2 text-xs font-black text-white disabled:opacity-60">حفظ التكليف</button>
+            <button type="button" onClick={() => setAssignOpen(false)} className="rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-black text-[var(--rakiza-olive)]">إلغاء</button>
+            <button type="button" disabled={assign.isPending} onClick={submitAssign} className="rounded-lg bg-[var(--rakiza-olive-strong)] px-3 py-2 text-xs font-black text-white disabled:opacity-60">حفظ التكليف</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={endOpen} onOpenChange={setEndOpen}>
-        <DialogContent dir="rtl" className="border-[#cfd7ca] bg-[#fbfaf6]">
+        <DialogContent dir="rtl" className="border-[var(--rakiza-border)] bg-[var(--rakiza-surface)]">
           <DialogHeader>
             <DialogTitle>إنهاء تكليف بإدارة إدارة</DialogTitle>
             <DialogDescription>اختر تكليف مدير القسم النشط لإنهائه وإقالته من إدارة القسم.</DialogDescription>
@@ -108,7 +108,7 @@ export default function DepartmentManagementActions({ variant = "dark" }: { vari
           </select>
           {managers.data?.length === 0 && <p className="text-xs leading-6 text-[#8a6e32]">لا توجد تكليفات إدارة أقسام نشطة حالياً.</p>}
           <DialogFooter className="gap-2">
-            <button type="button" onClick={() => setEndOpen(false)} className="rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-black text-[#355d4b]">إلغاء</button>
+            <button type="button" onClick={() => setEndOpen(false)} className="rounded-lg border border-[#c6d4c7] px-3 py-2 text-xs font-black text-[var(--rakiza-olive)]">إلغاء</button>
             <button type="button" disabled={end.isPending} onClick={submitEnd} className="rounded-lg bg-[#8f2a22] px-3 py-2 text-xs font-black text-white disabled:opacity-60">إنهاء التكليف</button>
           </DialogFooter>
         </DialogContent>

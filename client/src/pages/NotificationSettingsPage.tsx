@@ -17,21 +17,21 @@ export default function NotificationSettingsPage() {
   return (
     <DashboardLayout>
       <section dir="rtl" className="mx-auto max-w-3xl p-6">
-        <h1 className="text-2xl font-bold text-[#12352f]">إعدادات التنبيهات</h1>
-        <p className="mt-1 text-sm leading-6 text-[#65766d]">اختر نغمة التنبيه ودرجة الصوت، وثبّت المنصة كتطبيق لضمان وصول الإشعارات حتى في الخلفية.</p>
+        <h1 className="text-2xl font-bold text-[var(--rakiza-ink)]">إعدادات التنبيهات</h1>
+        <p className="mt-1 text-sm leading-6 text-[var(--rakiza-muted)]">اختر نغمة التنبيه ودرجة الصوت، وثبّت المنصة كتطبيق لضمان وصول الإشعارات حتى في الخلفية.</p>
 
         <div className="mt-5">
           <PwaInstallHint alwaysVisible />
         </div>
 
-        <div className="mt-6 rounded-2xl border border-[#e7e0d4] bg-white p-4">
-          <h2 className="flex items-center gap-2 font-bold text-[#12352f]"><Bell className="h-4 w-4" /> نغمة التنبيه</h2>
+        <div className="mt-6 rounded-2xl border border-[var(--rakiza-border)] bg-white p-4">
+          <h2 className="flex items-center gap-2 font-bold text-[var(--rakiza-ink)]"><Bell className="h-4 w-4" /> نغمة التنبيه</h2>
           <div className="mt-3 space-y-2">
             {TONE_IDS.map(id => (
-              <label key={id} className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 ${toneId === id ? "border-[#2d6b4f] bg-[#eef7ef]" : "border-[#e7e0d4] bg-[#fbfaf6]"}`}>
+              <label key={id} className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 ${toneId === id ? "border-[var(--rakiza-olive)] bg-[#eef7ef]" : "border-[var(--rakiza-border)] bg-[var(--rakiza-surface)]"}`}>
                 <span className="flex items-center gap-2">
                   <input type="radio" name="tone" checked={toneId === id} onChange={() => setToneId(id)} className="h-4 w-4 accent-[#2d6b4f]" />
-                  <span className="font-bold text-[#29463b]">{TONE_LABELS[id]}</span>
+                  <span className="font-bold text-[var(--rakiza-ink)]">{TONE_LABELS[id]}</span>
                 </span>
                 <Button type="button" size="sm" variant="outline" onClick={() => playPreview(id)}>تجربة</Button>
               </label>
@@ -39,11 +39,11 @@ export default function NotificationSettingsPage() {
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-[#e7e0d4] bg-white p-4">
-          <h2 className="flex items-center gap-2 font-bold text-[#12352f]"><Volume2 className="h-4 w-4" /> درجة الصوت</h2>
+        <div className="mt-4 rounded-2xl border border-[var(--rakiza-border)] bg-white p-4">
+          <h2 className="flex items-center gap-2 font-bold text-[var(--rakiza-ink)]"><Volume2 className="h-4 w-4" /> درجة الصوت</h2>
           <div className="mt-3 flex items-center gap-3">
             <input type="range" min={0} max={100} value={volumePct} onChange={e => setVolumePct(Number(e.target.value))} className="flex-1 accent-[#2d6b4f]" aria-label="درجة الصوت" />
-            <span className="w-12 text-center text-sm font-bold text-[#29463b]">{volumePct}%</span>
+            <span className="w-12 text-center text-sm font-bold text-[var(--rakiza-ink)]">{volumePct}%</span>
           </div>
         </div>
 

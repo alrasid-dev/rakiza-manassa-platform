@@ -96,28 +96,28 @@ export default function WorkflowMapPage() {
   return <DashboardLayout><section dir="rtl" className="mx-auto w-full max-w-6xl">
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p className="text-xs font-bold tracking-[0.14em] text-[#b18448]">سير العمل وخطة القسم</p>
-        <h1 className="mt-2 text-3xl font-bold text-[#12352f]">مخطط سير العمل</h1>
+        <p className="text-xs font-bold tracking-[0.14em] text-[var(--rakiza-gold)]">سير العمل وخطة القسم</p>
+        <h1 className="mt-2 text-3xl font-bold text-[var(--rakiza-ink)]">مخطط سير العمل</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-[#52685d]">ارفع مستند الإجراءات (Word أو Excel أو PDF أو صورة)، فيُقرأ ويُستخرج منه المخطط المتسلسل، ثم وزّع خطواته آلياً أو يدوياً كي تصبح مهام فعلية بإشعارات.</p>
       </div>
-      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e1ebe0] text-[#1f5a47]"><GitBranch className="h-6 w-6" /></div>
+      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e1ebe0] text-[var(--rakiza-olive-strong)]"><GitBranch className="h-6 w-6" /></div>
     </header>
 
-    <div className="mt-7 rounded-[1.6rem] border border-[#d1dbcf] bg-[#f8f8f3] p-5 shadow-[0_10px_30px_rgba(30,51,42,0.05)] sm:p-6">
+    <div className="mt-7 rounded-[1.6rem] border border-[#d1dbcf] bg-[var(--rakiza-surface)] p-5 shadow-[0_10px_30px_rgba(30,51,42,0.05)] sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-black text-[#1f4a36]">١. مستند الإجراءات</h2>
           <p className="mt-1 text-xs text-[#66766e]">Word وExcel وCSV وTXT تُقرأ محلياً، أما PDF والصور فتُقرأ بالذكاء الاصطناعي (OCR). الحد الأقصى 10 ميجابايت.</p>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full bg-[#e6efe4] px-3 py-1.5 text-[11px] font-bold text-[#2d6b4f]"><Sparkles className="h-3.5 w-3.5" />قراءة ذكية بمراجعة بشرية</span>
+        <span className="inline-flex items-center gap-2 rounded-full bg-[#e6efe4] px-3 py-1.5 text-[11px] font-bold text-[var(--rakiza-olive)]"><Sparkles className="h-3.5 w-3.5" />قراءة ذكية بمراجعة بشرية</span>
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_12rem]">
         <label htmlFor="workflow-source" className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#9fbea5] bg-[#eef2eb] p-4 text-sm text-[#3e5c4d]">
-          {file ? <FileSpreadsheet className="h-5 w-5 text-[#2d6b4f]" /> : <UploadCloud className="h-5 w-5 text-[#2d6b4f]" />}
+          {file ? <FileSpreadsheet className="h-5 w-5 text-[var(--rakiza-olive)]" /> : <UploadCloud className="h-5 w-5 text-[var(--rakiza-olive)]" />}
           <span className="min-w-0 flex-1">{file ? file.name : "اختر ملف الإجراءات أو الخطة (DOCX · XLSX · PDF · CSV · PNG · JPEG)"}</span>
         </label>
         <input id="workflow-source" type="file" accept={ACCEPTED_FILES} className="sr-only" onChange={event => { setFile(event.target.files?.[0] ?? null); setAnalysis(null); setCreated([]); }} />
-        <Button type="button" disabled={analyze.isPending || !file} onClick={runAnalysis} className="h-12 bg-[#2d6b4f] text-sm font-black text-white hover:bg-[#245a41]">
+        <Button type="button" disabled={analyze.isPending || !file} onClick={runAnalysis} className="h-12 bg-[var(--rakiza-olive)] text-sm font-black text-white hover:bg-[#245a41]">
           {analyze.isPending ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />جارٍ قراءة المستند…</> : <><Sparkles className="ml-2 h-4 w-4" />تحليل المستند وبناء المخطط</>}
         </Button>
       </div>
@@ -133,7 +133,7 @@ export default function WorkflowMapPage() {
           </div>
           <div className="flex flex-wrap gap-2 text-[11px] font-bold">
             <span className="rounded-full bg-[#eaf4ff] px-3 py-1.5 text-[#26628d]">{workflowMethodLabel(analysis.method)}</span>
-            <span className="rounded-full bg-[#e6efe4] px-3 py-1.5 text-[#2d6b4f]"><Layers className="ml-1 inline h-3.5 w-3.5" />{analysis.map.steps.length} خطوة</span>
+            <span className="rounded-full bg-[#e6efe4] px-3 py-1.5 text-[var(--rakiza-olive)]"><Layers className="ml-1 inline h-3.5 w-3.5" />{analysis.map.steps.length} خطوة</span>
           </div>
         </div>
         <div className="mt-4 overflow-x-auto rounded-xl border border-[#e2e8df] bg-[#fbfcfa] p-3">
@@ -159,7 +159,7 @@ export default function WorkflowMapPage() {
             })}
           </svg>
         </div>
-        <p className="mt-2 text-[11px] text-[#718078]">اقرأ المخطط من اليمين إلى اليسار صفّاً بعد صف. اضغط أي خطوة لتحديدها في جدول التوزيع.</p>
+        <p className="mt-2 text-[11px] text-[var(--rakiza-muted)]">اقرأ المخطط من اليمين إلى اليسار صفّاً بعد صف. اضغط أي خطوة لتحديدها في جدول التوزيع.</p>
       </div>
 
       <div className="rounded-[1.6rem] border border-[#d1dbcf] bg-white p-5 shadow-[0_10px_30px_rgba(30,51,42,0.05)] sm:p-6">
@@ -169,7 +169,7 @@ export default function WorkflowMapPage() {
             <p className="mt-1 text-xs text-[#66766e]">التوزيع الآلي يطابق اسم الموظف في نص الخطوة، ثم وحدة المالك المقترحة، ثم يوزّع بالتساوي حسب الحمل. والتوزيع اليدوي يبقى قرارك لكل خطوة.</p>
           </div>
           <div className="inline-flex rounded-xl border border-[#cddccd] bg-[#f2f5f0] p-1" role="group" aria-label="نمط التوزيع">
-            {(["auto", "manual"] as WorkflowDistributionMode[]).map(option => <button key={option} type="button" aria-pressed={mode === option} onClick={() => setMode(option)} className={`rounded-lg px-3 py-2 text-xs font-black transition ${mode === option ? "bg-[#2d6b4f] text-white" : "text-[#315c4a] hover:bg-[#e3ece1]"}`}>{option === "auto" ? "توزيع آلي" : "توزيع يدوي"}</button>)}
+            {(["auto", "manual"] as WorkflowDistributionMode[]).map(option => <button key={option} type="button" aria-pressed={mode === option} onClick={() => setMode(option)} className={`rounded-lg px-3 py-2 text-xs font-black transition ${mode === option ? "bg-[var(--rakiza-olive)] text-white" : "text-[#315c4a] hover:bg-[#e3ece1]"}`}>{option === "auto" ? "توزيع آلي" : "توزيع يدوي"}</button>)}
           </div>
         </div>
 
@@ -192,7 +192,7 @@ export default function WorkflowMapPage() {
                 return <tr key={step.order} className={`border-t border-[#e8eee6] ${selectedOrder === step.order ? "bg-[#f3f9f2]" : ""}`}>
                   <td className="px-3 py-3">
                     <button type="button" onClick={() => setSelectedOrder(step.order)} className="text-right text-[13px] font-bold text-[#1f4a36] underline decoration-[#b9d2ba] underline-offset-4">{step.order}. {step.title}</button>
-                    {step.ownerUnitHint ? <p className="mt-1 text-[11px] text-[#718078]">الوحدة المقترحة: {step.ownerUnitHint}</p> : null}
+                    {step.ownerUnitHint ? <p className="mt-1 text-[11px] text-[var(--rakiza-muted)]">الوحدة المقترحة: {step.ownerUnitHint}</p> : null}
                   </td>
                   <td className="px-3 py-3">
                     <input type="number" min={1} max={120} aria-label={`مدة الخطوة ${step.order} بالأيام`} value={step.slaDays} readOnly className="h-9 w-20 rounded-lg border border-[#dce6dc] bg-[#fbfcfa] px-2 text-xs font-bold text-[#315c4a]" />
@@ -204,8 +204,8 @@ export default function WorkflowMapPage() {
                   </td>
                   <td className="px-3 py-3">
                     {mode === "auto" ? <div className="flex flex-col gap-1">
-                      <span className="text-xs font-bold text-[#2d6b4f]">{workflowStaffLabel(staffById.get(auto?.assigneeProfileId ?? -1))}</span>
-                      {auto ? <span className="text-[10px] text-[#718078]">{workflowMatchReasonLabel(auto.matchReason)}</span> : null}
+                      <span className="text-xs font-bold text-[var(--rakiza-olive)]">{workflowStaffLabel(staffById.get(auto?.assigneeProfileId ?? -1))}</span>
+                      {auto ? <span className="text-[10px] text-[var(--rakiza-muted)]">{workflowMatchReasonLabel(auto.matchReason)}</span> : null}
                     </div> : <select aria-label={`منفذ الخطوة ${step.order}`} value={typeof manualId === "number" ? manualId : ""} onChange={event => setManualAssignees(current => ({ ...current, [step.order]: event.target.value ? Number(event.target.value) : "" }))} className="h-9 w-full rounded-lg border border-[#dce6dc] bg-white px-2 text-xs font-bold text-[#315c4a]">
                       <option value="">اختر المنفذ…</option>
                       {staff.map(member => <option key={member.id} value={member.id}>{workflowStaffLabel(member)}</option>)}
@@ -226,7 +226,7 @@ export default function WorkflowMapPage() {
       </div>
 
       {created.length > 0 && <div className="rounded-[1.6rem] border border-[#cfe4d3] bg-[#f4fbf4] p-5 shadow-[0_10px_30px_rgba(30,51,42,0.05)] sm:p-6">
-        <div className="flex items-center gap-2 text-[#1f4a36]"><CheckCircle2 className="h-5 w-5 text-[#2d6b4f]" /><h2 className="text-lg font-black">٤. المهام المُنشأة</h2></div>
+        <div className="flex items-center gap-2 text-[#1f4a36]"><CheckCircle2 className="h-5 w-5 text-[var(--rakiza-olive)]" /><h2 className="text-lg font-black">٤. المهام المُنشأة</h2></div>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
           {created.map(task => <li key={task.taskId} className="rounded-xl border border-[#d9e8dc] bg-white px-3 py-2 text-xs">
             <p className="font-bold text-[#1f4a36]">{task.order}. {task.title}</p>

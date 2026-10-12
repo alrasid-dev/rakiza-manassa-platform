@@ -63,6 +63,8 @@
   --rakiza-olive-soft: #dce9da;
   --rakiza-ink: #243d32;
   --rakiza-muted: #6f7e75;
+  --rakiza-gold: #b18448;
+  --rakiza-danger: #a04a35;
   /* Layout — تصميم موحّد (Design Tokens) */
   --radius-card: 1rem;          /* 16px = rounded-2xl */
   --radius-section: 1rem;       /* 16px */
@@ -122,6 +124,8 @@
   --rakiza-olive-soft: #284835;
   --rakiza-ink: #eef4e9;
   --rakiza-muted: #b4c3b5;
+  --rakiza-gold: #d4a660;
+  --rakiza-danger: #e07a5f;
   --primary: oklch(0.75 0.10 142);
   --primary-foreground: oklch(0.18 0.035 145);
   --sidebar-primary: oklch(0.75 0.10 142);

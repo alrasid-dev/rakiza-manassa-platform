@@ -47,12 +47,12 @@ export default function RequestRouteTimeline({ requestId, requestType }: { reque
   const r = route.data;
   const hint = approvalHint(r.steps as RouteStep[]);
   return (
-    <div className="mt-3 rounded-lg border border-[#e7e0d4] bg-[#faf7f0] p-3 text-xs">
-      <p className="font-bold text-[#12352f]">مسار الطلب</p>
+    <div className="mt-3 rounded-lg border border-[var(--rakiza-border)] bg-[#faf7f0] p-3 text-xs">
+      <p className="font-bold text-[var(--rakiza-ink)]">مسار الطلب</p>
       <ol className="mt-2 space-y-2">
         {(r.steps as RouteStep[]).map(step => {
           const statusDot = step.status === "done" ? "🟢" : step.status === "current" ? "🔵" : "⚪";
-          const statusClass = step.status === "current" ? "text-[#1d5fb8]" : step.status === "done" ? "text-[#2d6b4f]" : "text-[#9a938a]";
+          const statusClass = step.status === "current" ? "text-[#1d5fb8]" : step.status === "done" ? "text-[var(--rakiza-olive)]" : "text-[#9a938a]";
           return (
             <li key={`${step.step}-${step.label}`} className="flex items-start gap-2">
               <span className="mt-0.5">{stepIcons[step.step] ?? "•"}</span>
@@ -62,7 +62,7 @@ export default function RequestRouteTimeline({ requestId, requestType }: { reque
                 </span>
                 {" — "}{step.by}
                 {step.at ? <span className="text-[#8a8279]"> · {new Date(step.at).toLocaleDateString("ar-SA")}</span> : null}
-                {step.decision ? <span className="text-[#2d6b4f]"> · {decisionLabels[step.decision] ?? step.decision}</span> : null}
+                {step.decision ? <span className="text-[var(--rakiza-olive)]"> · {decisionLabels[step.decision] ?? step.decision}</span> : null}
               </div>
             </li>
           );

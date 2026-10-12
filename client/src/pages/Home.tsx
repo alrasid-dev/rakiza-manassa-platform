@@ -205,8 +205,8 @@ export default function Home() {
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d5ddd2] bg-[#f8f9f4] px-4 py-3 shadow-[0_8px_22px_rgba(36,67,51,0.05)]">
         <div className="flex flex-wrap items-center gap-2">
           <GlobalSearchBar />
-          <button type="button" onClick={() => setLocation("/tasks?filter=active")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#e6efe4] px-3 py-1.5 text-sm font-bold text-[#2d6b4f] transition hover:opacity-80 sm:text-[11px]"><CheckCircle2 className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />{activeCount > 0 ? `${activeCount} مهام اليوم النشطة` : "لا مهام نشطة اليوم"}</button>
-          <button type="button" onClick={() => setLocation("/tasks?filter=overdue")} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold transition hover:opacity-80 sm:text-[11px] ${lateCount > 0 ? "bg-[#f8e6e1] text-[#963e33]" : "bg-[#e6efe4] text-[#2d6b4f]"}`}><AlertTriangle className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />{lateCount > 0 ? `${lateCount} متأخر` : "لا متأخرات"}</button>
+          <button type="button" onClick={() => setLocation("/tasks?filter=active")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#e6efe4] px-3 py-1.5 text-sm font-bold text-[var(--rakiza-olive)] transition hover:opacity-80 sm:text-[11px]"><CheckCircle2 className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />{activeCount > 0 ? `${activeCount} مهام اليوم النشطة` : "لا مهام نشطة اليوم"}</button>
+          <button type="button" onClick={() => setLocation("/tasks?filter=overdue")} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold transition hover:opacity-80 sm:text-[11px] ${lateCount > 0 ? "bg-[#f8e6e1] text-[#963e33]" : "bg-[#e6efe4] text-[var(--rakiza-olive)]"}`}><AlertTriangle className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />{lateCount > 0 ? `${lateCount} متأخر` : "لا متأخرات"}</button>
           <button type="button" onClick={() => setLocation("/notifications")} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#eaf4ff] px-3 py-1.5 text-sm font-bold text-[#26628d] transition hover:opacity-80 sm:text-[11px]"><BellRing className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />{unreadNotifications > 0 ? `${formatUnreadBadgeCount(unreadNotifications)} تنبيه جديد` : "لا تنبيهات جديدة"}</button>
         </div>
       </header>
@@ -216,8 +216,8 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <RakizaIconButton icon={ListChecks} gradient="from-emerald-500 to-emerald-600" />
             <div>
-              <p className="text-base font-black text-[#12352f] sm:text-sm">مهامي اليوم</p>
-              <p className="text-sm text-[#66766e] sm:text-xs">إجمالي: {todayCounts.data?.total ?? 0} مهمة · <span className="font-bold text-[#2d6b4f]">عرض الكل ←</span></p>
+              <p className="text-base font-black text-[var(--rakiza-ink)] sm:text-sm">مهامي اليوم</p>
+              <p className="text-sm text-[#66766e] sm:text-xs">إجمالي: {todayCounts.data?.total ?? 0} مهمة · <span className="font-bold text-[var(--rakiza-olive)]">عرض الكل ←</span></p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -231,7 +231,7 @@ export default function Home() {
             <section aria-label="الشبكة الرئيسية" className="mt-5">
         <div className="mb-2 flex items-center justify-between">
           <p className="text-sm font-semibold text-[#7a8980] sm:text-xs">مؤشراتك السريعة</p>
-          <button type="button" onClick={() => setStatCardCustomizationOpen(true)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#c6d4c7] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#355d4b] transition hover:bg-[#e8f0e7]"><Settings2 className="h-3.5 w-3.5" aria-hidden="true" />تخصيص</button>
+          <button type="button" onClick={() => setStatCardCustomizationOpen(true)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#c6d4c7] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[var(--rakiza-olive)] transition hover:bg-[#e8f0e7]"><Settings2 className="h-3.5 w-3.5" aria-hidden="true" />تخصيص</button>
         </div>
         <div className="w-full snap-x overflow-x-auto rounded-2xl bg-white/50 shadow-sm ring-1 ring-black/5 backdrop-blur-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex flex-row flex-nowrap divide-x divide-white/30 rtl:divide-x-reverse">

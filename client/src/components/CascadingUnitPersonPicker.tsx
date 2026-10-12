@@ -25,7 +25,7 @@ export function CascadingUnitPersonPicker({ value, onChange, personTypes, label,
 
   return (
     <div className="space-y-2">
-      {label ? <span className="text-xs font-bold text-[#65766d]">{label}</span> : null}
+      {label ? <span className="text-xs font-bold text-[var(--rakiza-muted)]">{label}</span> : null}
       <select
         aria-label="اختر القسم"
         value={value.unitId ?? ""}

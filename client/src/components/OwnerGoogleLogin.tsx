@@ -85,9 +85,9 @@ export function OwnerGoogleLogin({ onNotice }: { onNotice?: (message: string) =>
   };
 
   return <div className="mt-6 rounded-2xl border border-[#d9e5d9] bg-[#f7faf5] p-5">
-    <p className="text-sm font-bold text-[#29463b]">الدخول عبر حساب Google الخاص بالمالك</p>
-    <p className="mt-2 text-xs leading-6 text-[#718078]">هذا المسار لبريد مالك المنصة <span dir="ltr" className="font-bold">{PLATFORM_OWNER_EMAIL}</span> وحده، دون كلمة مرور تقليدية. أي حساب آخر يُرفض ويُغلق فوراً.</p>
-    <Button type="button" onClick={() => void signInOwner()} disabled={busy} aria-label="الدخول عبر Google بحساب مالك المنصة" className="mt-4 w-full bg-white text-[#29463b] shadow-sm hover:bg-[#f3f6f0]" variant="outline">
+    <p className="text-sm font-bold text-[var(--rakiza-ink)]">الدخول عبر حساب Google الخاص بالمالك</p>
+    <p className="mt-2 text-xs leading-6 text-[var(--rakiza-muted)]">هذا المسار لبريد مالك المنصة <span dir="ltr" className="font-bold">{PLATFORM_OWNER_EMAIL}</span> وحده، دون كلمة مرور تقليدية. أي حساب آخر يُرفض ويُغلق فوراً.</p>
+    <Button type="button" onClick={() => void signInOwner()} disabled={busy} aria-label="الدخول عبر Google بحساب مالك المنصة" className="mt-4 w-full bg-white text-[var(--rakiza-ink)] shadow-sm hover:bg-[#f3f6f0]" variant="outline">
       <Chrome aria-hidden="true" className="ml-2 h-4 w-4" />{busy ? "جارٍ فتح Google…" : "الدخول عبر Google"}
     </Button>
     {notice && <p role="status" className="mt-3 rounded-xl bg-white p-3 text-xs leading-6 text-[#426253]">{notice}</p>}

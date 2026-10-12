@@ -6,17 +6,17 @@ import { FIRST_USE_HELP } from "@/lib/icon-guide";
 const STORAGE_KEY = "rakiza:seen-help-keys";
 
 const HELP_ICONS: Record<string, { Icon: typeof CircleHelp; well: string }> = {
-  "/tasks": { Icon: ListChecks, well: "bg-[#d1e4d1] text-[#245f43]" },
-  "/status": { Icon: CalendarOff, well: "bg-[#d1e4d1] text-[#245f43]" },
-  "/rakiza-mail": { Icon: Mail, well: "bg-[#d1e4d1] text-[#245f43]" },
-  "/notifications": { Icon: BellRing, well: "bg-[#d1e4d1] text-[#245f43]" },
-  "/report-upload": { Icon: FileUp, well: "bg-[#d1e4d1] text-[#245f43]" },
+  "/tasks": { Icon: ListChecks, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
+  "/status": { Icon: CalendarOff, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
+  "/rakiza-mail": { Icon: Mail, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
+  "/notifications": { Icon: BellRing, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
+  "/report-upload": { Icon: FileUp, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
   "/delegation": { Icon: Handshake, well: "bg-[#efe4c0] text-[#80642b]" },
   "/rotation": { Icon: Repeat, well: "bg-[#efe4c0] text-[#80642b]" },
   "/owner-kpi": { Icon: Gauge, well: "bg-[#efe4c0] text-[#80642b]" },
-  "/personal-settings": { Icon: UserCog, well: "bg-[#d1e4d1] text-[#245f43]" },
-  "/archive": { Icon: Archive, well: "bg-[#d1e4d1] text-[#245f43]" },
-  "/approvals": { Icon: BadgeCheck, well: "bg-[#d1e4d1] text-[#245f43]" },
+  "/personal-settings": { Icon: UserCog, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
+  "/archive": { Icon: Archive, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
+  "/approvals": { Icon: BadgeCheck, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
 };
 
 function readSeen(): string[] {
@@ -43,7 +43,7 @@ export default function FirstUseHelp() {
   return (
     <aside role="dialog" aria-label="مساعدة أول استخدام" className="mb-4 rounded-2xl border border-[#d7e6d8] bg-[#f4faf4] p-4 shadow-[0_8px_20px_rgba(30,61,48,0.06)]">
       <div className="flex items-start gap-3">
-        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${visual?.well ?? "bg-[#dceee0] text-[#2d6b4f]"}`}>
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${visual?.well ?? "bg-[#dceee0] text-[var(--rakiza-olive)]"}`}>
           <Icon className="rakiza-olive-icon h-5 w-5" fill="currentColor" strokeWidth={1.6} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">

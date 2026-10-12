@@ -38,14 +38,14 @@ export default function TeamStatusPage() {
     <DashboardLayout>
       <section dir="rtl" className="mx-auto w-full max-w-5xl space-y-6 p-6">
         <header>
-          <p className="text-xs font-black tracking-[0.14em] text-[#b18448]">إدارة الفريق</p>
-          <h1 className="mt-1 text-3xl font-black text-[#12352f]">حالة الموظفين</h1>
+          <p className="text-xs font-black tracking-[0.14em] text-[var(--rakiza-gold)]">إدارة الفريق</p>
+          <h1 className="mt-1 text-3xl font-black text-[var(--rakiza-ink)]">حالة الموظفين</h1>
           <p className="mt-2 text-sm leading-7 text-[#60736a]">غيّر حالة أي موظف في قسمك (حاضر / إجازة / غير نشط) مع سبب إلزامي، وينعكس التغيير فوراً على مهامه وحضوره وتقاريره.</p>
         </header>
 
-        <div className="overflow-x-auto rounded-2xl border border-[#e7e0d4] bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-[var(--rakiza-border)] bg-white shadow-sm">
           <table className="w-full min-w-[640px] text-right text-sm">
-            <thead className="bg-[#f7f5ef] text-xs font-bold text-[#12352f]">
+            <thead className="bg-[#f7f5ef] text-xs font-bold text-[var(--rakiza-ink)]">
               <tr>
                 <th className="px-4 py-3">الاسم</th>
                 <th className="px-4 py-3">القسم</th>
@@ -59,7 +59,7 @@ export default function TeamStatusPage() {
                   <td className="px-4 py-3 font-bold text-[#314d40]">{person.fullName}</td>
                   <td className="px-4 py-3 text-[#60736a]">{person.unitId != null ? (unitNameById.get(person.unitId) ?? "—") : "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${person.status === "on_leave" ? "bg-[#fff3d6] text-[#8a6d20]" : person.status === "active" ? "bg-[#e7f3ea] text-[#2d6b4f]" : "bg-[#f0ece6] text-[#6e7e75]"}`}>{statusLabels[person.status] ?? person.status}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${person.status === "on_leave" ? "bg-[#fff3d6] text-[#8a6d20]" : person.status === "active" ? "bg-[#e7f3ea] text-[var(--rakiza-olive)]" : "bg-[#f0ece6] text-[var(--rakiza-muted)]"}`}>{statusLabels[person.status] ?? person.status}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -69,16 +69,16 @@ export default function TeamStatusPage() {
                   </td>
                 </tr>
               ))}
-              {!people.data?.length && !people.isLoading && <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-[#738179]">لا يوجد موظفون ضمن نطاقك.</td></tr>}
+              {!people.data?.length && !people.isLoading && <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-[var(--rakiza-muted)]">لا يوجد موظفون ضمن نطاقك.</td></tr>}
             </tbody>
           </table>
         </div>
 
         {historyProfileId && (
           <div className="rounded-2xl border border-[#d9e7dc] bg-[#f7fbf7] p-4">
-            <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-[#2f7653]" /><h2 className="text-sm font-bold text-[#12352f]">سجل تغييرات الحالة</h2></div>
+            <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-[var(--rakiza-olive-strong)]" /><h2 className="text-sm font-bold text-[var(--rakiza-ink)]">سجل تغييرات الحالة</h2></div>
             <div className="mt-3 space-y-2">
-              {history.isLoading ? <p className="text-xs text-[#6e7e75]">جارٍ التحميل…</p> : history.data?.length ? history.data.map(item => <p key={item.id} className="text-xs leading-6 text-[#4c5f54]">{new Date(item.createdAt).toLocaleString("ar")} · {(item.metadata as Record<string, string>)?.from ?? "—"} ← {(item.metadata as Record<string, string>)?.to ?? "—"} · {(item.metadata as Record<string, string>)?.reason ?? ""}</p>) : <p className="text-xs text-[#6e7e75]">لا توجد تغييرات مسجلة.</p>}
+              {history.isLoading ? <p className="text-xs text-[var(--rakiza-muted)]">جارٍ التحميل…</p> : history.data?.length ? history.data.map(item => <p key={item.id} className="text-xs leading-6 text-[#4c5f54]">{new Date(item.createdAt).toLocaleString("ar")} · {(item.metadata as Record<string, string>)?.from ?? "—"} ← {(item.metadata as Record<string, string>)?.to ?? "—"} · {(item.metadata as Record<string, string>)?.reason ?? ""}</p>) : <p className="text-xs text-[var(--rakiza-muted)]">لا توجد تغييرات مسجلة.</p>}
             </div>
           </div>
         )}
@@ -90,7 +90,7 @@ export default function TeamStatusPage() {
               <DialogDescription>{target?.fullName}</DialogDescription>
             </DialogHeader>
             <form onSubmit={event => { event.preventDefault(); if (target && reason.trim().length >= 10) setStatus.mutate({ profileId: target.id, newStatus, reason: reason.trim(), endDate: endDate ? new Date(endDate) : undefined }); }} className="space-y-3">
-              <label className="block text-xs font-bold text-[#6a786f]">الحالة الجديدة
+              <label className="block text-xs font-bold text-[var(--rakiza-muted)]">الحالة الجديدة
                 <select value={newStatus} onChange={event => setNewStatus(event.target.value as typeof newStatus)} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm">
                   <option value="active">حاضر / نشط</option>
                   <option value="on_leave">إجازة</option>
@@ -98,11 +98,11 @@ export default function TeamStatusPage() {
                   <option value="pending_review">قيد المراجعة</option>
                 </select>
               </label>
-              {newStatus === "on_leave" && <label className="block text-xs font-bold text-[#6a786f]">نهاية الإجازة (اختياري)<Input value={endDate} onChange={event => setEndDate(event.target.value)} className="mt-1" type="datetime-local" /></label>}
-              <label className="block text-xs font-bold text-[#6a786f]">سبب التغيير (10 أحرف على الأقل)<Textarea value={reason} onChange={event => setReason(event.target.value)} placeholder="وضح سبب تغيير الحالة…" className="mt-1 min-h-24" required minLength={10} /></label>
+              {newStatus === "on_leave" && <label className="block text-xs font-bold text-[var(--rakiza-muted)]">نهاية الإجازة (اختياري)<Input value={endDate} onChange={event => setEndDate(event.target.value)} className="mt-1" type="datetime-local" /></label>}
+              <label className="block text-xs font-bold text-[var(--rakiza-muted)]">سبب التغيير (10 أحرف على الأقل)<Textarea value={reason} onChange={event => setReason(event.target.value)} placeholder="وضح سبب تغيير الحالة…" className="mt-1 min-h-24" required minLength={10} /></label>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setTarget(null)}>إلغاء</Button>
-                <Button type="submit" disabled={setStatus.isPending || reason.trim().length < 10} className="bg-[#12352f] hover:bg-[#1d5245]">{setStatus.isPending ? "جارٍ الحفظ…" : "حفظ التغيير"}</Button>
+                <Button type="submit" disabled={setStatus.isPending || reason.trim().length < 10} className="bg-[var(--rakiza-olive-strong)] hover:bg-[var(--rakiza-olive-strong)]">{setStatus.isPending ? "جارٍ الحفظ…" : "حفظ التغيير"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>

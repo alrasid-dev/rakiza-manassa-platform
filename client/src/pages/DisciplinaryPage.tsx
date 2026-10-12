@@ -133,36 +133,36 @@ export default function DisciplinaryPage() {
   return (
     <DashboardLayout>
       <section dir="rtl" className="mx-auto max-w-5xl p-6">
-        <h1 className="text-2xl font-bold text-[#12352f]">المساءلات</h1>
+        <h1 className="text-2xl font-bold text-[var(--rakiza-ink)]">المساءلات</h1>
 
         {/* شريط التصنيف */}
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[#e7e0d4] bg-[#fbf6ec] p-3">
-          {(isManager || isLeadership) && <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--rakiza-border)] bg-[#fbf6ec] p-3">
+          {(isManager || isLeadership) && <select value={unitFilter} onChange={e => setUnitFilter(e.target.value)} className="rounded border border-[var(--rakiza-border)] bg-white px-2 py-1 text-sm">
             <option value="all">القسم: الكل</option>
             {(units.data ?? []).map(unit => <option key={unit.id} value={String(unit.id)}>{unit.name}</option>)}
           </select>}
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as typeof typeFilter)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as typeof typeFilter)} className="rounded border border-[var(--rakiza-border)] bg-white px-2 py-1 text-sm">
             <option value="all">النوع: الكل</option>
             <option value="attendance">حضور</option>
             <option value="task">مهمة</option>
           </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)} className="rounded border border-[var(--rakiza-border)] bg-white px-2 py-1 text-sm">
             <option value="all">الحالة: الكل</option>
             {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث بالاسم…" className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm" />
-          {(isManager || isLeadership) && <select value={employeeFilter} onChange={e => setEmployeeFilter(e.target.value)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث بالاسم…" className="rounded border border-[var(--rakiza-border)] bg-white px-2 py-1 text-sm" />
+          {(isManager || isLeadership) && <select value={employeeFilter} onChange={e => setEmployeeFilter(e.target.value)} className="rounded border border-[var(--rakiza-border)] bg-white px-2 py-1 text-sm">
             <option value="all">الموظف: الكل</option>
             {(people.data ?? []).map(person => <option key={person.id} value={String(person.id)}>{person.fullName}</option>)}
           </select>}
-          <select value={sortDir} onChange={e => setSortDir(e.target.value as typeof sortDir)} className="rounded border border-[#e7e0d4] bg-white px-2 py-1 text-sm">
+          <select value={sortDir} onChange={e => setSortDir(e.target.value as typeof sortDir)} className="rounded border border-[var(--rakiza-border)] bg-white px-2 py-1 text-sm">
             <option value="newest">الأحدث أولاً</option>
             <option value="oldest">الأقدم أولاً</option>
           </select>
         </div>
 
         <section className="mt-6">
-          <h2 className="text-lg font-bold text-[#12352f]">مساءلاتي{filteredMine.length ? ` (${filteredMine.length})` : ""}</h2>
+          <h2 className="text-lg font-bold text-[var(--rakiza-ink)]">مساءلاتي{filteredMine.length ? ` (${filteredMine.length})` : ""}</h2>
           {myCases.isLoading && <p className="mt-2 text-gray-500">جارٍ تحميل مساءلاتك…</p>}
           {myCases.error && (
             <p className="mt-2 rounded-lg border border-[#e7d9c4] bg-[#fbf6ec] px-3 py-2 text-sm text-[#8a6d20]">
@@ -172,11 +172,11 @@ export default function DisciplinaryPage() {
             </p>
           )}
           {filteredMine.map(c => (
-            <div key={c.id} className="mt-3 rounded-lg border border-[#e7e0d4] bg-white p-4">
+            <div key={c.id} className="mt-3 rounded-lg border border-[var(--rakiza-border)] bg-white p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-bold text-[#29463b]">{c.sourceLabel || (c.source === "attendance" ? "مساءلة حضور" : "مساءلة مهمة")}</span>
+                <span className="font-bold text-[var(--rakiza-ink)]">{c.sourceLabel || (c.source === "attendance" ? "مساءلة حضور" : "مساءلة مهمة")}</span>
                 <div className="flex items-center gap-2">
-                  {c.source && <span className="rounded bg-[#eef4f0] px-2 py-1 text-xs text-[#2f7653]">{typeLabels[c.source] || c.source}</span>}
+                  {c.source && <span className="rounded bg-[#eef4f0] px-2 py-1 text-xs text-[var(--rakiza-olive-strong)]">{typeLabels[c.source] || c.source}</span>}
                   <span className="rounded bg-gray-100 px-2 py-1 text-xs">{statusLabels[c.status] || c.status}</span>
                   <span className="text-sm text-gray-500">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA") : ""}</span>
                 </div>
@@ -195,7 +195,7 @@ export default function DisciplinaryPage() {
                   <button
                     onClick={() => respond.mutate({ caseId: c.id, response: responses[c.id] }, { onSuccess: refresh })}
                     disabled={(responses[c.id]?.length || 0) < 10 || respond.isPending}
-                    className="mt-2 rounded bg-[#006c35] px-4 py-2 text-white disabled:opacity-50"
+                    className="mt-2 rounded bg-[var(--rakiza-olive-strong)] px-4 py-2 text-white disabled:opacity-50"
                   >
                     إرسال الرد
                   </button>
@@ -208,29 +208,29 @@ export default function DisciplinaryPage() {
 
         {teamCases.data && teamCases.data.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-lg font-bold text-[#12352f]">قرارات بانتظار عنايتك{filteredTeam.length ? ` (${filteredTeam.length})` : ""}</h2>
+            <h2 className="text-lg font-bold text-[var(--rakiza-ink)]">قرارات بانتظار عنايتك{filteredTeam.length ? ` (${filteredTeam.length})` : ""}</h2>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-1 text-sm text-[#29463b]">
+              <label className="flex items-center gap-1 text-sm text-[var(--rakiza-ink)]">
                 <input type="checkbox" checked={allTeamSelected} onChange={toggleSelectAll} className="h-4 w-4 accent-[#2f7653]" />
                 اختر الكل
               </label>
               {selectedIds.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => runBulk("save")} disabled={bulkReview.isPending} className="rounded bg-[#006c35] px-3 py-1 text-white text-sm">حفظ المحدد</button>
+                  <button onClick={() => runBulk("save")} disabled={bulkReview.isPending} className="rounded bg-[var(--rakiza-olive-strong)] px-3 py-1 text-white text-sm">حفظ المحدد</button>
                   <button onClick={() => runBulk("cancel")} disabled={bulkReview.isPending} className="rounded bg-gray-600 px-3 py-1 text-white text-sm">إلغاء المحدد</button>
                   <button onClick={() => runBulk("escalate")} disabled={bulkReview.isPending} className="rounded bg-amber-600 px-3 py-1 text-white text-sm">تصعيد المحدد</button>
                 </div>
               )}
             </div>
             {filteredTeam.map(c => (
-              <div key={c.id} className="mt-3 rounded-lg border border-[#e7e0d4] bg-white p-4">
+              <div key={c.id} className="mt-3 rounded-lg border border-[var(--rakiza-border)] bg-white p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     {isActionable(c) && <input type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggleSelect(c.id)} className="h-4 w-4 accent-[#2f7653]" />}
-                    <span className="font-bold text-[#29463b]">طلب إجراء تأديبي — {c.employeeName}</span>
+                    <span className="font-bold text-[var(--rakiza-ink)]">طلب إجراء تأديبي — {c.employeeName}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {c.source && <span className="rounded bg-[#eef4f0] px-2 py-1 text-xs text-[#2f7653]">{typeLabels[c.source] || c.source}</span>}
+                    {c.source && <span className="rounded bg-[#eef4f0] px-2 py-1 text-xs text-[var(--rakiza-olive-strong)]">{typeLabels[c.source] || c.source}</span>}
                     <span className="rounded bg-gray-100 px-2 py-1 text-xs">{statusLabels[c.status] || c.status}</span>
                     <span className="text-sm text-gray-500">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA") : ""}</span>
                   </div>
@@ -243,7 +243,7 @@ export default function DisciplinaryPage() {
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#006c35] text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[var(--rakiza-olive-strong)] text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >✅ اعتماد</button>
                   <button
                     type="button"
@@ -289,22 +289,22 @@ export default function DisciplinaryPage() {
         )}
         {teamCases.data && teamCases.data.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-lg font-bold text-[#12352f]">أرصدة الفريق</h2>
+            <h2 className="text-lg font-bold text-[var(--rakiza-ink)]">أرصدة الفريق</h2>
             <div className="mt-3"><TeamBalancesTable /></div>
           </section>
         )}
         {(isManager || isLeadership) && <section className="mt-8">
-          <h2 className="text-lg font-bold text-[#12352f]">سجل مساءلات فريقي</h2>
+          <h2 className="text-lg font-bold text-[var(--rakiza-ink)]">سجل مساءلات فريقي</h2>
           {teamLog.isLoading ? <p className="mt-2 text-gray-500">جارٍ التحميل…</p> : teamLog.data?.length ? (
-            <div className="mt-3 overflow-x-auto overflow-touch rounded-xl border border-[#e7e0d4] bg-white">
+            <div className="mt-3 overflow-x-auto overflow-touch rounded-xl border border-[var(--rakiza-border)] bg-white">
               <table className="w-full min-w-[760px] text-right text-sm">
-                <thead className="bg-[#12352f] text-xs text-white">
+                <thead className="bg-[var(--rakiza-olive-strong)] text-xs text-white">
                   <tr><th className="px-3 py-2">الموظف</th><th className="px-3 py-2">القسم</th><th className="px-3 py-2">النوع</th><th className="px-3 py-2">السبب</th><th className="px-3 py-2">الحالة</th><th className="px-3 py-2">التاريخ</th></tr>
                 </thead>
                 <tbody className="divide-y divide-[#f2eee7]">
                   {teamLog.data.map((row: any) => (
                     <tr key={row.id}>
-                      <td className="px-3 py-2 font-bold text-[#29463b]">{row.employeeName}</td>
+                      <td className="px-3 py-2 font-bold text-[var(--rakiza-ink)]">{row.employeeName}</td>
                       <td className="px-3 py-2 text-xs">{row.unitName ?? "—"}</td>
                       <td className="px-3 py-2 text-xs">{row.type === "attendance" ? "حضور" : "مهمة"}</td>
                       <td className="px-3 py-2 text-xs">{row.reason ?? "—"}</td>
