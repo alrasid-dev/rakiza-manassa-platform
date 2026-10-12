@@ -21,9 +21,14 @@ export function EmailRequiredModal() {
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "otp">("email");
   const [error, setError] = useState<string | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try { return window.localStorage.getItem("rakiza:email-modal-dismissed") === "1"; } catch { return false; }
+  });
 
-  const dismiss = () => setDismissed(true);
+  const dismiss = () => {
+    try { window.localStorage.setItem("rakiza:email-modal-dismissed", "1"); } catch {}
+    setDismissed(true);
+  };
 
   if (emailSettings.isLoading) return null;
   const settings = emailSettings.data;

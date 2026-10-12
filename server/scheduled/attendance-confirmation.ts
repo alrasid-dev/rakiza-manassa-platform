@@ -8,7 +8,7 @@ import { isValidCronSecret } from "./cron-auth";
 import { attendanceConfirmationCadence, attendanceConfirmationPolicyDefaults, shouldRequestAttendanceConfirmation, calculateComplianceRate, COMPLIANCE_EXEMPTION_THRESHOLD, COMPLIANCE_MANDATORY_THRESHOLD, EXEMPTION_WINDOW_DAYS, type AttendanceConfirmationCadence } from "../attendance-confirmation-policy";
 import { dateRangeForSaudiDay, isSaudiWorkday } from "../task-automation";
 import { isOfficialHoliday, workHoursFor } from "../holidays";
-import { getCurrentAttendanceModes, MISSING_CHECKOUT_PENALTY_MINUTES, MISSING_CHECKOUT_PENALTY_POINTS } from "../court-service";
+import { getCurrentAttendanceModes, getNotificationEmailRecipients, MISSING_CHECKOUT_PENALTY_MINUTES, MISSING_CHECKOUT_PENALTY_POINTS, sendBrevoTransactionalEmail } from "../court-service";
 import { CONFIRMATION_RANDOM_END_MINUTES, CONFIRMATION_RANDOM_START_MINUTES, CONFIRMATION_WINDOW_MINUTES, confirmationCadence, shouldConfirmOnWorkday } from "../confirmation-cadence";
 import { sendPushForNotification } from "../push-service";
 import { broadcastToUser } from "../sse-service";
@@ -434,6 +434,16 @@ export async function dispatchConfirmationAssignments(now = new Date()): Promise
       try { await sendPushForNotification(assignment.profileId, { title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن خلال 30 دقيقة.", url: "/status", tag: `confirmation-request-${assignment.id}` }); } catch (error) { console.warn("[WebPush] فشل إرسال إشعار تأكيد الحضور", { assignmentId: assignment.id, error }); }
       const targetUser = (await db.select({ userId: personProfiles.userId }).from(personProfiles).where(eq(personProfiles.id, assignment.profileId)).limit(1))[0];
       if (targetUser?.userId) broadcastToUser(targetUser.userId, { type: "attendance_confirmation", title: "تأكيد الحضور", body: "يرجى تأكيد حضورك الآن.", profileId: assignment.profileId });
+      try {
+        if (targetUser?.userId) {
+          const recipients = await getNotificationEmailRecipients(targetUser.userId);
+          for (const recipient of recipients) {
+            await sendBrevoTransactionalEmail({ to: recipient, subject: "تأكيد الحضور اليومي — رَكيزة", textContent: "يرجى تأكيد حضورك الآن خلال 30 دقيقة." });
+          }
+        }
+      } catch (error) {
+        console.warn("[attendance-confirmation] فشل إرسال بريد تأكيد الحضور", { profileId: assignment.profileId, error });
+      }
       if (Number(result[0].affectedRows) === 1) notified += 1;
 
       // تذكير ثانٍ بعد 10 دقائق من بداية النافذة إذا لم يؤكد بعد.

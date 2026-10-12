@@ -1,9 +1,13 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { Loader2, MessageCircle, Send, X } from "lucide-react";
-import { useState } from "react";
+import { Loader2, MessageCircle, Minus, Paperclip, Send, X } from "lucide-react";
+import { ChangeEvent, useState } from "react";
 
 const SUPPORT_ROLES = ["technical_support_agent", "technical_support_manager", "court_president", "assistant_president"];
+
+const parseAttachments = (value: unknown): Array<{ id: number; name: string; mimeType?: string; url?: string }> => {
+  try { return Array.isArray(value) ? value as Array<{ id: number; name: string; mimeType?: string; url?: string }> : JSON.parse(String(value ?? "[]")); } catch { return []; }
+};
 
 /** زر عائم + نافذة محادثة دعم فني (يُخفى عن موظفي الدعم أنفسهم). */
 export function LiveChatWidget() {
@@ -11,6 +15,7 @@ export function LiveChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [conversationId, setConversationId] = useState<number | null>(null);
+  const [attachments, setAttachments] = useState<Array<{ originalName: string; mimeType: string; contentBase64: string }>>([]);
 
   const roles = trpc.court.myRoles.useQuery(undefined, { enabled: isAuthenticated });
   const me = trpc.court.people.self.useQuery(undefined, { enabled: isAuthenticated });
@@ -27,6 +32,7 @@ export function LiveChatWidget() {
   const send = trpc.court.communications.conversations.send.useMutation({
     onSuccess: () => {
       setMessage("");
+      setAttachments([]);
       void messages.refetch();
       void unread.refetch();
     },
@@ -48,8 +54,31 @@ export function LiveChatWidget() {
     }
   };
 
+  const addFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []).slice(0, 5 - attachments.length);
+    if (!files.length) return;
+    const converted = await Promise.all(files.map(async (file): Promise<{ originalName: string; mimeType: string; contentBase64: string } | null> => {
+      if (file.size > 8 * 1024 * 1024) return null;
+      try {
+        const contentBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        return { originalName: file.name, mimeType: file.type || "application/octet-stream", contentBase64 };
+      } catch {
+        return null;
+      }
+    }));
+    setAttachments(prev => [...prev, ...converted.filter((file): file is { originalName: string; mimeType: string; contentBase64: string } => Boolean(file))].slice(0, 5));
+    event.target.value = "";
+  };
+
   const submit = () => {
-    if (message.trim() && conversationId) send.mutate({ conversationId, body: message.trim() });
+    if (!conversationId) return;
+    if (!message.trim() && !attachments.length) return;
+    send.mutate({ conversationId, body: message.trim() || "مرفق", attachments: attachments.length ? attachments : undefined });
   };
 
   return (
@@ -77,9 +106,14 @@ export function LiveChatWidget() {
               <MessageCircle className="h-5 w-5" />
               <span className="font-bold">الدعم الفني</span>
             </div>
-            <button type="button" onClick={() => setIsOpen(false)} aria-label="إغلاق المحادثة">
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => setIsOpen(false)} aria-label="تصغير">
+                <Minus className="h-5 w-5" />
+              </button>
+              <button type="button" onClick={() => setIsOpen(false)} aria-label="إغلاق المحادثة">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
@@ -91,6 +125,11 @@ export function LiveChatWidget() {
                 }`}
               >
                 <p className="whitespace-pre-wrap">{msg.message.body}</p>
+                {parseAttachments(msg.attachments).map(att => (
+                  <a key={att.id} href={att.url} target="_blank" rel="noreferrer" className="mt-1 block text-xs underline">
+                    📎 {att.name}
+                  </a>
+                ))}
                 <span className="mt-1 block text-[10px] opacity-70">
                   {new Date(msg.message.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
                 </span>
@@ -99,12 +138,26 @@ export function LiveChatWidget() {
           </div>
 
           <div className="border-t bg-white p-3">
-            <div className="flex gap-2">
+            {attachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {attachments.map((file, index) => (
+                  <span key={index} className="flex items-center gap-1 rounded-full bg-[#eef5ec] px-2 py-1 text-xs text-[#245f43]">
+                    {file.originalName}
+                    <button type="button" onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))} aria-label={`إزالة ${file.originalName}`}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer text-[#1f7a4d]" title="إرفاق ملف">
+                <Paperclip className="h-5 w-5" />
+                <input type="file" multiple className="hidden" accept="image/*,.pdf" onChange={event => void addFiles(event)} />
+              </label>
               <input
                 value={message}
                 onChange={event => setMessage(event.target.value)}
                 onKeyDown={event => {
-                  if (event.key === "Enter" && message.trim() && conversationId) submit();
+                  if (event.key === "Enter" && (message.trim() || attachments.length) && conversationId) submit();
                 }}
                 placeholder="اكتب رسالتك…"
                 className="flex-1 rounded-lg border border-[#dbe1dc] px-3 py-2 text-sm focus:outline-none"
@@ -112,7 +165,7 @@ export function LiveChatWidget() {
               <button
                 type="button"
                 onClick={submit}
-                disabled={!message.trim() || send.isPending || !conversationId}
+                disabled={(!message.trim() && !attachments.length) || send.isPending || !conversationId}
                 className="rounded-lg bg-[#1f7a4d] px-3 py-2 text-white disabled:opacity-50"
                 aria-label="إرسال"
               >
