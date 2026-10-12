@@ -10,6 +10,9 @@ vi.mock("@/_core/hooks/useAuth", () => ({
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
+    useUtils: () => ({
+      court: { workPreferences: { mine: { invalidate: vi.fn() } } },
+    }),
     court: {
       workPreferences: {
         mine: { useQuery: () => ({ data: undefined }) },

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 
@@ -38,8 +38,12 @@ export function ThemeProvider({
   switchable = false,
 }: ThemeProviderProps) {
   const { user } = useAuth();
+  const utils = trpc.useUtils();
+  const justToggled = useRef(false);
   const prefs = trpc.court.workPreferences.mine.useQuery(undefined, { enabled: switchable && Boolean(user) });
-  const updatePrefs = trpc.court.workPreferences.update.useMutation();
+  const updatePrefs = trpc.court.workPreferences.update.useMutation({
+    onSuccess: () => utils.court.workPreferences.mine.invalidate(),
+  });
 
   const [theme, setTheme] = useState<Theme>(() => {
     if (!switchable) return defaultTheme;
@@ -48,6 +52,10 @@ export function ThemeProvider({
 
   // عند وصول تفضيلات الخادم (المصدر الموثوق) → طبّقها وحدّث الـ cache
   useEffect(() => {
+    if (justToggled.current) {
+      justToggled.current = false;
+      return;
+    }
     if (switchable && prefs.data?.theme) {
       setTheme(prefs.data.theme);
     }
@@ -83,6 +91,7 @@ export function ThemeProvider({
 
   const toggleTheme = switchable
     ? () => {
+        justToggled.current = true;
         setTheme(prev => {
           const next: Theme = prev === "light" ? "dark" : "light";
           if (user) updatePrefs.mutate({ theme: next });
