@@ -935,10 +935,6 @@ export const courtRouter = router({
     assign: protectedProcedure.input(z.object({ userId: z.number().int().positive(), role: z.enum(["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager", "technical_support_manager", "technical_support_agent", "administrative_staff", "judicial_trainee", "judge"]), unitId: z.number().int().positive().optional() })).mutation(async ({ ctx, input }) => {
       await requirePlatformOwner(ctx.user);
       if ((input.role === "department_manager" || input.role === "trainee_affairs_manager") && !input.unitId) throw new TRPCError({ code: "BAD_REQUEST", message: "يلزم ربط مدير القسم بوحدة تنظيمية محددة." });
-      if (["technical_support_manager", "technical_support_agent"].includes(input.role)) {
-        const supportUnit = (await listOrganizationUnits()).find(unit => unit.code === "technical-support");
-        if (!supportUnit || input.unitId !== supportUnit.id) throw new TRPCError({ code: "BAD_REQUEST", message: "يجب ربط أدوار الدعم التقني بوحدة الدعم التقني حصراً." });
-      }
       return { id: await assignCourtRole({ ...input, delegatedByUserId: ctx.user.id }) };
     }),
     revoke: protectedProcedure.input(z.object({ assignmentId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
