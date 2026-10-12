@@ -5476,16 +5476,78 @@ export async function ownerEditAttendanceCheckOut(input: { profileId: number; re
   const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
-  if (!existing.checkInAt) throw new TRPCError({ code: "BAD_REQUEST", message: "يجب تسجيل الحضور أولاً قبل ضبط الانصراف." });
+  // المالك يمكنه ضبط الانصراف مباشرة دون بصمة دخول.
+  // (حارس الموظف يبقى قائماً في recordAttendanceCheckout:5419 — لا يتأثر.)
   const oldValue = existing.checkOutAt ?? null;
   const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
-  const checkInMin = riyadhMinutesOfDay(existing.checkInAt);
   const checkOutMin = riyadhMinutesOfDay(input.checkOutAt);
-  const { positiveMinutes, negativeMinutes } = computeCheckoutBalance(checkInMin, checkOutMin, shift?.actualEndMinutes ?? ACTUAL_END_MIN);
+  let positiveMinutes = existing.positiveMinutes;
+  let negativeMinutes = existing.negativeMinutes;
+  if (existing.checkInAt) {
+    const checkInMin = riyadhMinutesOfDay(existing.checkInAt);
+    const balance = computeCheckoutBalance(checkInMin, checkOutMin, shift?.actualEndMinutes ?? ACTUAL_END_MIN);
+    positiveMinutes = balance.positiveMinutes;
+    negativeMinutes = balance.negativeMinutes;
+  }
   await db.update(attendanceRecords).set({ checkOutAt: input.checkOutAt, positiveMinutes, negativeMinutes, penaltyMinutes: 0, updatedAt: new Date() }).where(eq(attendanceRecords.id, existing.id));
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_edit", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, field: "checkOutAt", oldValue, newValue: input.checkOutAt, reason: input.reason } });
   await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
   await db.insert(notifications).values({ profileId: input.profileId, category: "attendance_modified", title: "تم تعديل سجل حضورك", body: `تم تعديل وقت انصرافك بتاريخ ${existing.recordDate.toISOString().slice(0, 10)}. السبب: ${input.reason}` });
+  return { success: true, attendanceId: existing.id };
+}
+
+/** تعديل موحّد لسجل الحضور (دخول + انصراف) بواسطة المالك/القيادة في طلب واحد (ذرّي). */
+export async function ownerUpdateAttendanceRecord(input: {
+  profileId: number;
+  recordDate: Date;
+  checkInAt?: Date;
+  checkOutAt?: Date;
+  actorUserId: number;
+  reason: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
+  if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
+
+  const oldCheckIn = existing.checkInAt ?? null;
+  const oldCheckOut = existing.checkOutAt ?? null;
+  const newCheckInAt = input.checkInAt ?? existing.checkInAt;
+  const newCheckOutAt = input.checkOutAt ?? existing.checkOutAt;
+
+  // إعادة تصنيف الحالة بناءً على وقت الدخول الجديد (إن قُدِّم).
+  let status = existing.status;
+  if (input.checkInAt) {
+    const cls = classifyCheckIn(riyadhMinutesOfDay(input.checkInAt));
+    if (cls.allowed !== false) {
+      status = (cls.status === "late" || cls.status === "late_no_penalty") ? "late" : "present";
+    }
+  }
+
+  // احتساب الرصيد عند توفر الوقتين معاً.
+  let positiveMinutes = existing.positiveMinutes;
+  let negativeMinutes = existing.negativeMinutes;
+  if (newCheckInAt && newCheckOutAt) {
+    const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
+    const balance = computeCheckoutBalance(riyadhMinutesOfDay(newCheckInAt), riyadhMinutesOfDay(newCheckOutAt), shift?.actualEndMinutes ?? ACTUAL_END_MIN);
+    positiveMinutes = balance.positiveMinutes;
+    negativeMinutes = balance.negativeMinutes;
+  }
+
+  await db.update(attendanceRecords).set({
+    checkInAt: newCheckInAt,
+    checkOutAt: newCheckOutAt,
+    status,
+    positiveMinutes,
+    negativeMinutes,
+    penaltyMinutes: 0,
+    updatedAt: new Date(),
+  }).where(eq(attendanceRecords.id, existing.id));
+
+  await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_edit", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, oldCheckIn, oldCheckOut, newCheckInAt, newCheckOutAt, reason: input.reason } });
+  await recomputeMonthlyBalance(input.profileId, hijriMonthKey(existing.recordDate));
+  await db.insert(notifications).values({ profileId: input.profileId, category: "attendance_modified", title: "تم تعديل سجل حضورك", body: `تم تعديل سجل حضورك بتاريخ ${existing.recordDate.toISOString().slice(0, 10)}. السبب: ${input.reason}` });
   return { success: true, attendanceId: existing.id };
 }
 

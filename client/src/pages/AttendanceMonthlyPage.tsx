@@ -101,8 +101,7 @@ export default function AttendanceMonthlyPage() {
     }
   };
 
-  const editCheckIn = attendanceApi?.ownerEditCheckIn?.useMutation({ onSuccess: () => { invalidate(); toast.success("تم تعديل وقت الدخول."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر التعديل") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
-  const editCheckOut = attendanceApi?.ownerEditCheckOut?.useMutation({ onSuccess: () => { invalidate(); toast.success("تم تعديل وقت الانصراف."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر التعديل") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
+  const updateRecord = attendanceApi?.ownerUpdateAttendance?.useMutation({ onSuccess: () => { invalidate(); toast.success("تم حفظ التعديل."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر الحفظ") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
   const createRecord = attendanceApi?.ownerCreateRecord?.useMutation({ onSuccess: () => { invalidate(); toast.success("تمت إضافة السجل."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذرت الإضافة") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
   const deleteRecord = attendanceApi?.ownerDeleteRecord?.useMutation({ onSuccess: () => { invalidate(); toast.success("تم حذف السجل."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر الحذف") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
 
@@ -115,10 +114,7 @@ export default function AttendanceMonthlyPage() {
       createRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? undefined, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? undefined, status: modal.status as "present" | "late" | "absent" | "excused" | "on_leave", reason: modal.reason });
       setModal(null); return;
     }
-    const checkInAt = combineDateTime(modal.recordDate, modal.checkInAt);
-    const checkOutAt = combineDateTime(modal.recordDate, modal.checkOutAt);
-    if (checkInAt) editCheckIn.mutate({ profileId, recordDate, checkInAt, reason: modal.reason });
-    if (checkOutAt) editCheckOut.mutate({ profileId, recordDate, checkOutAt, reason: modal.reason });
+    updateRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? undefined, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? undefined, reason: modal.reason });
     setModal(null);
   };
 
@@ -243,7 +239,7 @@ export default function AttendanceMonthlyPage() {
 
               <div className="mt-5 flex flex-wrap justify-end gap-2">
                 <button type="button" onClick={() => setModal(null)} className="rounded-lg border border-[#e3c7b4] px-3 py-2 text-sm font-bold text-[#9a5c33]">إلغاء</button>
-                <button type="button" disabled={modal.reason.trim().length < 10 || (modal.mode === "create" && !modal.recordDate) || editCheckIn.isPending || editCheckOut.isPending || createRecord.isPending || deleteRecord.isPending} onClick={submitModal} className="rounded-lg bg-[var(--rakiza-olive)] px-3 py-2 text-sm font-black text-white">{modal.mode === "delete" ? "حذف نهائي" : "حفظ"}</button>
+                <button type="button" disabled={modal.reason.trim().length < 10 || (modal.mode === "create" && !modal.recordDate) || updateRecord.isPending || createRecord.isPending || deleteRecord.isPending} onClick={submitModal} className="rounded-lg bg-[var(--rakiza-olive)] px-3 py-2 text-sm font-black text-white">{modal.mode === "delete" ? "حذف نهائي" : "حفظ"}</button>
               </div>
             </section>
           </div>
