@@ -14,30 +14,32 @@ function BalanceTable({ title, balance }: { title: string; balance: Balance | nu
   return (
     <div className="rounded-xl border border-[#e7dccd] bg-white">
       <div className="border-b border-[#eee4d3] px-4 py-2 text-sm font-semibold text-[#4a3b28]">{title}</div>
-      <table className="w-full text-sm">
-        <tbody>
-          <tr className="border-b border-[#f3ecdf]">
-            <td className="px-4 py-2 text-[#6b5b45]">له (إيجابي)</td>
-            <td className="px-4 py-2 text-left font-medium text-emerald-700">{signed(b.positiveMinutes)}</td>
-          </tr>
-          <tr className="border-b border-[#f3ecdf]">
-            <td className="px-4 py-2 text-[#6b5b45]">عليه (سلبي)</td>
-            <td className="px-4 py-2 text-left font-medium text-red-700">−{b.negativeMinutes}</td>
-          </tr>
-          <tr className="border-b border-[#f3ecdf]">
-            <td className="px-4 py-2 text-[#6b5b45]">عقوبات</td>
-            <td className="px-4 py-2 text-left font-medium text-orange-700">−{b.penaltyMinutes}</td>
-          </tr>
-          <tr className="border-b border-[#f3ecdf]">
-            <td className="px-4 py-2 text-[#6b5b45]">استئذانات</td>
-            <td className="px-4 py-2 text-left font-medium text-sky-700">+{b.excuseMinutes}</td>
-          </tr>
-          <tr>
-            <td className="px-4 py-2 font-semibold text-[#4a3b28]">الصافي</td>
-            <td className={`px-4 py-2 text-left font-bold ${b.netMinutes >= 0 ? "text-emerald-700" : "text-red-700"}`}>{signed(b.netMinutes)}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div className="overflow-x-auto overflow-touch">
+        <table className="w-full min-w-[600px] text-sm">
+          <tbody>
+            <tr className="border-b border-[#f3ecdf]">
+              <td className="px-4 py-2 text-[#6b5b45]">له (إيجابي)</td>
+              <td className="px-4 py-2 text-left font-medium text-emerald-700">{signed(b.positiveMinutes)}</td>
+            </tr>
+            <tr className="border-b border-[#f3ecdf]">
+              <td className="px-4 py-2 text-[#6b5b45]">عليه (سلبي)</td>
+              <td className="px-4 py-2 text-left font-medium text-red-700">−{b.negativeMinutes}</td>
+            </tr>
+            <tr className="border-b border-[#f3ecdf]">
+              <td className="px-4 py-2 text-[#6b5b45]">عقوبات</td>
+              <td className="px-4 py-2 text-left font-medium text-orange-700">−{b.penaltyMinutes}</td>
+            </tr>
+            <tr className="border-b border-[#f3ecdf]">
+              <td className="px-4 py-2 text-[#6b5b45]">استئذانات</td>
+              <td className="px-4 py-2 text-left font-medium text-sky-700">+{b.excuseMinutes}</td>
+            </tr>
+            <tr>
+              <td className="px-4 py-2 font-semibold text-[#4a3b28]">الصافي</td>
+              <td className={`px-4 py-2 text-left font-bold ${b.netMinutes >= 0 ? "text-emerald-700" : "text-red-700"}`}>{signed(b.netMinutes)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
