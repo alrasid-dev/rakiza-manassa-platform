@@ -113,7 +113,7 @@ export default function AttendanceMonthlyPage() {
     const recordDate = new Date(modal.recordDate);
     if (modal.mode === "delete") { deleteRecord.mutate({ recordId: modal.recordId!, reason: modal.reason }); setModal(null); return; }
     if (modal.mode === "create") {
-      createRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? undefined, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? undefined, status: modal.status as "present" | "late" | "absent" | "excused" | "on_leave", reason: modal.reason });
+      createRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? null, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? null, status: modal.status as "present" | "late" | "absent" | "excused" | "on_leave", reason: modal.reason });
       setModal(null); return;
     }
     updateRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? null, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? null, reason: modal.reason });

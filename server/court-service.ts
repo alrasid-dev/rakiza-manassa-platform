@@ -5511,6 +5511,7 @@ export async function ownerUpdateAttendanceRecord(input: {
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
 
+  console.log("[attendance-edit]", { profileId: input.profileId, recordDate: dayStart.toISOString(), checkInAt: input.checkInAt, checkOutAt: input.checkOutAt, existing: existing.id });
   const oldCheckIn = existing.checkInAt ?? null;
   const oldCheckOut = existing.checkOutAt ?? null;
   // undefined = لا تعديل (احتفظ بالقديم)؛ null = حذف؛ Date = تعديل.
@@ -5553,12 +5554,13 @@ export async function ownerUpdateAttendanceRecord(input: {
 }
 
 /** إنشاء سجل حضور بواسطة المالك/القيادة (إن لم يكن موجوداً). */
-export async function ownerCreateAttendanceRecord(input: { profileId: number; recordDate: Date; checkInAt?: Date; checkOutAt?: Date; status: "present" | "late" | "absent" | "excused" | "on_leave"; actorUserId: number; reason: string }) {
+export async function ownerCreateAttendanceRecord(input: { profileId: number; recordDate: Date; checkInAt?: Date | null; checkOutAt?: Date | null; status: "present" | "late" | "absent" | "excused" | "on_leave"; actorUserId: number; reason: string }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
   const existing = (await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
-  if (existing) throw new TRPCError({ code: "CONFLICT", message: "يوجد سجل حضور بالفعل لهذا الموظف في هذا اليوم." });
+  console.log("[attendance-create]", { profileId: input.profileId, recordDate: dayStart.toISOString(), checkInAt: input.checkInAt?.toISOString() ?? null, checkOutAt: input.checkOutAt?.toISOString() ?? null, status: input.status, existing: existing?.id ?? null });
+
   let positiveMinutes = 0;
   let negativeMinutes = 0;
   if (input.checkInAt && input.checkOutAt) {
@@ -5567,9 +5569,31 @@ export async function ownerCreateAttendanceRecord(input: { profileId: number; re
     positiveMinutes = balance.positiveMinutes;
     negativeMinutes = balance.negativeMinutes;
   }
-  const inserted = await db.insert(attendanceRecords).values({ profileId: input.profileId, recordDate: dayStart, checkInAt: input.status === "on_leave" ? null : (input.checkInAt ?? null), checkOutAt: input.checkOutAt ?? null, status: input.status, positiveMinutes, negativeMinutes, penaltyMinutes: 0, note: input.reason, createdByUserId: input.actorUserId });
+
+  const checkInValue = input.status === "on_leave" ? null : (input.checkInAt ?? null);
+  const checkOutValue = input.checkOutAt ?? null;
+
+  if (existing) {
+    // upsert: تحديث السجل الموجود بدل الرمي بخطأ CONFLICT.
+    await db.update(attendanceRecords).set({
+      checkInAt: checkInValue,
+      checkOutAt: checkOutValue,
+      status: input.status,
+      positiveMinutes,
+      negativeMinutes,
+      penaltyMinutes: 0,
+      note: input.reason,
+      updatedAt: new Date(),
+    }).where(eq(attendanceRecords.id, existing.id));
+    await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_create", entityType: "attendance", entityId: existing.id, metadata: { profileId: input.profileId, recordDate: dayStart, status: input.status, checkInAt: checkInValue, checkOutAt: checkOutValue, reason: input.reason, upsert: true } });
+    await recomputeMonthlyBalance(input.profileId, hijriMonthKey(dayStart));
+    await db.insert(notifications).values({ profileId: input.profileId, category: "attendance_modified", title: "تم تحديث سجل حضور لك", body: `حُدّث سجل حضورك بتاريخ ${dayStart.toISOString().slice(0, 10)}. السبب: ${input.reason}` });
+    return { success: true, attendanceId: existing.id };
+  }
+
+  const inserted = await db.insert(attendanceRecords).values({ profileId: input.profileId, recordDate: dayStart, checkInAt: checkInValue, checkOutAt: checkOutValue, status: input.status, positiveMinutes, negativeMinutes, penaltyMinutes: 0, note: input.reason, createdByUserId: input.actorUserId });
   const attendanceId = Number(inserted[0].insertId);
-  await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_create", entityType: "attendance", entityId: attendanceId, metadata: { profileId: input.profileId, recordDate: dayStart, status: input.status, checkInAt: input.checkInAt ?? null, checkOutAt: input.checkOutAt ?? null, reason: input.reason } });
+  await logAudit({ actorUserId: input.actorUserId, action: "attendance.owner_create", entityType: "attendance", entityId: attendanceId, metadata: { profileId: input.profileId, recordDate: dayStart, status: input.status, checkInAt: checkInValue, checkOutAt: checkOutValue, reason: input.reason } });
   await recomputeMonthlyBalance(input.profileId, hijriMonthKey(dayStart));
   await db.insert(notifications).values({ profileId: input.profileId, category: "attendance_modified", title: "تم إضافة سجل حضور لك", body: `أُضيف سجل حضور بتاريخ ${dayStart.toISOString().slice(0, 10)}. السبب: ${input.reason}` });
   return { success: true, attendanceId };
