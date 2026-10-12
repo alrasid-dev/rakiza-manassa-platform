@@ -2,7 +2,7 @@
 // ملاحظة مهمة: التنظيف الصريح لكل الكاش في `activate` يمنع بقاء نسخة HTML/أصول قديمة
 // على أجهزة المستخدمين بعد أي نشر جديد (وهو السبب الشائع للشاشة البيضاء).
 // رقم إصدار صريح — غيّره عند كل نشر لإجبار المتصفح على تنزيل نسخة SW جديدة ومسح الكاش القديم.
-const CACHE_VERSION = 'v2026-10-12-01';
+const CACHE_VERSION = 'v2026-10-12-02';
 const CACHE_NAME = `rakiza-${CACHE_VERSION}`;
 
 function scopedAsset(path) {
@@ -25,11 +25,7 @@ self.addEventListener("activate", event => {
     await self.clients.claim();
   })());
 });
-self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
-  event.respondWith(fetch(event.request));
-});
-
+// ملاحظة: لا معالج fetch — عامل الخدمة للإشعارات فقط ولا يعترض أي طلب (خاصة tRPC).
 self.addEventListener("push", event => {
   let data = { title: "رَكيزة", body: "لديك تحديث جديد", url: "/", tag: "rakiza-notification", actions: [] };
   try {
