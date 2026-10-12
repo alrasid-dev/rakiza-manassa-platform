@@ -18,14 +18,14 @@ function fmtDate(d: Date | string | number | null | undefined) {
   if (!d) return "—";
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("ar-SA");
+  return date.toLocaleDateString("ar-SA", { timeZone: "Asia/Riyadh" });
 }
 
 function fmtTime(d: Date | string | number | null | undefined) {
   if (!d) return "—";
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Riyadh" });
 }
 
 function combineDateTime(dateStr: string, timeStr: string): Date | null {
