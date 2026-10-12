@@ -157,3 +157,6 @@ backups/
 
 # Excel imports - تحتوي بيانات حساسة
 excel_imports/
+
+# Diagnostic/scratch scripts (local debugging - not part of source)
+scripts/_*.mjs
