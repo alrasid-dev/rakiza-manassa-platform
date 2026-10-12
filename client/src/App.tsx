@@ -13,6 +13,7 @@ import PreviewWorkspace from "./pages/PreviewWorkspace";
 import { JudgesPage } from "./pages/JudgesPage";
 import { LeadershipAccessPage } from "./pages/LeadershipAccessPage";
 import { SupportPage } from "./pages/SupportPage";
+import { EmailRequiredModal } from "./components/EmailRequiredModal";
 import { UserGuidePage } from "./pages/UserGuidePage";
 import { AnnouncementsPage } from "./pages/AnnouncementsPage";
 import { DecisionsPage } from "./pages/DecisionsPage";
@@ -169,6 +170,7 @@ export default function App() {
           <Toaster position="top-center" richColors />
           <SelectedUnitProvider>
             <Router />
+            <EmailRequiredModal />
           </SelectedUnitProvider>
         </TooltipProvider>
       </ThemeProvider>
