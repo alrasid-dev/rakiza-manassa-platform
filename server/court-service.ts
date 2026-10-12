@@ -5500,8 +5500,8 @@ export async function ownerEditAttendanceCheckOut(input: { profileId: number; re
 export async function ownerUpdateAttendanceRecord(input: {
   profileId: number;
   recordDate: Date;
-  checkInAt?: Date;
-  checkOutAt?: Date;
+  checkInAt?: Date | null;
+  checkOutAt?: Date | null;
   actorUserId: number;
   reason: string;
 }) {
@@ -5513,8 +5513,9 @@ export async function ownerUpdateAttendanceRecord(input: {
 
   const oldCheckIn = existing.checkInAt ?? null;
   const oldCheckOut = existing.checkOutAt ?? null;
-  const newCheckInAt = input.checkInAt ?? existing.checkInAt;
-  const newCheckOutAt = input.checkOutAt ?? existing.checkOutAt;
+  // undefined = لا تعديل (احتفظ بالقديم)؛ null = حذف؛ Date = تعديل.
+  const newCheckInAt = input.checkInAt === undefined ? existing.checkInAt : input.checkInAt;
+  const newCheckOutAt = input.checkOutAt === undefined ? existing.checkOutAt : input.checkOutAt;
 
   // إعادة تصنيف الحالة بناءً على وقت الدخول الجديد (إن قُدِّم).
   let status = existing.status;

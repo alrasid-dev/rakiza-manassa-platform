@@ -2746,7 +2746,7 @@ export const courtRouter = router({
       await requireAttendanceOwnerAccess(ctx.user);
       return ownerEditAttendanceCheckOut({ ...input, actorUserId: ctx.user.id });
     }),
-    ownerUpdateAttendance: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), recordDate: z.date(), checkInAt: z.date().optional(), checkOutAt: z.date().optional(), reason: z.string().trim().min(10, "السبب مطلوب (10 أحرف على الأقل).").max(2000) })).mutation(async ({ ctx, input }) => {
+    ownerUpdateAttendance: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), recordDate: z.date(), checkInAt: z.date().nullable().optional(), checkOutAt: z.date().nullable().optional(), reason: z.string().trim().min(10, "السبب مطلوب (10 أحرف على الأقل).").max(2000) })).mutation(async ({ ctx, input }) => {
       await requireAttendanceOwnerAccess(ctx.user);
       return ownerUpdateAttendanceRecord({ ...input, actorUserId: ctx.user.id });
     }),

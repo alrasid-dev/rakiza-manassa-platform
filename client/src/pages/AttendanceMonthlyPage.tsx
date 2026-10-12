@@ -116,7 +116,7 @@ export default function AttendanceMonthlyPage() {
       createRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? undefined, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? undefined, status: modal.status as "present" | "late" | "absent" | "excused" | "on_leave", reason: modal.reason });
       setModal(null); return;
     }
-    updateRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? undefined, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? undefined, reason: modal.reason });
+    updateRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? null, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? null, reason: modal.reason });
     setModal(null);
   };
 
