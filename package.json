@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx watch server/_core/index.ts",
     "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "vercel-build": "vite build && node -e \"import fs from 'node:fs'; fs.cpSync('dist/public','public',{recursive:true})\" && node scripts/bundle-vercel-api.mjs",
+    "vercel-build": "vite build && node -e \"import fs from 'node:fs'; fs.rmSync('public/assets',{recursive:true,force:true}); fs.cpSync('dist/public','public',{recursive:true})\" && node scripts/bundle-vercel-api.mjs",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.app.json --noEmit",
     "format": "prettier --write .",
