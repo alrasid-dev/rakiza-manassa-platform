@@ -8,7 +8,7 @@ import { useState } from "react";
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-/** نافذة إلزامية تُطلب عند أول دخول حتى يضيف الموظف بريداً شخصياً موثّقاً للاستعادة والإشعارات. */
+/** نافذة اختيارية تُعرض عند أول دخول ليدخل الموظف بريداً شخصياً للاستعادة والإشعارات (يمكن تخطّيها). */
 export function EmailRequiredModal() {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
@@ -21,13 +21,16 @@ export function EmailRequiredModal() {
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"email" | "otp">("email");
   const [error, setError] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  const dismiss = () => setDismissed(true);
 
   if (emailSettings.isLoading) return null;
   const settings = emailSettings.data;
   if (!settings) return null; // غير مسجّل دخول أو لم تُحمَّل الإعدادات بعد
 
   const hasVerifiedEmail = Boolean(settings.notificationEmail && settings.notificationEmailVerifiedAt);
-  if (hasVerifiedEmail) return null;
+  if (hasVerifiedEmail || dismissed) return null;
 
   const officialEmail = settings.officialEmail ?? "";
 
@@ -75,14 +78,8 @@ export function EmailRequiredModal() {
   const busy = update.isPending || requestOtp.isPending || verifyOtp.isPending;
 
   return (
-    <Dialog open modal>
-      <DialogContent
-        className="sm:max-w-md"
-        showCloseButton={false}
-        onPointerDownOutside={event => event.preventDefault()}
-        onInteractOutside={event => event.preventDefault()}
-        onEscapeKeyDown={event => event.preventDefault()}
-      >
+    <Dialog open onOpenChange={open => { if (!open) dismiss(); }}>
+      <DialogContent className="sm:max-w-md">
         <div className="space-y-4" dir="rtl">
           <div className="text-center">
             <Mail className="mx-auto h-12 w-12 text-[#b18448]" />
@@ -107,6 +104,13 @@ export function EmailRequiredModal() {
               <Button onClick={handleSendOtp} disabled={busy} className="w-full">
                 {update.isPending || requestOtp.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "إرسال الرمز"}
               </Button>
+              <button
+                type="button"
+                onClick={dismiss}
+                className="w-full text-center text-sm text-muted-foreground hover:underline"
+              >
+                تخطّي الآن (يمكن إضافته لاحقًا من الإعدادات)
+              </button>
             </div>
           ) : (
             <div className="space-y-3">
