@@ -25,7 +25,7 @@ export const users = mysqlTable("users", {
   activeDepartmentAccountId: int("activeDepartmentAccountId"),
   backupEmail: varchar("backupEmail", { length: 320 }),
   backupEmailVerifiedAt: timestamp("backupEmailVerifiedAt"),
-  emailNotificationPreference: mysqlEnum("emailNotificationPreference", ["work", "backup", "both"]).default("work").notNull(),
+  emailNotificationPreference: mysqlEnum("emailNotificationPreference", ["work", "backup", "both", "none"]).default("none").notNull(),
   dashboardPreferences: text("dashboardPreferences"),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),

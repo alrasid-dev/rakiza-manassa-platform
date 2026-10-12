@@ -2766,12 +2766,13 @@ export async function getNotificationEmailRecipients(userId: number): Promise<st
   const verifiedNotificationEmail = notificationEmail && settings.backupEmailVerifiedAt ? notificationEmail : null;
   // تفضيل غير محدد يعني صفاً قديماً قبل تهيئة التفضيل، فيُحفظ السلوك السابق: البريد الإضافي الموثّق يتقدّم.
   const preference = settings.emailNotificationPreference;
+  if (preference === "none") return [];
   if (preference === "work") return [officialEmail];
   if (preference === "both") return verifiedNotificationEmail ? [officialEmail, verifiedNotificationEmail] : [officialEmail];
   return verifiedNotificationEmail ? [verifiedNotificationEmail] : [officialEmail];
 }
 
-export async function updateUserEmailSettings(input: { userId: number; backupEmail?: string | null; emailNotificationPreference?: "work" | "backup" | "both" }) {
+export async function updateUserEmailSettings(input: { userId: number; backupEmail?: string | null; emailNotificationPreference?: "work" | "backup" | "both" | "none" }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const current = await getUserEmailSettings(input.userId);

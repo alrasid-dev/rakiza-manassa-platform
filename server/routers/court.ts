@@ -786,7 +786,7 @@ export const courtRouter = router({
       if (!settings) throw new TRPCError({ code: "NOT_FOUND", message: "إعدادات الحساب غير موجودة." });
       return { officialEmail: settings.officialEmail, notificationEmail: settings.backupEmail, notificationEmailVerifiedAt: settings.backupEmailVerifiedAt, notificationPreference: settings.emailNotificationPreference ?? "work", officialEmailIsValid: Boolean(settings.officialEmail && isAllowedLoginEmail(settings.officialEmail)) };
     }),
-    update: protectedProcedure.input(z.object({ notificationEmail: z.string().trim().email().max(320).nullable(), notificationPreference: z.enum(["work", "backup", "both"]).optional() })).mutation(async ({ ctx, input }) => {
+    update: protectedProcedure.input(z.object({ notificationEmail: z.string().trim().email().max(320).nullable(), notificationPreference: z.enum(["work", "backup", "both", "none"]).optional() })).mutation(async ({ ctx, input }) => {
       try {
         return await updateUserEmailSettings({ userId: ctx.user.id, backupEmail: input.notificationEmail, emailNotificationPreference: input.notificationPreference });
       } catch (error) {

@@ -4,9 +4,10 @@ import { trpc } from "@/lib/trpc";
 import React, { useEffect, useState } from "react";
 import { MailCheck, ShieldCheck, Volume2, VolumeX } from "lucide-react";
 
-type EmailChannelPreference = "work" | "backup" | "both";
+type EmailChannelPreference = "work" | "backup" | "both" | "none";
 
 const EMAIL_CHANNEL_OPTIONS: ReadonlyArray<{ value: EmailChannelPreference; label: string; hint: string }> = [
+  { value: "none", label: "بدون بريد", hint: "لن تستقبل إشعارات بريدية؛ تبقى إشعارات المنصة الداخلية والفورية." },
   { value: "work", label: "البريد الرسمي فقط", hint: "كل التنبيهات تُرسل إلى بريدك الرسمي @moj.gov.sa." },
   { value: "backup", label: "البريد الإضافي فقط", hint: "يُستخدم البريد الإضافي بعد توثيقه، وإلا يعود النظام تلقائياً للبريد الرسمي." },
   { value: "both", label: "البريدان معاً", hint: "نسخة لكل بريد بعد توثيق البريد الإضافي." },
@@ -16,13 +17,13 @@ export function EmailSettingsPage() {
   const settings = trpc.court.emailSettings.mine.useQuery();
   const update = trpc.court.emailSettings.update.useMutation({ onSuccess: () => settings.refetch() });
   const [notificationEmail, setNotificationEmail] = useState("");
-  const [notificationPreference, setNotificationPreference] = useState<EmailChannelPreference>("work");
+  const [notificationPreference, setNotificationPreference] = useState<EmailChannelPreference>("none");
   const [recommendationSoundEnabled, setRecommendationSoundEnabled] = useState(true);
 
   useEffect(() => {
     if (settings.data) {
       setNotificationEmail(settings.data.notificationEmail ?? "");
-      setNotificationPreference(settings.data.notificationPreference ?? "work");
+      setNotificationPreference(settings.data.notificationPreference ?? "none");
     }
     setRecommendationSoundEnabled(window.localStorage.getItem("rakiza:recommendation-sound") !== "off");
   }, [settings.data]);
@@ -53,7 +54,7 @@ export function EmailSettingsPage() {
         {!settings.data?.notificationEmail && <p className="mt-3 rounded-xl bg-[#fff8e8] p-3 text-xs leading-5 text-[#8a6731]">أضف بريداً إضافياً واحفظه أولاً لتفعيل خيارَي «البريد الإضافي فقط» و«البريدان معاً».</p>}
         <div role="radiogroup" aria-label="قناة إرسال التنبيهات" className="mt-4 grid gap-2 sm:grid-cols-3">
           {EMAIL_CHANNEL_OPTIONS.map(option => {
-            const disabled = option.value !== "work" && !settings.data?.notificationEmail;
+            const disabled = option.value !== "work" && option.value !== "none" && !settings.data?.notificationEmail;
             const selected = notificationPreference === option.value;
             return <button key={option.value} type="button" role="radio" aria-checked={selected} disabled={disabled} onClick={() => setNotificationPreference(option.value)} className={`rounded-xl border px-3 py-3 text-right transition ${selected ? "border-[#006c35] bg-[#e9f2ea] ring-2 ring-[#006c35]/20" : "border-[#e7e0d4] bg-[#f8f8f3] hover:bg-[#eef5ec]"} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}>
               <span className="block text-xs font-black text-[#29463b]">{option.label}</span>
