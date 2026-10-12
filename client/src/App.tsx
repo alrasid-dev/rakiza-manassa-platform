@@ -25,6 +25,7 @@ import { ReportUploadPage } from "./pages/ReportUploadPage";
 import { ActivityLogPage, ApprovalsPage, DelaysPage, FormationsPage, HierarchyAdminPage, ImportsPage, PersonnelAdminPage, ReportsDashboardPage, StatusAndLeavePage, TasksPage, TraineeManagementPage } from "./pages/FunctionalPages";
 import DelegationPage from "./pages/DelegationPage";
 import OwnerKpiPage from "./pages/OwnerKpiPage";
+import ExportKpiPage from "./pages/ExportKpiPage";
 import RotationPage from "./pages/RotationPage";
 import PersonalSettingsPage from "./pages/PersonalSettingsPage";
 import PasswordRecoveryPage from "./pages/PasswordRecoveryPage";
@@ -78,6 +79,7 @@ function Router() {
       <Route path="/approvals" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="archive" /> : ApprovalsPage} />
       <Route path="/delegation" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : DelegationPage} />
       <Route path="/owner-kpi" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : OwnerKpiPage} />
+      <Route path="/export" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : ExportKpiPage} />
       <Route path="/rotation" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : RotationPage} />
       <Route path="/personal-settings" component={PersonalSettingsPage} />
       <Route path="/disciplinary" component={DisciplinaryPage} />

@@ -20,6 +20,7 @@ import { dataConnectionsStatus } from "./data-connections";
 import { loginFallbackErrorHandler, registerLoginConfigRoutes } from "./login-fallback";
 import { registerPoliciesPdfRoute } from "../policies/policy-route";
 import { registerNotificationsSseRoute } from "../sse-route";
+import { registerKpiExportRoute } from "../kpi-export-route";
 
 export function createExpressApp() {
   const app = express();
@@ -31,6 +32,7 @@ export function createExpressApp() {
   registerLoginConfigRoutes(app);
   registerPoliciesPdfRoute(app);
   registerNotificationsSseRoute(app);
+  registerKpiExportRoute(app);
   app.post("/api/scheduled/trainee-due-soon", handleTraineeDueSoonSchedule);
   app.post("/api/scheduled/daily-task-reminder", handleDailyTaskReminderSchedule);
   app.post("/api/scheduled/task-escalation", handleTaskEscalationSchedule);
