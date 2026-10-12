@@ -2545,6 +2545,12 @@ export const courtRouter = router({
         tasks: pendingTaskApprovals.length,
       };
 
+      console.log("[myDashboard] user:", ctx.user.id);
+      console.log("[myDashboard] managedUnitIds:", managedUnitIds);
+      console.log("[myDashboard] isLeadership:", isLeadership);
+      console.log("[myDashboard] pendingLeave count:", pendingLeave.length);
+      console.log("[myDashboard] pendingLeave:", pendingLeave.map((l: any) => ({ id: l.request?.id, status: l.request?.status, profileId: l.request?.profileId })));
+      console.log("[myDashboard] toReview count:", toReview.length);
       return { submitted, toReview, decided, returned, disciplinary: myDisciplinary.map(discItem), counts: { ...counts, total: counts.disciplinary + counts.leaves + counts.tasks } };
     }),
     review: protectedProcedure.input(z.object({ requestId: z.number().int().positive(), requestType: z.enum(["leave", "permission", "disciplinary", "task"]), decision: z.enum(["approve", "reject"]), reason: z.string().trim().max(1000).optional(), managerRating: z.enum(["excellent", "good", "acceptable"]).optional(), ratingNote: z.string().trim().max(500).optional() })).mutation(async ({ ctx, input }) => {
