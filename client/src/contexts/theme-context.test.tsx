@@ -38,13 +38,11 @@ describe("ThemeProvider", () => {
     fireEvent.click(button);
     expect(button.textContent).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
-    expect(document.documentElement.dataset.theme).toBe("dark");
     expect(document.documentElement.style.colorScheme).toBe("dark");
-    expect(localStorage.getItem("rakiza:theme:1")).toBe("dark");
+    expect(localStorage.getItem("rakiza:theme")).toBe("dark");
     fireEvent.click(button);
     expect(button.textContent).toBe("light");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
-    expect(document.documentElement.dataset.theme).toBe("light");
     expect(document.documentElement.style.colorScheme).toBe("light");
   });
 });

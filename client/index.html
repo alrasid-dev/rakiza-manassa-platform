@@ -4,16 +4,10 @@
     <script>
       (function () {
         try {
-          var stored = null;
-          var keys = Object.keys(localStorage);
-          for (var i = 0; i < keys.length; i++) {
-            if (keys[i].indexOf('rakiza:theme:') === 0) { stored = localStorage.getItem(keys[i]); break; }
-          }
-          if (!stored) stored = localStorage.getItem('theme');
+          var stored = localStorage.getItem('rakiza:theme') || localStorage.getItem('theme');
           if (stored === 'dark' || stored === 'light') {
             var root = document.documentElement;
             if (stored === 'dark') root.classList.add('dark'); else root.classList.remove('dark');
-            root.dataset.theme = stored;
             root.style.colorScheme = stored;
           }
         } catch (e) {}

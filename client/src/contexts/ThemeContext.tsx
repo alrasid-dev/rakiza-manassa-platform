@@ -18,23 +18,15 @@ interface ThemeProviderProps {
   switchable?: boolean;
 }
 
-function themeStorageKey(userId?: number | string | null) {
-  return userId != null ? `rakiza:theme:${userId}` : "rakiza:theme";
-}
-
-// يقرأ الثيم المخزَّن (rakiza:theme:{userId} ثم legacy) مطابقًا لسكربت <head> — يمنع الوميض عند الإقلاع.
+// يقرأ الثيم المخزَّن (rakiza:theme ثم legacy 'theme') مطابقًا لسكربت <head> — يمنع الوميض عند الإقلاع.
 function readCachedTheme(defaultTheme: Theme): Theme {
   if (typeof window === "undefined") return defaultTheme;
   try {
-    const keys = Object.keys(window.localStorage);
-    for (const key of keys) {
-      if (key.indexOf("rakiza:theme:") === 0) {
-        const value = window.localStorage.getItem(key);
-        return value === "dark" || value === "light" ? value : defaultTheme;
-      }
-    }
+    const unified = window.localStorage.getItem("rakiza:theme");
+    if (unified === "dark" || unified === "light") return unified;
     const legacy = window.localStorage.getItem("theme");
-    return legacy === "dark" || legacy === "light" ? legacy : defaultTheme;
+    if (legacy === "dark" || legacy === "light") return legacy;
+    return defaultTheme;
   } catch {
     return defaultTheme;
   }
@@ -63,7 +55,6 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.theme = theme;
     root.style.colorScheme = theme;
     if (theme === "dark") {
       root.classList.add("dark");
@@ -72,9 +63,23 @@ export function ThemeProvider({
     }
 
     if (switchable) {
-      window.localStorage.setItem(themeStorageKey(user?.id), theme);
+      window.localStorage.setItem("rakiza:theme", theme);
     }
-  }, [theme, switchable, user?.id]);
+  }, [theme, switchable]);
+
+  // تنظيف لمرة واحدة: إزالة المفاتيح القديمة rakiza:theme:{userId}
+  useEffect(() => {
+    try {
+      const keys = Object.keys(window.localStorage);
+      for (const key of keys) {
+        if (key.startsWith("rakiza:theme:") && key !== "rakiza:theme") {
+          window.localStorage.removeItem(key);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const toggleTheme = switchable
     ? () => {
