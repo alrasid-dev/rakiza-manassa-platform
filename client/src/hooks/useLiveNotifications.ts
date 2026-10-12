@@ -24,6 +24,7 @@ export function useLiveNotifications() {
             void playTone(prefs.toneId, prefs.volume);
           }
           void (utils.court.attendance as any).pendingAssignment?.invalidate?.();
+          void (utils.court.requests as any).myDashboard?.invalidate?.();
         } catch { /* تجاهل */ }
       };
       es.onerror = () => {

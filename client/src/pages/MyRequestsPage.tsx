@@ -94,7 +94,7 @@ export default function MyRequestsPage() {
   const [tab, setTab] = useState<"submitted" | "toReview" | "returned" | "disciplinary" | "records">("submitted");
   const [dialog, setDialog] = useState<{ item: Item; action: DecisionAction; rating?: "excellent" | "good" | "acceptable" } | null>(null);
   const [reason, setReason] = useState("");
-  const dash = trpc.court.requests.myDashboard.useQuery(undefined, { refetchInterval: 30000 });
+  const dash = trpc.court.requests.myDashboard.useQuery(undefined, { refetchInterval: 15000 });
   const permission = trpc.court.registration.myPermission.useQuery();
   const roles = trpc.court.myRoles.useQuery();
 

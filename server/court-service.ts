@@ -6028,6 +6028,20 @@ export async function submitLeaveRequest(input: { profileId: number; requestType
     requestSequenceInMonth = monthPermissions.length + 1;
   }
 
+  const overlapping = await db.select({ id: leaveRequests.id })
+    .from(leaveRequests)
+    .where(and(
+      eq(leaveRequests.profileId, input.profileId),
+      eq(leaveRequests.status, "pending"),
+      lte(leaveRequests.startAt, input.endAt),
+      gte(leaveRequests.endAt, input.startAt)
+    ))
+    .limit(1);
+
+  if (overlapping.length) {
+    throw new TRPCError({ code: "CONFLICT", message: "لديك طلب إجازة معلق لنفس الفترة. يرجى انتظار الاعتماد أو إلغاء الطلب السابق." });
+  }
+
   const result = await db.insert(leaveRequests).values({ profileId: input.profileId, requestType: input.requestType, startAt: input.startAt, endAt: input.endAt, durationMinutes, substituteProfileId: input.substituteProfileId ?? null, handoverConfirmed: openTasks.length === 0 || Boolean(input.substituteProfileId), status: "pending", hijriMonthKey: hijriMonthKeyValue, requestSequenceInMonth, note: input.note ?? null, requestedByUserId: input.requestedByUserId });
   const id = Number(result[0].insertId);
   await logAudit({ actorUserId: input.requestedByUserId, action: "leave.submitted", entityType: "leave_request", entityId: id, metadata: { openTaskCount: openTasks.length, substituteProfileId: input.substituteProfileId ?? null, hijriMonthKey: hijriMonthKeyValue, requestSequenceInMonth } });
