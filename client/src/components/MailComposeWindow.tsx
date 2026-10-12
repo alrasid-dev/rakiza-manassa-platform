@@ -377,7 +377,7 @@ export default function MailComposeWindow({
               type="button"
               onClick={onSaveDraft}
               disabled={isSaving}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#cfdccd] bg-white px-3 py-2.5 text-xs font-black text-[#315c4a] disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#cfdccd] bg-white px-3 py-2.5 text-xs font-black text-[var(--rakiza-ink)] disabled:opacity-60"
             >
               {isSaving ? "جارٍ الحفظ…" : "حفظ المسودة"}
             </button>
@@ -386,7 +386,7 @@ export default function MailComposeWindow({
                 type="button"
                 aria-label="حفظ قالب"
                 onClick={onSaveTemplate}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#cfdccd] bg-white px-3 py-2.5 text-xs font-black text-[#315c4a]"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#cfdccd] bg-white px-3 py-2.5 text-xs font-black text-[var(--rakiza-ink)]"
               >
                 حفظ قالب
               </button>

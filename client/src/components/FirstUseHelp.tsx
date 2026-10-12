@@ -11,9 +11,9 @@ const HELP_ICONS: Record<string, { Icon: typeof CircleHelp; well: string }> = {
   "/rakiza-mail": { Icon: Mail, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
   "/notifications": { Icon: BellRing, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
   "/report-upload": { Icon: FileUp, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
-  "/delegation": { Icon: Handshake, well: "bg-[#efe4c0] text-[#80642b]" },
-  "/rotation": { Icon: Repeat, well: "bg-[#efe4c0] text-[#80642b]" },
-  "/owner-kpi": { Icon: Gauge, well: "bg-[#efe4c0] text-[#80642b]" },
+  "/delegation": { Icon: Handshake, well: "bg-[#efe4c0] text-[var(--rakiza-gold)]" },
+  "/rotation": { Icon: Repeat, well: "bg-[#efe4c0] text-[var(--rakiza-gold)]" },
+  "/owner-kpi": { Icon: Gauge, well: "bg-[#efe4c0] text-[var(--rakiza-gold)]" },
   "/personal-settings": { Icon: UserCog, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
   "/archive": { Icon: Archive, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
   "/approvals": { Icon: BadgeCheck, well: "bg-[#d1e4d1] text-[var(--rakiza-olive-strong)]" },
@@ -47,7 +47,7 @@ export default function FirstUseHelp() {
           <Icon className="rakiza-olive-icon h-5 w-5" fill="currentColor" strokeWidth={1.6} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black text-[#4a785a]">مساعدة سريعة · أول استخدام</p>
+          <p className="text-xs font-black text-[var(--rakiza-olive-strong)]">مساعدة سريعة · أول استخدام</p>
           <h2 className="mt-1 text-sm font-black text-[#1f4a38]">{help.title}</h2>
           <p className="mt-1 text-xs leading-6 text-[#5d7266]">{help.text}</p>
         </div>

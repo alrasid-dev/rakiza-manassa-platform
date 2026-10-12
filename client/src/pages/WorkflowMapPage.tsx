@@ -128,7 +128,7 @@ export default function WorkflowMapPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-black text-[#1f4a36]">٢. مخطط سير العمل المستخرج</h2>
-            <p className="mt-1 text-sm font-bold text-[#315c4a]">{analysis.map.title}</p>
+            <p className="mt-1 text-sm font-bold text-[var(--rakiza-ink)]">{analysis.map.title}</p>
             {analysis.map.summary ? <p className="mt-1 max-w-3xl text-xs leading-6 text-[#66766e]">{analysis.map.summary}</p> : null}
           </div>
           <div className="flex flex-wrap gap-2 text-[11px] font-bold">
@@ -169,7 +169,7 @@ export default function WorkflowMapPage() {
             <p className="mt-1 text-xs text-[#66766e]">التوزيع الآلي يطابق اسم الموظف في نص الخطوة، ثم وحدة المالك المقترحة، ثم يوزّع بالتساوي حسب الحمل. والتوزيع اليدوي يبقى قرارك لكل خطوة.</p>
           </div>
           <div className="inline-flex rounded-xl border border-[#cddccd] bg-[#f2f5f0] p-1" role="group" aria-label="نمط التوزيع">
-            {(["auto", "manual"] as WorkflowDistributionMode[]).map(option => <button key={option} type="button" aria-pressed={mode === option} onClick={() => setMode(option)} className={`rounded-lg px-3 py-2 text-xs font-black transition ${mode === option ? "bg-[var(--rakiza-olive)] text-white" : "text-[#315c4a] hover:bg-[#e3ece1]"}`}>{option === "auto" ? "توزيع آلي" : "توزيع يدوي"}</button>)}
+            {(["auto", "manual"] as WorkflowDistributionMode[]).map(option => <button key={option} type="button" aria-pressed={mode === option} onClick={() => setMode(option)} className={`rounded-lg px-3 py-2 text-xs font-black transition ${mode === option ? "bg-[var(--rakiza-olive)] text-white" : "text-[var(--rakiza-ink)] hover:bg-[#e3ece1]"}`}>{option === "auto" ? "توزيع آلي" : "توزيع يدوي"}</button>)}
           </div>
         </div>
 
@@ -177,7 +177,7 @@ export default function WorkflowMapPage() {
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[46rem] text-right text-xs">
-            <thead className="bg-[#f1f5ef] text-[#315c4a]">
+            <thead className="bg-[#f1f5ef] text-[var(--rakiza-ink)]">
               <tr>
                 <th scope="col" className="px-3 py-2 font-black">الخطوة</th>
                 <th scope="col" className="px-3 py-2 font-black">المدة (أيام)</th>
@@ -195,10 +195,10 @@ export default function WorkflowMapPage() {
                     {step.ownerUnitHint ? <p className="mt-1 text-[11px] text-[var(--rakiza-muted)]">الوحدة المقترحة: {step.ownerUnitHint}</p> : null}
                   </td>
                   <td className="px-3 py-3">
-                    <input type="number" min={1} max={120} aria-label={`مدة الخطوة ${step.order} بالأيام`} value={step.slaDays} readOnly className="h-9 w-20 rounded-lg border border-[#dce6dc] bg-[#fbfcfa] px-2 text-xs font-bold text-[#315c4a]" />
+                    <input type="number" min={1} max={120} aria-label={`مدة الخطوة ${step.order} بالأيام`} value={step.slaDays} readOnly className="h-9 w-20 rounded-lg border border-[#dce6dc] bg-[#fbfcfa] px-2 text-xs font-bold text-[var(--rakiza-ink)]" />
                   </td>
                   <td className="px-3 py-3">
-                    <select aria-label={`أولوية الخطوة ${step.order}`} value={priorities[step.order] ?? "normal"} onChange={event => setPriorities(current => ({ ...current, [step.order]: event.target.value as WorkflowPriority }))} className="h-9 rounded-lg border border-[#dce6dc] bg-white px-2 text-xs font-bold text-[#315c4a]">
+                    <select aria-label={`أولوية الخطوة ${step.order}`} value={priorities[step.order] ?? "normal"} onChange={event => setPriorities(current => ({ ...current, [step.order]: event.target.value as WorkflowPriority }))} className="h-9 rounded-lg border border-[#dce6dc] bg-white px-2 text-xs font-bold text-[var(--rakiza-ink)]">
                       {(["normal", "high", "critical"] as WorkflowPriority[]).map(priority => <option key={priority} value={priority}>{workflowPriorityLabel(priority)}</option>)}
                     </select>
                   </td>
@@ -206,7 +206,7 @@ export default function WorkflowMapPage() {
                     {mode === "auto" ? <div className="flex flex-col gap-1">
                       <span className="text-xs font-bold text-[var(--rakiza-olive)]">{workflowStaffLabel(staffById.get(auto?.assigneeProfileId ?? -1))}</span>
                       {auto ? <span className="text-[10px] text-[var(--rakiza-muted)]">{workflowMatchReasonLabel(auto.matchReason)}</span> : null}
-                    </div> : <select aria-label={`منفذ الخطوة ${step.order}`} value={typeof manualId === "number" ? manualId : ""} onChange={event => setManualAssignees(current => ({ ...current, [step.order]: event.target.value ? Number(event.target.value) : "" }))} className="h-9 w-full rounded-lg border border-[#dce6dc] bg-white px-2 text-xs font-bold text-[#315c4a]">
+                    </div> : <select aria-label={`منفذ الخطوة ${step.order}`} value={typeof manualId === "number" ? manualId : ""} onChange={event => setManualAssignees(current => ({ ...current, [step.order]: event.target.value ? Number(event.target.value) : "" }))} className="h-9 w-full rounded-lg border border-[#dce6dc] bg-white px-2 text-xs font-bold text-[var(--rakiza-ink)]">
                       <option value="">اختر المنفذ…</option>
                       {staff.map(member => <option key={member.id} value={member.id}>{workflowStaffLabel(member)}</option>)}
                     </select>}

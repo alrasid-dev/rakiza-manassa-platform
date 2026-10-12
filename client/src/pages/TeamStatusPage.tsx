@@ -59,7 +59,7 @@ export default function TeamStatusPage() {
                   <td className="px-4 py-3 font-bold text-[#314d40]">{person.fullName}</td>
                   <td className="px-4 py-3 text-[#60736a]">{person.unitId != null ? (unitNameById.get(person.unitId) ?? "—") : "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${person.status === "on_leave" ? "bg-[#fff3d6] text-[#8a6d20]" : person.status === "active" ? "bg-[#e7f3ea] text-[var(--rakiza-olive)]" : "bg-[#f0ece6] text-[var(--rakiza-muted)]"}`}>{statusLabels[person.status] ?? person.status}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${person.status === "on_leave" ? "bg-[#fff3d6] text-[var(--rakiza-gold)]" : person.status === "active" ? "bg-[#e7f3ea] text-[var(--rakiza-olive)]" : "bg-[#f0ece6] text-[var(--rakiza-muted)]"}`}>{statusLabels[person.status] ?? person.status}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">

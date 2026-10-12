@@ -163,9 +163,9 @@ export default function DisciplinaryPage() {
 
         <section className="mt-6">
           <h2 className="text-lg font-bold text-[var(--rakiza-ink)]">مساءلاتي{filteredMine.length ? ` (${filteredMine.length})` : ""}</h2>
-          {myCases.isLoading && <p className="mt-2 text-gray-500">جارٍ تحميل مساءلاتك…</p>}
+          {myCases.isLoading && <p className="mt-2 text-[var(--rakiza-muted)]">جارٍ تحميل مساءلاتك…</p>}
           {myCases.error && (
-            <p className="mt-2 rounded-lg border border-[#e7d9c4] bg-[#fbf6ec] px-3 py-2 text-sm text-[#8a6d20]">
+            <p className="mt-2 rounded-lg border border-[#e7d9c4] bg-[#fbf6ec] px-3 py-2 text-sm text-[var(--rakiza-gold)]">
               {myCases.error.data?.code === "FORBIDDEN"
                 ? "سجل المساءلات الشخصي متاح للموظفين والملازمين فقط. تُعرض مساءلات فريقك أدناه (إن وُجدت)."
                 : myCases.error.message || "تعذر تحميل مساءلاتك."}
@@ -178,7 +178,7 @@ export default function DisciplinaryPage() {
                 <div className="flex items-center gap-2">
                   {c.source && <span className="rounded bg-[#eef4f0] px-2 py-1 text-xs text-[var(--rakiza-olive-strong)]">{typeLabels[c.source] || c.source}</span>}
                   <span className="rounded bg-gray-100 px-2 py-1 text-xs">{statusLabels[c.status] || c.status}</span>
-                  <span className="text-sm text-gray-500">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA") : ""}</span>
+                  <span className="text-sm text-[var(--rakiza-muted)]">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA") : ""}</span>
                 </div>
               </div>
               <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote || "—"}</p>
@@ -203,7 +203,7 @@ export default function DisciplinaryPage() {
               )}
             </div>
           ))}
-          {!myCases.isLoading && !myCases.error && !filteredMine.length && <p className="mt-2 text-gray-500">لا توجد مساءلات شخصية ضمن سجلك حتى الآن.</p>}
+          {!myCases.isLoading && !myCases.error && !filteredMine.length && <p className="mt-2 text-[var(--rakiza-muted)]">لا توجد مساءلات شخصية ضمن سجلك حتى الآن.</p>}
         </section>
 
         {teamCases.data && teamCases.data.length > 0 && (
@@ -232,7 +232,7 @@ export default function DisciplinaryPage() {
                   <div className="flex items-center gap-2">
                     {c.source && <span className="rounded bg-[#eef4f0] px-2 py-1 text-xs text-[var(--rakiza-olive-strong)]">{typeLabels[c.source] || c.source}</span>}
                     <span className="rounded bg-gray-100 px-2 py-1 text-xs">{statusLabels[c.status] || c.status}</span>
-                    <span className="text-sm text-gray-500">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA") : ""}</span>
+                    <span className="text-sm text-[var(--rakiza-muted)]">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA") : ""}</span>
                   </div>
                 </div>
                 <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote}</p>
@@ -243,35 +243,35 @@ export default function DisciplinaryPage() {
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[var(--rakiza-olive-strong)] text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[var(--rakiza-olive-strong)] text-white hover:bg-green-700" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}
                   >✅ اعتماد</button>
                   <button
                     type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "reject", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#b3412e] text-white hover:bg-red-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#b3412e] text-white hover:bg-red-700" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}
                   >❌ رفض</button>
                   <button
                     type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "return", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#8a6d20] text-white hover:bg-amber-800" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[var(--rakiza-gold)] text-white hover:bg-amber-800" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}
                   >🔄 عودة للتصحيح</button>
                   <button
                     type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "escalate", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-amber-600 text-white hover:bg-amber-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-amber-600 text-white hover:bg-amber-700" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}
                   >⬆️ تصعيد</button>
                   <button
                     type="button"
                     onClick={() => decide.mutate({ caseId: c.id, decision: "save_and_close", note: notes[c.id] }, { onSuccess: refresh })}
                     disabled={!isActionable(c)}
                     title={disabledReason(c)}
-                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#4a5f70] text-white hover:bg-teal-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                    className={`rounded px-3 py-2 text-sm min-h-[44px] min-w-[44px] ${isActionable(c) ? "bg-[#4a5f70] text-white hover:bg-teal-700" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}
                   >💾 حفظ وإغلاق</button>
                 </div>
                 <input
@@ -280,9 +280,9 @@ export default function DisciplinaryPage() {
                   onChange={e => setNotes({ ...notes, [c.id]: e.target.value })}
                   disabled={!isActionable(c)}
                   placeholder="ملاحظة (اختياري)"
-                  className="mt-2 w-full rounded border p-2 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+                  className="mt-2 w-full rounded border p-2 text-sm disabled:bg-gray-100 disabled:text-[var(--rakiza-muted)]"
                 />
-                {!isActionable(c) && <p className="mt-2 text-sm text-gray-500">{disabledReason(c)}</p>}
+                {!isActionable(c) && <p className="mt-2 text-sm text-[var(--rakiza-muted)]">{disabledReason(c)}</p>}
               </div>
             ))}
           </section>
@@ -295,7 +295,7 @@ export default function DisciplinaryPage() {
         )}
         {(isManager || isLeadership) && <section className="mt-8">
           <h2 className="text-lg font-bold text-[var(--rakiza-ink)]">سجل مساءلات فريقي</h2>
-          {teamLog.isLoading ? <p className="mt-2 text-gray-500">جارٍ التحميل…</p> : teamLog.data?.length ? (
+          {teamLog.isLoading ? <p className="mt-2 text-[var(--rakiza-muted)]">جارٍ التحميل…</p> : teamLog.data?.length ? (
             <div className="mt-3 overflow-x-auto overflow-touch rounded-xl border border-[var(--rakiza-border)] bg-white">
               <table className="w-full min-w-[760px] text-right text-sm">
                 <thead className="bg-[var(--rakiza-olive-strong)] text-xs text-white">
@@ -315,7 +315,7 @@ export default function DisciplinaryPage() {
                 </tbody>
               </table>
             </div>
-          ) : <p className="mt-2 text-gray-500">لا توجد مساءلات ضمن سجل فريقك.</p>}
+          ) : <p className="mt-2 text-[var(--rakiza-muted)]">لا توجد مساءلات ضمن سجل فريقك.</p>}
         </section>}
       </section>
     </DashboardLayout>

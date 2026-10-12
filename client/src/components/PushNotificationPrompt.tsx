@@ -107,7 +107,7 @@ export function PushNotificationPrompt() {
 
   if (permission === "denied") return null;
   if (permission === "granted" && (hasSubscription || fcmToken)) {
-    return <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#c7ddca] bg-[#e7f1e6] px-4 py-3 text-xs font-semibold text-[#2d684a]"><span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> إشعارات رَكيزة مفعلة على هذا الجهاز</span><div className="flex gap-2">{testPush && <Button type="button" size="sm" variant="outline" disabled={testPush.isPending} onClick={() => testPush.mutate()}>اختبار Web Push</Button>}{fcmTest && fcmToken && <Button type="button" size="sm" variant="outline" disabled={fcmTest.isPending} onClick={() => fcmTest.mutate()}>اختبار Firebase</Button>}</div></div>;
+    return <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#c7ddca] bg-[#e7f1e6] px-4 py-3 text-xs font-semibold text-[var(--rakiza-olive-strong)]"><span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> إشعارات رَكيزة مفعلة على هذا الجهاز</span><div className="flex gap-2">{testPush && <Button type="button" size="sm" variant="outline" disabled={testPush.isPending} onClick={() => testPush.mutate()}>اختبار Web Push</Button>}{fcmTest && fcmToken && <Button type="button" size="sm" variant="outline" disabled={fcmTest.isPending} onClick={() => fcmTest.mutate()}>اختبار Firebase</Button>}</div></div>;
   }
 
   const enable = async () => {
@@ -185,7 +185,7 @@ export function PushNotificationPrompt() {
   };
 
   return <div className="mb-4 flex flex-col gap-3 rounded-xl border border-[#d5dacd] bg-[#eeefe7] px-4 py-3 text-sm text-[#4d5547] sm:flex-row sm:items-center sm:justify-between">
-    <div className="flex items-start gap-3"><Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-[#4a785a]" /><div><p className="font-bold">فعّل تنبيهات المهام على هذا الجهاز</p><p className="mt-1 text-xs leading-6">ستظهر رسالة النظام حتى عند إغلاق التطبيق، وفق إعدادات الصوت في جهازك. إذا كان الإذن مسموحاً لكن التسجيل غير مكتمل، سيُجدّد التطبيق اشتراك هذا الجهاز تلقائياً.</p>{activationPlan === "unconfigured" && !message && <p className="mt-1 text-xs font-semibold text-[#8a5a1a]">{activationHint}</p>}{message && <p className={`mt-1 text-xs font-semibold ${message.includes("تم ") ? "text-[#2d684a]" : "text-[#9b2c2c]"}`}>{message}</p>}</div></div>
+    <div className="flex items-start gap-3"><Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-[var(--rakiza-olive-strong)]" /><div><p className="font-bold">فعّل تنبيهات المهام على هذا الجهاز</p><p className="mt-1 text-xs leading-6">ستظهر رسالة النظام حتى عند إغلاق التطبيق، وفق إعدادات الصوت في جهازك. إذا كان الإذن مسموحاً لكن التسجيل غير مكتمل، سيُجدّد التطبيق اشتراك هذا الجهاز تلقائياً.</p>{activationPlan === "unconfigured" && !message && <p className="mt-1 text-xs font-semibold text-[#8a5a1a]">{activationHint}</p>}{message && <p className={`mt-1 text-xs font-semibold ${message.includes("تم ") ? "text-[var(--rakiza-olive-strong)]" : "text-[#9b2c2c]"}`}>{message}</p>}</div></div>
     <div className="flex shrink-0 gap-2"><Button type="button" disabled={busy} onClick={enable} className="bg-[var(--rakiza-olive)] text-white hover:bg-[var(--rakiza-olive-strong)]"><BellRing className="ml-2 h-4 w-4" />{busy ? "جارٍ التفعيل…" : "تفعيل التنبيهات"}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => void disable()} className="border-[#c7d1c5]">إيقاف</Button></div>
   </div>;
 }

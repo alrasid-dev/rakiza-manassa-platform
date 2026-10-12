@@ -88,7 +88,7 @@ export function LiveChatWidget() {
           type="button"
           onClick={() => void openChat()}
           aria-label="محادثة الدعم"
-          className="fixed left-5 bottom-20 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#1f7a4d] text-white shadow-lg transition hover:bg-[#17603b]"
+          className="fixed left-5 bottom-20 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--rakiza-olive-strong)] text-white shadow-lg transition hover:bg-[#17603b]"
         >
           <MessageCircle className="h-6 w-6" />
           {(unread.data ?? 0) > 0 && (
@@ -101,7 +101,7 @@ export function LiveChatWidget() {
 
       {isOpen && (
         <div className="fixed left-0 top-0 z-50 flex h-full w-full max-w-sm flex-col bg-white shadow-2xl" dir="rtl">
-          <div className="flex items-center justify-between border-b bg-[#1f7a4d] px-4 py-3 text-white">
+          <div className="flex items-center justify-between border-b bg-[var(--rakiza-olive-strong)] px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5" />
               <span className="font-bold">الدعم الفني</span>
@@ -121,7 +121,7 @@ export function LiveChatWidget() {
               <div
                 key={msg.message.id}
                 className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                  msg.message.senderProfileId === myId ? "self-end bg-[#1f7a4d] text-white" : "self-start bg-gray-100 text-gray-900"
+                  msg.message.senderProfileId === myId ? "self-end bg-[var(--rakiza-olive-strong)] text-white" : "self-start bg-gray-100 text-[var(--rakiza-ink)]"
                 }`}
               >
                 <p className="whitespace-pre-wrap">{msg.message.body}</p>
@@ -149,7 +149,7 @@ export function LiveChatWidget() {
               </div>
             )}
             <div className="flex items-center gap-2">
-              <label className="cursor-pointer text-[#1f7a4d]" title="إرفاق ملف">
+              <label className="cursor-pointer text-[var(--rakiza-olive-strong)]" title="إرفاق ملف">
                 <Paperclip className="h-5 w-5" />
                 <input type="file" multiple className="hidden" accept="image/*,.pdf" onChange={event => void addFiles(event)} />
               </label>
@@ -166,7 +166,7 @@ export function LiveChatWidget() {
                 type="button"
                 onClick={submit}
                 disabled={(!message.trim() && !attachments.length) || send.isPending || !conversationId}
-                className="rounded-lg bg-[#1f7a4d] px-3 py-2 text-white disabled:opacity-50"
+                className="rounded-lg bg-[var(--rakiza-olive-strong)] px-3 py-2 text-white disabled:opacity-50"
                 aria-label="إرسال"
               >
                 {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

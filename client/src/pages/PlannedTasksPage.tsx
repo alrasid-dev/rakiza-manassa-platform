@@ -111,8 +111,8 @@ export default function PlannedTasksPage() {
           {templates.isLoading ? <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">جارٍ التحميل…</td></tr>
             : filtered.length ? filtered.map((row, idx) => (
               <tr key={row.template.id} className="hover:bg-[#fafdf9]">
-                <td className="px-3 py-2.5 text-[#9aa89f]">{idx + 1}</td>
-                <td className="px-3 py-2.5 font-bold text-[#26473a]">{row.template.title}</td>
+                <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">{idx + 1}</td>
+                <td className="px-3 py-2.5 font-bold text-[var(--rakiza-ink)]">{row.template.title}</td>
                 <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">{frequencyLabel(row.template.frequency)}</td>
                 <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">{recurrenceLabel(row.template)}</td>
                 <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">{row.template.defaultAssigneeProfileId ? peopleById.get(row.template.defaultAssigneeProfileId)?.fullName ?? `#${row.template.defaultAssigneeProfileId}` : "—"}</td>

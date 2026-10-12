@@ -122,7 +122,7 @@ export function AuthExperimentPage() {
               <label className="block text-xs font-bold text-[#52665a]" htmlFor="rakiza-login-email">البريد الإلكتروني الرسمي</label>
               <input id="rakiza-login-email" aria-label="البريد الإلكتروني الرسمي" value={email} onChange={event => setEmail(event.target.value)} type="email" dir="ltr" inputMode="email" autoComplete="username" placeholder="name@moj.gov.sa" className="mt-2 h-11 w-full rounded-xl border border-input px-3 text-sm" />
               <p className="mt-1 text-[11px] leading-5 text-[var(--rakiza-muted)]">موظف جديد؟ أدخل بريدك الرسمي وسيُطلب منك إنشاء رمز مرور من 6 أرقام تلقائياً.</p>
-              {email.trim().length > 0 && !validLoginEmail && <p role="alert" className="mt-2 text-xs font-bold text-[#9a4634]">لا يُقبل إلا بريد رسمي من نطاق moj.gov.sa أو بريد مالك رَكيزة المعتمد.</p>}
+              {email.trim().length > 0 && !validLoginEmail && <p role="alert" className="mt-2 text-xs font-bold text-[var(--rakiza-danger)]">لا يُقبل إلا بريد رسمي من نطاق moj.gov.sa أو بريد مالك رَكيزة المعتمد.</p>}
               {email.trim().length > 0 && validLoginEmail && isOwnerAccount && <p role="status" className="mt-2 text-xs font-bold text-[#246047]">حساب مالك معتمد: يُسمح بالدخول دون شرط النطاق الرسمي.</p>}
             </div>
             <PasscodeAuthPanel officialEmail={email.trim()} validOfficialEmail={validLoginEmail} />

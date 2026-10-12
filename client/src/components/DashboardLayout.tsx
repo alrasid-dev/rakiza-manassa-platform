@@ -159,11 +159,11 @@ export function navigationIconWellClass(tone: NavigationIconTone, active: boolea
   if (tone === "gold") {
     return variant === "dark"
       ? (active ? "bg-[#4a3d1f] text-[#ead69c]" : "bg-[#2f2a18] text-[#d4c08a] group-hover:bg-[#4a3d1f] group-hover:text-[#ead69c]")
-      : (active ? "bg-[#efe4c0] text-[#80642b]" : "bg-[#f6f0df] text-[#8a6e32] group-hover:bg-[#efe4c0]");
+      : (active ? "bg-[#efe4c0] text-[var(--rakiza-gold)]" : "bg-[#f6f0df] text-[#8a6e32] group-hover:bg-[#efe4c0]");
   }
   return variant === "dark"
-    ? (active ? "bg-[#1f7a4d] text-[#f0f9ef]" : "bg-[#1a4d38] text-[#b6e0b0] group-hover:bg-[#1f7a4d] group-hover:text-[#f0f9ef]")
-    : (active ? "bg-[#c5e6c8] text-[#14633d]" : "bg-[#d9eedc] text-[#1f7a4d] group-hover:bg-[#c5e6c8] group-hover:text-[#14633d]");
+    ? (active ? "bg-[var(--rakiza-olive-strong)] text-[#f0f9ef]" : "bg-[#1a4d38] text-[#b6e0b0] group-hover:bg-[var(--rakiza-olive-strong)] group-hover:text-[#f0f9ef]")
+    : (active ? "bg-[#c5e6c8] text-[#14633d]" : "bg-[#d9eedc] text-[var(--rakiza-olive-strong)] group-hover:bg-[#c5e6c8] group-hover:text-[#14633d]");
 }
 
 export function navigationIconForPath(path: string) {
@@ -467,7 +467,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
               <label className="order-5 flex items-center gap-2 rounded-xl border border-[#d2d9cf] bg-[#f1f2ec] px-3 py-2.5 lg:order-none">
                 <Building2 className="h-4 w-4 shrink-0 text-[var(--rakiza-olive)]" aria-hidden="true" />
                 <span className="text-[11px] font-bold text-[var(--rakiza-muted)]">القسم</span>
-                <select aria-label="اختر القسم لعرض بياناته" value={selectedUnitId ?? ""} onChange={event => setSelectedUnitId(event.target.value ? Number(event.target.value) : null)} className="max-w-[12rem] bg-transparent text-xs font-black text-[#315348] focus:outline-none">
+                <select aria-label="اختر القسم لعرض بياناته" value={selectedUnitId ?? ""} onChange={event => setSelectedUnitId(event.target.value ? Number(event.target.value) : null)} className="max-w-[12rem] bg-transparent text-xs font-black text-[var(--rakiza-ink)] focus:outline-none">
                   <option value="">كل الأقسام</option>
                   {(units.data ?? []).map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
                 </select>
@@ -475,7 +475,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
             )}
             <button type="button" onClick={() => setLocation("/announcements")} className="order-3 flex min-w-0 items-center gap-3 rounded-xl border border-[#d2d9cf] bg-[#f1f2ec] px-3 py-2.5 text-right transition hover:bg-[#e5ece2] md:order-none md:w-auto md:flex-1 lg:max-w-[34rem]" aria-label="لوحة التعاميم والإعلانات">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#dce9da] text-[var(--rakiza-olive)]"><Megaphone className={`h-5 w-5 ${oliveIconMotionClass}`} aria-hidden="true" /></span>
-              <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-xs font-black text-[#315348]">لوحة التعاميم والإعلانات</span>{announcementCopy.isNew ? <span className="rounded-full bg-[#e0eadf] px-1.5 py-0.5 text-[10px] font-black text-[var(--rakiza-olive)]">جديد</span> : null}</span><span className="mt-1 block truncate text-xs font-bold text-[#365548]">{announcementCopy.title}</span><span className="mt-0.5 hidden truncate text-[11px] text-[#748078] sm:block">{announcementCopy.summary}</span></span>
+              <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-xs font-black text-[var(--rakiza-ink)]">لوحة التعاميم والإعلانات</span>{announcementCopy.isNew ? <span className="rounded-full bg-[#e0eadf] px-1.5 py-0.5 text-[10px] font-black text-[var(--rakiza-olive)]">جديد</span> : null}</span><span className="mt-1 block truncate text-xs font-bold text-[#365548]">{announcementCopy.title}</span><span className="mt-0.5 hidden truncate text-[11px] text-[#748078] sm:block">{announcementCopy.summary}</span></span>
               <ArrowLeft className="h-5 w-5 shrink-0 text-[#698075]" aria-hidden="true" />
             </button>
             <div dir="ltr" className="rakiza-toolbar relative flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:gap-3">
@@ -487,11 +487,11 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
               {toggleTheme && <button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? "التبديل إلى النمط الفاتح" : "التبديل إلى النمط الداكن"} title={theme === "dark" ? "النمط الفاتح" : "النمط الداكن"} aria-pressed={theme === "dark"} data-testid="theme-toggle" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-[var(--rakiza-border)] bg-[#f1f3ed] text-[var(--rakiza-olive)] transition-colors hover:bg-[#e0ecdf] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]">{theme === "dark" ? <Sun className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" /> : <Moon className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" />}</button>}
               <div dir="rtl" className="flex min-w-0 items-center gap-2">
                 <div className="min-w-0 text-right">
-                  <p className="max-w-44 truncate text-xs font-bold text-[#284239]">{permission.data === "full_control" ? "مالك المنصة" : (user?.name || "وضع المعاينة")}</p>
-                  <p className="mt-0.5 max-w-44 truncate text-[11px] text-[#77867d]">{user?.email || "بيانات مصدر مستوردة · معاينة"}</p>
-                  {(currentProfile.data as any)?.attendanceMode === "in_person" ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-muted)]">🏢 حضور مكتبي</p> : <>{todayAttendance.data?.checkInAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#16834b]">✓ الحضور: {new Date(todayAttendance.data.checkInAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}{todayAttendance.data?.checkOutAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[#16834b]">✓ الانصراف: {new Date(todayAttendance.data.checkOutAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}</>}
+                  <p className="max-w-44 truncate text-xs font-bold text-[var(--rakiza-ink)]">{permission.data === "full_control" ? "مالك المنصة" : (user?.name || "وضع المعاينة")}</p>
+                  <p className="mt-0.5 max-w-44 truncate text-[11px] text-[var(--rakiza-muted)]">{user?.email || "بيانات مصدر مستوردة · معاينة"}</p>
+                  {(currentProfile.data as any)?.attendanceMode === "in_person" ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-muted)]">🏢 حضور مكتبي</p> : <>{todayAttendance.data?.checkInAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-olive-strong)]">✓ الحضور: {new Date(todayAttendance.data.checkInAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}{todayAttendance.data?.checkOutAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-olive-strong)]">✓ الانصراف: {new Date(todayAttendance.data.checkOutAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}</>}
                   <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-[var(--rakiza-muted)]" title={formatLastSeen(currentProfile.data?.lastActiveAt)}>
-                    <span className={`h-2 w-2 rounded-full ${displayedActivityState === "active" ? "bg-[#16834b]" : displayedActivityState === "chatting" ? "bg-[var(--rakiza-gold)]" : "bg-[#b64d3d]"}`} aria-hidden="true" />
+                    <span className={`h-2 w-2 rounded-full ${displayedActivityState === "active" ? "bg-[var(--rakiza-olive-strong)]" : displayedActivityState === "chatting" ? "bg-[var(--rakiza-gold)]" : "bg-[#b64d3d]"}`} aria-hidden="true" />
                     <span>{activityStateLabel(displayedActivityState)}</span>
                     <span className="sr-only">{formatLastSeen(currentProfile.data?.lastActiveAt)}</span>
                   </div>

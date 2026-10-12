@@ -66,7 +66,7 @@ export default function DepartmentTasksPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <span className="rounded-full bg-[#e7f3e9] px-3 py-1.5 text-xs font-bold text-[var(--rakiza-olive-strong)]">{activeCount} نشطة</span>
-          <span className="rounded-full bg-[#f8e6e1] px-3 py-1.5 text-xs font-bold text-[#a8493b]">{overdueCount} متأخرة</span>
+          <span className="rounded-full bg-[#f8e6e1] px-3 py-1.5 text-xs font-bold text-[var(--rakiza-danger)]">{overdueCount} متأخرة</span>
           <span className="rounded-full bg-[#eaf4ff] px-3 py-1.5 text-xs font-bold text-[#26628d]">{completedCount} مكتملة</span>
         </div>
       </header>

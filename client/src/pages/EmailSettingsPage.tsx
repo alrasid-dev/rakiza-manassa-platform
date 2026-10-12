@@ -43,7 +43,7 @@ export function EmailSettingsPage() {
     <div className="mt-6 rounded-[1.7rem] border border-[var(--rakiza-border)] bg-white p-6 shadow-sm">
       <div className="flex items-center gap-3"><MailCheck className="h-6 w-6 text-[var(--rakiza-olive-strong)]" /><div><h2 className="font-bold text-[var(--rakiza-ink)]">المعرّف الرسمي</h2><p className="text-sm text-[var(--rakiza-muted)]">لا يمكن تغييره من هذه الشاشة ولا يستخدم كمعرّف بديل.</p></div></div>
       <div className="mt-4 rounded-xl bg-[#f3f6f1] px-4 py-3 font-semibold text-[var(--rakiza-ink)]">{settings.data?.officialEmail ?? "غير مثبت بعد"}</div>
-      {settings.data && !settings.data.officialEmailIsValid && <p className="mt-3 text-sm text-[#9a4634]">يلزم تثبيت بريد رسمي من نطاق moj.gov.sa.</p>}
+      {settings.data && !settings.data.officialEmailIsValid && <p className="mt-3 text-sm text-[var(--rakiza-danger)]">يلزم تثبيت بريد رسمي من نطاق moj.gov.sa.</p>}
       <div className="mt-7 flex items-center gap-3"><ShieldCheck className="h-5 w-5 text-[var(--rakiza-gold)]" /><h2 className="font-bold text-[var(--rakiza-ink)]">بريد الإشعارات</h2></div>
       <label className="mt-4 block text-sm font-bold text-[#385449]">البريد الذي يستقبل OTP والتنبيهات<input type="email" value={notificationEmail} onChange={e => setNotificationEmail(e.target.value)} placeholder="alerts@example.com" className="mt-2 h-11 w-full rounded-xl border border-input px-3 text-sm" /></label>
       <p className="mt-2 text-xs leading-5 text-[#78867e]">بعد تغييره، اطلب رمز دخول جديداً لتأكيد ملكيتك للبريد. لا يظهر هذا البريد في البحث أو المراسلات الداخلية.</p>
@@ -64,7 +64,7 @@ export function EmailSettingsPage() {
         </div>
       </div>
       <Button className="mt-6 bg-[var(--rakiza-olive-strong)] hover:bg-[var(--rakiza-olive-strong)]" disabled={update.isPending || !settings.data?.officialEmailIsValid} onClick={() => update.mutate({ notificationEmail: notificationEmail.trim() || null, notificationPreference })}>{update.isPending ? "جارٍ الحفظ…" : "حفظ بريد الإشعارات"}</Button>
-      {update.error && <p role="alert" className="mt-3 text-sm text-[#9a4634]">{update.error.message}</p>}
+      {update.error && <p role="alert" className="mt-3 text-sm text-[var(--rakiza-danger)]">{update.error.message}</p>}
       {update.isSuccess && <p className="mt-3 text-sm font-bold text-[#2f7351]">تم حفظ بريد الإشعارات. استخدم OTP القادم لتوثيقه.</p>}
       <div className="mt-8 border-t border-[var(--rakiza-border)] pt-6">
         <div className="flex flex-wrap items-center justify-between gap-4">

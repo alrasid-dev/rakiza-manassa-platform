@@ -45,7 +45,7 @@ export default function AiRakizaTaskPrompt({ tasks, unreadMailCount = 0, urgentU
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--rakiza-olive)] text-white"><Bot className="h-5 w-5" /></span>
-            <div><p className="text-xs font-black tracking-[.1em] text-[#4a785a]">مساعدة AI ركيزة</p><h2 id="ai-rakiza-title" className="mt-1 text-lg font-black text-[#183d2d]">نظرة سياقية للعمل</h2></div>
+            <div><p className="text-xs font-black tracking-[.1em] text-[var(--rakiza-olive-strong)]">مساعدة AI ركيزة</p><h2 id="ai-rakiza-title" className="mt-1 text-lg font-black text-[#183d2d]">نظرة سياقية للعمل</h2></div>
           </div>
           <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق" className="grid h-8 w-8 place-items-center rounded-lg text-[#587164] hover:bg-[#e5eee4]"><X className="h-4 w-4" /></button>
         </div>

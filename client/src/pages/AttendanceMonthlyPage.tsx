@@ -188,11 +188,11 @@ export default function AttendanceMonthlyPage() {
                         <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">{dayName}</td>
                         <td className="px-3 py-2.5">{fmtTime(a.checkInAt)}</td>
                         <td className="px-3 py-2.5">{fmtTime(a.checkOutAt)}</td>
-                        <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs ${a.status === "present" ? "bg-[#e4f0e4] text-[#2d684a]" : a.status === "absent" ? "bg-[#f8e6e1] text-[#a8493b]" : a.status === "late" ? "bg-[#f5edd8] text-[#80642b]" : "bg-[#e3eef5] text-[#2c5d77]"}`}>{statusLabels[a.status] ?? a.status}</span></td>
+                        <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs ${a.status === "present" ? "bg-[#e4f0e4] text-[var(--rakiza-olive-strong)]" : a.status === "absent" ? "bg-[#f8e6e1] text-[var(--rakiza-danger)]" : a.status === "late" ? "bg-[#f5edd8] text-[var(--rakiza-gold)]" : "bg-[#e3eef5] text-[#2c5d77]"}`}>{statusLabels[a.status] ?? a.status}</span></td>
                         <td className="px-3 py-2.5 font-bold" dir="ltr">{points > 0 ? `+${points}` : points}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex flex-wrap gap-1.5">
-                            <button type="button" onClick={() => setModal({ mode: "edit", recordId: a.id, recordDate: a.recordDate.toISOString().slice(0, 10), checkInAt: timeOf(a.checkInAt), checkOutAt: timeOf(a.checkOutAt), status: a.status, reason: "" })} className="rounded border border-[var(--rakiza-gold)] px-2 py-1 text-xs font-bold text-[#805d27] hover:bg-[#f3e5bf]">✏️ تعديل</button>
+                            <button type="button" onClick={() => setModal({ mode: "edit", recordId: a.id, recordDate: a.recordDate.toISOString().slice(0, 10), checkInAt: timeOf(a.checkInAt), checkOutAt: timeOf(a.checkOutAt), status: a.status, reason: "" })} className="rounded border border-[var(--rakiza-gold)] px-2 py-1 text-xs font-bold text-[var(--rakiza-gold)] hover:bg-[#f3e5bf]">✏️ تعديل</button>
                             <button type="button" onClick={() => setModal({ mode: "delete", recordId: a.id, recordDate: a.recordDate.toISOString().slice(0, 10), checkInAt: "", checkOutAt: "", status: a.status, reason: "" })} className="rounded border border-[#d8b1a4] px-2 py-1 text-xs font-bold text-[var(--rakiza-danger)] hover:bg-[#f8e1dc]">🗑️ حذف</button>
                           </div>
                         </td>
@@ -211,7 +211,7 @@ export default function AttendanceMonthlyPage() {
               <div className="flex items-center gap-3">
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--rakiza-gold)] text-white">✏️</span>
                 <div>
-                  <p className="text-xs font-black text-[#8a6d20]">{modal.mode === "create" ? "إضافة سجل حضور" : modal.mode === "delete" ? "حذف سجل حضور" : "تعديل سجل حضور"}</p>
+                  <p className="text-xs font-black text-[var(--rakiza-gold)]">{modal.mode === "create" ? "إضافة سجل حضور" : modal.mode === "delete" ? "حذف سجل حضور" : "تعديل سجل حضور"}</p>
                   <h2 id="owner-attendance-modal-title" className="text-xl font-black text-[#183d2d]">{fmtDate(modal.recordDate)}</h2>
                 </div>
               </div>

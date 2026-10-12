@@ -51,7 +51,7 @@ export default function DashboardRosterPanel() {
       {canSeeDepartments && (
         <article className="rounded-2xl border border-[var(--rakiza-border)] bg-white p-4 shadow-[0_8px_22px_rgba(36,67,51,0.04)]">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#efe4c0] text-[#80642b]"><Building2 className="h-4 w-4" /></span><div><h2 className="text-sm font-black text-[#25463a]">الأقسام</h2><p className="text-[10px] text-[var(--rakiza-muted)]">وحدات مسجّلة في النظام</p></div></div>
+            <div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#efe4c0] text-[var(--rakiza-gold)]"><Building2 className="h-4 w-4" /></span><div><h2 className="text-sm font-black text-[#25463a]">الأقسام</h2><p className="text-[10px] text-[var(--rakiza-muted)]">وحدات مسجّلة في النظام</p></div></div>
             <button type="button" onClick={() => setLocation("/hierarchy")} className="text-[11px] font-black text-[var(--rakiza-olive)]">الهيكل</button>
           </div>
           {unitsQuery.isLoading ? <p className="mt-4 flex items-center gap-2 text-xs text-[var(--rakiza-muted)]"><CircleDashed className="h-3.5 w-3.5 animate-spin" /> جارٍ التحميل…</p> : units.length ? (

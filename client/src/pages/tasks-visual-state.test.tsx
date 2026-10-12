@@ -34,7 +34,7 @@ describe("الحالة البصرية للمهام", () => {
     expect(taskStateIcon("completed").label).toBe("منجزة");
     expect(taskStateIcon("starting").icon).toBeTruthy();
     expect(taskStateBadgeClasses("overdue")).toContain("9d4034");
-    expect(taskStateBadgeClasses("due_soon")).toContain("80642b");
+    expect(taskStateBadgeClasses("due_soon")).toContain("rakiza-gold");
     expect(taskStateBadgeClasses("starting")).toContain("1c6b3f");
   });
 

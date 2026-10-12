@@ -25,7 +25,7 @@ const moduleConfig: Record<ModuleType, { eyebrow: string; title: string; descrip
     eyebrow: "المتابعة الاستباقية",
     title: "سجل المتعثرات",
     description: "حصر منظم للمعاملات المتأخرة، المالك الإداري، الإجراء المتخذ، وتاريخ كل تصعيد.",
-    stats: [{ value: "229", label: "سجل متعثرات", tone: "bg-[#f7efe0] text-[#80612b]" }, { value: "153", label: "تحت المتابعة", tone: "bg-[#eef1f5] text-[#3d5e78]" }, { value: "76", label: "متأخر", tone: "bg-[#f8e8e4] text-[#a44532]" }],
+    stats: [{ value: "229", label: "سجل متعثرات", tone: "bg-[#f7efe0] text-[#80612b]" }, { value: "153", label: "تحت المتابعة", tone: "bg-[#eef1f5] text-[#3d5e78]" }, { value: "76", label: "متأخر", tone: "bg-[#f8e8e4] text-[var(--rakiza-danger)]" }],
     actions: ["تسجيل سبب التعثر وإجراء المعالجة", "إسناد مالك متابعة وموعد استحقاق", "رفع حالات التأخر لمسار الاعتماد"],
     note: "سيُستورد ملف Teams بعد منح صلاحية الوصول المقيدة للمورد المعتمد فقط.",
   },

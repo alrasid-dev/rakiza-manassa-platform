@@ -562,7 +562,7 @@ export default function RakizaMailPage() {
             <button
               type="button"
               onClick={() => setLocation("/data-exports")}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#d9e4d8] bg-white px-3 py-2.5 text-xs font-black text-[#315c4a]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#d9e4d8] bg-white px-3 py-2.5 text-xs font-black text-[var(--rakiza-ink)]"
             >
               <Download className="h-4 w-4" />
               تصدير البيانات
@@ -570,7 +570,7 @@ export default function RakizaMailPage() {
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#d9e4d8] bg-white px-3 py-2.5 text-xs font-black text-[#315c4a]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#d9e4d8] bg-white px-3 py-2.5 text-xs font-black text-[var(--rakiza-ink)]"
             >
               <SlidersHorizontal className="h-4 w-4" />
               إعدادات البريد
@@ -578,7 +578,7 @@ export default function RakizaMailPage() {
             <button
               type="button"
               onClick={() => setLocation("/meetings")}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#d9e4d8] bg-white px-3 py-2.5 text-xs font-black text-[#315c4a]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#d9e4d8] bg-white px-3 py-2.5 text-xs font-black text-[var(--rakiza-ink)]"
             >
               <CalendarDays className="h-4 w-4" />
               التقويم والاجتماعات
@@ -744,7 +744,7 @@ export default function RakizaMailPage() {
           <section className="border-b border-[#e6ece5] lg:border-b-0 lg:border-l">
             <div className="border-b border-[#e8eee8] px-4 py-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-black text-[#315c4a]">
+                <p className="text-xs font-black text-[var(--rakiza-ink)]">
                   قائمة الرسائل
                 </p>
                 <div className="flex items-center gap-1.5">
@@ -754,7 +754,7 @@ export default function RakizaMailPage() {
                     onChange={event =>
                       setSortBy(event.target.value as typeof sortBy)
                     }
-                    className="h-8 rounded-lg border border-[#dce6dc] bg-white px-2 text-[11px] font-bold text-[#315c4a]"
+                    className="h-8 rounded-lg border border-[#dce6dc] bg-white px-2 text-[11px] font-bold text-[var(--rakiza-ink)]"
                   >
                     <option value="date">الأحدث أولاً</option>
                     <option value="sender">حسب المرسل</option>
@@ -780,7 +780,7 @@ export default function RakizaMailPage() {
             </div>
             <div className="max-h-[475px] overflow-y-auto lg:max-h-[610px]">
               {list.isLoading ? (
-                <p className="p-5 text-center text-xs text-[#788980]">
+                <p className="p-5 text-center text-xs text-[var(--rakiza-muted)]">
                   جارٍ تحميل البريد…
                 </p>
               ) : list.error ? (
@@ -913,7 +913,7 @@ export default function RakizaMailPage() {
                               action: "trash",
                             });
                           }}
-                          className="grid h-6 w-6 place-items-center rounded-md bg-white text-[#a8493b] shadow ring-1 ring-[#f0d3cc] hover:bg-[#fdeeeb]"
+                          className="grid h-6 w-6 place-items-center rounded-md bg-white text-[var(--rakiza-danger)] shadow ring-1 ring-[#f0d3cc] hover:bg-[#fdeeeb]"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>

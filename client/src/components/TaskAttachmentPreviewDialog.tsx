@@ -140,7 +140,7 @@ export function TaskAttachmentPreviewDialog({ attachment, attachments, taskId, o
           <Button type="button" size="sm" variant="outline" disabled={previewable.length < 2} onClick={() => move(-1)}><ChevronLeft className="ml-1 h-4 w-4" />السابق</Button>
         </div>
         <div className="relative grid min-h-[360px] place-items-center overflow-auto rounded-xl border border-[#e5ebe4] bg-[#f8faf8] p-3">
-          {isLoading && <div className="absolute inset-0 z-10 grid place-items-center bg-[#f8faf8]/85 text-sm font-bold text-[#28623f]"><span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />جارٍ تحميل المرفق…</span></div>}
+          {isLoading && <div className="absolute inset-0 z-10 grid place-items-center bg-[#f8faf8]/85 text-sm font-bold text-[var(--rakiza-olive-strong)]"><span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />جارٍ تحميل المرفق…</span></div>}
           {isImage(current.mimeType) ? <img src={current.storageUrl ?? undefined} alt={`معاينة ${current.originalName}`} onLoad={() => setIsLoading(false)} onError={() => setIsLoading(false)} className="max-h-[58vh] max-w-full object-contain transition-transform duration-200 ease-out motion-reduce:transition-none" style={{ transform: `scale(${scale}) rotate(${rotation}deg)` }} /> : <iframe title={`معاينة ${current.originalName}`} src={current.storageUrl ? `${current.storageUrl}#view=FitH` : undefined} onLoad={() => setIsLoading(false)} className="h-[58vh] w-full rounded-lg border-0 bg-white" />}
         </div>
         {isImage(current.mimeType) && <div className="flex flex-wrap items-center justify-center gap-2" aria-label="أدوات معاينة الصورة">

@@ -113,10 +113,10 @@ export default function TaskComparisonPage() {
           </div>
           {employeeId != null && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">📊 إجمالي (اليوم): {employeeCounts.data?.total ?? 0}</span>
-              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[#2d684a]">✅ منجزة (اليوم): {employeeCounts.data?.completed ?? 0}</span>
-              <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-xs font-bold text-[#80642b]">⏳ معلّقة (اليوم): {employeeCounts.data?.pending ?? 0}</span>
-              <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-xs font-bold text-[#a8493b]">🔴 متأخرة (اليوم): {employeeCounts.data?.overdue ?? 0}</span>
+              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[var(--rakiza-olive-strong)]">📊 إجمالي (اليوم): {employeeCounts.data?.total ?? 0}</span>
+              <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-xs font-bold text-[var(--rakiza-olive-strong)]">✅ منجزة (اليوم): {employeeCounts.data?.completed ?? 0}</span>
+              <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-xs font-bold text-[var(--rakiza-gold)]">⏳ معلّقة (اليوم): {employeeCounts.data?.pending ?? 0}</span>
+              <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-xs font-bold text-[var(--rakiza-danger)]">🔴 متأخرة (اليوم): {employeeCounts.data?.overdue ?? 0}</span>
             </div>
           )}
         </section>
@@ -194,23 +194,23 @@ export default function TaskComparisonPage() {
             </div>)}
           </div>
           {notStartedRows.length > 0 && <div className="rounded-2xl border border-[var(--rakiza-border)] bg-[#f3f3ef] p-4 lg:col-span-3">
-            <p className="mb-3 text-sm font-bold text-[#6d7d74]">لم يبدأ (أُسندت ولم تُنجز)</p>
+            <p className="mb-3 text-sm font-bold text-[var(--rakiza-muted)]">لم يبدأ (أُسندت ولم تُنجز)</p>
             <div className="flex flex-wrap gap-2">
-              {notStartedRows.map(r => <span key={r.profileId} className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[#6d7d74]">{r.name}</span>)}
+              {notStartedRows.map(r => <span key={r.profileId} className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[var(--rakiza-muted)]">{r.name}</span>)}
             </div>
           </div>}
           {notAssignedRows.length > 0 && <div className="rounded-2xl border border-[var(--rakiza-border)] bg-[#f3f3ef] p-4 lg:col-span-3">
-            <p className="mb-3 text-sm font-bold text-[#6d7d74]">لم يُسند له</p>
+            <p className="mb-3 text-sm font-bold text-[var(--rakiza-muted)]">لم يُسند له</p>
             <div className="flex flex-wrap gap-2">
-              {notAssignedRows.map(r => <span key={r.profileId} className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[#6d7d74]">{r.name}</span>)}
+              {notAssignedRows.map(r => <span key={r.profileId} className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[var(--rakiza-muted)]">{r.name}</span>)}
             </div>
           </div>}
           {onLeaveRows.length > 0 && <div className="rounded-2xl border border-[var(--rakiza-border)] bg-[#f3f3ef] p-4 lg:col-span-3">
-            <p className="mb-3 text-sm font-bold text-[#6d7d74]">مجاز 🏖️</p>
+            <p className="mb-3 text-sm font-bold text-[var(--rakiza-muted)]">مجاز 🏖️</p>
             <div className="divide-y divide-[#e3e3db]">
               {onLeaveRows.map(r => <div key={r.profileId} className="flex flex-wrap items-center justify-between gap-2 py-3 text-[#7b8980]">
                 <span className="font-bold">{r.name}</span>
-                <span className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[#6d7d74]">🏖️ في إجازة{formatLeaveDate(r.leaveEndAt) ? ` حتى ${formatLeaveDate(r.leaveEndAt)}` : ""}</span>
+                <span className="rounded-full bg-[#e4e4de] px-3 py-1 text-xs font-bold text-[var(--rakiza-muted)]">🏖️ في إجازة{formatLeaveDate(r.leaveEndAt) ? ` حتى ${formatLeaveDate(r.leaveEndAt)}` : ""}</span>
               </div>)}
             </div>
           </div>}

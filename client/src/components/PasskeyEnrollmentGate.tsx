@@ -33,7 +33,7 @@ export default function PasskeyEnrollmentGate({ officialEmail }: { officialEmail
         <div className="flex items-center gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--rakiza-olive)] text-white"><Fingerprint className="h-5 w-5" /></span>
           <div>
-            <p className="text-xs font-black text-[#4a785a]">بعد التسجيل الأول</p>
+            <p className="text-xs font-black text-[var(--rakiza-olive-strong)]">بعد التسجيل الأول</p>
             <h2 id="passkey-gate-title" className="text-xl font-black text-[#183d2d]">سجّل بصمة هذا الجهاز</h2>
           </div>
         </div>

@@ -42,13 +42,13 @@ export function dashboardPriorityBadge(priority: DashboardTask["priority"] = "no
 }
 export function dashboardDeadlineBadge(task: DashboardTask, now = Date.now()) {
   const visual = dashboardTaskVisualState(task, now);
-  return visual === "overdue" ? { label: "متأخرة", className: "bg-[#f8e6e1] text-[#a8493b]" } : visual === "due_soon" ? { label: "قريبة الموعد", className: "bg-[#f5edd8] text-[#80642b]" } : visual === "completed" ? { label: "مكتملة", className: "bg-[#e4f0e4] text-[#2d684a]" } : visual === "open" ? { label: "مفتوحة", className: "bg-[#e3eef5] text-[#2c5d77]" } : { label: "ضمن المسار", className: "bg-[#e4eee5] text-[#35634c]" };
+  return visual === "overdue" ? { label: "متأخرة", className: "bg-[#f8e6e1] text-[var(--rakiza-danger)]" } : visual === "due_soon" ? { label: "قريبة الموعد", className: "bg-[#f5edd8] text-[var(--rakiza-gold)]" } : visual === "completed" ? { label: "مكتملة", className: "bg-[#e4f0e4] text-[var(--rakiza-olive-strong)]" } : visual === "open" ? { label: "مفتوحة", className: "bg-[#e3eef5] text-[#2c5d77]" } : { label: "ضمن المسار", className: "bg-[#e4eee5] text-[#35634c]" };
 }
 export function newlyCompletedDashboardTaskIds(tasks: DashboardTask[], previousStatuses: Map<number, string>) {
   return tasks.filter(task => task.status === "completed" && previousStatuses.has(task.id) && previousStatuses.get(task.id) !== "completed").map(task => task.id);
 }
 export const dashboardCompletionMotionClass = (isJustCompleted: boolean) => isJustCompleted ? "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:duration-300 motion-safe:ease-out motion-reduce:animate-none" : "";
-export const stateTone = (late = 0, due = 0) => late > 0 ? "bg-[#f8e6e1] text-[#963e33]" : due > 0 ? "bg-[#f5edd8] text-[#80642b]" : "bg-[#e2eee3] text-[#2d684a]";
+export const stateTone = (late = 0, due = 0) => late > 0 ? "bg-[#f8e6e1] text-[#963e33]" : due > 0 ? "bg-[#f5edd8] text-[var(--rakiza-gold)]" : "bg-[#e2eee3] text-[var(--rakiza-olive-strong)]";
 export const stateLabel = (late = 0, due = 0) => late > 0 ? "يحتاج تدخلاً" : due > 0 ? "قريب الاستحقاق" : "ضمن المسار";
 export const formatUnreadBadgeCount = (count = 0) => count > 99 ? "99+" : String(Math.max(0, count));
 export const dashboardMetricIconSlotClass = "grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-current/15 bg-current/10";
@@ -221,9 +221,9 @@ export default function Home() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-sm font-bold text-[#2d684a] sm:text-xs">منجزة: {todayCounts.data?.completed ?? 0}</span>
-            <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-sm font-bold text-[#80642b] sm:text-xs">معلّقة: {todayCounts.data?.pending ?? 0}</span>
-            <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-sm font-bold text-[#a8493b] sm:text-xs">متأخرات: {todayCounts.data?.overdue ?? 0}</span>
+            <span className="rounded-full bg-[#e4f0e4] px-3 py-1 text-sm font-bold text-[var(--rakiza-olive-strong)] sm:text-xs">منجزة: {todayCounts.data?.completed ?? 0}</span>
+            <span className="rounded-full bg-[#f5edd8] px-3 py-1 text-sm font-bold text-[var(--rakiza-gold)] sm:text-xs">معلّقة: {todayCounts.data?.pending ?? 0}</span>
+            <span className="rounded-full bg-[#f8e6e1] px-3 py-1 text-sm font-bold text-[var(--rakiza-danger)] sm:text-xs">متأخرات: {todayCounts.data?.overdue ?? 0}</span>
           </div>
         </div>
       </section>
@@ -257,9 +257,9 @@ export default function Home() {
                   style={{ minWidth: 0 }}
                 >
                   {card.pulse && <span aria-hidden="true" className="pointer-events-none absolute inset-0 animate-pulse bg-red-400/30" />}
-                  <span className={cn("absolute top-1.5 right-1.5", "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 backdrop-blur-sm", "border text-[10px] font-black tabular-nums", card.darkText ? "border-black/10 bg-black/15 text-gray-900" : "border-white/50 bg-white/30 text-white")}>{formatUnreadBadgeCount(card.value)}</span>
-                  <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl backdrop-blur-sm ring-1 transition-transform duration-200", "group-hover:scale-110 group-hover:rotate-3", card.darkText ? "bg-white/50 ring-white/70" : "bg-white/20 ring-white/40")}><Icon className={cn("h-9 w-9 sm:h-8 sm:w-8", card.darkText ? "text-gray-800" : "text-white")} strokeWidth={2.2} /></span>
-                  <span className={cn("mt-1 line-clamp-2 text-center text-sm font-bold leading-snug", card.darkText ? "text-gray-900/90" : "text-white/95")}>{card.label}</span>
+                  <span className={cn("absolute top-1.5 right-1.5", "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 backdrop-blur-sm", "border text-[10px] font-black tabular-nums", card.darkText ? "border-black/10 bg-black/15 text-[var(--rakiza-ink)]" : "border-white/50 bg-white/30 text-white")}>{formatUnreadBadgeCount(card.value)}</span>
+                  <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl backdrop-blur-sm ring-1 transition-transform duration-200", "group-hover:scale-110 group-hover:rotate-3", card.darkText ? "bg-white/50 ring-white/70" : "bg-white/20 ring-white/40")}><Icon className={cn("h-9 w-9 sm:h-8 sm:w-8", card.darkText ? "text-[var(--rakiza-ink)]" : "text-white")} strokeWidth={2.2} /></span>
+                  <span className={cn("mt-1 line-clamp-2 text-center text-sm font-bold leading-snug", card.darkText ? "text-[var(--rakiza-ink)]/90" : "text-white/95")}>{card.label}</span>
                 </button>
               );
             })}

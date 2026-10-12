@@ -116,13 +116,13 @@ export default function TasksReassignPage() {
                     ) : filtered.length ? filtered.map((task, i) => (
                       <tr key={task.id} className="hover:bg-[#fafbf9]">
                         <td className="px-4 py-3 text-[var(--rakiza-muted)]">{i + 1}</td>
-                        <td className="px-4 py-3 font-bold text-[#26473a]">{task.title}</td>
+                        <td className="px-4 py-3 font-bold text-[var(--rakiza-ink)]">{task.title}</td>
                         <td className="px-4 py-3">{peopleById.get(task.assigneeProfileId ?? 0)?.fullName ?? "غير مسندة"}</td>
                         <td className="px-4 py-3 text-xs">{unitById.get(task.unitId ?? 0)?.name ?? "—"}</td>
                         <td className="px-4 py-3"><span className="rounded-full bg-[#eef3ee] px-2 py-0.5 text-[11px] font-bold text-[var(--rakiza-olive)]">{STATUS_LABELS[task.status] ?? task.status}</span></td>
                         <td className="px-4 py-3 text-xs text-[var(--rakiza-muted)]">{fmtDate(task.scheduledFor)}</td>
                         <td className="px-4 py-3">
-                          <Button type="button" size="sm" variant="outline" disabled={task.status === "completed" || task.status === "cancelled"} onClick={() => setDialog({ taskId: task.id, title: task.title, oldAssigneeProfileId: task.assigneeProfileId ?? null, unitId: task.unitId ?? null })} className="border-[#cbb27a] text-[#8a6d20] hover:bg-[#fff8ec]">
+                          <Button type="button" size="sm" variant="outline" disabled={task.status === "completed" || task.status === "cancelled"} onClick={() => setDialog({ taskId: task.id, title: task.title, oldAssigneeProfileId: task.assigneeProfileId ?? null, unitId: task.unitId ?? null })} className="border-[#cbb27a] text-[var(--rakiza-gold)] hover:bg-[#fff8ec]">
                             <ArrowRightLeft className="ml-1 h-4 w-4" />نقل
                           </Button>
                         </td>

@@ -62,7 +62,7 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{statusLabels[item.status] ?? item.status}</span>
-          <span className="text-xs text-gray-500">{item.createdAt ? new Date(item.createdAt).toLocaleDateString("ar-SA") : ""}</span>
+          <span className="text-xs text-[var(--rakiza-muted)]">{item.createdAt ? new Date(item.createdAt).toLocaleDateString("ar-SA") : ""}</span>
         </div>
       </div>
       <p className="mt-1 text-xs text-[var(--rakiza-muted)]">مقدم الطلب: {item.submitterName}</p>
@@ -71,21 +71,21 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
       {reviewable && item.type === "task_approval" && (
         <div className="mt-3 flex flex-wrap gap-2">
           <a href="/tasks?tab=approvals" className="rounded-lg px-3 py-1.5 text-xs font-bold bg-blue-600 text-white hover:bg-blue-700">📄 تفاصيل</a>
-          <button type="button" onClick={() => onAction(item, "approve", "excellent")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>🟢 ممتاز</button>
-          <button type="button" onClick={() => onAction(item, "approve", "good")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-yellow-500 text-white hover:bg-yellow-600" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>🟡 متوسط</button>
-          <button type="button" onClick={() => onAction(item, "approve", "acceptable")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-red-500 text-white hover:bg-red-600" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>🔴 مقبول</button>
-          <button type="button" onClick={() => onAction(item, "reject")} disabled={!isActionable(item) || !canReject} title={disabledReason(item) || (!canReject ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canReject ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>❌ رفض</button>
+          <button type="button" onClick={() => onAction(item, "approve", "excellent")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}>🟢 ممتاز</button>
+          <button type="button" onClick={() => onAction(item, "approve", "good")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-yellow-500 text-white hover:bg-yellow-600" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}>🟡 متوسط</button>
+          <button type="button" onClick={() => onAction(item, "approve", "acceptable")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-red-500 text-white hover:bg-red-600" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}>🔴 مقبول</button>
+          <button type="button" onClick={() => onAction(item, "reject")} disabled={!isActionable(item) || !canReject} title={disabledReason(item) || (!canReject ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canReject ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}>❌ رفض</button>
         </div>
       )}
       {reviewable && item.type !== "task_approval" && (
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={() => onAction(item, "approve")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>✅ اعتماد</button>
-          <button type="button" onClick={() => onAction(item, "reject")} disabled={!isActionable(item) || !canReject} title={disabledReason(item) || (!canReject ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canReject ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>❌ رفض</button>
-          <button type="button" onClick={() => onAction(item, "escalate")} disabled={!isActionable(item) || !canEscalate} title={disabledReason(item) || (!canEscalate ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canEscalate ? "bg-orange-500 text-white hover:bg-orange-600" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>⬆️ تصعيد</button>
-          <button type="button" onClick={() => onAction(item, "return")} disabled={!isActionable(item) || !canReturn} title={disabledReason(item) || (!canReturn ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canReturn ? "bg-gray-600 text-white hover:bg-gray-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}>🔄 عودة للتصحيح</button>
+          <button type="button" onClick={() => onAction(item, "approve")} disabled={!isActionable(item) || !canApprove} title={disabledReason(item) || (!canApprove ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canApprove ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}>✅ اعتماد</button>
+          <button type="button" onClick={() => onAction(item, "reject")} disabled={!isActionable(item) || !canReject} title={disabledReason(item) || (!canReject ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canReject ? "bg-red-600 text-white hover:bg-red-700" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}>❌ رفض</button>
+          <button type="button" onClick={() => onAction(item, "escalate")} disabled={!isActionable(item) || !canEscalate} title={disabledReason(item) || (!canEscalate ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canEscalate ? "bg-orange-500 text-white hover:bg-orange-600" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}>⬆️ تصعيد</button>
+          <button type="button" onClick={() => onAction(item, "return")} disabled={!isActionable(item) || !canReturn} title={disabledReason(item) || (!canReturn ? "ليس لديك صلاحية" : "")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${isActionable(item) && canReturn ? "bg-gray-600 text-white hover:bg-gray-700" : "bg-gray-200 text-[var(--rakiza-muted)] cursor-not-allowed"}`}>🔄 عودة للتصحيح</button>
         </div>
       )}
-      {reviewable && !isActionable(item) && <p className="mt-2 text-sm text-gray-500">{disabledReason(item)}</p>}
+      {reviewable && !isActionable(item) && <p className="mt-2 text-sm text-[var(--rakiza-muted)]">{disabledReason(item)}</p>}
     </div>
   );
 }
@@ -180,7 +180,7 @@ export default function MyRequestsPage() {
           {tab === "adminApprovals" ? (
             <>
               <a href="/approvals" className="inline-block text-sm font-bold text-[var(--rakiza-olive-strong)] underline">فتح صفحة الاعتمادات الإدارية</a>
-              {adminApprovals.isLoading ? <p className="text-gray-500">جارٍ التحميل…</p> : (adminApprovals.data ?? []).length ? (adminApprovals.data ?? []).map((approval: any) => (
+              {adminApprovals.isLoading ? <p className="text-[var(--rakiza-muted)]">جارٍ التحميل…</p> : (adminApprovals.data ?? []).length ? (adminApprovals.data ?? []).map((approval: any) => (
                 <div key={approval.id} className="rounded-xl border border-[var(--rakiza-border)] bg-white p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="rounded bg-[#eef4f0] px-2 py-0.5 text-xs text-[var(--rakiza-olive-strong)]">{approval.entityType}</span>
@@ -189,9 +189,9 @@ export default function MyRequestsPage() {
                   <p className="mt-2 text-sm font-bold text-[var(--rakiza-ink)]">طلب اعتماد #{approval.id}</p>
                   <p className="mt-1 text-xs text-[var(--rakiza-muted)]">{approval.createdAt ? new Date(approval.createdAt).toLocaleDateString("ar-SA") : ""}</p>
                 </div>
-              )) : <p className="text-gray-500">لا توجد اعتمادات إدارية معلّقة.</p>}
+              )) : <p className="text-[var(--rakiza-muted)]">لا توجد اعتمادات إدارية معلّقة.</p>}
             </>
-          ) : dash.isLoading ? <p className="text-gray-500">جارٍ التحميل…</p> : list.length ? list.map((item: Item) => { const actionable = canActOnItem(item); return <Card key={`${item.type}-${item.id}`} item={item} reviewable={tab === "toReview"} canApprove={canApprove && actionable} canReject={canReject && actionable} canEscalate={canEscalate && actionable} canReturn={canReturn && actionable} onAction={openDialog} />; }) : <p className="text-gray-500">لا توجد عناصر في هذا التبويب.</p>}
+          ) : dash.isLoading ? <p className="text-[var(--rakiza-muted)]">جارٍ التحميل…</p> : list.length ? list.map((item: Item) => { const actionable = canActOnItem(item); return <Card key={`${item.type}-${item.id}`} item={item} reviewable={tab === "toReview"} canApprove={canApprove && actionable} canReject={canReject && actionable} canEscalate={canEscalate && actionable} canReturn={canReturn && actionable} onAction={openDialog} />; }) : <p className="text-[var(--rakiza-muted)]">لا توجد عناصر في هذا التبويب.</p>}
         </div>
       </section>
 

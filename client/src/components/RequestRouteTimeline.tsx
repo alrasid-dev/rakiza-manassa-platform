@@ -68,7 +68,7 @@ export default function RequestRouteTimeline({ requestId, requestType }: { reque
           );
         })}
       </ol>
-      {hint && <p className="mt-2 rounded bg-[#f3e5bf] px-2 py-1 text-[#805d27]">{hint}</p>}
+      {hint && <p className="mt-2 rounded bg-[#f3e5bf] px-2 py-1 text-[var(--rakiza-gold)]">{hint}</p>}
     </div>
   );
 }
