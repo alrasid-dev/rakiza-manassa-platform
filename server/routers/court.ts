@@ -1242,8 +1242,19 @@ export const courtRouter = router({
     }),
     detail: protectedProcedure.input(z.object({ ticketId: z.number().int().positive() })).query(async ({ ctx, input }) => {
       const access = await requireSupportTicketAccess(ctx.user, input.ticketId);
-      const canViewInternalComments = access.isLeadership || access.isAssignedAgent;
-      return { ...access.detail, comments: canViewInternalComments ? access.detail.comments : access.detail.comments.filter(item => !item.comment.isInternal) };
+      const canViewInternal = access.isLeadership || access.isAssignedAgent;
+      const requesterProfileId = access.detail.ticket.requesterProfileId;
+      const comments = access.detail.comments
+        .filter(item => canViewInternal || !item.comment.isInternal)
+        .map(item => {
+          const isSupportComment = item.comment.authorProfileId !== requesterProfileId;
+          return {
+            ...item,
+            authorName: !canViewInternal && isSupportComment ? "الدعم الفني" : item.authorName,
+            authorIsSupport: !canViewInternal && isSupportComment,
+          };
+        });
+      return { ...access.detail, comments };
     }),
     comment: protectedProcedure.input(z.object({ ticketId: z.number().int().positive(), body: z.string().trim().min(2).max(5000), isInternal: z.boolean().optional() })).mutation(async ({ ctx, input }) => {
       const access = await requireSupportTicketAccess(ctx.user, input.ticketId);
