@@ -32,6 +32,13 @@ function riyadhDateKey(value: unknown): string {
   return new Date(d.getTime() + RIYADH_OFFSET_MS).toISOString().slice(0, 10);
 }
 
+function riyadhTimeHHMM(value: unknown): string {
+  const d = toDate(value);
+  if (!d) return "";
+  const riyadh = new Date(d.getTime() + RIYADH_OFFSET_MS);
+  return `${String(riyadh.getUTCHours()).padStart(2, "0")}:${String(riyadh.getUTCMinutes()).padStart(2, "0")}`;
+}
+
 function parseDayKey(key: string): Date | null {
   const [y, m, d] = key.split("-").map(Number);
   if (!y || !m || !d) return null;
@@ -357,6 +364,7 @@ export interface FullExportParams {
   unitId?: number;
   status?: string;
   profileId?: number;
+  exportedBy?: string;
 }
 
 function isoDate(value: unknown): string {
@@ -388,6 +396,11 @@ function cleanSheet(headers: string[], rows: (string | number)[][]): XLSX.WorkSh
 export async function buildFullWorkbook(params: FullExportParams = {}): Promise<{ buffer: Buffer; filename: string }> {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
+
+  const now = new Date();
+  const exportDate = riyadhDateKey(now);
+  const exportTime = riyadhTimeHHMM(now);
+  const exportDateTime = `${exportDate} ${exportTime}`;
 
   const fromKey = params.from ?? "";
   const toKey = params.to ?? "";
@@ -474,8 +487,11 @@ export async function buildFullWorkbook(params: FullExportParams = {}): Promise<
     return true;
   });
 
-  // ===== الأوراق 1-5 =====
   const r = await buildKpiReport();
+  const periodCovered = params.from && params.to ? `${params.from} → ${params.to}` : `${r.periodStart} → ${r.periodEnd}`;
+  const totalRecords = allTasks.length + attendance.length + leaves.length + balances.length + scopedDisciplinary.length;
+
+  // ===== الأوراق 1-5 =====
   const kpiRows: (string | number)[][] = [
     ["عدد الأقسام الكلية", r.units.total, "قسم"],
     ["الأقسام الفعّالة", r.units.activeBoth, "قسم"],
@@ -508,7 +524,15 @@ export async function buildFullWorkbook(params: FullExportParams = {}): Promise<
     ["مهام متوقعة (شهري)", r.predictions.monthly, "مهمة"],
     ["مهام متوقعة (سنوي)", r.predictions.yearly, "مهمة"],
   ];
-  const kpiWs = cleanSheet(["المؤشر", "القيمة", "الوحدة"], kpiRows);
+  const kpiAoa = [
+    ["آخر تحديث", exportDateTime, ""],
+    ["فترة التقرير", periodCovered, ""],
+    ["المؤشر", "القيمة", "الوحدة"],
+    ...kpiRows,
+  ];
+  const kpiWs = XLSX.utils.aoa_to_sheet(kpiAoa);
+  kpiWs["!cols"] = [{ wch: 22 }, { wch: 14 }, { wch: 10 }];
+  for (let c = 0; c < 3; c++) applyCellStyle(kpiWs, 2, c, { fill: BRAND.green, color: BRAND.white, bold: true });
 
   const flowWs = cleanSheet(
     ["التاريخ", "مهام جديدة", "مهام منجزة", "حضور", "إجازات"],
@@ -516,69 +540,80 @@ export async function buildFullWorkbook(params: FullExportParams = {}): Promise<
   );
 
   const taskWs = cleanSheet(
-    ["رقم المهمة", "العنوان", "رقم القسم", "اسم القسم", "رقم المُسند", "اسم المُسند", "الحالة", "الأولوية", "تاريخ الإنشاء", "تاريخ الاستحقاق", "تاريخ الإنجاز"],
-    scopedTasks.map(t => [t.id, t.title, t.unitId ?? "", unitNameOf(t.unitId), t.assigneeProfileId ?? "", profileNameOf(t.assigneeProfileId), t.status, t.priority, isoDate(t.createdAt), isoDate(t.dueAt), isoDate(t.completedAt)]),
+    ["رقم المهمة", "العنوان", "رقم القسم", "اسم القسم", "رقم المُسند", "اسم المُسند", "الحالة", "الأولوية", "تاريخ الإنشاء", "تاريخ الاستحقاق", "تاريخ الإنجاز", "وقت التصدير"],
+    scopedTasks.map(t => [t.id, t.title, t.unitId ?? "", unitNameOf(t.unitId), t.assigneeProfileId ?? "", profileNameOf(t.assigneeProfileId), t.status, t.priority, isoDate(t.createdAt), isoDate(t.dueAt), isoDate(t.completedAt), exportDateTime]),
   );
 
   const attWs = cleanSheet(
-    ["رقم السجل", "رقم الموظف", "اسم الموظف", "اسم القسم", "التاريخ", "وقت الدخول", "وقت الخروج", "الحالة", "دقائق موجبة", "دقائق سالبة"],
-    scopedAttendance.map(a => [a.id, a.profileId, profileNameOf(a.profileId), unitOfProfile(a.profileId), riyadhDateKey(a.recordDate), isoDateTime(a.checkInAt), isoDateTime(a.checkOutAt), a.status, numValue(a.positiveMinutes), numValue(a.negativeMinutes)]),
+    ["رقم السجل", "رقم الموظف", "اسم الموظف", "اسم القسم", "التاريخ", "وقت الدخول", "وقت الخروج", "الحالة", "دقائق موجبة", "دقائق سالبة", "وقت التصدير"],
+    scopedAttendance.map(a => [a.id, a.profileId, profileNameOf(a.profileId), unitOfProfile(a.profileId), riyadhDateKey(a.recordDate), isoDateTime(a.checkInAt), isoDateTime(a.checkOutAt), a.status, numValue(a.positiveMinutes), numValue(a.negativeMinutes), exportDateTime]),
   );
 
   const leaveWs = cleanSheet(
-    ["رقم الطلب", "رقم الموظف", "اسم الموظف", "اسم القسم", "نوع الإجازة", "الحالة", "تاريخ البداية", "تاريخ النهاية", "تاريخ التقديم"],
-    scopedLeaves.map(l => [l.id, l.profileId, profileNameOf(l.profileId), unitOfProfile(l.profileId), l.requestType, l.status, isoDate(l.startAt), isoDate(l.endAt), isoDate(l.createdAt)]),
+    ["رقم الطلب", "رقم الموظف", "اسم الموظف", "اسم القسم", "نوع الإجازة", "الحالة", "تاريخ البداية", "تاريخ النهاية", "تاريخ التقديم", "وقت التصدير"],
+    scopedLeaves.map(l => [l.id, l.profileId, profileNameOf(l.profileId), unitOfProfile(l.profileId), l.requestType, l.status, isoDate(l.startAt), isoDate(l.endAt), isoDate(l.createdAt), exportDateTime]),
   );
 
   // ===== الأوراق 6-12 =====
   const empWs = cleanSheet(
-    ["رقم الموظف", "الاسم الكامل", "رقم القسم", "اسم القسم", "نوع الموظف", "المسمى الوظيفي", "الحالة", "آخر دخول"],
-    scopedProfiles.map(p => [p.id, p.fullName, p.unitId ?? "", unitNameOf(p.unitId), p.personType, p.jobTitle ?? "", p.status, isoDateTime(userById.get(p.userId ?? 0)?.lastSignedIn)]),
+    ["رقم الموظف", "الاسم الكامل", "رقم القسم", "اسم القسم", "نوع الموظف", "المسمى الوظيفي", "الحالة", "آخر دخول", "وقت التصدير"],
+    scopedProfiles.map(p => [p.id, p.fullName, p.unitId ?? "", unitNameOf(p.unitId), p.personType, p.jobTitle ?? "", p.status, isoDateTime(userById.get(p.userId ?? 0)?.lastSignedIn), exportDateTime]),
   );
 
   const scopedUnits = units.filter(u => params.unitId == null || u.id === params.unitId);
   const unitWs = cleanSheet(
-    ["رقم القسم", "اسم القسم", "فعّال", "رقم القسم الأب", "عدد الموظفين", "عدد القوالب", "عدد المهام"],
-    scopedUnits.map(u => [u.id, u.name, u.isActive ? 1 : 0, u.parentId ?? "", profiles.filter(p => p.unitId === u.id).length, templates.filter(t => t.unitId === u.id).length, allTasks.filter(t => t.unitId === u.id).length]),
+    ["رقم القسم", "اسم القسم", "فعّال", "رقم القسم الأب", "عدد الموظفين", "عدد القوالب", "عدد المهام", "وقت التصدير"],
+    scopedUnits.map(u => [u.id, u.name, u.isActive ? 1 : 0, u.parentId ?? "", profiles.filter(p => p.unitId === u.id).length, templates.filter(t => t.unitId === u.id).length, allTasks.filter(t => t.unitId === u.id).length, exportDateTime]),
   );
 
   const balWs = cleanSheet(
-    ["رقم الموظف", "الاسم الكامل", "اسم القسم", "الشهر الهجري", "دقائق موجبة", "دقائق سالبة", "دقائق جزاء", "الرصيد الصافي"],
-    scopedBalances.map(b => [b.profileId, profileNameOf(b.profileId), unitOfProfile(b.profileId), b.hijriMonthKey, numValue(b.positiveMinutes), numValue(b.negativeMinutes), numValue(b.penaltyMinutes), numValue(b.netMinutes)]),
+    ["رقم الموظف", "الاسم الكامل", "اسم القسم", "الشهر الهجري", "دقائق موجبة", "دقائق سالبة", "دقائق جزاء", "الرصيد الصافي", "وقت التصدير"],
+    scopedBalances.map(b => [b.profileId, profileNameOf(b.profileId), unitOfProfile(b.profileId), b.hijriMonthKey, numValue(b.positiveMinutes), numValue(b.negativeMinutes), numValue(b.penaltyMinutes), numValue(b.netMinutes), exportDateTime]),
   );
 
   const discWs = cleanSheet(
-    ["رقم الحالة", "رقم الموظف", "اسم الموظف", "اسم القسم", "نوع المساءلة", "الحالة", "السبب", "تاريخ الإنشاء"],
+    ["رقم الحالة", "رقم الموظف", "اسم الموظف", "اسم القسم", "نوع المساءلة", "الحالة", "السبب", "تاريخ الإنشاء", "وقت التصدير"],
     scopedDisciplinary.map(a => {
       const { profile, type } = resolveDisciplinaryProfile(a.entityId);
-      return [a.id, profile?.id ?? "", profile?.fullName ?? "", unitNameOf(profile?.unitId), type, a.status, a.requestNote ?? "", isoDate(a.createdAt)];
+      return [a.id, profile?.id ?? "", profile?.fullName ?? "", unitNameOf(profile?.unitId), type, a.status, a.requestNote ?? "", isoDate(a.createdAt), exportDateTime];
     }),
   );
 
   const deptWs = cleanSheet(
-    ["رقم القسم", "اسم القسم", "رقم المهمة", "العنوان", "الحالة", "تاريخ الاستحقاق"],
-    scopedTasks.map(t => [t.unitId ?? "", unitNameOf(t.unitId), t.id, t.title, t.status, isoDate(t.dueAt)]),
+    ["رقم القسم", "اسم القسم", "رقم المهمة", "العنوان", "الحالة", "تاريخ الاستحقاق", "وقت التصدير"],
+    scopedTasks.map(t => [t.unitId ?? "", unitNameOf(t.unitId), t.id, t.title, t.status, isoDate(t.dueAt), exportDateTime]),
   );
 
   const nowMs = Date.now();
   const overdueWs = cleanSheet(
-    ["رقم المهمة", "العنوان", "اسم القسم", "اسم المُسند", "تاريخ الاستحقاق", "أيام التأخر"],
+    ["رقم المهمة", "العنوان", "اسم القسم", "اسم المُسند", "تاريخ الاستحقاق", "أيام التأخر", "وقت التصدير"],
     scopedTasks.filter(t => t.status === "overdue").map(t => {
       const due = toDate(t.dueAt);
-      return [t.id, t.title, unitNameOf(t.unitId), profileNameOf(t.assigneeProfileId), isoDate(t.dueAt), due ? Math.max(0, Math.floor((nowMs - due.getTime()) / 86400000)) : 0];
+      return [t.id, t.title, unitNameOf(t.unitId), profileNameOf(t.assigneeProfileId), isoDate(t.dueAt), due ? Math.max(0, Math.floor((nowMs - due.getTime()) / 86400000)) : 0, exportDateTime];
     }),
   );
 
   const summaryWs = cleanSheet(
-    ["رقم القسم", "اسم القسم", "إجمالي المهام", "المكتملة", "المتأخرة", "عدد الموظفين", "نسبة الحضور"],
+    ["رقم القسم", "اسم القسم", "إجمالي المهام", "المكتملة", "المتأخرة", "عدد الموظفين", "نسبة الحضور", "وقت التصدير"],
     scopedUnits.map(u => {
       const uProfileIds = new Set(profiles.filter(p => p.unitId === u.id).map(p => p.id));
       const uTasks = allTasks.filter(t => t.unitId === u.id);
       const uAtt = attendance.filter(a => uProfileIds.has(a.profileId));
       const compliant = uAtt.filter(a => a.status === "present" || a.status === "late").length;
       const rate = uAtt.length ? Math.round((compliant / uAtt.length) * 1000) / 10 : 0;
-      return [u.id, u.name, uTasks.length, uTasks.filter(t => t.status === "completed").length, uTasks.filter(t => t.status === "overdue").length, uProfileIds.size, rate];
+      return [u.id, u.name, uTasks.length, uTasks.filter(t => t.status === "completed").length, uTasks.filter(t => t.status === "overdue").length, uProfileIds.size, rate, exportDateTime];
     }),
+  );
+
+  const execWs = cleanSheet(
+    ["البيان", "القيمة"],
+    [
+      ["تاريخ التقرير", exportDate],
+      ["وقت التقرير", `${exportTime} (الرياض)`],
+      ["الفترة المُغطاة", periodCovered],
+      ["إجمالي السجلات", totalRecords],
+      ["مُصدَّر بواسطة", params.exportedBy ?? ""],
+    ],
   );
 
   const wb = XLSX.utils.book_new();
@@ -594,10 +629,11 @@ export async function buildFullWorkbook(params: FullExportParams = {}): Promise<
   XLSX.utils.book_append_sheet(wb, deptWs, "مهام الأقسام");
   XLSX.utils.book_append_sheet(wb, overdueWs, "المهام المتأخرة");
   XLSX.utils.book_append_sheet(wb, summaryWs, "ملخص الأقسام");
+  XLSX.utils.book_append_sheet(wb, execWs, "التقرير التنفيذي");
 
-  const today = riyadhDateKey(new Date());
+  const filenameTime = exportTime.replace(":", "-");
   const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx", cellStyles: true }) as Buffer;
-  return { buffer, filename: `rakiza_full_${today}.xlsx` };
+  return { buffer, filename: `rakiza_full_${exportDate}_${filenameTime}.xlsx` };
 }
 
 

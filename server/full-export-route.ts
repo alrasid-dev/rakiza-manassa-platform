@@ -38,6 +38,7 @@ export function registerFullExportRoute(app: Express) {
         unitId: Number.isFinite(unitId) && unitId > 0 ? unitId : undefined,
         status,
         profileId: Number.isFinite(profileId) && profileId > 0 ? profileId : undefined,
+        exportedBy: isOwner ? "مالك المنصة" : (user.email ?? ""),
       });
       res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
