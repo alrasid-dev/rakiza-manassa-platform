@@ -4928,6 +4928,25 @@ export async function notifyPlatformOwnerSecurityAlert(input: { actorUserId: num
   await logAudit({ actorUserId: input.actorUserId, action: "security_alert.owner_notified", entityType: input.entityType, entityId: input.entityId, metadata: { action: input.action, ownerProfileId: ownerProfile.id, details: input.details ?? null } });
 }
 
+/** إشعار عادي (غير أمني) للمالك عند فشل محاولة تسجيل حضور — مع بيان سبب الفشل. */
+export async function notifyOwnerAttendanceFailure(input: { actorUserId: number; reason: string }) {
+  const db = await getDb();
+  if (!db || !ENV.platformOwnerEmail) return;
+  const owner = (await db.select({ id: users.id }).from(users).where(eq(users.email, ENV.platformOwnerEmail)).limit(1))[0];
+  if (!owner) return;
+  const ownerProfile = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, owner.id)).limit(1))[0];
+  if (!ownerProfile) return;
+  const actor = (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.userId, input.actorUserId)).limit(1))[0];
+  const actorLabel = actor?.fullName ?? `موظف (${input.actorUserId})`;
+  await db.insert(notifications).values({
+    profileId: ownerProfile.id,
+    category: "attendance_modified",
+    title: "فشل تسجيل حضور",
+    body: `فشلت محاولة تسجيل حضور ${actorLabel} — السبب: ${input.reason}`,
+    dedupeKey: `attendance-failure-${input.actorUserId}-${Date.now()}`,
+  });
+}
+
 export async function listNotificationsForProfile(profileId: number) {
   const db = await getDb();
   if (!db) return [];

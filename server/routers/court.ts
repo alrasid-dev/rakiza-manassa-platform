@@ -236,6 +236,7 @@ import {
   setConfirmationAudienceUnitIds,
   setConfirmationSettings,
   notifyPlatformOwnerSecurityAlert,
+  notifyOwnerAttendanceFailure,
   renewTraineeAssignment,
   resolveSupportTicket,
   revokeCourtRole,
@@ -2699,7 +2700,8 @@ export const courtRouter = router({
         await recordAttendance({ ...input, recordDate: serverNow, checkInAt: isSelfRecord ? serverNow : input.checkInAt, checkOutAt: isSelfRecord ? undefined : input.checkOutAt, autoClassify: isSelfRecord, actorUserId: ctx.user.id });
         return { success: true };
       } catch (error) {
-        await notifyPlatformOwnerSecurityAlert({ actorUserId: ctx.user.id, action: "attendance.record_attempt_failed", entityType: "attendance", entityId: input.profileId }).catch(() => undefined);
+        const reason = error instanceof Error ? error.message : "سبب غير معروف";
+        await notifyOwnerAttendanceFailure({ actorUserId: ctx.user.id, reason }).catch(() => undefined);
         throw error;
       }
     }),
