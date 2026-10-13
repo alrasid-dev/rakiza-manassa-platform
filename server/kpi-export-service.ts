@@ -5,12 +5,15 @@
 import { sql } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import {
+  approvalRequests,
   attendanceRecords,
   leaveRequests,
+  monthlyBalances,
   organizationUnits,
   personProfiles,
   taskTemplates,
   tasks,
+  users,
 } from "../drizzle/schema";
 import { getDb } from "./db";
 import { reportStart } from "./reporting";
@@ -346,6 +349,255 @@ export async function buildKpiWorkbook(): Promise<{ buffer: Buffer; filename: st
   XLSX.utils.book_append_sheet(wb, flowWs, "DailyFlow");
   const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx", cellStyles: true }) as Buffer;
   return { buffer, filename: `rakiza_kpi_${r.periodEnd}.xlsx` };
+}
+
+export interface FullExportParams {
+  from?: string;
+  to?: string;
+  unitId?: number;
+  status?: string;
+  profileId?: number;
+}
+
+function isoDate(value: unknown): string {
+  const d = toDate(value);
+  return d ? d.toISOString().slice(0, 10) : "";
+}
+
+function isoDateTime(value: unknown): string {
+  const d = toDate(value);
+  return d ? d.toISOString() : "";
+}
+
+function numValue(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** ورقة نظيفة: السطر 1 رؤوس (عربي) ثم البيانات، بدون دمج أو صف إجمالي. */
+function cleanSheet(headers: string[], rows: (string | number)[][]): XLSX.WorkSheet {
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws["!cols"] = headers.map(() => ({ wch: 22 }));
+  for (let c = 0; c < headers.length; c++) {
+    applyCellStyle(ws, 0, c, { fill: BRAND.green, color: BRAND.white, bold: true });
+  }
+  return ws;
+}
+
+/** تقرير كامل (12 ورقة) جاهز لـ Power BI — كل ورقة جدول نظيف بأعمدة عربية. */
+export async function buildFullWorkbook(params: FullExportParams = {}): Promise<{ buffer: Buffer; filename: string }> {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+
+  const fromKey = params.from ?? "";
+  const toKey = params.to ?? "";
+  const dateInRange = (value: unknown): boolean => {
+    const key = riyadhDateKey(value);
+    if (!key) return !fromKey && !toKey;
+    if (fromKey && key < fromKey) return false;
+    if (toKey && key > toKey) return false;
+    return true;
+  };
+
+  const units = await db.select().from(organizationUnits);
+  const profiles = await db.select().from(personProfiles);
+  const templates = await db.select().from(taskTemplates);
+  const allTasks = await db.select().from(tasks);
+  const attendance = await db.select().from(attendanceRecords);
+  const leaves = await db.select().from(leaveRequests);
+  const balances = await db.select().from(monthlyBalances);
+  const allApprovals = await db.select().from(approvalRequests);
+  const usersRows = await db.select().from(users);
+
+  const unitById = new Map(units.map(u => [u.id, u]));
+  const profileById = new Map(profiles.map(p => [p.id, p]));
+  const userById = new Map(usersRows.map(u => [u.id, u]));
+  const taskById = new Map(allTasks.map(t => [t.id, t]));
+
+  const unitNameOf = (id: number | null | undefined): string => (id != null ? unitById.get(id)?.name ?? "" : "");
+  const profileNameOf = (id: number | null | undefined): string => (id != null ? profileById.get(id)?.fullName ?? "" : "");
+  const unitOfProfile = (id: number | null | undefined): string => unitNameOf(profileById.get(id ?? 0)?.unitId);
+
+  const scopedTasks = allTasks.filter(t => {
+    if (params.unitId != null && t.unitId !== params.unitId) return false;
+    if (params.status && t.status !== params.status) return false;
+    if (params.profileId != null && t.assigneeProfileId !== params.profileId) return false;
+    if (!dateInRange(t.scheduledFor)) return false;
+    return true;
+  });
+
+  const scopedAttendance = attendance.filter(a => {
+    const p = profileById.get(a.profileId);
+    if (params.unitId != null && p?.unitId !== params.unitId) return false;
+    if (params.profileId != null && a.profileId !== params.profileId) return false;
+    if (params.status && a.status !== params.status) return false;
+    if (!dateInRange(a.recordDate)) return false;
+    return true;
+  });
+
+  const scopedLeaves = leaves.filter(l => {
+    const p = profileById.get(l.profileId);
+    if (params.unitId != null && p?.unitId !== params.unitId) return false;
+    if (params.profileId != null && l.profileId !== params.profileId) return false;
+    if (!dateInRange(l.startAt)) return false;
+    return true;
+  });
+
+  const scopedProfiles = profiles.filter(p => {
+    if (params.unitId != null && p.unitId !== params.unitId) return false;
+    if (params.profileId != null && p.id !== params.profileId) return false;
+    return true;
+  });
+
+  const scopedBalances = balances.filter(b => {
+    const p = profileById.get(b.profileId);
+    if (params.unitId != null && p?.unitId !== params.unitId) return false;
+    if (params.profileId != null && b.profileId !== params.profileId) return false;
+    return true;
+  });
+
+  const resolveDisciplinaryProfile = (entityId: number) => {
+    const direct = profileById.get(entityId);
+    if (direct) return { profile: direct, type: "حضور" as const };
+    const task = taskById.get(entityId);
+    const profile = task?.assigneeProfileId != null ? profileById.get(task.assigneeProfileId) : undefined;
+    return { profile, type: "مهمة" as const };
+  };
+
+  const scopedDisciplinary = allApprovals.filter(a => {
+    if (a.entityType !== "disciplinary_action") return false;
+    if (params.status && a.status !== params.status) return false;
+    if (!dateInRange(a.createdAt)) return false;
+    const { profile } = resolveDisciplinaryProfile(a.entityId);
+    if (params.unitId != null && profile?.unitId !== params.unitId) return false;
+    if (params.profileId != null && profile?.id !== params.profileId) return false;
+    return true;
+  });
+
+  // ===== الأوراق 1-5 =====
+  const r = await buildKpiReport();
+  const kpiRows: (string | number)[][] = [
+    ["عدد الأقسام الكلية", r.units.total, "قسم"],
+    ["الأقسام الفعّالة", r.units.activeBoth, "قسم"],
+    ["الأقسام الفارغة", r.units.empty, "قسم"],
+    ["الأقسام بلا قوالب", r.units.noTemplates, "قسم"],
+    ["الموظفون النشطون", r.employees.active, "موظف"],
+    ["الموظفون الكلي", r.employees.total, "موظف"],
+    ["إجمالي المهام", r.tasks.total, "مهمة"],
+    ["المهام المكتملة", r.tasks.completed, "مهمة"],
+    ["المهام المتأخرة", r.tasks.overdue, "مهمة"],
+    ["المهام الجارية", r.tasks.inProgress, "مهمة"],
+    ["مستوى الإنجاز", r.completionRate, "%"],
+    ["إجمالي تسجيلات الحضور", r.attendance.total, "سجل"],
+    ["نسبة الالتزام", r.attendance.complianceRate, "%"],
+    ["إجمالي الإجازات", r.leaves.total, "طلب"],
+    ["الإجازات المعتمدة", r.leaves.approved, "طلب"],
+    ["الإجازات المرفوضة", r.leaves.rejected, "طلب"],
+    ["الإجازات المعلقة", r.leaves.pending, "طلب"],
+    ["معدل المساءلات المستهدف", r.accountabilityTargetRate, "%"],
+    ["إجمالي المؤرشف", r.totalArchived, "سجل"],
+    ["متوسط المهام لكل قسم", r.averages.tasksPerUnit, "مهمة"],
+    ["متوسط المهام لكل موظف/يوم", r.averages.tasksPerEmployeePerDay, "مهمة"],
+    ["متوسط وقت إنهاء المهمة", r.averages.avgCompletionHours ?? 0, "ساعة"],
+    ["متوسط المهام المنجزة/يوم", r.averages.completedPerDay, "مهمة"],
+    ["معدل الإنتاجية", r.averages.productivity, "مهمة"],
+    ["المهام المُولَّدة تلقائياً", r.tasks.autoGenerated, "مهمة"],
+    ["المهام اليدوية", r.tasks.manual, "مهمة"],
+    ["نسبة الأتمتة", r.automationRate, "%"],
+    ["مهام متوقعة (يومي)", r.predictions.daily, "مهمة"],
+    ["مهام متوقعة (شهري)", r.predictions.monthly, "مهمة"],
+    ["مهام متوقعة (سنوي)", r.predictions.yearly, "مهمة"],
+  ];
+  const kpiWs = cleanSheet(["المؤشر", "القيمة", "الوحدة"], kpiRows);
+
+  const flowWs = cleanSheet(
+    ["التاريخ", "مهام جديدة", "مهام منجزة", "حضور", "إجازات"],
+    r.dailyFlow.map(d => [d.date, d.newTasks, d.completedTasks, d.attendance, d.leaves]),
+  );
+
+  const taskWs = cleanSheet(
+    ["رقم المهمة", "العنوان", "رقم القسم", "اسم القسم", "رقم المُسند", "اسم المُسند", "الحالة", "الأولوية", "تاريخ الإنشاء", "تاريخ الاستحقاق", "تاريخ الإنجاز"],
+    scopedTasks.map(t => [t.id, t.title, t.unitId ?? "", unitNameOf(t.unitId), t.assigneeProfileId ?? "", profileNameOf(t.assigneeProfileId), t.status, t.priority, isoDate(t.createdAt), isoDate(t.dueAt), isoDate(t.completedAt)]),
+  );
+
+  const attWs = cleanSheet(
+    ["رقم السجل", "رقم الموظف", "اسم الموظف", "اسم القسم", "التاريخ", "وقت الدخول", "وقت الخروج", "الحالة", "دقائق موجبة", "دقائق سالبة"],
+    scopedAttendance.map(a => [a.id, a.profileId, profileNameOf(a.profileId), unitOfProfile(a.profileId), riyadhDateKey(a.recordDate), isoDateTime(a.checkInAt), isoDateTime(a.checkOutAt), a.status, numValue(a.positiveMinutes), numValue(a.negativeMinutes)]),
+  );
+
+  const leaveWs = cleanSheet(
+    ["رقم الطلب", "رقم الموظف", "اسم الموظف", "اسم القسم", "نوع الإجازة", "الحالة", "تاريخ البداية", "تاريخ النهاية", "تاريخ التقديم"],
+    scopedLeaves.map(l => [l.id, l.profileId, profileNameOf(l.profileId), unitOfProfile(l.profileId), l.requestType, l.status, isoDate(l.startAt), isoDate(l.endAt), isoDate(l.createdAt)]),
+  );
+
+  // ===== الأوراق 6-12 =====
+  const empWs = cleanSheet(
+    ["رقم الموظف", "الاسم الكامل", "رقم القسم", "اسم القسم", "نوع الموظف", "المسمى الوظيفي", "الحالة", "آخر دخول"],
+    scopedProfiles.map(p => [p.id, p.fullName, p.unitId ?? "", unitNameOf(p.unitId), p.personType, p.jobTitle ?? "", p.status, isoDateTime(userById.get(p.userId ?? 0)?.lastSignedIn)]),
+  );
+
+  const scopedUnits = units.filter(u => params.unitId == null || u.id === params.unitId);
+  const unitWs = cleanSheet(
+    ["رقم القسم", "اسم القسم", "فعّال", "رقم القسم الأب", "عدد الموظفين", "عدد القوالب", "عدد المهام"],
+    scopedUnits.map(u => [u.id, u.name, u.isActive ? 1 : 0, u.parentId ?? "", profiles.filter(p => p.unitId === u.id).length, templates.filter(t => t.unitId === u.id).length, allTasks.filter(t => t.unitId === u.id).length]),
+  );
+
+  const balWs = cleanSheet(
+    ["رقم الموظف", "الاسم الكامل", "اسم القسم", "الشهر الهجري", "دقائق موجبة", "دقائق سالبة", "دقائق جزاء", "الرصيد الصافي"],
+    scopedBalances.map(b => [b.profileId, profileNameOf(b.profileId), unitOfProfile(b.profileId), b.hijriMonthKey, numValue(b.positiveMinutes), numValue(b.negativeMinutes), numValue(b.penaltyMinutes), numValue(b.netMinutes)]),
+  );
+
+  const discWs = cleanSheet(
+    ["رقم الحالة", "رقم الموظف", "اسم الموظف", "اسم القسم", "نوع المساءلة", "الحالة", "السبب", "تاريخ الإنشاء"],
+    scopedDisciplinary.map(a => {
+      const { profile, type } = resolveDisciplinaryProfile(a.entityId);
+      return [a.id, profile?.id ?? "", profile?.fullName ?? "", unitNameOf(profile?.unitId), type, a.status, a.requestNote ?? "", isoDate(a.createdAt)];
+    }),
+  );
+
+  const deptWs = cleanSheet(
+    ["رقم القسم", "اسم القسم", "رقم المهمة", "العنوان", "الحالة", "تاريخ الاستحقاق"],
+    scopedTasks.map(t => [t.unitId ?? "", unitNameOf(t.unitId), t.id, t.title, t.status, isoDate(t.dueAt)]),
+  );
+
+  const nowMs = Date.now();
+  const overdueWs = cleanSheet(
+    ["رقم المهمة", "العنوان", "اسم القسم", "اسم المُسند", "تاريخ الاستحقاق", "أيام التأخر"],
+    scopedTasks.filter(t => t.status === "overdue").map(t => {
+      const due = toDate(t.dueAt);
+      return [t.id, t.title, unitNameOf(t.unitId), profileNameOf(t.assigneeProfileId), isoDate(t.dueAt), due ? Math.max(0, Math.floor((nowMs - due.getTime()) / 86400000)) : 0];
+    }),
+  );
+
+  const summaryWs = cleanSheet(
+    ["رقم القسم", "اسم القسم", "إجمالي المهام", "المكتملة", "المتأخرة", "عدد الموظفين", "نسبة الحضور"],
+    scopedUnits.map(u => {
+      const uProfileIds = new Set(profiles.filter(p => p.unitId === u.id).map(p => p.id));
+      const uTasks = allTasks.filter(t => t.unitId === u.id);
+      const uAtt = attendance.filter(a => uProfileIds.has(a.profileId));
+      const compliant = uAtt.filter(a => a.status === "present" || a.status === "late").length;
+      const rate = uAtt.length ? Math.round((compliant / uAtt.length) * 1000) / 10 : 0;
+      return [u.id, u.name, uTasks.length, uTasks.filter(t => t.status === "completed").length, uTasks.filter(t => t.status === "overdue").length, uProfileIds.size, rate];
+    }),
+  );
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, kpiWs, "KPI");
+  XLSX.utils.book_append_sheet(wb, flowWs, "التدفق اليومي");
+  XLSX.utils.book_append_sheet(wb, taskWs, "المهام");
+  XLSX.utils.book_append_sheet(wb, attWs, "الحضور");
+  XLSX.utils.book_append_sheet(wb, leaveWs, "الإجازات");
+  XLSX.utils.book_append_sheet(wb, empWs, "الموظفون");
+  XLSX.utils.book_append_sheet(wb, unitWs, "الأقسام");
+  XLSX.utils.book_append_sheet(wb, balWs, "الأرصدة");
+  XLSX.utils.book_append_sheet(wb, discWs, "المساءلات");
+  XLSX.utils.book_append_sheet(wb, deptWs, "مهام الأقسام");
+  XLSX.utils.book_append_sheet(wb, overdueWs, "المهام المتأخرة");
+  XLSX.utils.book_append_sheet(wb, summaryWs, "ملخص الأقسام");
+
+  const today = riyadhDateKey(new Date());
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx", cellStyles: true }) as Buffer;
+  return { buffer, filename: `rakiza_full_${today}.xlsx` };
 }
 
 

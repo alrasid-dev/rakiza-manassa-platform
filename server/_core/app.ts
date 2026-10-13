@@ -21,6 +21,7 @@ import { loginFallbackErrorHandler, registerLoginConfigRoutes } from "./login-fa
 import { registerPoliciesPdfRoute } from "../policies/policy-route";
 import { registerNotificationsSseRoute } from "../sse-route";
 import { registerKpiExportRoute } from "../kpi-export-route";
+import { registerFullExportRoute } from "../full-export-route";
 
 export function createExpressApp() {
   const app = express();
@@ -33,6 +34,7 @@ export function createExpressApp() {
   registerPoliciesPdfRoute(app);
   registerNotificationsSseRoute(app);
   registerKpiExportRoute(app);
+  registerFullExportRoute(app);
   app.post("/api/scheduled/trainee-due-soon", handleTraineeDueSoonSchedule);
   app.post("/api/scheduled/daily-task-reminder", handleDailyTaskReminderSchedule);
   app.post("/api/scheduled/task-escalation", handleTaskEscalationSchedule);
