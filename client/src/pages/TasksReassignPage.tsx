@@ -64,7 +64,7 @@ export default function TasksReassignPage() {
 
   const submitReassign = () => {
     if (!dialog) return;
-    if (!newAssigneeId) { toast.error("اختر الموظفة الجديدة."); return; }
+    if (!newAssigneeId) { toast.error("اختر الموظف الجديد."); return; }
     if (reason.trim().length < 10) { toast.error("سبب النقل يجب أن يكون 10 أحرف على الأقل."); return; }
     reassign.mutate({ taskId: dialog.taskId, newAssigneeProfileId: Number(newAssigneeId), reason: reason.trim(), durationDays: durationDays ? Number(durationDays) : null });
   };
@@ -76,7 +76,7 @@ export default function TasksReassignPage() {
           <div>
             <p className="text-xs font-bold tracking-[0.14em] text-[var(--rakiza-gold)]">تشغيل ومتابعة</p>
             <h1 className="mt-2 text-3xl font-bold text-[var(--rakiza-ink)]">إعادة إسناد المهام</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--rakiza-muted)]">نقل المهام يدوياً بين الموظفات النشطات في القسم نفسه، مع سبب موثق وإشعار الطرفين.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--rakiza-muted)]">نقل المهام يدوياً بين الموظفين النشطين في القسم نفسه، مع سبب موثق وإشعار الطرفين.</p>
           </div>
           <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--rakiza-olive-soft)] text-[var(--rakiza-olive-strong)]"><ArrowRightLeft className="h-6 w-6" /></div>
         </header>
@@ -92,7 +92,7 @@ export default function TasksReassignPage() {
               </select>
               <div className="relative min-w-56 flex-1">
                 <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7e9381]" />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث بعنوان المهمة أو اسم الموظفة…" className="h-10 w-full rounded-lg border border-[var(--rakiza-border)] bg-white pr-9 pl-3 text-sm" />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث بعنوان المهمة أو اسم الموظف…" className="h-10 w-full rounded-lg border border-[var(--rakiza-border)] bg-white pr-9 pl-3 text-sm" />
               </div>
             </div>
 
@@ -140,7 +140,7 @@ export default function TasksReassignPage() {
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
             <DialogTitle>إعادة إسناد المهمة</DialogTitle>
-            <DialogDescription>انقل المهمة إلى موظفة نشطة من القسم نفسه مع سبب موثق.</DialogDescription>
+            <DialogDescription>انقل المهمة إلى موظف نشط من القسم نفسه مع سبب موثق.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <p className="rounded-lg bg-[#f7f5ef] px-3 py-2 text-sm font-bold text-[var(--rakiza-olive)]">{dialog?.title}</p>
@@ -151,9 +151,9 @@ export default function TasksReassignPage() {
               </div>
             </label>
             <label className="block text-xs font-bold text-[var(--rakiza-muted)]">
-              إلى (موظفة نشطة من نفس القسم)
+              إلى (موظف نشط من نفس القسم)
               <select value={newAssigneeId} onChange={(e) => setNewAssigneeId(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm">
-                <option value="">اختر الموظفة الجديدة</option>
+                <option value="">اختر الموظف الجديد</option>
                 {candidates.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
               </select>
             </label>
@@ -161,7 +161,7 @@ export default function TasksReassignPage() {
             <label className="block text-xs font-bold text-[var(--rakiza-muted)]">
               مدة الإسناد المؤقت (اختياري، بالأيام)
               <input type="number" min={1} max={365} value={durationDays} onChange={(e) => setDurationDays(e.target.value)} placeholder="مثال: 7 — اتركه فارغاً لإسناد دائم" className="mt-1 h-10 w-full rounded-md border border-input bg-white px-3 text-sm" />
-              <span className="mt-1 block font-normal text-[#8a978f]">إن حددت مدة، تعود المهمة تلقائياً إلى الموظفة الأصلية بعد انتهائها.</span>
+              <span className="mt-1 block font-normal text-[#8a978f]">إن حددت مدة، تعود المهمة تلقائياً إلى الموظف الأصلي بعد انتهائها.</span>
             </label>
           </div>
           <DialogFooter>
