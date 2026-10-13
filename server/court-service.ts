@@ -1808,8 +1808,7 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
       notInArray(tasks.status, ["completed", "cancelled", "paused"]),
       or(
         and(gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000)), lt(tasks.dueAt, sentinel)),
-        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end)),
-        eq(tasks.isOpen, true)
+        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))
       )
     )!);
   } else if (filters?.dueFilter === "completed") {
@@ -2185,8 +2184,7 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
       notInArray(tasks.status, ["completed", "cancelled", "paused"]),
       or(
         and(gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000)), lt(tasks.dueAt, sentinel)),
-        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end)),
-        eq(tasks.isOpen, true)
+        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))
       )
     )!);
   } else if (dueFilter === "completed") {

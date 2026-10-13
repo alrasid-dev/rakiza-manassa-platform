@@ -1546,7 +1546,10 @@ export const courtRouter = router({
             const target = await getProfileById(input.assigneeProfileId);
             if (managedUnitIds.length && target?.unitId && managedUnitIds.includes(target.unitId)) targetProfileId = input.assigneeProfileId;
           }
-          if (input?.unitId && managedUnitIds.includes(input.unitId)) targetUnitId = input.unitId;
+          if (input?.unitId && managedUnitIds.includes(input.unitId)) {
+        targetUnitId = input.unitId;
+        if (!input?.assigneeProfileId) targetProfileId = undefined;
+      }
         }
       }
       return countTasksByStatus({ assigneeProfileId: targetProfileId, unitId: targetUnitId });
