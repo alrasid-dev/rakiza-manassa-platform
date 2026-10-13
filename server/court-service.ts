@@ -884,29 +884,34 @@ export async function createDepartmentDocument(input: { unitId: number; title: s
 }
 
 export async function logAudit(input: { actorUserId?: number; action: string; entityType: string; entityId?: number; metadata?: Record<string, unknown> }) {
-  const db = await getDb();
-  if (!db) return;
-  const actorContext = input.actorUserId ? await getEffectiveActorContext(input.actorUserId) : null;
-  await db.insert(auditLogs).values({
-    actorUserId: input.actorUserId ?? null,
-    actorProfileId: actorContext?.actorProfile?.id ?? null,
-    actingDepartmentAccountId: actorContext?.departmentAccount?.id ?? null,
-    departmentDelegationId: actorContext?.departmentDelegation?.id ?? null,
-    action: input.action,
-    entityType: input.entityType,
-    entityId: input.entityId ?? null,
-    metadata: actorContext?.departmentAccount ? JSON.stringify({
-      ...(input.metadata ?? {}),
-      identity: {
-        mode: "department_account",
-        accountId: actorContext.departmentAccount.id,
-        accountName: actorContext.departmentAccount.displayName,
-        delegationId: actorContext.departmentDelegation?.id ?? null,
-        delegationStartsAt: actorContext.departmentDelegation?.startsAt ?? null,
-        delegationEndsAt: actorContext.departmentDelegation?.endsAt ?? null,
-      },
-    }) : input.metadata ? JSON.stringify(input.metadata) : null,
-  });
+  try {
+    const db = await getDb();
+    if (!db) return;
+    const actorContext = input.actorUserId ? await getEffectiveActorContext(input.actorUserId) : null;
+    await db.insert(auditLogs).values({
+      actorUserId: input.actorUserId ?? null,
+      actorProfileId: actorContext?.actorProfile?.id ?? null,
+      actingDepartmentAccountId: actorContext?.departmentAccount?.id ?? null,
+      departmentDelegationId: actorContext?.departmentDelegation?.id ?? null,
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId ?? null,
+      metadata: actorContext?.departmentAccount ? JSON.stringify({
+        ...(input.metadata ?? {}),
+        identity: {
+          mode: "department_account",
+          accountId: actorContext.departmentAccount.id,
+          accountName: actorContext.departmentAccount.displayName,
+          delegationId: actorContext.departmentDelegation?.id ?? null,
+          delegationStartsAt: actorContext.departmentDelegation?.startsAt ?? null,
+          delegationEndsAt: actorContext.departmentDelegation?.endsAt ?? null,
+        },
+      }) : input.metadata ? JSON.stringify(input.metadata) : null,
+    });
+  } catch (error) {
+    // التدقيق أثر جانبي: يجب ألا يُفشل العملية الأصلية.
+    console.warn("[logAudit] فشل تسجيل التدقيق", { action: input.action, entityType: input.entityType, entityId: input.entityId ?? null, error });
+  }
 }
 
 const OPEN_SUPPORT_TICKET_STATUSES = ["open", "in_progress", "escalated_to_manager"] as const;
@@ -1798,11 +1803,13 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
   } else if (filters?.dueFilter === "dueSoon") {
     const now = new Date();
     const { start, end } = saudiTomorrowRange(now);
+    const sentinel = new Date("2037-01-01T00:00:00Z");
     conditions.push(and(
       notInArray(tasks.status, ["completed", "cancelled", "paused"]),
       or(
-        and(gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000))),
-        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))
+        and(gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000)), lt(tasks.dueAt, sentinel)),
+        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end)),
+        eq(tasks.isOpen, true)
       )
     )!);
   } else if (filters?.dueFilter === "completed") {
@@ -2173,11 +2180,13 @@ export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_
   } else if (dueFilter === "dueSoon") {
     const now = new Date();
     const { start, end } = saudiTomorrowRange(now);
+    const sentinel = new Date("2037-01-01T00:00:00Z");
     conditions.push(and(
       notInArray(tasks.status, ["completed", "cancelled", "paused"]),
       or(
-        and(gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000))),
-        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end))
+        and(gte(tasks.dueAt, now), lt(tasks.dueAt, new Date(now.getTime() + 24 * 60 * 60 * 1000)), lt(tasks.dueAt, sentinel)),
+        and(gte(tasks.scheduledFor, start), lt(tasks.scheduledFor, end)),
+        eq(tasks.isOpen, true)
       )
     )!);
   } else if (dueFilter === "completed") {
@@ -2235,6 +2244,13 @@ export async function runTaskLifecycleAutomation(now = new Date()) {
   let disciplined = 0;
   let skipped = 0;
   for (const task of candidates) {
+    // مهمة بموعد استحقاق صريح تجاوز الآن → تُعلَّم متأخرة مباشرة (لا تخضع لسياسة ساعات العمل).
+    if (task.dueAt && task.dueAt < now) {
+      await db.update(tasks).set({ status: "overdue", updatedAt: now }).where(eq(tasks.id, task.id));
+      await db.insert(taskUpdates).values({ taskId: task.id, actorUserId: SYSTEM_ACTOR_ID, updateType: "overdue_marked", note: "تجاوزت موعد الاستحقاق المحدد" }).onDuplicateKeyUpdate({ set: { note: "تجاوزت موعد الاستحقاق المحدد" } });
+      overdue += 1;
+      continue;
+    }
     // القاعدة 2: المواعيد المحددة صراحة (isOpen / dueAt يدوي) مستثناة من سياسة 7.5س/15س.
     if (!appliesNewPolicy({ scheduledFor: task.scheduledFor, dueAt: task.dueAt, isOpen: task.isOpen })) { skipped += 1; continue; }
     const stage = taskLifecycleStage({ scheduledFor: task.scheduledFor, now, status: task.status });
@@ -3842,20 +3858,24 @@ export async function reassignTaskManual(input: { taskId: number; newAssigneePro
   const oldAssigneeId = task.assigneeProfileId ?? null;
   const oldAssigneeName = oldAssigneeId ? (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, oldAssigneeId)).limit(1))[0]?.fullName ?? null : null;
   await db.update(tasks).set({ assigneeProfileId: newAssignee.id, reassignedFromProfileId: oldAssigneeId, reassignmentReason: "manual", status: "new", startedAt: null, completedAt: null, completionNote: null, assignedByUserId: input.actorUserId }).where(eq(tasks.id, input.taskId));
-  if (oldAssigneeId != null) {
-    const duration = input.durationDays && input.durationDays > 0 ? input.durationDays : null;
-    const autoReturnAt = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null;
-    await db.insert(taskReassignments).values({
-      taskId: input.taskId,
-      fromProfileId: oldAssigneeId,
-      toProfileId: newAssignee.id,
-      reason: input.reason.trim(),
-      durationDays: duration,
-      autoReturnAt,
-      createdBy: input.actorUserId,
-    });
+  try {
+    if (oldAssigneeId != null) {
+      const duration = input.durationDays && input.durationDays > 0 ? input.durationDays : null;
+      const autoReturnAt = duration ? new Date(Date.now() + duration * 24 * 60 * 60 * 1000) : null;
+      await db.insert(taskReassignments).values({
+        taskId: input.taskId,
+        fromProfileId: oldAssigneeId,
+        toProfileId: newAssignee.id,
+        reason: input.reason.trim(),
+        durationDays: duration,
+        autoReturnAt,
+        createdBy: input.actorUserId,
+      });
+    }
+    await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "reassignment_requested", note: `إعادة إسناد يدوي إلى ${newAssignee.fullName}: ${input.reason.trim()}` });
+  } catch (error) {
+    console.warn("[reassignTaskManual] فشل تسجيل أثر الإسناد", { taskId: input.taskId, error });
   }
-  await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "reassignment_requested", note: `إعادة إسناد يدوي إلى ${newAssignee.fullName}: ${input.reason.trim()}` });
   try {
     await db.insert(notifications).values({ profileId: newAssignee.id, category: "task_due", title: "مهمة مسندة إليك", body: `أُسندت إليك المهمة «${task.title}». السبب: ${input.reason.trim()}`, dedupeKey: `task-reassigned-manual-${input.taskId}-${newAssignee.id}` });
   } catch (error) { console.warn("[notifications] فشل إشعار الموظف الجديد", { taskId: input.taskId, error }); }

@@ -49,7 +49,7 @@ export default function DepartmentTasksPage() {
 
   const peopleById = useMemo(() => new Map((people.data ?? []).map(p => [p.id, p.fullName])), [people.data]);
   const list = tasks.data ?? [];
-  const filtered = statusFilter === "all" ? list : list.filter(t => t.status === statusFilter);
+  const filtered = statusFilter === "all" ? list : list.filter(t => statusFilter === "overdue" ? (t.status === "overdue" || (new Date(t.dueAt).getTime() < Date.now() && !["completed", "cancelled"].includes(t.status))) : t.status === statusFilter);
   const activeCount = list.filter(t => ["new", "in_progress", "under_review"].includes(t.status)).length;
   const overdueCount = list.filter(t => t.status === "overdue" || (new Date(t.dueAt).getTime() < Date.now() && !["completed", "cancelled"].includes(t.status))).length;
   const completedCount = list.filter(t => t.status === "completed").length;
