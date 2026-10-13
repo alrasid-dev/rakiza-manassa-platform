@@ -2148,11 +2148,11 @@ export async function archiveTask(input: { taskId: number; actorUserId: number }
   return { success: true as const };
 }
 
-export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number, assigneeProfileId?: number, dueFilter?: "overdue" | "dueSoon" | "completed", futureRange?: FutureRange, period?: TaskPeriod) {
+export async function listTasksForUnits(unitIds: number[], status?: "new" | "in_progress" | "under_review" | "completed" | "overdue" | "cancelled", visibleProfileId?: number, assigneeProfileId?: number, dueFilter?: "overdue" | "dueSoon" | "completed", futureRange?: FutureRange, period?: TaskPeriod, includeArchived?: boolean) {
   const db = await getDb();
   if (!db || !unitIds.length) return [];
   const conditions = [inArray(tasks.unitId, unitIds)];
-  if (dueFilter !== "completed") conditions.push(isNull(tasks.archivedAt));
+  if (!includeArchived && dueFilter !== "completed") conditions.push(isNull(tasks.archivedAt));
   const periodWindow = period ? taskPeriodWindow(period, new Date()) : null;
   const futureWindow = futureRange ? futureRangeWindow(futureRange, new Date()) : null;
   const shouldHideFuture = !futureWindow && !periodWindow && dueFilter !== "dueSoon" && dueFilter !== "completed";

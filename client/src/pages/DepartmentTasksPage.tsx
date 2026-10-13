@@ -6,7 +6,7 @@ import { useParams } from "wouter";
 import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, string> = {
-  new: "جديدة", in_progress: "قيد التنفيذ", under_review: "بانتظار المراجعة", completed: "مكتملة", overdue: "متأخرة", cancelled: "ملغاة",
+  new: "جديدة", in_progress: "قيد التنفيذ", under_review: "بانتظار المراجعة", completed: "مكتملة", overdue: "متأخرة", cancelled: "ملغاة", paused: "موقوفة",
 };
 
 function recurrenceLabel(task: { recurrence?: string | null; recurrenceInterval?: number | null }) {

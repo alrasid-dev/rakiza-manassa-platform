@@ -1062,7 +1062,7 @@ export const courtRouter = router({
         if (!managedUnitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض مهام قسم خارج نطاقك." });
       }
       const viewerProfile = await getProfileForUser(ctx.user.id);
-      return listTasksForUnits([input.unitId], undefined, viewerProfile?.id);
+      return listTasksForUnits([input.unitId], undefined, viewerProfile?.id, undefined, undefined, undefined, undefined, true);
     }),
     archive: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
