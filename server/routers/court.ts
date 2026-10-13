@@ -1308,7 +1308,10 @@ export const courtRouter = router({
       if (managedUnitIds.length) {
         if (input?.personType === "judge") return listProfiles("judge");
         if (input?.personType && input.personType !== "administrative") return [];
-        return listProfilesForUnits(managedUnitIds, "administrative");
+        // المدير لا يرى نفسه ضمن فريقه (يستثنى ملفه الشخصي من قائمة القسم).
+        const viewerProfile = await getProfileForUser(ctx.user.id);
+        const rows = await listProfilesForUnits(managedUnitIds, "administrative");
+        return viewerProfile ? rows.filter(p => p.id !== viewerProfile.id) : rows;
       }
       const { profile } = await requirePersonalWorkspace(ctx.user);
       // الموظف الإداري يرى ملفه فقط؛ عرض ملفات الوحدة مخصص للمديرين أو الصلاحيات القيادية.
