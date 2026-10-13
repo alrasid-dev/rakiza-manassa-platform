@@ -34,6 +34,14 @@ const attendanceModeLabels: Record<AttendanceMode, string> = { in_person: "حض�
 
 export default function PersonnelWorkspaceContent() {
   const utils = trpc.useUtils();
+  const invalidateAttendanceQueries = async () => {
+    const attendanceApi = (utils.court as any).attendance;
+    await attendanceApi?.self?.invalidate?.().catch(() => undefined);
+    await attendanceApi?.today?.invalidate?.().catch(() => undefined);
+    await attendanceApi?.currentWindow?.invalidate?.().catch(() => undefined);
+    await attendanceApi?.list?.invalidate?.().catch(() => undefined);
+    await (utils.court as any).people?.self?.invalidate?.().catch(() => undefined);
+  };
   const permission = trpc.court.registration.myPermission.useQuery();
   const roles = trpc.court.myRoles.useQuery();
   const { selectedUnitId } = useSelectedUnit();
@@ -68,7 +76,7 @@ export default function PersonnelWorkspaceContent() {
   const [editing, setEditing] = useState<Profile | null>(null);
   const [editForm, setEditForm] = useState<EditForm>(blankEdit);
   const create = trpc.court.people.create.useMutation({ onSuccess: async () => { await utils.court.people.list.invalidate(); setCreateForm({ unitId: "", fullName: "", email: "", personType: "administrative", reason: "" }); toast.success("تمت إضافة الملف بنجاح."); } });
-  const update = trpc.court.people.update.useMutation({ onSuccess: async () => { await utils.court.people.list.invalidate(); setEditing(null); toast.success("تم تحديث ملف الفرد مع حفظ أثر تدقيق."); } });
+  const update = trpc.court.people.update.useMutation({ onSuccess: async () => { await utils.court.people.list.invalidate(); await invalidateAttendanceQueries(); setEditing(null); toast.success("تم تحديث ملف الفرد مع حفظ أثر تدقيق."); } });
   const deactivate = trpc.court.people.deactivate.useMutation({ onSuccess: async () => { await utils.court.people.list.invalidate(); toast.success("تم إيقاف الملف مع حفظ أثر تدقيق."); } });
   const [archiveTarget, setArchiveTarget] = useState<Profile | null>(null);
   const [archiveReason, setArchiveReason] = useState("");
@@ -102,8 +110,8 @@ export default function PersonnelWorkspaceContent() {
   const [periodUnitFilter, setPeriodUnitFilter] = useState("");
   const periodPeople = periodUnitFilter ? people.filter(person => String(person.unitId) === periodUnitFilter) : people;
   const periodList = trpc.court.people.listAttendanceModePeriods.useQuery({ profileId: periodTarget?.id ?? 0 }, { enabled: Boolean(periodTarget) });
-  const addPeriod = trpc.court.people.setAttendanceModePeriod.useMutation({ onSuccess: () => { utils.court.people.listAttendanceModePeriods.invalidate({ profileId: periodTarget?.id ?? 0 }); setPeriodForm({ mode: "remote", startDate: "", endDate: "", reason: "" }); toast.success("تم ضبط فترة الحضور وإشعار الموظف."); }, onError: (error: { message?: string }) => toast.error(error.message || "تعذر ضبط فترة الحضور.") });
-  const cancelPeriod = trpc.court.people.cancelAttendanceModePeriod.useMutation({ onSuccess: () => { utils.court.people.listAttendanceModePeriods.invalidate({ profileId: periodTarget?.id ?? 0 }); toast.success("تم إنهاء الفترة."); }, onError: (error: { message?: string }) => toast.error(error.message || "تعذر إنهاء الفترة.") });
+  const addPeriod = trpc.court.people.setAttendanceModePeriod.useMutation({ onSuccess: () => { utils.court.people.listAttendanceModePeriods.invalidate({ profileId: periodTarget?.id ?? 0 }); void invalidateAttendanceQueries(); setPeriodForm({ mode: "remote", startDate: "", endDate: "", reason: "" }); toast.success("تم ضبط فترة الحضور وإشعار الموظف."); }, onError: (error: { message?: string }) => toast.error(error.message || "تعذر ضبط فترة الحضور.") });
+  const cancelPeriod = trpc.court.people.cancelAttendanceModePeriod.useMutation({ onSuccess: () => { utils.court.people.listAttendanceModePeriods.invalidate({ profileId: periodTarget?.id ?? 0 }); void invalidateAttendanceQueries(); toast.success("تم إنهاء الفترة."); }, onError: (error: { message?: string }) => toast.error(error.message || "تعذر إنهاء الفترة.") });
 
   const openEdit = (profile: Profile) => {
     setEditing(profile);

@@ -9,9 +9,9 @@ type GateBlockingState = { isBlocking: boolean };
 export default function AttendanceFirstGate({ onComplete, onBlockingChange }: { onComplete: () => void; onBlockingChange?: (state: GateBlockingState) => void }) {
   const utils = trpc.useUtils();
   const attendanceApi = (trpc.court as any).attendance;
-  const self = attendanceApi?.self?.useQuery ? attendanceApi.self.useQuery() : { data: null };
-  const todayAttendance = attendanceApi?.today?.useQuery ? attendanceApi.today.useQuery() : { data: null as { checkInAt?: Date | string | null; checkOutAt?: Date | string | null } | null, isLoading: false };
-  const currentWindow = attendanceApi?.currentWindow?.useQuery ? attendanceApi.currentWindow.useQuery() : { data: { kind: "none", shiftName: null } as AttendanceWindow };
+  const self = attendanceApi?.self?.useQuery ? attendanceApi.self.useQuery(undefined, { refetchInterval: 30_000, staleTime: 0 }) : { data: null };
+  const todayAttendance = attendanceApi?.today?.useQuery ? attendanceApi.today.useQuery(undefined, { refetchInterval: 30_000, staleTime: 0 }) : { data: null as { checkInAt?: Date | string | null; checkOutAt?: Date | string | null } | null, isLoading: false };
+  const currentWindow = attendanceApi?.currentWindow?.useQuery ? attendanceApi.currentWindow.useQuery(undefined, { refetchInterval: 30_000, staleTime: 0 }) : { data: { kind: "none", shiftName: null } as AttendanceWindow };
   const holidayInfo = (trpc.court as any).holidays?.today?.useQuery ? (trpc.court as any).holidays.today.useQuery() : { data: null as { workHours?: { start: string; end: string }; isRamadan?: boolean } | null };
   const [open, setOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
