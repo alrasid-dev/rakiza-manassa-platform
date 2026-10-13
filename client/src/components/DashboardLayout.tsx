@@ -5,12 +5,14 @@ import {
   ArrowLeft,
   Archive,
   AlertTriangle,
+  AlertCircle,
   PackageCheck,
   Award,
   BadgeHelp,
   Building2,
   CalendarDays,
-  CalendarOff,
+  Calendar,
+  CalendarCheck,
   CheckCircle2,
   ClipboardCheck,
   Clock3,
@@ -111,6 +113,7 @@ export function isNavigationSectionAllowed(sectionHeading: string, permission: W
   // مدير القسم: قسمه وعمله وقوالبه التشغيلية فقط (لا رئاسة ولا موارد بشرية)
   if (isDepartmentManagerRole(leadershipRoles)) {
     return sectionHeading === "لوحة القيادة"
+      || sectionHeading === "الحضور والانصراف"
       || sectionHeading === "العمل والتقارير"
       || sectionHeading === "الإدارة والتقارير"
       || (sectionHeading === "شؤون الملازمين" && /ملازم|trainee/.test(unitText));
@@ -119,20 +122,22 @@ export function isNavigationSectionAllowed(sectionHeading: string, permission: W
   // موظف/ملازم: كما كان
   if (isStaff) {
     return sectionHeading === "لوحة القيادة"
+      || sectionHeading === "الحضور والانصراف"
       || sectionHeading === "العمل والتقارير"
       || sectionHeading === "الموارد البشرية"
       || (sectionHeading === "شؤون الملازمين" && /ملازم|trainee/.test(unitText));
   }
 
   // general_view عادي (قراءة فقط): لوحة القيادة والعمل والتقارير فقط
-  return sectionHeading === "لوحة القيادة" || sectionHeading === "العمل والتقارير";
+  return sectionHeading === "لوحة القيادة" || sectionHeading === "الحضور والانصراف" || sectionHeading === "العمل والتقارير";
 }
 export const navigationSections: { heading: string; collapsible?: boolean; hideForOwner?: boolean; items: { icon: typeof LayoutDashboard; label: string; path: string; audiences: NavigationAudience[]; ownerOnly?: boolean; leadershipOnly?: boolean; operationsOnly?: boolean; presidentOnly?: boolean }[] }[] = [
   { heading: "لوحة القيادة", items: [{ icon: FileText, label: "الطلبات والاعتمادات", path: "/my-requests", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: LayoutDashboard, label: "الرئيسية", path: "/", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: Bot, label: "AI ركيزة", path: "/assistants", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: Megaphone, label: "الإعلانات الداخلية", path: "/announcements", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: AlertTriangle, label: "المتعثرات", path: "/delays", audiences: ["full_control", "general_view", "employee"] }, { icon: BadgeHelp, label: "دليل المستخدم", path: "/guide", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: UserCog, label: "إعدادات الموظف", path: "/personal-settings", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: Bell, label: "إعدادات التنبيهات", path: "/notification-settings", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: Settings2, label: "إعدادات المنصة", path: "/platform-settings", audiences: ["full_control", "general_view"] }] },
+  { heading: "الحضور والانصراف", items: [{ icon: Clock3, label: "الحضور والانصراف", path: "/status?tab=attendance", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: CalendarCheck, label: "سجل حضوري", path: "/my-attendance", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: Calendar, label: "السجل الشهري للحضور", path: "/attendance/monthly", audiences: ["full_control", "general_view"], ownerOnly: true }, { icon: FileText, label: "الاستئذان والإجازات", path: "/status", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: AlertCircle, label: "المساءلات", path: "/disciplinary", audiences: ["full_control", "general_view", "employee", "trainee"] }] },
   { heading: "العمل والتقارير", collapsible: true, items: [{ icon: FileSearch, label: "مراجعة تقييم التقارير", path: "/report-evaluations", audiences: ["full_control", "general_view"] }, { icon: FileBarChart2, label: "التقارير المنفصلة", path: "/reports", audiences: ["full_control", "general_view"] }, { icon: UsersRound, label: "تقارير مقارنة المهام", path: "/reports/task-comparison", audiences: ["full_control", "general_view", "employee"], operationsOnly: true }, { icon: ListChecks, label: "المهام والمتابعة", path: "/tasks", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: CheckCircle2, label: "الاعتمادات", path: "/tasks?tab=approvals", audiences: ["full_control", "general_view", "employee"], operationsOnly: true }, { icon: Award, label: "سجل الإنجازات", path: "/achievements", audiences: ["full_control", "general_view", "employee", "trainee"] }] },
   { heading: "رئاسة المحكمة", collapsible: true, items: [{ icon: Landmark, label: "مكتب رئيس المحكمة", path: "/", audiences: ["full_control", "general_view"] }, { icon: Activity, label: "مرصد ضغط العمل", path: "/leadership-workload", audiences: ["full_control", "general_view"], leadershipOnly: true }, { icon: Repeat, label: "المداورة", path: "/rotation", audiences: ["full_control", "general_view"], leadershipOnly: true }, { icon: Gauge, label: "مؤشرات القيادة", path: "/owner-kpi", audiences: ["full_control", "general_view"], leadershipOnly: true }, { icon: FileSpreadsheet, label: "تصدير KPI", path: "/export", audiences: ["full_control", "general_view"], leadershipOnly: true }, { icon: Handshake, label: "تفويض", path: "/delegation", audiences: ["full_control", "general_view"], leadershipOnly: true }, { icon: Network, label: "مساعد رئيس المحكمة", path: "/hierarchy", audiences: ["full_control"], ownerOnly: true }, { icon: Building2, label: "أمانة المحكمة", path: "/hierarchy", audiences: ["full_control", "general_view"] }, { icon: Scale, label: "شؤون القضاة", path: "/judges", audiences: ["full_control", "general_view"] }, { icon: Headphones, label: "الدعم التقني", path: "/support", audiences: ["full_control", "general_view", "employee", "trainee"] }] },
   { heading: "شؤون الملازمين", collapsible: true, hideForOwner: true, items: [{ icon: ShieldCheck, label: "تشغيل شؤون الملازمين", path: "/trainees", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: FileSpreadsheet, label: "بيانات Excel للملازمين", path: "/imports", audiences: ["full_control", "general_view"] }, { icon: FileText, label: "قوالب عروض شؤون الملازمين", path: "/trainee-correspondence-templates", audiences: ["full_control", "general_view", "employee"] }] },
-  { heading: "الموارد البشرية", collapsible: true, items: [{ icon: UsersRound, label: "الموارد البشرية والموظفون", path: "/people", audiences: ["full_control", "general_view"] }, { icon: Clock3, label: "الحضور والانصراف", path: "/status?tab=attendance", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: CalendarDays, label: "سجل حضوري", path: "/my-attendance", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: CalendarDays, label: "السجل الشهري للحضور", path: "/attendance/monthly", audiences: ["full_control", "general_view"], ownerOnly: true }, { icon: Settings2, label: "إعدادات التأكيد (إداري)", path: "/status", audiences: ["full_control", "general_view"] }, { icon: CalendarOff, label: "الاستئذان والإجازات", path: "/status", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: Gavel, label: "المساءلات", path: "/disciplinary", audiences: ["full_control", "general_view", "employee", "trainee"] }, { icon: PackageCheck, label: "العهد والأصول", path: "/assets", audiences: ["full_control", "general_view", "employee"] }, { icon: UserCog, label: "حالة الموظفين", path: "/team-status", audiences: ["full_control", "general_view"] }] },
+  { heading: "الموارد البشرية", collapsible: true, items: [{ icon: UsersRound, label: "الموارد البشرية والموظفون", path: "/people", audiences: ["full_control", "general_view"] }, { icon: Settings2, label: "إعدادات التأكيد (إداري)", path: "/status", audiences: ["full_control", "general_view"] }, { icon: PackageCheck, label: "العهد والأصول", path: "/assets", audiences: ["full_control", "general_view", "employee"] }, { icon: UserCog, label: "حالة الموظفين", path: "/team-status", audiences: ["full_control", "general_view"] }] },
   { heading: "الإدارة والتقارير", collapsible: true, items: [{ icon: FileBarChart2, label: "التقارير المنفصلة", path: "/reports", audiences: ["full_control", "general_view"] }, { icon: Download, label: "تنزيل بيانات القسم", path: "/data-exports", audiences: ["full_control", "general_view"] }, { icon: ScrollText, label: "سجل الحركة", path: "/activity-log", audiences: ["full_control", "general_view"] }, { icon: Gavel, label: "القرارات والمساءلات", path: "/decisions", audiences: ["full_control", "general_view"] }, { icon: CalendarDays, label: "الاجتماعات والمحاضر", path: "/meetings", audiences: ["full_control", "general_view"] }, { icon: UserPlus, label: "طلبات التسجيل وإدارة المستخدمين", path: "/access-management", audiences: ["full_control"], presidentOnly: true }, { icon: Settings2, label: "وحدات رَكيزة وأيقوناتها", path: "/platform-modules", audiences: ["full_control"], ownerOnly: true }, { icon: KeyRound, label: "تفويض القيادة", path: "/leadership-access", audiences: ["full_control"], ownerOnly: true }, { icon: Network, label: "التسلسل الإداري", path: "/hierarchy", audiences: ["full_control"], ownerOnly: true }, { icon: Archive, label: "الأرشيف", path: "/archive", audiences: ["full_control", "general_view"] }, { icon: Files, label: "قوالب مراسلات القسم", path: "/department-templates", audiences: ["full_control", "general_view"] }, { icon: Repeat, label: "قوالب المهام", path: "/task-templates", audiences: ["full_control", "general_view"], operationsOnly: true }, { icon: CalendarDays, label: "المهام المخطَّطة", path: "/templates", audiences: ["full_control", "general_view"], operationsOnly: true }, { icon: FolderOpen, label: "مستندات القسم", path: "/department-documents", audiences: ["full_control", "general_view", "employee"], operationsOnly: true }, { icon: GitBranch, label: "مخطط سير العمل", path: "/workflow-map", audiences: ["full_control", "general_view"], operationsOnly: true }] },
 ];
 
@@ -231,7 +236,7 @@ function formatLastSeen(value: Date | string | number | null | undefined) {
   if (!value) return "لم يُسجل نشاط بعد";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "لم يُسجل نشاط بعد";
-  return `آخر ظهور ${date.toLocaleDateString("ar-SA")} · ${date.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+  return `آخر ظهور ${date.toLocaleDateString("ar-SA", { timeZone: "Asia/Riyadh" })} · ${date.toLocaleTimeString("ar-SA", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit", hour12: true })}`;
 }
 
 function CourtMark() {
@@ -490,7 +495,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
                 <div className="min-w-0 text-right">
                   <p className="max-w-44 truncate text-xs font-bold text-[var(--rakiza-ink)]">{permission.data === "full_control" ? "مالك المنصة" : (user?.name || "وضع المعاينة")}</p>
                   <p className="mt-0.5 max-w-44 truncate text-[11px] text-[var(--rakiza-muted)]">{user?.email || "بيانات مصدر مستوردة · معاينة"}</p>
-                  {(currentProfile.data as any)?.attendanceMode === "in_person" ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-muted)]">🏢 حضور مكتبي</p> : <>{todayAttendance.data?.checkInAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-olive-strong)]">✓ الحضور: {new Date(todayAttendance.data.checkInAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}{todayAttendance.data?.checkOutAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-olive-strong)]">✓ الانصراف: {new Date(todayAttendance.data.checkOutAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</p> : null}</>}
+                  {(currentProfile.data as any)?.attendanceMode === "in_person" ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-muted)]">🏢 حضور مكتبي</p> : <>{todayAttendance.data?.checkInAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-olive-strong)]">✓ الحضور: {new Date(todayAttendance.data.checkInAt).toLocaleTimeString("ar-SA", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit" })}</p> : null}{todayAttendance.data?.checkOutAt ? <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-[var(--rakiza-olive-strong)]">✓ الانصراف: {new Date(todayAttendance.data.checkOutAt).toLocaleTimeString("ar-SA", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit" })}</p> : null}</>}
                   <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-[var(--rakiza-muted)]" title={formatLastSeen(currentProfile.data?.lastActiveAt)}>
                     <span className={`h-2 w-2 rounded-full ${displayedActivityState === "active" ? "bg-[var(--rakiza-olive-strong)]" : displayedActivityState === "chatting" ? "bg-[var(--rakiza-gold)]" : "bg-[#b64d3d]"}`} aria-hidden="true" />
                     <span>{activityStateLabel(displayedActivityState)}</span>

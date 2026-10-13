@@ -26,7 +26,7 @@ export function expandCustomGroupMemberIds(ids: string[], unitIds: string[], peo
 
 const initials = (text = "ر") => text.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join("");
 const preview = (text = "") => text.replace(/\s+/g, " ").trim().slice(0, 90) || "لا توجد رسائل بعد";
-const clock = (date?: Date | string) => date ? new Date(date).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }) : "";
+const clock = (date?: Date | string) => date ? new Date(date).toLocaleTimeString("ar-SA", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit" }) : "";
 const parseFiles = (value: unknown): any[] => { try { return Array.isArray(value) ? value : JSON.parse(String(value)); } catch { return []; } };
 
 async function pending(file: File): Promise<Pending> {

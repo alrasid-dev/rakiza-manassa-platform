@@ -89,7 +89,7 @@ export function taskMatchesDashboardFilter(task: { status: TaskStatus; dueAt: Da
 function formatTaskDate(value: Date | string | number | null, isOpen?: boolean) {
   if (isOpen) return "مفتوح";
   if (value == null) return "—";
-  return new Intl.DateTimeFormat("ar-SA", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("ar-SA", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Riyadh" }).format(new Date(value));
 }
 
 /** مفتاح تجميع لعنوان مهمة (تطبيع إملائي خفيف) لدمج العناوين المتكررة في جدول «المهام المسجلة». */

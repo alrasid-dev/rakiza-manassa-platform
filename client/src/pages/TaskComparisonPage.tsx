@@ -20,7 +20,7 @@ function downloadCsv(filename: string, rows: string[][]) {
 function formatLeaveDate(value: Date | string | number | null | undefined) {
   if (!value) return "";
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ar-SA");
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ar-SA", { timeZone: "Asia/Riyadh" });
 }
 
 function formatCompletionTime(r: { avgCompletionMinutes: number | null }) {

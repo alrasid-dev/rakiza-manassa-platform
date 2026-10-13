@@ -131,7 +131,7 @@ export function LiveChatWidget() {
                   </a>
                 ))}
                 <span className="mt-1 block text-[10px] opacity-70">
-                  {new Date(msg.message.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(msg.message.createdAt).toLocaleTimeString("ar-SA", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
             ))}

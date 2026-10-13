@@ -178,7 +178,7 @@ export default function DisciplinaryPage() {
                 <div className="flex items-center gap-2">
                   {c.source && <span className="rounded bg-[#eef4f0] px-2 py-1 text-xs text-[var(--rakiza-olive-strong)]">{typeLabels[c.source] || c.source}</span>}
                   <span className="rounded bg-gray-100 px-2 py-1 text-xs">{statusLabels[c.status] || c.status}</span>
-                  <span className="text-sm text-[var(--rakiza-muted)]">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA") : ""}</span>
+                  <span className="text-sm text-[var(--rakiza-muted)]">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA", { timeZone: "Asia/Riyadh" }) : ""}</span>
                 </div>
               </div>
               <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote || "—"}</p>
@@ -232,7 +232,7 @@ export default function DisciplinaryPage() {
                   <div className="flex items-center gap-2">
                     {c.source && <span className="rounded bg-[#eef4f0] px-2 py-1 text-xs text-[var(--rakiza-olive-strong)]">{typeLabels[c.source] || c.source}</span>}
                     <span className="rounded bg-gray-100 px-2 py-1 text-xs">{statusLabels[c.status] || c.status}</span>
-                    <span className="text-sm text-[var(--rakiza-muted)]">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA") : ""}</span>
+                    <span className="text-sm text-[var(--rakiza-muted)]">{c.createdAt ? new Date(c.createdAt).toLocaleDateString("ar-SA", { timeZone: "Asia/Riyadh" }) : ""}</span>
                   </div>
                 </div>
                 <p className="mt-2 text-sm whitespace-pre-wrap">{c.requestNote}</p>
@@ -309,7 +309,7 @@ export default function DisciplinaryPage() {
                       <td className="px-3 py-2 text-xs">{row.type === "attendance" ? "حضور" : "مهمة"}</td>
                       <td className="px-3 py-2 text-xs">{row.reason ?? "—"}</td>
                       <td className="px-3 py-2"><span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">{statusLabels[row.status] ?? row.status}</span></td>
-                      <td className="px-3 py-2 text-xs">{row.createdAt ? new Date(row.createdAt).toLocaleDateString("ar-SA") : ""}</td>
+                      <td className="px-3 py-2 text-xs">{row.createdAt ? new Date(row.createdAt).toLocaleDateString("ar-SA", { timeZone: "Asia/Riyadh" }) : ""}</td>
                     </tr>
                   ))}
                 </tbody>

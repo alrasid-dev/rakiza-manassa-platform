@@ -62,7 +62,7 @@ function Card({ item, reviewable, canApprove, canReject, canEscalate, canReturn,
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{statusLabels[item.status] ?? item.status}</span>
-          <span className="text-xs text-[var(--rakiza-muted)]">{item.createdAt ? new Date(item.createdAt).toLocaleDateString("ar-SA") : ""}</span>
+          <span className="text-xs text-[var(--rakiza-muted)]">{item.createdAt ? new Date(item.createdAt).toLocaleDateString("ar-SA", { timeZone: "Asia/Riyadh" }) : ""}</span>
         </div>
       </div>
       <p className="mt-1 text-xs text-[var(--rakiza-muted)]">مقدم الطلب: {item.submitterName}</p>
@@ -187,7 +187,7 @@ export default function MyRequestsPage() {
                     <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{approval.currentRole}</span>
                   </div>
                   <p className="mt-2 text-sm font-bold text-[var(--rakiza-ink)]">طلب اعتماد #{approval.id}</p>
-                  <p className="mt-1 text-xs text-[var(--rakiza-muted)]">{approval.createdAt ? new Date(approval.createdAt).toLocaleDateString("ar-SA") : ""}</p>
+                  <p className="mt-1 text-xs text-[var(--rakiza-muted)]">{approval.createdAt ? new Date(approval.createdAt).toLocaleDateString("ar-SA", { timeZone: "Asia/Riyadh" }) : ""}</p>
                 </div>
               )) : <p className="text-[var(--rakiza-muted)]">لا توجد اعتمادات إدارية معلّقة.</p>}
             </>

@@ -61,7 +61,7 @@ export default function RequestRouteTimeline({ requestId, requestType }: { reque
                   {statusDot} {step.label}{step.status === "current" ? " (حالياً)" : ""}
                 </span>
                 {" — "}{step.by}
-                {step.at ? <span className="text-[#8a8279]"> · {new Date(step.at).toLocaleDateString("ar-SA")}</span> : null}
+                {step.at ? <span className="text-[#8a8279]"> · {new Date(step.at).toLocaleDateString("ar-SA", { timeZone: "Asia/Riyadh" })}</span> : null}
                 {step.decision ? <span className="text-[var(--rakiza-olive)]"> · {decisionLabels[step.decision] ?? step.decision}</span> : null}
               </div>
             </li>

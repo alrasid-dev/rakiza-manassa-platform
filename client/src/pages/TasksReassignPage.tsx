@@ -21,7 +21,7 @@ function fmtDate(value: unknown) {
   if (!value) return "—";
   const d = new Date(value as string | number | Date);
   if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("ar-SA", { dateStyle: "medium", timeStyle: "short" }).format(d);
+  return new Intl.DateTimeFormat("ar-SA", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Riyadh" }).format(d);
 }
 
 export default function TasksReassignPage() {
