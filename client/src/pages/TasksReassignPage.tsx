@@ -33,7 +33,7 @@ export default function TasksReassignPage() {
   const [unitId, setUnitId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
 
-  const canReassign = permission.data === "full_control" || Boolean(roles.data?.some((r) => ["department_manager", "court_president", "assistant_president", "court_secretary", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(r)));
+  const canReassign = permission.data === "full_control" || Boolean(roles.data?.some((r) => ["department_manager", "court_president", "assistant_president", "court_secretary", "trainee_affairs_manager", "performance_monitor"].includes(r)));
 
   const tasks = trpc.court.tasks.list.useQuery({ unitId: unitId ?? undefined }, { enabled: Boolean(canReassign) });
 

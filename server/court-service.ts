@@ -3560,7 +3560,7 @@ export async function createTask(input: { title: string; unitId?: number; assign
   return id;
 }
 
-/** إنشاء مهمة يدوية من شاشة «المهام المسجلة» (مدير القسم/القيادة) مع السماح بالإسناد لموظفة في إجازة إذا وُجد تاريخ بدء مستقبلي. */
+/** إنشاء مهمة يدوية من شاشة «المهام المسجلة» (مدير القسم/القيادة) مع السماح بالإسناد لموظف في إجازة إذا وُجد تاريخ بدء مستقبلي. */
 export async function createManualTask(input: {
   title: string;
   description?: string;
@@ -3574,9 +3574,9 @@ export async function createManualTask(input: {
   actorUserId: number;
 }) {
   const assignee = await getProfileById(input.assigneeProfileId);
-  if (!assignee) throw new TRPCError({ code: "NOT_FOUND", message: "الموظفة المختارة غير موجودة." });
-  if (assignee.status === "on_leave" && !input.startDate) throw new TRPCError({ code: "CONFLICT", message: "لا يمكن إسناد مهمة فورية لموظفة في إجازة؛ حدد تاريخ بدء مستقبلي." });
-  if (["inactive", "dormant", "pending_review"].includes(assignee.status)) throw new TRPCError({ code: "CONFLICT", message: "لا يمكن إسناد مهمة لموظفة غير نشطة." });
+  if (!assignee) throw new TRPCError({ code: "NOT_FOUND", message: "الموظف المختار غير موجود." });
+  if (assignee.status === "on_leave" && !input.startDate) throw new TRPCError({ code: "CONFLICT", message: "لا يمكن إسناد مهمة فورية لموظف في إجازة؛ حدد تاريخ بدء مستقبلي." });
+  if (["inactive", "dormant", "pending_review"].includes(assignee.status)) throw new TRPCError({ code: "CONFLICT", message: "لا يمكن إسناد مهمة لموظف غير نشط." });
 
   const taskId = await createTask({
     title: input.title.trim(),
@@ -3827,18 +3827,18 @@ export async function routeTaskToProfile(input: { taskId: number; targetProfileI
   return { success: true, targetName: target.fullName };
 }
 
-/** إعادة إسناد يدوي من المدير/المالك: ينقل المهمة لموظفة نشطة من نفس القسم مع سبب إلزامي، ويُسجَّل في التدقيق ويُشعَر الطرفان. */
+/** إعادة إسناد يدوي من المدير/المالك: ينقل المهمة لموظف نشط من نفس القسم مع سبب إلزامي، ويُسجَّل في التدقيق ويُشعَر الطرفان. */
 export async function reassignTaskManual(input: { taskId: number; newAssigneeProfileId: number; reason: string; actorUserId: number; durationDays?: number | null }) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "قاعدة البيانات غير متاحة" });
   const task = await getTaskById(input.taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة غير موجودة." });
   if (task.status === "completed" || task.status === "cancelled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "لا يمكن إعادة إسناد مهمة مكتملة أو ملغاة." });
-  if (task.assigneeProfileId === input.newAssigneeProfileId) throw new TRPCError({ code: "BAD_REQUEST", message: "الموظفة الجديدة هي نفسها المسندة حالياً." });
+  if (task.assigneeProfileId === input.newAssigneeProfileId) throw new TRPCError({ code: "BAD_REQUEST", message: "الموظف الجديد هو نفسه المسند حالياً." });
   if (input.reason.trim().length < 10) throw new TRPCError({ code: "BAD_REQUEST", message: "سبب إعادة الإسناد يجب أن يكون 10 أحرف على الأقل." });
   const newAssignee = (await db.select({ id: personProfiles.id, fullName: personProfiles.fullName, unitId: personProfiles.unitId }).from(personProfiles).where(and(eq(personProfiles.id, input.newAssigneeProfileId), eq(personProfiles.status, "active"))).limit(1))[0];
-  if (!newAssignee) throw new TRPCError({ code: "BAD_REQUEST", message: "الموظفة المختارة غير نشطة أو غير موجودة." });
-  if (task.unitId && newAssignee.unitId !== task.unitId) throw new TRPCError({ code: "BAD_REQUEST", message: "يجب أن تكون الموظفة المختارة من نطاق القسم نفسه." });
+  if (!newAssignee) throw new TRPCError({ code: "BAD_REQUEST", message: "الموظف المختار غير نشط أو غير موجود." });
+  if (task.unitId && newAssignee.unitId !== task.unitId) throw new TRPCError({ code: "BAD_REQUEST", message: "يجب أن يكون الموظف المختار من نطاق القسم نفسه." });
   const oldAssigneeId = task.assigneeProfileId ?? null;
   const oldAssigneeName = oldAssigneeId ? (await db.select({ fullName: personProfiles.fullName }).from(personProfiles).where(eq(personProfiles.id, oldAssigneeId)).limit(1))[0]?.fullName ?? null : null;
   await db.update(tasks).set({ assigneeProfileId: newAssignee.id, reassignedFromProfileId: oldAssigneeId, reassignmentReason: "manual", status: "new", startedAt: null, completedAt: null, completionNote: null, assignedByUserId: input.actorUserId }).where(eq(tasks.id, input.taskId));
@@ -3858,11 +3858,11 @@ export async function reassignTaskManual(input: { taskId: number; newAssigneePro
   await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "reassignment_requested", note: `إعادة إسناد يدوي إلى ${newAssignee.fullName}: ${input.reason.trim()}` });
   try {
     await db.insert(notifications).values({ profileId: newAssignee.id, category: "task_due", title: "مهمة مسندة إليك", body: `أُسندت إليك المهمة «${task.title}». السبب: ${input.reason.trim()}`, dedupeKey: `task-reassigned-manual-${input.taskId}-${newAssignee.id}` });
-  } catch (error) { console.warn("[notifications] فشل إشعار الموظفة الجديدة", { taskId: input.taskId, error }); }
+  } catch (error) { console.warn("[notifications] فشل إشعار الموظف الجديد", { taskId: input.taskId, error }); }
   if (oldAssigneeId && oldAssigneeId !== newAssignee.id) {
     try {
       await db.insert(notifications).values({ profileId: oldAssigneeId, category: "task_due", title: "سُحبت منك مهمة", body: `أُعيد إسناد المهمة «${task.title}» منك إلى ${newAssignee.fullName}.`, dedupeKey: `task-reassigned-manual-old-${input.taskId}-${oldAssigneeId}` });
-    } catch (error) { console.warn("[notifications] فشل إشعار الموظفة القديمة", { taskId: input.taskId, error }); }
+    } catch (error) { console.warn("[notifications] فشل إشعار الموظف القديم", { taskId: input.taskId, error }); }
   }
   await logAudit({ actorUserId: input.actorUserId, action: "task.reassigned_manual", entityType: "task", entityId: input.taskId, metadata: { oldAssigneeProfileId: oldAssigneeId, newAssigneeProfileId: newAssignee.id, reason: input.reason.trim() } });
   return { success: true, taskId: input.taskId, oldAssigneeName, newAssigneeName: newAssignee.fullName };
@@ -4426,7 +4426,7 @@ export async function cancelTask(input: { taskId: number; actorUserId: number; c
 
   await db.update(tasks).set({ status: "cancelled", cancellationReason: reason, completedAt: null, archivedAt: new Date(), archivedByUserId: input.actorUserId }).where(eq(tasks.id, input.taskId));
   await markTaskNotificationsRead(input.taskId);
-  // إشعار الموظفة المكلفة بإلغاء مهمتها.
+  // إشعار الموظف المكلف بإلغاء مهمته.
   if (task.assigneeProfileId) {
     try {
       await db.insert(notifications).values({ profileId: task.assigneeProfileId, category: "task_due", title: "أُلغيت مهمة موكلة إليك", body: `تم إلغاء مهمة "${task.title}". السبب: ${reason}`, dedupeKey: `task-cancelled-${task.id}` });
