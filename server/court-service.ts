@@ -5140,7 +5140,7 @@ export async function getAttendanceWindowForProfile(profileId: number, now = new
   if (!withinWindow) return { kind: "none" as const, shiftName: shift.name, workingDay };
 
   // الحالة: بصم دخول اليوم؟ → نافذة انصراف (مبكر أو في الموعد)؛ وإلا نافذة حضور.
-  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const dayStart = dateRangeForSaudiDay(now).start;
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const [today] = await db.select({ checkInAt: attendanceRecords.checkInAt, checkOutAt: attendanceRecords.checkOutAt }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1);
 

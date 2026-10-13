@@ -29,8 +29,6 @@ export default function AttendanceFirstGate({ onComplete, onBlockingChange }: { 
     if (!self.data || todayAttendance.isLoading || !windowState || windowState.kind === "none") return null;
     if (!isRemoteOrMixed || skippedToday) return null;
     if (windowState.kind === "check_in" && !today?.checkInAt) return { kind: "check_in" as const, shiftName: windowState.shiftName };
-    // الموظف عن بُعد لا يُطالَب ببصمة انصراف — نافذة التأكيد العشوائية تكفي.
-    if (attendanceMode === "remote") return null;
     if (windowState.kind === "check_out" && today?.checkInAt && !today?.checkOutAt) return { kind: "check_out" as const, shiftName: windowState.shiftName };
     return null;
   }, [todayAttendance.data, todayAttendance.isLoading, currentWindow.data, self.data, skipKey]);

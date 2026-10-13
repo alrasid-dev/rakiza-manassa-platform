@@ -62,6 +62,7 @@ import TaskTemplatesPage from "./pages/TaskTemplatesPage";
 import TaskComparisonPage from "./pages/TaskComparisonPage";
 import AttendanceMonthlyPage from "./pages/AttendanceMonthlyPage";
 import DepartmentTasksPage from "./pages/DepartmentTasksPage";
+import MyAttendancePage from "./pages/MyAttendancePage";
 import TasksReassignPage from "./pages/TasksReassignPage";
 import DisciplinaryPage from "./pages/DisciplinaryPage";
 import TeamStatusPage from "./pages/TeamStatusPage";
@@ -133,6 +134,7 @@ function Router() {
       <Route path="/task-templates" component={TaskTemplatesPage} />
       <Route path="/templates" component={PlannedTasksPage} />
       <Route path="/department/:unitId/tasks" component={DepartmentTasksPage} />
+      <Route path="/my-attendance" component={MyAttendancePage} />
                             <Route path="/workflow-map" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : WorkflowMapPage} />
       <Route path="/messages" component={MessagesPage} />
       <Route path="/data-exports" component={DataExportsPage} />
