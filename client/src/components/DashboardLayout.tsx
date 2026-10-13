@@ -69,6 +69,7 @@ import { Button } from "./ui/button";
 import AiRakizaTaskPrompt from "./AiRakizaTaskPrompt";
 import AttendanceFirstGate from "./AttendanceFirstGate";
 import CheckOutReminder from "./CheckOutReminder";
+import AttendanceConfirmationModal from "./AttendanceConfirmationModal";
 import FirstUseHelp from "./FirstUseHelp";
 import PasskeyEnrollmentGate from "./PasskeyEnrollmentGate";
 import { useWorkMode } from "./WorkModeToggle";
@@ -509,6 +510,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
           {!hideUtilityPrompts && <PwaInstallHint alwaysVisible />}
           {!IS_PREVIEW_MODE && user && <PasskeyEnrollmentGate officialEmail={user.email} />}
           {!IS_PREVIEW_MODE && user && <CheckOutReminder />}
+          {!IS_PREVIEW_MODE && user && <AttendanceConfirmationModal />}
           {!IS_PREVIEW_MODE && user && <AttendanceFirstGate onComplete={() => window.setTimeout(() => undefined, 0)} onBlockingChange={({ isBlocking }) => setAttendanceGateBlocking(isBlocking)} />}
           {!IS_PREVIEW_MODE && user && <AiRakizaTaskPrompt tasks={assignedTasks.data || []} unreadMailCount={internalMailCounts.data?.unread || 0} urgentUnreadMailCount={internalMailCounts.data?.urgentUnread || 0} unreadNotificationCount={unreadNotifications.length} suppressAutoPrompt={attendanceGateBlocking} onStart={task => setLocation(`/tasks?task=${task.id}`)} onOpenAssistant={() => setLocation("/assistants")} onOpenMail={() => setLocation("/rakiza-mail")} onOpenNotifications={() => setLocation("/notifications")} />}
           <FirstUseHelp />
