@@ -46,6 +46,14 @@ function timeOf(d: Date | string | number | null | undefined): string {
   return `${String(riyadh.getUTCHours()).padStart(2, "0")}:${String(riyadh.getUTCMinutes()).padStart(2, "0")}`;
 }
 
+function saudiDateKey(d: Date | string | number | null | undefined): string {
+  if (!d) return "";
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return "";
+  // recordDate يُخزَّن بمنتصف ليل الرياض (21:00 UTC لليوم السابق)، لذا نضيف 3 ساعات لاستخراج التاريخ السعودي الصحيح.
+  return new Date(date.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 type Row = {
   attendance: {
     id: number;
@@ -178,7 +186,7 @@ export default function AttendanceMonthlyPage() {
                     <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">{profileId == null ? "اختر موظفاً لعرض السجل." : "لا توجد سجلات في هذا الشهر."}</td></tr>
                   ) : rows.map(row => {
                     const a = row.attendance;
-                    const dayName = dayNames[new Date(a.recordDate).getUTCDay()];
+                    const dayName = dayNames[new Date(a.recordDate.getTime() + 3 * 60 * 60 * 1000).getUTCDay()];
                     const points = (a.positiveMinutes ?? 0) - (a.negativeMinutes ?? 0);
                     return (
                       <tr key={a.id} className="hover:bg-[#fafdf9]">
@@ -190,8 +198,8 @@ export default function AttendanceMonthlyPage() {
                         <td className="px-3 py-2.5 font-bold" dir="ltr">{points > 0 ? `+${points}` : points}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex flex-wrap gap-1.5">
-                            <button type="button" onClick={() => setModal({ mode: "edit", recordId: a.id, recordDate: a.recordDate.toISOString().slice(0, 10), checkInAt: timeOf(a.checkInAt), checkOutAt: timeOf(a.checkOutAt), status: a.status, reason: "" })} className="rounded border border-[var(--rakiza-gold)] px-2 py-1 text-xs font-bold text-[var(--rakiza-gold)] hover:bg-[#f3e5bf]">✏️ تعديل</button>
-                            <button type="button" onClick={() => setModal({ mode: "delete", recordId: a.id, recordDate: a.recordDate.toISOString().slice(0, 10), checkInAt: "", checkOutAt: "", status: a.status, reason: "" })} className="rounded border border-[#d8b1a4] px-2 py-1 text-xs font-bold text-[var(--rakiza-danger)] hover:bg-[#f8e1dc]">🗑️ حذف</button>
+                            <button type="button" onClick={() => setModal({ mode: "edit", recordId: a.id, recordDate: saudiDateKey(a.recordDate), checkInAt: timeOf(a.checkInAt), checkOutAt: timeOf(a.checkOutAt), status: a.status, reason: "" })} className="rounded border border-[var(--rakiza-gold)] px-2 py-1 text-xs font-bold text-[var(--rakiza-gold)] hover:bg-[#f3e5bf]">✏️ تعديل</button>
+                            <button type="button" onClick={() => setModal({ mode: "delete", recordId: a.id, recordDate: saudiDateKey(a.recordDate), checkInAt: "", checkOutAt: "", status: a.status, reason: "" })} className="rounded border border-[#d8b1a4] px-2 py-1 text-xs font-bold text-[var(--rakiza-danger)] hover:bg-[#f8e1dc]">🗑️ حذف</button>
                           </div>
                         </td>
                       </tr>

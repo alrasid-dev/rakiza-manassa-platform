@@ -5449,7 +5449,8 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
 export async function ownerEditAttendanceCheckIn(input: { profileId: number; recordDate: Date; checkInAt: Date; actorUserId: number; reason: string }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  // بداية اليوم السعودي (00:00 الرياض = 21:00 UTC لليوم السابق) — يطابق recordDate المخزَّن في السجلات اليومية.
+  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate(), -3));
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
   const oldValue = existing.checkInAt ?? null;
@@ -5473,7 +5474,8 @@ export async function ownerEditAttendanceCheckIn(input: { profileId: number; rec
 export async function ownerEditAttendanceCheckOut(input: { profileId: number; recordDate: Date; checkOutAt: Date; actorUserId: number; reason: string }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  // بداية اليوم السعودي (00:00 الرياض = 21:00 UTC لليوم السابق) — يطابق recordDate المخزَّن في السجلات اليومية.
+  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate(), -3));
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
   // المالك يمكنه ضبط الانصراف مباشرة دون بصمة دخول.
@@ -5507,11 +5509,12 @@ export async function ownerUpdateAttendanceRecord(input: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  // بداية اليوم السعودي (00:00 الرياض = 21:00 UTC لليوم السابق) — يطابق recordDate المخزَّن في السجلات اليومية.
+  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate(), -3));
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
 
-  console.log("[attendance-edit]", { profileId: input.profileId, recordDate: dayStart.toISOString(), checkInAt: input.checkInAt, checkOutAt: input.checkOutAt, existing: existing.id });
+  console.log("[attendance-edit]", { profileId: input.profileId, dayStart: dayStart.toISOString(), inputRecordDate: input.recordDate.toISOString(), checkInAt: input.checkInAt?.toISOString() ?? null, checkOutAt: input.checkOutAt?.toISOString() ?? null, existing: existing.id });
   const oldCheckIn = existing.checkInAt ?? null;
   const oldCheckOut = existing.checkOutAt ?? null;
   // undefined = لا تعديل (احتفظ بالقديم)؛ null = حذف؛ Date = تعديل.
@@ -5557,7 +5560,8 @@ export async function ownerUpdateAttendanceRecord(input: {
 export async function ownerCreateAttendanceRecord(input: { profileId: number; recordDate: Date; checkInAt?: Date | null; checkOutAt?: Date | null; status: "present" | "late" | "absent" | "excused" | "on_leave"; actorUserId: number; reason: string }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  // بداية اليوم السعودي (00:00 الرياض = 21:00 UTC لليوم السابق) — يطابق recordDate المخزَّن في السجلات اليومية.
+  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate(), -3));
   const existing = (await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
   console.log("[attendance-create]", { profileId: input.profileId, recordDate: dayStart.toISOString(), checkInAt: input.checkInAt?.toISOString() ?? null, checkOutAt: input.checkOutAt?.toISOString() ?? null, status: input.status, existing: existing?.id ?? null });
 
