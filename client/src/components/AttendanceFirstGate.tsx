@@ -3,19 +3,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
-type AttendanceRecord = { attendance: { checkInAt?: Date | string | null; checkOutAt?: Date | string | null; recordDate: Date | string } };
 type AttendanceWindow = { kind: "none" | "check_in" | "check_out"; shiftName: string | null };
 type GateBlockingState = { isBlocking: boolean };
-
-function isToday(recordDate: Date | string) {
-  return new Date(recordDate).toDateString() === new Date().toDateString();
-}
 
 export default function AttendanceFirstGate({ onComplete, onBlockingChange }: { onComplete: () => void; onBlockingChange?: (state: GateBlockingState) => void }) {
   const utils = trpc.useUtils();
   const attendanceApi = (trpc.court as any).attendance;
   const self = attendanceApi?.self?.useQuery ? attendanceApi.self.useQuery() : { data: null };
-  const attendance = attendanceApi?.list?.useQuery ? attendanceApi.list.useQuery() : { data: [] as AttendanceRecord[], isLoading: false };
+  const todayAttendance = attendanceApi?.today?.useQuery ? attendanceApi.today.useQuery() : { data: null as { checkInAt?: Date | string | null; checkOutAt?: Date | string | null } | null, isLoading: false };
   const currentWindow = attendanceApi?.currentWindow?.useQuery ? attendanceApi.currentWindow.useQuery() : { data: { kind: "none", shiftName: null } as AttendanceWindow };
   const holidayInfo = (trpc.court as any).holidays?.today?.useQuery ? (trpc.court as any).holidays.today.useQuery() : { data: null as { workHours?: { start: string; end: string }; isRamadan?: boolean } | null };
   const [open, setOpen] = useState(false);
@@ -27,35 +22,35 @@ export default function AttendanceFirstGate({ onComplete, onBlockingChange }: { 
 
   const action = useMemo(() => {
     const windowState = currentWindow.data as AttendanceWindow | undefined;
-    const todayRecord = (attendance.data as AttendanceRecord[] | undefined)?.find(item => isToday(item.attendance.recordDate));
+    const today = todayAttendance.data as { checkInAt?: Date | string | null; checkOutAt?: Date | string | null } | null | undefined;
     const attendanceMode = (self.data as { attendanceMode?: string } | null)?.attendanceMode;
     const isRemoteOrMixed = attendanceMode === "remote" || attendanceMode === "mixed";
     const skippedToday = typeof window !== "undefined" && localStorage.getItem(skipKey) === "true";
-    if (!self.data || attendance.isLoading || !windowState || windowState.kind === "none") return null;
+    if (!self.data || todayAttendance.isLoading || !windowState || windowState.kind === "none") return null;
     if (!isRemoteOrMixed || skippedToday) return null;
-    if (windowState.kind === "check_in" && !todayRecord?.attendance.checkInAt) return { kind: "check_in" as const, shiftName: windowState.shiftName };
+    if (windowState.kind === "check_in" && !today?.checkInAt) return { kind: "check_in" as const, shiftName: windowState.shiftName };
     // الموظف عن بُعد لا يُطالَب ببصمة انصراف — نافذة التأكيد العشوائية تكفي.
     if (attendanceMode === "remote") return null;
-    if (windowState.kind === "check_out" && todayRecord?.attendance.checkInAt && !todayRecord.attendance.checkOutAt) return { kind: "check_out" as const, shiftName: windowState.shiftName };
+    if (windowState.kind === "check_out" && today?.checkInAt && !today?.checkOutAt) return { kind: "check_out" as const, shiftName: windowState.shiftName };
     return null;
-  }, [attendance.data, attendance.isLoading, currentWindow.data, self.data, skipKey]);
+  }, [todayAttendance.data, todayAttendance.isLoading, currentWindow.data, self.data, skipKey]);
 
   const promptKey = action && typeof window !== "undefined" ? `rakiza:attendance:${dateStr}:${action.kind}` : null;
   const invalidateAndClose = () => {
     if (promptKey && typeof window !== "undefined") window.sessionStorage.setItem(promptKey, "dismissed");
     setOpen(false);
-    void (utils.court as any).attendance?.list.invalidate();
+    void (utils.court as any).attendance?.today.invalidate();
     void (utils.court as any).attendance?.currentWindow.invalidate();
   };
   const showError = (error: { message: string }) => toast.error(error.message || "تعذر حفظ الحضور. حاول مرة أخرى.");
-  const record = attendanceApi?.record?.useMutation ? attendanceApi.record.useMutation({ onSuccess: () => { setSubmitted(true); void (utils.court as any).attendance?.list.invalidate(); }, onError: showError }) : { mutate: () => undefined, isPending: false };
-  const checkout = attendanceApi?.checkout?.useMutation ? attendanceApi.checkout.useMutation({ onSuccess: () => { setSubmitted(true); void (utils.court as any).attendance?.list.invalidate(); }, onError: showError }) : { mutate: () => undefined, isPending: false };
+  const record = attendanceApi?.record?.useMutation ? attendanceApi.record.useMutation({ onSuccess: () => { setSubmitted(true); void (utils.court as any).attendance?.today.invalidate(); }, onError: showError }) : { mutate: () => undefined, isPending: false };
+  const checkout = attendanceApi?.checkout?.useMutation ? attendanceApi.checkout.useMutation({ onSuccess: () => { setSubmitted(true); void (utils.court as any).attendance?.today.invalidate(); }, onError: showError }) : { mutate: () => undefined, isPending: false };
   useEffect(() => {
     if (!promptKey || typeof window === "undefined") { setOpen(false); return; }
     setOpen(window.sessionStorage.getItem(promptKey) !== "dismissed");
   }, [promptKey]);
 
-  const isResolving = Boolean(self.isLoading || attendance.isLoading || currentWindow.isLoading);
+  const isResolving = Boolean(self.isLoading || todayAttendance.isLoading || currentWindow.isLoading);
   const isBlocking = isResolving || Boolean(open && action && self.data);
   useEffect(() => {
     onBlockingChange?.({ isBlocking });

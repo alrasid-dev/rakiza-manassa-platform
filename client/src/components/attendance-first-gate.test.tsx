@@ -14,11 +14,11 @@ const { recordMutate, checkoutMutate, recordOptions, checkoutOptions, toastError
 vi.mock("sonner", () => ({ toast: { error: toastError } }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    useUtils: () => ({ court: { attendance: { list: { invalidate: vi.fn() }, currentWindow: { invalidate: vi.fn() } } } }),
+    useUtils: () => ({ court: { attendance: { today: { invalidate: vi.fn() }, currentWindow: { invalidate: vi.fn() } } } }),
     court: {
       attendance: {
         self: { useQuery: () => ({ data: { id: 12, attendanceMode: "remote" } }) },
-        list: { useQuery: () => ({ data: [], isLoading: false }) },
+        today: { useQuery: () => ({ data: null, isLoading: false }) },
         currentWindow: { useQuery: () => ({ data: { kind: "check_in", shiftName: "الوردية الأساسية" } }) },
         record: { useMutation: (options: typeof recordOptions.current) => { recordOptions.current = options; return { mutate: recordMutate, isPending: false }; } },
         checkout: { useMutation: (options: typeof checkoutOptions.current) => { checkoutOptions.current = options; return { mutate: checkoutMutate, isPending: false }; } },

@@ -66,6 +66,7 @@ import { RAKIZA_BRAND, RAKIZA_HEADER, RAKIZA_BRAND_LINE } from "@/branding";
 import { Button } from "./ui/button";
 import AiRakizaTaskPrompt from "./AiRakizaTaskPrompt";
 import AttendanceFirstGate from "./AttendanceFirstGate";
+import CheckOutReminder from "./CheckOutReminder";
 import FirstUseHelp from "./FirstUseHelp";
 import PasskeyEnrollmentGate from "./PasskeyEnrollmentGate";
 import { useWorkMode } from "./WorkModeToggle";
@@ -502,6 +503,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
           {notificationsOpen && <NotificationCenter notifications={notifications.data} isLoading={notifications.isLoading} unreadCount={unreadNotifications.length} onClose={() => setNotificationsOpen(false)} onMarkRead={notificationId => markNotificationRead.mutate({ notificationId })} onOpenTask={(taskId, notificationId, isRead) => { if (!isRead) markNotificationRead.mutate({ notificationId }); setNotificationsOpen(false); setLocation(`/tasks?taskId=${taskId}`); }} onOpenConversation={(conversationId, notificationId, isRead) => { if (!isRead) markNotificationRead.mutate({ notificationId }); setNotificationsOpen(false); setLocation(`/messages?conversationId=${conversationId}`); }} />}
           {!hideUtilityPrompts && <PwaInstallHint alwaysVisible />}
           {!IS_PREVIEW_MODE && user && <PasskeyEnrollmentGate officialEmail={user.email} />}
+          {!IS_PREVIEW_MODE && user && <CheckOutReminder />}
           {!IS_PREVIEW_MODE && user && <AttendanceFirstGate onComplete={() => window.setTimeout(() => undefined, 0)} onBlockingChange={({ isBlocking }) => setAttendanceGateBlocking(isBlocking)} />}
           {!IS_PREVIEW_MODE && user && <AiRakizaTaskPrompt tasks={assignedTasks.data || []} unreadMailCount={internalMailCounts.data?.unread || 0} urgentUnreadMailCount={internalMailCounts.data?.urgentUnread || 0} unreadNotificationCount={unreadNotifications.length} suppressAutoPrompt={attendanceGateBlocking} onStart={task => setLocation(`/tasks?task=${task.id}`)} onOpenAssistant={() => setLocation("/assistants")} onOpenMail={() => setLocation("/rakiza-mail")} onOpenNotifications={() => setLocation("/notifications")} />}
           <FirstUseHelp />
