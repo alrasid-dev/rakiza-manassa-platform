@@ -1751,6 +1751,7 @@ function activeTaskVisibilityCondition(now: Date) {
   const todayStart = dateRangeForSaudiDay(now).start;
   return or(
     eq(tasks.status, "overdue"),
+    eq(tasks.isOpen, true),
     isNull(tasks.scheduledFor),
     gte(tasks.scheduledFor, todayStart),
   )!;
@@ -2235,7 +2236,6 @@ export async function runTaskLifecycleAutomation(now = new Date()) {
     isNull(tasks.archivedAt),
     inArray(tasks.status, ["new", "in_progress"]),
     gte(tasks.scheduledFor, NEW_POLICY_CUTOFF),
-    eq(tasks.isOpen, false),
   ));
   let notified = 0;
   let overdue = 0;
