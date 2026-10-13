@@ -1757,7 +1757,7 @@ export async function listTasks(filters?: { status?: "new" | "in_progress" | "un
   // مهام المستأذن تعتمد على الحضور: استئذان معتمد اليوم + لا بصمة دخول → لا مهام ظاهرة له.
   if (filters?.assigneeProfileId) {
     const now = new Date();
-    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const todayStart = dateRangeForSaudiDay(now).start;
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     const [todayPermission] = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
       eq(leaveRequests.profileId, filters.assigneeProfileId),
@@ -5343,7 +5343,7 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
   if (attendanceProfile?.status === "on_leave") throw new TRPCError({ code: "FORBIDDEN", message: "أنت في إجازة. لا يمكن تسجيل الحضور." });
   if (attendanceProfile?.status === "inactive") throw new TRPCError({ code: "FORBIDDEN", message: "حسابك غير مُفعَّل." });
 
-  const recordDay = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
+  const recordDay = dateRangeForSaudiDay(input.recordDate).start;
   // إجازة معتمدة تغطي اليوم → منع البصمة.
   const approvedLeave = await db.select({ id: leaveRequests.id }).from(leaveRequests).where(and(
     eq(leaveRequests.profileId, input.profileId),
@@ -5370,10 +5370,11 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
     earlyCheckInPoints = cls.points;
   }
   const { autoClassify: _autoClassify, ...attendanceInput } = input;
-  // تطبيع recordDate إلى بداية اليوم UTC حتى يعمل الـ unique index (profileId, recordDate) فعلياً
+  // تطبيع recordDate إلى بداية اليوم السعودي (منتصف ليل الرياض) حتى يعمل الـ unique index (profileId, recordDate) فعلياً
   // ويمنع تكرار سجلات نفس الموظف في نفس اليوم (كان يخزّن timestamp كاملاً بثوانٍ مختلفة فلا يلتقط التكرار).
-  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate()));
-  const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), eq(attendanceRecords.recordDate, dayStart))).limit(1))[0];
+  const dayStart = dateRangeForSaudiDay(input.recordDate).start;
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1))[0];
   if (existing?.checkInAt) {
     throw new TRPCError({ code: "CONFLICT", message: `تم تسجيل حضورك مسبقاً الساعة ${formatRiyadhTime(existing.checkInAt)}` });
   }
@@ -5412,7 +5413,7 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   if (attendanceProfile?.status === "on_leave") throw new TRPCError({ code: "FORBIDDEN", message: "أنت في إجازة." });
   const window = await checkAttendanceWindow(input.checkOutAt, "check_out");
   if (!window.allowed) throw new TRPCError({ code: "BAD_REQUEST", message: window.reason });
-  const dayStart = new Date(Date.UTC(input.checkOutAt.getUTCFullYear(), input.checkOutAt.getUTCMonth(), input.checkOutAt.getUTCDate()));
+  const dayStart = dateRangeForSaudiDay(input.checkOutAt).start;
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).orderBy(asc(attendanceRecords.id)).limit(1))[0];
   if (!existing) throw new Error("يجب تسجيل الحضور أولاً قبل تسجيل الانصراف.");
@@ -5519,8 +5520,6 @@ export async function ownerUpdateAttendanceRecord(input: {
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
-
-  console.log("[attendance-edit]", { profileId: input.profileId, dayStart: dayStart.toISOString(), inputRecordDate: input.recordDate.toISOString(), checkInAt: input.checkInAt?.toISOString() ?? null, checkOutAt: input.checkOutAt?.toISOString() ?? null, existing: existing.id });
   const oldCheckIn = existing.checkInAt ?? null;
   const oldCheckOut = existing.checkOutAt ?? null;
   // undefined = لا تعديل (احتفظ بالقديم)؛ null = حذف؛ Date = تعديل.
@@ -5571,7 +5570,6 @@ export async function ownerCreateAttendanceRecord(input: { profileId: number; re
   const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate(), -3));
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const existing = (await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1))[0];
-  console.log("[attendance-create]", { profileId: input.profileId, recordDate: dayStart.toISOString(), checkInAt: input.checkInAt?.toISOString() ?? null, checkOutAt: input.checkOutAt?.toISOString() ?? null, status: input.status, existing: existing?.id ?? null });
 
   let positiveMinutes = 0;
   let negativeMinutes = 0;
@@ -5854,7 +5852,7 @@ export async function getTodayAttendanceForProfile(profileId: number) {
   const db = await getDb();
   if (!db) return null;
   const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const start = dateRangeForSaudiDay(now).start;
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   const rows = await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, profileId), gte(attendanceRecords.recordDate, start), lt(attendanceRecords.recordDate, end))).orderBy(desc(attendanceRecords.recordDate)).limit(1);
   return rows[0] ?? null;
@@ -6270,7 +6268,7 @@ export async function requestLateExcuse(input: { profileId: number; recordDate: 
   if (isOfficialHoliday(input.checkOutAt)) throw new Error(`لا يمكن تقديم استئذان متأخر في إجازة رسمية (${officialHolidayName(input.checkOutAt)}).`);
 
   const [y, m, d] = input.recordDate.split("-").map(Number);
-  const dayStart = new Date(Date.UTC(y, m - 1, d));
+  const dayStart = new Date(Date.UTC(y, m - 1, d, -3));
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
   // يجب أن يكون بصم دخولاً ولم يسجل انصرافاً ذلك اليوم.
@@ -6341,7 +6339,7 @@ export async function approveLateExcuse(input: { leaveRequestId: number; decisio
   }
 
   // الموافقة: تسجيل الانصراف + إلغاء العقوبة.
-  const dayStart = new Date(Date.UTC(request.startAt.getUTCFullYear(), request.startAt.getUTCMonth(), request.startAt.getUTCDate()));
+  const dayStart = dateRangeForSaudiDay(request.startAt).start;
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const record = (await db.select().from(attendanceRecords).where(and(
     eq(attendanceRecords.profileId, request.profileId),
