@@ -386,8 +386,17 @@ async function requireAttendancePolicyAccess(user: { id: number; role: "user" | 
 async function requireAttendanceOwnerAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
   const permission = await permissionForUser(user);
   const roles = await rolesForUser(user);
-  const allowed = canViewWholePlatform(permission) || roles.some(role => ["court_president", "court_secretary", "human_resources_manager"].includes(role));
-  if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "تعديل سجلات الحضور متاح للمالك والرئيس والأمين والموارد البشرية فقط." });
+  const allowed = canViewWholePlatform(permission) || roles.some(role => role === "court_secretary");
+  if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "تعديل سجلات الحضور متاح للمالك والأمين فقط." });
+  return { permission, roles };
+}
+
+/** عرض سجلات الحضور (الأيقونة والتقارير): المالك والرئيس ومساعد الرئيس والأمين والموارد البشرية. */
+async function requireAttendanceViewAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
+  const permission = await permissionForUser(user);
+  const roles = await rolesForUser(user);
+  const allowed = canViewWholePlatform(permission) || roles.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager"].includes(role));
+  if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "عرض سجلات الحضور متاح للمالك والرئيس ومساعد الرئيس والأمين والموارد البشرية فقط." });
   return { permission, roles };
 }
 
@@ -2743,11 +2752,11 @@ export const courtRouter = router({
       return recordAttendanceCheckout({ profileId: profile.id, checkOutAt: new Date(), actorUserId: ctx.user.id });
     }),
     monthlyReport: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), startAt: z.date(), endAt: z.date() })).query(async ({ ctx, input }) => {
-      await requireAttendanceOwnerAccess(ctx.user);
+      await requireAttendanceViewAccess(ctx.user);
       return listAttendanceForProfileRange(input.profileId, input.startAt, input.endAt);
     }),
     unitMonthlyReport: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), startAt: z.date(), endAt: z.date() })).query(async ({ ctx, input }) => {
-      await requireAttendanceOwnerAccess(ctx.user);
+      await requireAttendanceViewAccess(ctx.user);
       return listAttendanceForUnitRange([input.unitId], input.startAt, input.endAt);
     }),
     ownerEditCheckIn: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), recordDate: z.date(), checkInAt: z.date(), reason: z.string().trim().min(10, "السبب مطلوب (10 أحرف على الأقل).").max(2000) })).mutation(async ({ ctx, input }) => {

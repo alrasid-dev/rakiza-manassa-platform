@@ -45,7 +45,7 @@ export default function StatusWorkspaceContent() {
   const people = trpc.court.people.list.useQuery();
   const attendance = trpc.court.attendance.list.useQuery();
   const canManageAttendancePolicy = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "court_secretary" || role === "human_resources_manager"));
-  const canOwnerEditAttendance = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "court_secretary"));
+  const canOwnerEditAttendance = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary" || role === "human_resources_manager"));
   const invalidateAttendance = () => { utils.court.attendance.list.invalidate(); (utils.court.attendance as any).remoteReport?.invalidate?.(); };
   const ownerEditCheckInApi = (trpc.court.attendance as any).ownerEditCheckIn;
   const ownerEditCheckIn = ownerEditCheckInApi?.useMutation ? ownerEditCheckInApi.useMutation({ onSuccess: () => { invalidateAttendance(); toast.success("تم تعديل وقت الدخول."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر تعديل وقت الدخول") }) : { mutate: (_i: unknown) => undefined, isPending: false };
