@@ -1,4 +1,5 @@
 /** نماذج الترحيب اليومية: آية صباحاً وحكمة مساءً، بتبديل يومي بلا تكرار. */
+import { toRiyadh } from "./riyadh-time";
 
 export type MorningModel = { ayah: string; reference: string };
 export type EveningModel = { wisdom: string };
@@ -81,7 +82,7 @@ export type WelcomeItem =
 export function getWelcomeItem(now: Date): WelcomeItem {
   const dayOfYear = getDayOfYear(now);
   // توقيت الرياض (UTC+3) بدل توقيت المتصفح المحلي — يمنع ظهور "مساء الخير" في الصباح.
-  const riyadh = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  const riyadh = toRiyadh(now);
   const hour = riyadh.getUTCHours();
   const isMorning = hour >= 4 && hour < 12;
   if (isMorning) {

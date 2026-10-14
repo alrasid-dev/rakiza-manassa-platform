@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { hijriMonthKey, hijriMonthRange, recentHijriMonths } from "@/lib/hijri-months";
+import { riyadhDateKey, riyadhLocalToUtc, riyadhTimeKey, toRiyadh } from "@/lib/riyadh-time";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -30,28 +31,15 @@ function fmtTime(d: Date | string | number | null | undefined) {
 
 function combineDateTime(dateStr: string, timeStr: string): Date | null {
   if (!dateStr || !timeStr) return null;
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const [h, min] = timeStr.split(":").map(Number);
-  if ([y, m, d, h, min].some(n => Number.isNaN(n))) return null;
-  // يُدخل المستخدم الوقت بتوقيت الرياض (UTC+3)، لذا نطرح 3 ساعات لتحويله إلى UTC للتخزين.
-  return new Date(Date.UTC(y, m - 1, d, h - 3, min, 0));
+  return riyadhLocalToUtc(`${dateStr}T${timeStr}`);
 }
 
 function timeOf(d: Date | string | number | null | undefined): string {
-  if (!d) return "";
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return "";
-  // يُخزَّن الوقت UTC، لذا نضيف 3 ساعات لعرضه بتوقيت الرياض في نافذة التعديل.
-  const riyadh = new Date(date.getTime() + 3 * 60 * 60 * 1000);
-  return `${String(riyadh.getUTCHours()).padStart(2, "0")}:${String(riyadh.getUTCMinutes()).padStart(2, "0")}`;
+  return riyadhTimeKey(d);
 }
 
 function saudiDateKey(d: Date | string | number | null | undefined): string {
-  if (!d) return "";
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return "";
-  // recordDate يُخزَّن بمنتصف ليل الرياض (21:00 UTC لليوم السابق)، لذا نضيف 3 ساعات لاستخراج التاريخ السعودي الصحيح.
-  return new Date(date.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return riyadhDateKey(d);
 }
 
 type Row = {
@@ -257,7 +245,7 @@ export default function AttendanceMonthlyPage() {
                     <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">{showAll ? (unitId ? "لا توجد سجلات في هذا الشهر." : "اختر قسماً لعرض سجلات كل الموظفين.") : profileId == null ? "اختر موظفاً لعرض السجل." : "لا توجد سجلات في هذا الشهر."}</td></tr>
                   ) : rows.map(row => {
                     const a = row.attendance;
-                    const dayName = dayNames[new Date(a.recordDate.getTime() + 3 * 60 * 60 * 1000).getUTCDay()];
+                    const dayName = dayNames[toRiyadh(new Date(a.recordDate)).getUTCDay()];
                     const points = (a.positiveMinutes ?? 0) - (a.negativeMinutes ?? 0);
                     return (
                       <tr key={a.id} className="hover:bg-[#fafdf9]">

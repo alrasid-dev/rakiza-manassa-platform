@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { toRiyadh } from "@/lib/riyadh-time";
 import { useMemo } from "react";
 
 const statusLabels: Record<string, string> = {
@@ -56,7 +57,7 @@ export default function MyAttendancePage() {
                 <tr><td colSpan={5} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">لا توجد سجلات في آخر 30 يوماً.</td></tr>
               ) : last30.map(row => {
                 const a = row.attendance;
-                const dayName = dayNames[new Date(a.recordDate.getTime() + 3 * 60 * 60 * 1000).getUTCDay()];
+                const dayName = dayNames[toRiyadh(new Date(a.recordDate)).getUTCDay()];
                 return (
                   <tr key={a.id} className="hover:bg-[#fafdf9]">
                     <td className="px-3 py-2.5">{fmtDate(a.recordDate)}</td>
