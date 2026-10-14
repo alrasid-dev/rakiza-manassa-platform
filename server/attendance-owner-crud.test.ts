@@ -143,6 +143,26 @@ describe("ownerCreateAttendanceRecord — إضافة سجل", () => {
     expect(insert).toBeTruthy();
     expect(insert?.values).toMatchObject({ profileId: 9, status: "present" });
   });
+
+  it("لا يمسح القيم الموجودة عند upsert (إضافة لسجل موجود بحقول فارغة)", async () => {
+    firstSelectRows = [existingRecord as unknown as Record<string, unknown>];
+    mocks.getDb.mockResolvedValue(createFakeDb());
+
+    await ownerCreateAttendanceRecord({
+      profileId: 9,
+      recordDate: new Date("2026-08-14T00:00:00Z"),
+      checkInAt: null,
+      checkOutAt: null,
+      status: "present",
+      actorUserId: 1,
+      reason: REASON,
+    });
+
+    expect(mocks.updates[0]).toMatchObject({
+      checkInAt: existingRecord.checkInAt,
+      checkOutAt: existingRecord.checkOutAt,
+    });
+  });
 });
 
 describe("ownerDeleteAttendanceRecord — حذف سجل", () => {

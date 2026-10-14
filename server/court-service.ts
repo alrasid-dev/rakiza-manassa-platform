@@ -5601,10 +5601,11 @@ export async function ownerCreateAttendanceRecord(input: { profileId: number; re
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const { dayStart, dayEnd } = riyadhDayRange(input.recordDate);
-  const existing = (await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1))[0];
+  const existing = (await db.select({ id: attendanceRecords.id, checkInAt: attendanceRecords.checkInAt, checkOutAt: attendanceRecords.checkOutAt, positiveMinutes: attendanceRecords.positiveMinutes, negativeMinutes: attendanceRecords.negativeMinutes }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1))[0];
 
-  let positiveMinutes = 0;
-  let negativeMinutes = 0;
+  // في حالة upsert (سجل موجود): لا نمسح القيم القديمة — null/undefined = احتفظ بالقيمة الموجودة.
+  let positiveMinutes = existing?.positiveMinutes ?? 0;
+  let negativeMinutes = existing?.negativeMinutes ?? 0;
   if (input.checkInAt && input.checkOutAt) {
     const [shift] = await db.select({ actualEndMinutes: workShifts.actualEndMinutes }).from(workShifts).where(and(eq(workShifts.isDefault, true), eq(workShifts.isActive, true))).limit(1);
     const balance = computeCheckoutBalance(riyadhMinutesOfDay(input.checkInAt), riyadhMinutesOfDay(input.checkOutAt), shift?.actualEndMinutes ?? ACTUAL_END_MIN);
@@ -5612,8 +5613,8 @@ export async function ownerCreateAttendanceRecord(input: { profileId: number; re
     negativeMinutes = balance.negativeMinutes;
   }
 
-  const checkInValue = input.status === "on_leave" ? null : (input.checkInAt ?? null);
-  const checkOutValue = input.checkOutAt ?? null;
+  const checkInValue = input.status === "on_leave" ? null : (input.checkInAt ?? existing?.checkInAt ?? null);
+  const checkOutValue = input.checkOutAt ?? existing?.checkOutAt ?? null;
 
   if (existing) {
     // upsert: تحديث السجل الموجود بدل الرمي بخطأ CONFLICT.
