@@ -141,11 +141,7 @@ export function LiveChatWidget() {
                 }`}
               >
                 <p className="whitespace-pre-wrap">{msg.message.body}</p>
-                {parseAttachments(msg.attachments).map(att => (
-                  <a key={att.id} href={att.url} target="_blank" rel="noreferrer" className="mt-1 block text-xs underline">
-                    📎 {att.name}
-                  </a>
-                ))}
+                {parseAttachments(msg.attachments).map(att => att.url ? (String(att.mimeType || "").startsWith("image/") ? <a key={att.id} href={att.url} target="_blank" rel="noreferrer" className="mt-1 block"><img src={att.url} alt={att.name} className="max-h-44 max-w-full rounded-lg" /></a> : <a key={att.id} href={att.url} download={att.name} className="mt-1 block text-xs underline">📎 {att.name}</a>) : null)}
                 <span className="mt-1 block text-[10px] opacity-70">
                   {new Date(msg.message.createdAt).toLocaleTimeString("ar-SA", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit" })}
                 </span>
