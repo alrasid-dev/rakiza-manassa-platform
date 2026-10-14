@@ -4176,6 +4176,38 @@ export async function updateTask(input: {
   return getTaskById(input.taskId);
 }
 
+/** معالجة تصعيد مهمة متأخرة (overdue): إعادة فتح، إلغاء، أو أرشفة — متاح للمدير والقيادة. */
+export async function resolveTaskEscalation(input: { taskId: number; action: "reopen" | "cancel" | "archive"; reason: string; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة");
+  const task = await getTaskById(input.taskId);
+  if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
+  if (task.status !== "overdue") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "هذه المهمة ليست مُصعّدة حالياً." });
+  const now = new Date();
+  const patch: Partial<typeof tasks.$inferInsert> = {};
+  let actionLabel: string;
+  if (input.action === "reopen") {
+    actionLabel = "إعادة فتح";
+    patch.status = "new";
+    patch.dueAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    patch.startedAt = null;
+    patch.completedAt = null;
+    patch.archivedAt = null;
+  } else if (input.action === "cancel") {
+    actionLabel = "إلغاء";
+    patch.status = "cancelled";
+    patch.cancellationReason = input.reason;
+    patch.archivedAt = now;
+  } else {
+    actionLabel = "أرشفة";
+    patch.archivedAt = now;
+  }
+  await db.update(tasks).set(patch).where(eq(tasks.id, input.taskId));
+  await db.insert(taskUpdates).values({ taskId: input.taskId, actorUserId: input.actorUserId, updateType: "progress", note: `معالجة التصعيد (${actionLabel}): ${input.reason}` });
+  await logAudit({ actorUserId: input.actorUserId, action: "task.escalation_resolved", entityType: "task", entityId: input.taskId, metadata: { action: input.action, reason: input.reason } });
+  return { success: true, taskId: input.taskId, action: input.action };
+}
+
 /** الحقول القابلة للتعديل عبر طلب تعديل المهمة. */
 export interface TaskModificationProposedChanges {
   title?: string;

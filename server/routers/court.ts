@@ -278,6 +278,7 @@ import {
   updateTaskStatus,
   updateTask,
   cancelTask,
+  resolveTaskEscalation,
   createTaskModificationRequest,
   reviewTaskModification,
   listTaskModificationRequests,
@@ -1857,6 +1858,17 @@ export const courtRouter = router({
       if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
       if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بإلغاء هذه المهمة." });
       return cancelTask({ taskId: input.taskId, actorUserId: ctx.user.id, cancellationReason: input.cancellationReason });
+    }),
+    resolveEscalation: protectedProcedure.input(z.object({ taskId: z.number().int().positive(), action: z.enum(["reopen", "cancel", "archive"]), reason: z.string().trim().min(3).max(2000) })).mutation(async ({ ctx, input }) => {
+      const task = await getTaskById(input.taskId);
+      if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "المهمة المطلوبة غير موجودة." });
+      if (!(await canAccessTask(ctx.user, task))) throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بمعالجة تصعيد هذه المهمة." });
+      const permission = await permissionForUser(ctx.user);
+      const roles = await rolesForUser(ctx.user);
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const isManager = roles.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+      if (!isLeadership && !isManager) throw new TRPCError({ code: "FORBIDDEN", message: "معالجة التصعيد متاحة للمدير والقيادة فقط." });
+      return resolveTaskEscalation({ taskId: input.taskId, action: input.action, reason: input.reason, actorUserId: ctx.user.id });
     }),
     acknowledge: protectedProcedure.input(z.object({ taskId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const task = await getTaskById(input.taskId);
