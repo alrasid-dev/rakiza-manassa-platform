@@ -125,7 +125,7 @@ export default function AttendanceMonthlyPage() {
       createRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? null, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? null, status: modal.status as "present" | "late" | "absent" | "excused" | "on_leave", reason: modal.reason });
       setModal(null); return;
     }
-    updateRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? null, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? null, reason: modal.reason });
+    updateRecord.mutate({ profileId, recordDate, checkInAt: combineDateTime(modal.recordDate, modal.checkInAt) ?? null, checkOutAt: combineDateTime(modal.recordDate, modal.checkOutAt) ?? null, status: modal.status as "present" | "late" | "absent" | "excused" | "on_leave", reason: modal.reason });
     setModal(null);
   };
 
@@ -302,6 +302,11 @@ export default function AttendanceMonthlyPage() {
                   <p className="rounded-lg bg-[#f7f5ef] px-3 py-2 text-sm font-bold text-[var(--rakiza-olive)]">التاريخ: {fmtDate(modal.recordDate)}</p>
                   <label className="block text-xs font-bold text-[var(--rakiza-muted)]">وقت الدخول<input type="time" value={modal.checkInAt} onChange={e => setModal({ ...modal, checkInAt: e.target.value })} className="mt-1 w-full rounded-md border border-[var(--rakiza-border)] bg-white px-3 py-2 text-sm font-normal" /></label>
                   <label className="block text-xs font-bold text-[var(--rakiza-muted)]">وقت الخروج<input type="time" value={modal.checkOutAt} onChange={e => setModal({ ...modal, checkOutAt: e.target.value })} className="mt-1 w-full rounded-md border border-[var(--rakiza-border)] bg-white px-3 py-2 text-sm font-normal" /></label>
+                  <label className="block text-xs font-bold text-[var(--rakiza-muted)]">الحالة
+                    <select value={modal.status} onChange={e => setModal({ ...modal, status: e.target.value })} className="mt-1 w-full rounded-md border border-[var(--rakiza-border)] bg-white px-3 py-2 text-sm font-normal">
+                      <option value="present">حاضر</option><option value="late">متأخر</option><option value="absent">غائب</option><option value="excused">مستأذن</option><option value="on_leave">إجازة</option>
+                    </select>
+                  </label>
                 </div>
               )}
 

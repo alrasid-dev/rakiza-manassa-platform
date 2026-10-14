@@ -5546,6 +5546,7 @@ export async function ownerUpdateAttendanceRecord(input: {
   recordDate: Date;
   checkInAt?: Date | null;
   checkOutAt?: Date | null;
+  status?: "present" | "late" | "absent" | "excused" | "on_leave";
   actorUserId: number;
   reason: string;
 }) {
@@ -5563,9 +5564,9 @@ export async function ownerUpdateAttendanceRecord(input: {
   const newCheckInAt = input.checkInAt === undefined ? existing.checkInAt : input.checkInAt;
   const newCheckOutAt = input.checkOutAt === undefined ? existing.checkOutAt : input.checkOutAt;
 
-  // إعادة تصنيف الحالة بناءً على وقت الدخول الجديد (إن قُدِّم).
-  let status = existing.status;
-  if (input.checkInAt) {
+  // الحالة: إن قُدِّمت صراحةً تُعتمد، وإلا يُعاد تصنيفها من وقت الدخول الجديد.
+  let status = input.status ?? existing.status;
+  if (input.status === undefined && input.checkInAt) {
     const cls = classifyCheckIn(riyadhMinutesOfDay(input.checkInAt));
     if (cls.allowed !== false) {
       status = (cls.status === "late" || cls.status === "late_no_penalty") ? "late" : "present";
