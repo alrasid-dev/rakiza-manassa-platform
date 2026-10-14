@@ -1,0 +1,288 @@
+{
+  "name": "Rakiza Manassa",
+  "dataColors": [
+    "#3f7354",
+    "#b18448",
+    "#245f43",
+    "#a04a35",
+    "#6f7e75",
+    "#d9a86c",
+    "#2f6d6a",
+    "#7a9b7f",
+    "#8a5a44",
+    "#4c5b52"
+  ],
+  "good": "#006c35",
+  "neutral": "#b18448",
+  "bad": "#a04a35",
+  "maximum": "#3f7354",
+  "center": "#b18448",
+  "minimum": "#a04a35",
+  "null": "#6f7e75",
+  "background": "#f8f8f3",
+  "backgroundLight": "#eff0e9",
+  "backgroundNeutral": "#eff0e9",
+  "foreground": "#243d32",
+  "foregroundNeutralSecondary": "#6f7e75",
+  "foregroundNeutralTertiary": "#9aa89f",
+  "tableAccent": "#b18448",
+  "border": "#cfd7ca",
+  "textClasses": {
+    "callout": {
+      "fontSize": 42,
+      "fontFace": "Tajawal",
+      "color": "#243d32"
+    },
+    "title": {
+      "fontSize": 13,
+      "fontFace": "Tajawal",
+      "color": "#243d32"
+    },
+    "header": {
+      "fontSize": 12,
+      "fontFace": "Tajawal",
+      "color": "#243d32"
+    },
+    "label": {
+      "fontSize": 10,
+      "fontFace": "Tajawal",
+      "color": "#6f7e75"
+    }
+  },
+  "visualStyles": {
+    "page": {
+      "*": {
+        "background": [
+          {
+            "color": { "solid": { "color": "#f8f8f3" } },
+            "transparency": 0
+          }
+        ],
+        "title": [
+          {
+            "show": true,
+            "fontColor": { "solid": { "color": "#243d32" } },
+            "fontSize": 16,
+            "fontFamily": "Tajawal",
+            "alignment": "right"
+          }
+        ]
+      }
+    },
+    "*": {
+      "*": {
+        "title": [
+          {
+            "show": true,
+            "fontColor": { "solid": { "color": "#243d32" } },
+            "fontSize": 12,
+            "fontFamily": "Tajawal",
+            "alignment": "right"
+          }
+        ],
+        "legend": [
+          {
+            "show": true,
+            "position": "Top",
+            "fontSize": 9,
+            "fontFamily": "Tajawal",
+            "labelColor": { "solid": { "color": "#6f7e75" } }
+          }
+        ],
+        "border": [ { "show": false } ],
+        "background": [ { "transparency": 100 } ]
+      }
+    },
+    "card": {
+      "*": {
+        "labels": [
+          {
+            "show": true,
+            "color": { "solid": { "color": "#6f7e75" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "categoryLabel": [
+          {
+            "show": true,
+            "color": { "solid": { "color": "#243d32" } },
+            "fontSize": 24,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "wordWrap": [ { "show": true } ]
+      }
+    },
+    "table": {
+      "*": {
+        "grid": [
+          {
+            "gridVertical": true,
+            "gridHorizontal": true,
+            "gridVerticalColor": { "solid": { "color": "#cfd7ca" } },
+            "gridHorizontalColor": { "solid": { "color": "#cfd7ca" } },
+            "outlineColor": { "solid": { "color": "#b18448" } },
+            "rowPadding": 4,
+            "textSize": 10
+          }
+        ],
+        "columnHeaders": [
+          {
+            "fontColor": { "solid": { "color": "#f8f8f3" } },
+            "backColor": { "solid": { "color": "#243d32" } },
+            "fontSize": 10,
+            "fontFamily": "Tajawal",
+            "wordWrap": true
+          }
+        ],
+        "rowHeaders": [
+          {
+            "fontColor": { "solid": { "color": "#243d32" } },
+            "backColor": { "solid": { "color": "#eff0e9" } },
+            "fontSize": 10,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "values": [
+          {
+            "fontSize": 10,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "total": [
+          {
+            "fontColor": { "solid": { "color": "#243d32" } },
+            "backColor": { "solid": { "color": "#dce9da" } },
+            "fontSize": 11,
+            "fontFamily": "Tajawal"
+          }
+        ]
+      }
+    },
+    "matrix": {
+      "*": {
+        "columnHeaders": [
+          {
+            "fontColor": { "solid": { "color": "#f8f8f3" } },
+            "backColor": { "solid": { "color": "#243d32" } },
+            "fontSize": 10,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "rowHeaders": [
+          {
+            "fontColor": { "solid": { "color": "#243d32" } },
+            "backColor": { "solid": { "color": "#eff0e9" } },
+            "fontSize": 10,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "values": [
+          {
+            "fontSize": 10,
+            "fontFamily": "Tajawal"
+          }
+        ]
+      }
+    },
+    "columnChart": {
+      "*": {
+        "categoryAxis": [
+          {
+            "show": true,
+            "labelColor": { "solid": { "color": "#6f7e75" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "valueAxis": [
+          {
+            "show": true,
+            "labelColor": { "solid": { "color": "#6f7e75" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "labels": [
+          {
+            "show": false,
+            "color": { "solid": { "color": "#243d32" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ]
+      }
+    },
+    "barChart": {
+      "*": {
+        "categoryAxis": [
+          {
+            "show": true,
+            "labelColor": { "solid": { "color": "#6f7e75" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "valueAxis": [
+          {
+            "show": true,
+            "labelColor": { "solid": { "color": "#6f7e75" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "labels": [
+          {
+            "show": false,
+            "color": { "solid": { "color": "#243d32" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ]
+      }
+    },
+    "lineChart": {
+      "*": {
+        "categoryAxis": [
+          {
+            "show": true,
+            "labelColor": { "solid": { "color": "#6f7e75" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "valueAxis": [
+          {
+            "show": true,
+            "labelColor": { "solid": { "color": "#6f7e75" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ],
+        "labels": [
+          {
+            "show": false,
+            "color": { "solid": { "color": "#243d32" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal"
+          }
+        ]
+      }
+    },
+    "pieChart": {
+      "*": {
+        "labels": [
+          {
+            "show": true,
+            "color": { "solid": { "color": "#243d32" } },
+            "fontSize": 9,
+            "fontFamily": "Tajawal",
+            "labelPosition": "Outside"
+          }
+        ]
+      }
+    }
+  }
+}
+

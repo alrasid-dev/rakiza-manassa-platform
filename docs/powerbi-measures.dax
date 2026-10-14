@@ -1,0 +1,158 @@
+// ============================================================
+//  مقاييس رَكيزة (DAX Measures) — جاهزة للنسخ في Power BI
+// ============================================================
+//  طريقة الاستخدام:
+//   1) أنشئ جدولًا جديدًا فارغًا:  Model → New table
+//      وأدخل:  _Measures = ROW("x", 1)
+//   2) داخل هذا الجدول أنشئ كل measure أدناه.
+//   3) اسحب المقياس إلى أي Visual.
+//
+//  الجداول المعتمدة (SQL Views — راجع docs/POWER_BI_CONNECT.md):
+//   - 'v_powerbi_tasks'      كل المهام
+//   - 'v_powerbi_daily_flow' تجميع يومي (flow_date = اليوم السعودي)
+//   - 'v_powerbi_employees'  الموظفون
+//   - 'v_powerbi_units'      الأقسام
+//
+//  ملاحظات هامة:
+//   - قيم status: new / in_progress / under_review / completed /
+//                 overdue / cancelled / paused
+//   - الطوابع الزمنية UTC → نضيف TIME(3,0,0) للتوقيت السعودي
+// ============================================================
+
+// ---------- 1) عدد المهام الكلي ----------
+Total Tasks =
+COUNTROWS ( 'v_powerbi_tasks' )
+
+// ---------- 2) المهام المكتملة ----------
+Completed Tasks =
+CALCULATE (
+    COUNTROWS ( 'v_powerbi_tasks' ),
+    'v_powerbi_tasks'[status] = "completed"
+)
+
+// ---------- 3) المهام المتأخرة ----------
+Overdue Tasks =
+CALCULATE (
+    COUNTROWS ( 'v_powerbi_tasks' ),
+    'v_powerbi_tasks'[status] = "overdue"
+)
+
+// ---------- 4) المهام الجديدة ----------
+New Tasks =
+CALCULATE (
+    COUNTROWS ( 'v_powerbi_tasks' ),
+    'v_powerbi_tasks'[status] = "new"
+)
+
+// ---------- 5) معدل الإنجاز (%) ----------
+Completion Rate =
+DIVIDE ( [Completed Tasks], [Total Tasks], 0 )
+
+// ---------- 6) نسبة الأتمتة (مهام مولّدة من قوالب) ----------
+Automation Rate =
+DIVIDE (
+    CALCULATE (
+        COUNTROWS ( 'v_powerbi_tasks' ),
+        NOT ( ISBLANK ( 'v_powerbi_tasks'[template_id] ) )
+    ),
+    [Total Tasks],
+    0
+)
+
+// ---------- 7) متوسط المهام لكل موظف ----------
+// (لكل الموظفين المسجّلين — يتطلب تحميل v_powerbi_employees)
+Tasks per Employee =
+DIVIDE ( [Total Tasks], COUNTROWS ( 'v_powerbi_employees' ), 0 )
+
+// بديل: للموظفين الذين لديهم مهام فقط (دون الحاجة لجدول الموظفين)
+Tasks per Active Assignee =
+DIVIDE ( [Total Tasks], DISTINCTCOUNT ( 'v_powerbi_tasks'[assignee_id] ), 0 )
+
+// ---------- 8) متوسط وقت الإنجاز (بالأيام) ----------
+Avg Completion Days =
+AVERAGEX (
+    FILTER ( 'v_powerbi_tasks', 'v_powerbi_tasks'[status] = "completed" ),
+    DATEDIFF (
+        'v_powerbi_tasks'[scheduled_for],
+        'v_powerbi_tasks'[completed_at],
+        DAY
+    )
+)
+
+// ---------- 9) تواريخ نسبية ----------
+// مهام اليوم (حسب الجدولة باليوم السعودي)
+Tasks Today =
+CALCULATE (
+    [Total Tasks],
+    DATE ( 'v_powerbi_tasks'[scheduled_for] + TIME ( 3, 0, 0 ) ) = TODAY ()
+)
+
+// مهام أمس
+Tasks Yesterday =
+CALCULATE (
+    [Total Tasks],
+    DATE ( 'v_powerbi_tasks'[scheduled_for] + TIME ( 3, 0, 0 ) ) = TODAY () - 1
+)
+
+// مهام آخر 7 أيام
+Tasks Last 7 Days =
+CALCULATE (
+    [Total Tasks],
+    DATE ( 'v_powerbi_tasks'[scheduled_for] + TIME ( 3, 0, 0 ) ) >= TODAY () - 6
+)
+
+// مهام آخر 30 يومًا
+Tasks Last 30 Days =
+CALCULATE (
+    [Total Tasks],
+    DATE ( 'v_powerbi_tasks'[scheduled_for] + TIME ( 3, 0, 0 ) ) >= TODAY () - 29
+)
+
+// مكتمل اليوم
+Completed Today =
+CALCULATE (
+    [Completed Tasks],
+    DATE ( 'v_powerbi_tasks'[completed_at] + TIME ( 3, 0, 0 ) ) = TODAY ()
+)
+
+// ---------- 10) توقعات خطية (المكتملة المتوقعة بعد 7 أيام) ----------
+// انحدار خطي بسيط على آخر 30 يومًا من v_powerbi_daily_flow
+Forecast Completed Next 7 Days =
+VAR _known =
+    FILTER (
+        SUMMARIZE (
+            'v_powerbi_daily_flow',
+            'v_powerbi_daily_flow'[flow_date],
+            "Completed", SUM ( 'v_powerbi_daily_flow'[tasks_completed] )
+        ),
+        'v_powerbi_daily_flow'[flow_date] >= TODAY () - 30
+    )
+VAR _pts =
+    SELECTCOLUMNS (
+        _known,
+        "X", VALUE ( FORMAT ( 'v_powerbi_daily_flow'[flow_date], "yyyyMMdd" ) ),
+        "Y", [Completed]
+    )
+VAR _n = COUNTROWS ( _pts )
+VAR _sumX = SUMX ( _pts, [X] )
+VAR _sumY = SUMX ( _pts, [Y] )
+VAR _sumXY = SUMX ( _pts, [X] * [Y] )
+VAR _sumX2 = SUMX ( _pts, [X] * [X] )
+VAR _slope = DIVIDE ( _n * _sumXY - _sumX * _sumY, _n * _sumX2 - _sumX * _sumX, 0 )
+VAR _intercept = DIVIDE ( _sumY - _slope * _sumX, _n, 0 )
+VAR _target = VALUE ( FORMAT ( TODAY () + 7, "yyyyMMdd" ) )
+RETURN
+    _slope * _target + _intercept
+
+// ---------- 11) قياسات الحضور (اختيارية) ----------
+// أيام الحضور (present)
+Present Days =
+CALCULATE ( COUNTROWS ( 'v_powerbi_attendance' ), 'v_powerbi_attendance'[status] = "present" )
+
+// أيام التأخر (late)
+Late Days =
+CALCULATE ( COUNTROWS ( 'v_powerbi_attendance' ), 'v_powerbi_attendance'[status] = "late" )
+
+// نسبة الحضور (%)
+Attendance Rate =
+DIVIDE ( [Present Days], COUNTROWS ( 'v_powerbi_attendance' ), 0 )
