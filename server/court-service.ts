@@ -5483,14 +5483,17 @@ export async function recordAttendanceCheckout(input: { profileId: number; check
   return { success: true, attendanceId: existing.id, openTasksCount };
 }
 
+/** نطاق اليوم السعودي (00:00 الرياض → 00:00 الرياض التالية) كحدود UTC — المصدر الموحّد لمنع أخطاء التوقيت. */
+function riyadhDayRange(recordDate: Date): { dayStart: Date; dayEnd: Date } {
+  const dayStart = new Date(Date.UTC(recordDate.getUTCFullYear(), recordDate.getUTCMonth(), recordDate.getUTCDate(), -3));
+  return { dayStart, dayEnd: new Date(dayStart.getTime() + 24 * 60 * 60 * 1000) };
+}
+
 /** تعديل وقت الدخول بواسطة المالك/القيادة (مع تدقيق). */
 export async function ownerEditAttendanceCheckIn(input: { profileId: number; recordDate: Date; checkInAt: Date; actorUserId: number; reason: string }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  // نطاق اليوم السعودي (00:00 الرياض → 00:00 الرياض التالية) — يطابق recordDate المخزَّن بمنتصف ليل الرياض
-  // أو بأي طابع زمني داخل اليوم (السجلات القديمة كانت تخزّن timestamp كاملاً).
-  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate(), -3));
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const { dayStart, dayEnd } = riyadhDayRange(input.recordDate);
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
   const oldValue = existing.checkInAt ?? null;
@@ -5514,10 +5517,7 @@ export async function ownerEditAttendanceCheckIn(input: { profileId: number; rec
 export async function ownerEditAttendanceCheckOut(input: { profileId: number; recordDate: Date; checkOutAt: Date; actorUserId: number; reason: string }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  // نطاق اليوم السعودي (00:00 الرياض → 00:00 الرياض التالية) — يطابق recordDate المخزَّن بمنتصف ليل الرياض
-  // أو بأي طابع زمني داخل اليوم (السجلات القديمة كانت تخزّن timestamp كاملاً).
-  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate(), -3));
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const { dayStart, dayEnd } = riyadhDayRange(input.recordDate);
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
   // المالك يمكنه ضبط الانصراف مباشرة دون بصمة دخول.
@@ -5552,10 +5552,7 @@ export async function ownerUpdateAttendanceRecord(input: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  // نطاق اليوم السعودي (00:00 الرياض → 00:00 الرياض التالية) — يطابق recordDate المخزَّن بمنتصف ليل الرياض
-  // أو بأي طابع زمني داخل اليوم (السجلات القديمة كانت تخزّن timestamp كاملاً).
-  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate(), -3));
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const { dayStart, dayEnd } = riyadhDayRange(input.recordDate);
   const existing = (await db.select().from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1))[0];
   if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد سجل حضور لهذا الموظف في هذا اليوم." });
   const oldCheckIn = existing.checkInAt ?? null;
@@ -5603,10 +5600,7 @@ export async function ownerUpdateAttendanceRecord(input: {
 export async function ownerCreateAttendanceRecord(input: { profileId: number; recordDate: Date; checkInAt?: Date | null; checkOutAt?: Date | null; status: "present" | "late" | "absent" | "excused" | "on_leave"; actorUserId: number; reason: string }) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
-  // نطاق اليوم السعودي (00:00 الرياض → 00:00 الرياض التالية) — يطابق recordDate المخزَّن بمنتصف ليل الرياض
-  // أو بأي طابع زمني داخل اليوم (السجلات القديمة كانت تخزّن timestamp كاملاً).
-  const dayStart = new Date(Date.UTC(input.recordDate.getUTCFullYear(), input.recordDate.getUTCMonth(), input.recordDate.getUTCDate(), -3));
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const { dayStart, dayEnd } = riyadhDayRange(input.recordDate);
   const existing = (await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(eq(attendanceRecords.profileId, input.profileId), gte(attendanceRecords.recordDate, dayStart), lt(attendanceRecords.recordDate, dayEnd))).limit(1))[0];
 
   let positiveMinutes = 0;
