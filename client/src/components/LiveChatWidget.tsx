@@ -2,8 +2,21 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Loader2, MessageCircle, Minus, Paperclip, Send, X } from "lucide-react";
 import { ChangeEvent, useState } from "react";
+import { toast } from "sonner";
 
 const SUPPORT_ROLES = ["technical_support_agent", "technical_support_manager", "court_president", "assistant_president"];
+
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_MIME = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/png",
+  "image/jpeg",
+  "text/plain",
+  "application/zip",
+]);
+const ACCEPT_ATTR = Array.from(ALLOWED_ATTACHMENT_MIME).join(",");
 
 const parseAttachments = (value: unknown): Array<{ id: number; name: string; mimeType?: string; url?: string }> => {
   try { return Array.isArray(value) ? value as Array<{ id: number; name: string; mimeType?: string; url?: string }> : JSON.parse(String(value ?? "[]")); } catch { return []; }
@@ -56,9 +69,12 @@ export function LiveChatWidget() {
 
   const addFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []).slice(0, 5 - attachments.length);
-    if (!files.length) return;
+    if (!files.length) { event.target.value = ""; return; }
+    const oversized = files.find(file => file.size > MAX_ATTACHMENT_BYTES);
+    if (oversized) { toast.error(`«${oversized.name}» يتجاوز الحد الأقصى (8 ميجابايت).`); event.target.value = ""; return; }
+    const unsupported = files.find(file => file.type && !ALLOWED_ATTACHMENT_MIME.has(file.type));
+    if (unsupported) { toast.error(`صيغة «${unsupported.name}» غير مدعومة. المدعوم: PDF، Word، Excel، PNG/JPEG، TXT، ZIP.`); event.target.value = ""; return; }
     const converted = await Promise.all(files.map(async (file): Promise<{ originalName: string; mimeType: string; contentBase64: string } | null> => {
-      if (file.size > 8 * 1024 * 1024) return null;
       try {
         const contentBase64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -151,7 +167,7 @@ export function LiveChatWidget() {
             <div className="flex items-center gap-2">
               <label className="cursor-pointer text-[var(--rakiza-olive-strong)]" title="إرفاق ملف">
                 <Paperclip className="h-5 w-5" />
-                <input type="file" multiple className="hidden" accept="image/*,.pdf" onChange={event => void addFiles(event)} />
+                <input type="file" multiple className="hidden" accept={ACCEPT_ATTR} onChange={event => void addFiles(event)} />
               </label>
               <input
                 value={message}

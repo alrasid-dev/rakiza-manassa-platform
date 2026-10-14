@@ -24,7 +24,7 @@ import {
   notifications,
 } from "../drizzle/schema";
 import { getDb } from "./db";
-import { storageGetSignedUrl } from "./storage";
+import { attachmentUrl } from "./storage";
 import { TRPCError } from "@trpc/server";
 import { createTask, getSupportProfilesByRole, logAudit } from "./court-service";
 import { sendPushForNotification } from "./push-service";
@@ -347,7 +347,7 @@ export async function getInternalConversation(userId: number, conversationId: nu
   if (!membership) throw new Error("لا تملك صلاحية فتح هذه المحادثة.");
   const [conversation, messages, participantStates] = await Promise.all([
     db.select().from(internalConversations).where(eq(internalConversations.id, conversationId)).limit(1),
-    db.select({ message: conversationMessages, senderName: personProfiles.fullName, attachments: sql<string>`COALESCE(JSON_ARRAYAGG(JSON_OBJECT('id', ${conversationAttachments.id}, 'name', ${conversationAttachments.originalName}, 'url', ${conversationAttachments.storageUrl}, 'storageKey', ${conversationAttachments.storageKey}, 'mimeType', ${conversationAttachments.mimeType})), JSON_ARRAY())` })
+    db.select({ message: conversationMessages, senderName: personProfiles.fullName, attachments: sql<string>`COALESCE(JSON_ARRAYAGG(JSON_OBJECT('id', ${conversationAttachments.id}, 'name', ${conversationAttachments.originalName}, 'url', ${conversationAttachments.storageUrl}, 'storageKey', ${conversationAttachments.storageKey}, 'contentBase64', ${conversationAttachments.contentBase64}, 'mimeType', ${conversationAttachments.mimeType})), JSON_ARRAY())` })
       .from(conversationMessages)
       .innerJoin(personProfiles, eq(personProfiles.id, conversationMessages.senderProfileId))
       .leftJoin(conversationAttachments, eq(conversationAttachments.messageId, conversationMessages.id))
@@ -373,11 +373,11 @@ export async function getInternalConversation(userId: number, conversationId: nu
   const referenceById = new Map(references.map(reference => [reference.id, reference]));
   const hydratedMessages = await Promise.all(messages.map(async (item: any) => {
     const rawAttachments = typeof item.attachments === "string" ? JSON.parse(item.attachments) : item.attachments;
-    const attachments = await Promise.all((Array.isArray(rawAttachments) ? rawAttachments : []).filter((attachment: any) => attachment?.id && attachment?.storageKey).map(async (attachment: any) => ({
+    const attachments = await Promise.all((Array.isArray(rawAttachments) ? rawAttachments : []).filter((attachment: any) => attachment?.id && (attachment?.contentBase64 || attachment?.storageKey)).map(async (attachment: any) => ({
       id: attachment.id,
       name: attachment.name,
       mimeType: attachment.mimeType,
-      url: await storageGetSignedUrl(attachment.storageKey),
+      url: await attachmentUrl({ mimeType: attachment.mimeType, contentBase64: attachment.contentBase64, storageKey: attachment.storageKey }),
     })));
     const readByNames = participantStates.filter(participant => participant.profileId !== item.message.senderProfileId && participant.lastReadAt && participant.lastReadAt >= item.message.createdAt).map(participant => participant.fullName);
     return { ...item, attachments: JSON.stringify(attachments), readByNames, reactions: reactionsByMessage.get(item.message.id) ?? [], repliedTo: item.message.replyToMessageId ? referenceById.get(item.message.replyToMessageId) ?? null : null };
