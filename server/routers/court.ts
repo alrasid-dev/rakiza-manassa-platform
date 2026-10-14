@@ -1435,8 +1435,10 @@ export const courtRouter = router({
       return { success: true };
     }),
     archive: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), reason: z.string().trim().min(3).max(500).optional() })).mutation(async ({ ctx, input }) => {
-      const { roles } = await requireHumanResourcesOrLeadership(ctx.user);
-      if (roles.includes("human_resources_manager") && !input.reason) throw new TRPCError({ code: "BAD_REQUEST", message: "يلزم بيان سبب الأرشفة." });
+      const permission = await permissionForUser(ctx.user);
+      const roles = await rolesForUser(ctx.user);
+      const allowed = canViewWholePlatform(permission) || roles.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+      if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "أرشفة الملفات متاحة للقيادة المخولة ومالك المنصة فقط." });
       await requireAssetClearance(input.profileId);
       await archiveProfile(input.profileId, ctx.user.id, input.reason);
       return { success: true };

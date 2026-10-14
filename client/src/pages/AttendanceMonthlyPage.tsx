@@ -71,6 +71,7 @@ type ModalState = {
 
 export default function AttendanceMonthlyPage() {
   const permission = trpc.court.registration.myPermission.useQuery();
+  const roles = trpc.court.myRoles.useQuery();
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery();
   const utils = trpc.useUtils();
@@ -83,6 +84,8 @@ export default function AttendanceMonthlyPage() {
   const [modal, setModal] = useState<ModalState | null>(null);
 
   const isOwner = permission.data === "full_control";
+  const canView = isOwner || Boolean(roles.data?.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager"].includes(role)));
+  const canEdit = isOwner || Boolean(roles.data?.some(role => role === "court_secretary"));
   const activeUnitId = unitId ? Number(unitId) : undefined;
   const peopleInUnit = useMemo(
     () => (people.data ?? []).filter(p => !activeUnitId || p.unitId === activeUnitId),
@@ -93,11 +96,11 @@ export default function AttendanceMonthlyPage() {
 
   const attendanceApi = trpc.court.attendance as any;
   const report = attendanceApi?.monthlyReport?.useQuery
-    ? attendanceApi.monthlyReport.useQuery(!showAll && profileId != null ? { profileId, startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: !showAll && profileId != null && isOwner })
+    ? attendanceApi.monthlyReport.useQuery(!showAll && profileId != null ? { profileId, startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: !showAll && profileId != null && canView })
     : { data: [] as Row[], isLoading: false };
 
   const unitReport = attendanceApi?.unitMonthlyReport?.useQuery
-    ? attendanceApi.unitMonthlyReport.useQuery(showAll && unitId ? { unitId: Number(unitId), startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: showAll && Boolean(unitId) && isOwner })
+    ? attendanceApi.unitMonthlyReport.useQuery(showAll && unitId ? { unitId: Number(unitId), startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: showAll && Boolean(unitId) && canView })
     : { data: [] as Row[], isLoading: false };
 
   const invalidate = () => {
@@ -171,8 +174,8 @@ export default function AttendanceMonthlyPage() {
           </div>
         </div>
 
-        {!isOwner ? (
-          <p className="mt-6 rounded-xl border border-[var(--rakiza-border)] bg-[var(--rakiza-surface)] px-4 py-6 text-center text-sm text-[var(--rakiza-muted)]">هذه الصفحة متاحة لمالك المنصة فقط.</p>
+        {!canView ? (
+          <p className="mt-6 rounded-xl border border-[var(--rakiza-border)] bg-[var(--rakiza-surface)] px-4 py-6 text-center text-sm text-[var(--rakiza-muted)]">عرض سجلات الحضور متاح للمالك والرئيس ومساعد الرئيس والأمين والموارد البشرية فقط.</p>
         ) : (
           <>
             <div className="mt-5 flex flex-wrap items-end gap-3 rounded-2xl border border-[var(--rakiza-border)] bg-white p-4">
@@ -222,7 +225,7 @@ export default function AttendanceMonthlyPage() {
                     <th className="px-3 py-3">الخروج</th>
                     <th className="px-3 py-3">الحالة</th>
                     <th className="px-3 py-3">النقاط</th>
-                    {!showAll && <th className="px-3 py-3">إجراء</th>}
+                    {!showAll && canEdit && <th className="px-3 py-3">إجراء</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee8de]">
@@ -238,7 +241,7 @@ export default function AttendanceMonthlyPage() {
                         <td className="px-3 py-2.5">—</td>
                         <td className="px-3 py-2.5"><span className="rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs bg-[#f0f0ea] text-[var(--rakiza-muted)]">لم يسجّل</span></td>
                         <td className="px-3 py-2.5 font-bold" dir="ltr">0</td>
-                        {!showAll && <td className="px-3 py-2.5">—</td>}
+                        {!showAll && canEdit && <td className="px-3 py-2.5">—</td>}
                       </tr>
                     ))
                   ) : rows.length === 0 ? (
@@ -256,7 +259,7 @@ export default function AttendanceMonthlyPage() {
                         <td className="px-3 py-2.5">{fmtTime(a.checkOutAt)}</td>
                         <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs ${a.status === "present" ? "bg-[#e4f0e4] text-[var(--rakiza-olive-strong)]" : a.status === "absent" ? "bg-[#f8e6e1] text-[var(--rakiza-danger)]" : a.status === "late" ? "bg-[#f5edd8] text-[var(--rakiza-gold)]" : "bg-[#e3eef5] text-[#2c5d77]"}`}>{statusLabels[a.status] ?? a.status}</span></td>
                         <td className="px-3 py-2.5 font-bold" dir="ltr">{points > 0 ? `+${points}` : points}</td>
-                        {!showAll && (
+                        {!showAll && canEdit && (
                           <td className="px-3 py-2.5">
                             <div className="flex flex-wrap gap-1.5">
                               <button type="button" onClick={() => setModal({ mode: "edit", recordId: a.id, recordDate: saudiDateKey(a.recordDate), checkInAt: timeOf(a.checkInAt), checkOutAt: timeOf(a.checkOutAt), status: a.status, reason: "" })} className="rounded border border-[var(--rakiza-gold)] px-2 py-1 text-xs font-bold text-[var(--rakiza-gold)] hover:bg-[#f3e5bf]">✏️ تعديل</button>

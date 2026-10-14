@@ -38,7 +38,7 @@ export default function StatusWorkspaceContent() {
   const people = trpc.court.people.list.useQuery();
   const attendance = trpc.court.attendance.list.useQuery();
   const canManageAttendancePolicy = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "court_secretary" || role === "human_resources_manager"));
-  const canOwnerEditAttendance = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary" || role === "human_resources_manager"));
+  const canOwnerEditAttendance = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary"));
   const invalidateAttendance = () => { utils.court.attendance.list.invalidate(); (utils.court.attendance as any).remoteReport?.invalidate?.(); };
   const ownerUpdateAttendanceApi = (trpc.court.attendance as any).ownerUpdateAttendance;
   const ownerUpdateAttendance = ownerUpdateAttendanceApi?.useMutation ? ownerUpdateAttendanceApi.useMutation({ onSuccess: () => { invalidateAttendance(); toast.success("تم حفظ التعديل."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر الحفظ") }) : { mutate: (_i: unknown) => undefined, isPending: false };
