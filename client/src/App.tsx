@@ -40,6 +40,7 @@ import { AuthExperimentPage } from "./pages/AuthExperimentPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import ManagerAssignmentRequestPage from "./pages/ManagerAssignmentRequestPage";
 import RakizaMailPage from "./pages/RakizaMailPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import DepartmentTemplatesPage from "./pages/DepartmentTemplatesPage";
 import WorkflowMapPage from "./pages/WorkflowMapPage";
 import PlannedTasksPage from "./pages/PlannedTasksPage";
@@ -137,6 +138,7 @@ function Router() {
       <Route path="/my-attendance" component={MyAttendancePage} />
                             <Route path="/workflow-map" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : WorkflowMapPage} />
       <Route path="/messages" component={MessagesPage} />
+<Route path="/analytics" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="reports" /> : AnalyticsPage} />
       <Route path="/data-exports" component={DataExportsPage} />
       <Route path="/activity-log" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="archive" /> : ActivityLogPage} />
       <Route path="/hierarchy" component={IS_PREVIEW_MODE ? () => <PreviewWorkspace workspace="people" /> : HierarchyWorkspacePage} />

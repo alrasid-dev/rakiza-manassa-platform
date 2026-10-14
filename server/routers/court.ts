@@ -298,6 +298,7 @@ import {
 import { beginPasskeyRegistration, finishPasskeyRegistration, beginPasskeyAuthentication, finishPasskeyAuthentication } from "../webauthn-service";
 import { ensureAttendanceConfirmationHeartbeatJob, ensureCoreHeartbeatJobs } from "../scheduled/core-jobs";
 import { ensureInternalMailDispatchHeartbeatJob } from "../scheduled/internal-mail-setup";
+import { getAnalyticsDailyFlow, getAnalyticsKpis, getAnalyticsLeavesByStatus, getAnalyticsTasksByUnit, type AnalyticsUnitScope } from "../analytics-service";
 import { parse as parseCookie } from "cookie";
 import { canPerform, canViewWholePlatform, isSelfWorkspacePermission, type AppPermission, type ProtectedAction } from "../access-control";
 import { canActOnApproval, canActOnManagerAssignmentApproval, canManageOperations, nextApprovalRole, nextManagerAssignmentApprovalRole, type ApprovalRole, type ManagerAssignmentApprovalRole } from "../court-workflow";
@@ -478,6 +479,16 @@ async function hasLeadershipPlatformScope(user: { id: number; role: "user" | "ad
   if (canViewWholePlatform(permission)) return true;
   const roles = await rolesForUser(user);
   return roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
+}
+
+async function resolveAnalyticsScope(user: { id: number; role: "user" | "admin"; email: string | null }): Promise<AnalyticsUnitScope> {
+  const permission = await permissionForUser(user);
+  if (permission === "full_control" || permission === "general_view") return null;
+  const roles = await rolesForUser(user);
+  if (roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary" || role === "human_resources_manager")) return null;
+  const managed = await managedUnitIdsForUser(user);
+  if (managed.length) return managed;
+  throw new TRPCError({ code: "FORBIDDEN", message: "التحليلات متاحة للقيادة ومديري الأقسام فقط." });
 }
 
 async function requireLeadershipWorkloadObservatoryAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
@@ -866,6 +877,27 @@ export const courtRouter = router({
     if (managedUnits.length) return getManagedUnitDashboard(managedUnits, ctx.user.id);
     const { profile } = await requirePersonalWorkspace(ctx.user);
     return getPersonalDashboard(profile.id);
+  }),
+
+  analytics: router({
+    kpis: protectedProcedure.input(z.object({ from: z.date().nullable().optional(), to: z.date().nullable().optional(), unitId: z.number().int().positive().nullable().optional() })).query(async ({ ctx, input }) => {
+      const scope = await resolveAnalyticsScope(ctx.user);
+      const unitIds = scope === null ? null : (input.unitId && scope.includes(input.unitId) ? [input.unitId] : scope);
+      return getAnalyticsKpis({ from: input.from ?? null, to: input.to ?? null, unitIds });
+    }),
+    dailyFlow: protectedProcedure.input(z.object({ from: z.date(), to: z.date(), unitId: z.number().int().positive().nullable().optional() })).query(async ({ ctx, input }) => {
+      const scope = await resolveAnalyticsScope(ctx.user);
+      const unitIds = scope === null ? null : (input.unitId && scope.includes(input.unitId) ? [input.unitId] : scope);
+      return getAnalyticsDailyFlow({ from: input.from, to: input.to, unitIds });
+    }),
+    tasksByUnit: protectedProcedure.query(async ({ ctx }) => {
+      await resolveAnalyticsScope(ctx.user);
+      return getAnalyticsTasksByUnit();
+    }),
+    leavesByStatus: protectedProcedure.query(async ({ ctx }) => {
+      await resolveAnalyticsScope(ctx.user);
+      return getAnalyticsLeavesByStatus();
+    }),
   }),
   leadershipWorkloadObservatory: protectedProcedure.query(async ({ ctx }) => {
     await requireLeadershipWorkloadObservatoryAccess(ctx.user);
