@@ -6867,6 +6867,41 @@ export async function createRecurringTasksAndNotifications(now = new Date()) {
   return { createdTasks, createdNotifications, emailNotifications, skipped };
 }
 
+/** تقرير تأكيد الحضور: تكليفات التأكيد مع اسم الموظف وقسمه. */
+export async function listConfirmationReport(input: {
+  startAt: Date;
+  endAt: Date;
+  unitId?: number | null;
+  profileId?: number | null;
+  status?: "pending" | "done" | "missed" | "cancelled" | null;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [
+    gte(confirmationAssignments.scheduledAt, input.startAt),
+    lt(confirmationAssignments.scheduledAt, input.endAt),
+  ];
+  if (input.unitId) conditions.push(eq(personProfiles.unitId, input.unitId));
+  if (input.profileId) conditions.push(eq(confirmationAssignments.profileId, input.profileId));
+  if (input.status) conditions.push(eq(confirmationAssignments.status, input.status));
+  return db
+    .select({
+      id: confirmationAssignments.id,
+      profileId: confirmationAssignments.profileId,
+      employeeName: personProfiles.fullName,
+      unitId: personProfiles.unitId,
+      unitName: organizationUnits.name,
+      scheduledAt: confirmationAssignments.scheduledAt,
+      confirmedAt: confirmationAssignments.confirmedAt,
+      status: confirmationAssignments.status,
+    })
+    .from(confirmationAssignments)
+    .leftJoin(personProfiles, eq(personProfiles.id, confirmationAssignments.profileId))
+    .leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId))
+    .where(and(...conditions))
+    .orderBy(desc(confirmationAssignments.scheduledAt));
+}
+
 export async function escalateOverdueTasks(now = new Date()) {
   // نقطة دخول cron «task-escalation»: تعتمد الآن على دورة الحياة الموحّدة (accumulateWorkMinutes).
   // المنطق القديم (+6 ساعات حائط + إحالة إشرافية) تمت أرشفته ضمن هذه السياسة الموحّدة.

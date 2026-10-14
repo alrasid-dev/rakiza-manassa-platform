@@ -164,6 +164,7 @@ import {
   listRemoteAttendanceReport,
   listAttendanceForProfileRange,
   listAttendanceForUnitRange,
+  listConfirmationReport,
   countOnLeaveProfiles,
   listPlatformUsersForRoleAssignment,
   listPersonalDisciplinaryActions,
@@ -2758,6 +2759,10 @@ export const courtRouter = router({
     unitMonthlyReport: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), startAt: z.date(), endAt: z.date() })).query(async ({ ctx, input }) => {
       await requireAttendanceViewAccess(ctx.user);
       return listAttendanceForUnitRange([input.unitId], input.startAt, input.endAt);
+    }),
+    confirmationReport: protectedProcedure.input(z.object({ startAt: z.date(), endAt: z.date(), unitId: z.number().int().positive().nullable().optional(), profileId: z.number().int().positive().nullable().optional(), status: z.enum(["pending", "done", "missed", "cancelled"]).nullable().optional() })).query(async ({ ctx, input }) => {
+      await requireAttendanceViewAccess(ctx.user);
+      return listConfirmationReport({ startAt: input.startAt, endAt: input.endAt, unitId: input.unitId ?? null, profileId: input.profileId ?? null, status: input.status ?? null });
     }),
     ownerEditCheckIn: protectedProcedure.input(z.object({ profileId: z.number().int().positive(), recordDate: z.date(), checkInAt: z.date(), reason: z.string().trim().min(10, "السبب مطلوب (10 أحرف على الأقل).").max(2000) })).mutation(async ({ ctx, input }) => {
       await requireAttendanceOwnerAccess(ctx.user);
