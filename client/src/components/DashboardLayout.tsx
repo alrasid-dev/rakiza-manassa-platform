@@ -49,6 +49,7 @@ import {
   Activity,
   Building,
   Megaphone,
+  MessageCircle,
   Moon,
   Sparkles,
   Sun,
@@ -490,6 +491,14 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
                 <Bell className={`h-4 w-4 ${unreadNotifications.length > 0 ? "animate-pulse" : ""}`} aria-hidden="true" />
                 {unreadNotifications.length > 0 && <span aria-hidden="true" className="absolute -left-0.5 -top-0.5 flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e0473e] opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-[#e0473e]" /></span>}
                 {unreadNotifications.length > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--rakiza-gold)] px-1 text-[9px] font-bold text-[#1c2b23]">{unreadNotifications.length > 9 ? "9+" : unreadNotifications.length}</span>}
+              </button>
+              <button type="button" aria-label="الدردشات" title="الدردشات" onClick={() => setLocation("/messages")} className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886] ${(chatUnread.data || 0) > 0 ? "border-[#e3b3a8] bg-[#fff3ef] text-[#b5443a]" : "border-[var(--rakiza-border)] bg-[#f1f3ed] text-[var(--rakiza-olive)] hover:bg-[#e0ecdf]"}`}>
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                {(chatUnread.data || 0) > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--rakiza-gold)] px-1 text-[9px] font-bold text-[#1c2b23]">{(chatUnread.data || 0) > 9 ? "9+" : (chatUnread.data || 0)}</span>}
+              </button>
+              <button type="button" aria-label="بريد ركيزة" title="بريد ركيزة" onClick={() => setLocation("/rakiza-mail")} className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886] ${(internalMailCounts.data?.unread || 0) > 0 ? "border-[#e3b3a8] bg-[#fff3ef] text-[#b5443a]" : "border-[var(--rakiza-border)] bg-[#f1f3ed] text-[var(--rakiza-olive)] hover:bg-[#e0ecdf]"}`}>
+                <Mail className="h-4 w-4" aria-hidden="true" />
+                {(internalMailCounts.data?.unread || 0) > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--rakiza-gold)] px-1 text-[9px] font-bold text-[#1c2b23]">{(internalMailCounts.data?.unread || 0) > 9 ? "9+" : (internalMailCounts.data?.unread || 0)}</span>}
               </button>
               {toggleTheme && <button type="button" onClick={toggleTheme} aria-label={theme === "dark" ? "التبديل إلى النمط الفاتح" : "التبديل إلى النمط الداكن"} title={theme === "dark" ? "النمط الفاتح" : "النمط الداكن"} aria-pressed={theme === "dark"} data-testid="theme-toggle" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-[var(--rakiza-border)] bg-[#f1f3ed] text-[var(--rakiza-olive)] transition-colors hover:bg-[#e0ecdf] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#78a886]">{theme === "dark" ? <Sun className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" /> : <Moon className={`h-4 w-4 ${oliveIconMotionClass}`} aria-hidden="true" />}</button>}
               <div dir="rtl" className="flex min-w-0 items-center gap-2">
