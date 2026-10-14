@@ -5885,6 +5885,26 @@ export async function listAttendanceForProfileRange(profileId: number, startAt: 
     .limit(500);
 }
 
+/** سجل حضور موظفي وحدة ضمن نطاق زمني (لصفحة تقارير الحضور — عرض «كل الموظفين»). */
+export async function listAttendanceForUnitRange(unitIds: number[], startAt: Date, endAt: Date) {
+  const db = await getDb();
+  if (!db || !unitIds.length) return [];
+  return db.select({
+    attendance: attendanceRecords,
+    profileId: personProfiles.id,
+    profileName: personProfiles.fullName,
+    personType: personProfiles.personType,
+    attendanceMode: personProfiles.attendanceMode,
+    unitId: personProfiles.unitId,
+    unitName: organizationUnits.name,
+  }).from(attendanceRecords)
+    .innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId))
+    .leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId))
+    .where(and(inArray(personProfiles.unitId, unitIds), gte(attendanceRecords.recordDate, startAt), lt(attendanceRecords.recordDate, endAt)))
+    .orderBy(asc(attendanceRecords.recordDate))
+    .limit(1000);
+}
+
 export async function getTodayAttendanceForProfile(profileId: number) {
   const db = await getDb();
   if (!db) return null;

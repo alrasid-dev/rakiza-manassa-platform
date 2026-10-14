@@ -66,6 +66,9 @@ type Row = {
   };
   profileId: number;
   profileName: string;
+  attendanceMode?: string | null;
+  unitId?: number;
+  unitName?: string;
 };
 
 type ModalState = {
@@ -86,6 +89,8 @@ export default function AttendanceMonthlyPage() {
 
   const [unitId, setUnitId] = useState("");
   const [profileId, setProfileId] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const [filter, setFilter] = useState<"all" | "remote" | "present" | "late" | "no_record">("all");
   const [month, setMonth] = useState(() => hijriMonthKey(new Date()));
   const [modal, setModal] = useState<ModalState | null>(null);
 
@@ -100,15 +105,23 @@ export default function AttendanceMonthlyPage() {
 
   const attendanceApi = trpc.court.attendance as any;
   const report = attendanceApi?.monthlyReport?.useQuery
-    ? attendanceApi.monthlyReport.useQuery(profileId != null ? { profileId, startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: profileId != null && isOwner })
+    ? attendanceApi.monthlyReport.useQuery(!showAll && profileId != null ? { profileId, startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: !showAll && profileId != null && isOwner })
+    : { data: [] as Row[], isLoading: false };
+
+  const unitReport = attendanceApi?.unitMonthlyReport?.useQuery
+    ? attendanceApi.unitMonthlyReport.useQuery(showAll && unitId ? { unitId: Number(unitId), startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: showAll && Boolean(unitId) && isOwner })
     : { data: [] as Row[], isLoading: false };
 
   const invalidate = () => {
     if (profileId != null) {
       utils.court.attendance.monthlyReport.invalidate();
     }
+    if (showAll && unitId) {
+      (utils.court.attendance as any).unitMonthlyReport?.invalidate?.();
+    }
     // خط ثانٍ: refetch مباشر لضمان التحديث الفوري.
     (report as { refetch?: () => void } | undefined)?.refetch?.();
+    (unitReport as { refetch?: () => void } | undefined)?.refetch?.();
   };
 
   const updateRecord = attendanceApi?.ownerUpdateAttendance?.useMutation({ onSuccess: () => { invalidate(); toast.success("تم حفظ التعديل."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر الحفظ") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
@@ -128,7 +141,36 @@ export default function AttendanceMonthlyPage() {
     setModal(null);
   };
 
-  const rows = (report.data ?? []) as Row[];
+  const allRows = (showAll ? (unitReport.data ?? []) : (report.data ?? [])) as Row[];
+
+  const recordedProfileIds = useMemo(() => new Set(allRows.map(r => r.profileId)), [allRows]);
+  const noRecordEmployees = useMemo(() => peopleInUnit.filter(p => !recordedProfileIds.has(p.id)), [peopleInUnit, recordedProfileIds]);
+
+  const rows = useMemo(() => {
+    if (filter === "remote") return allRows.filter(r => r.attendanceMode === "remote" || r.attendanceMode === "mixed");
+    if (filter === "present") return allRows.filter(r => r.attendance.status === "present");
+    if (filter === "late") return allRows.filter(r => r.attendance.status === "late");
+    return allRows;
+  }, [allRows, filter]);
+
+  const exportRows = () => {
+    if (filter === "no_record") return noRecordEmployees.map(p => ({ date: "—", employee: p.fullName, checkIn: "—", checkOut: "—", status: "لم يسجّل بصمة", points: 0 }));
+    return rows.map(r => ({ date: fmtDate(r.attendance.recordDate), employee: r.profileName, checkIn: fmtTime(r.attendance.checkInAt), checkOut: fmtTime(r.attendance.checkOutAt), status: statusLabels[r.attendance.status] ?? r.attendance.status, points: (r.attendance.positiveMinutes ?? 0) - (r.attendance.negativeMinutes ?? 0) }));
+  };
+
+  const exportExcel = () => {
+    const data = exportRows();
+    const withEmp = showAll || filter === "no_record";
+    const empHeader = withEmp ? "<th>الموظف</th>" : "";
+    const html = `<table dir="rtl"><tr><th>التاريخ</th>${empHeader}<th>الدخول</th><th>الخروج</th><th>الحالة</th><th>النقاط</th></tr>${data.map(r => `<tr><td>${r.date}</td>${withEmp ? `<td>${r.employee}</td>` : ""}<td>${r.checkIn}</td><td>${r.checkOut}</td><td>${r.status}</td><td>${r.points}</td></tr>`).join("")}</table>`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([`\uFEFF<html><meta charset="utf-8">${html}</html>`], { type: "application/vnd.ms-excel" }));
+    link.download = "تقارير-الحضور-والانصراف.xls";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const exportPdf = () => { window.print(); };
 
   return (
     <DashboardLayout>
@@ -136,8 +178,8 @@ export default function AttendanceMonthlyPage() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-bold tracking-[0.14em] text-[var(--rakiza-gold)]">إدارة الحضور</p>
-            <h1 className="mt-2 text-2xl font-bold text-[var(--rakiza-ink)]">تعديل السجل الشهري (للمالك)</h1>
-            <p className="mt-1 text-sm text-[var(--rakiza-muted)]">اختر القسم والموظف والشهر لعرض وتعديل سجلات الحضور والانصراف.</p>
+            <h1 className="mt-2 text-2xl font-bold text-[var(--rakiza-ink)]">تقارير الحضور والانصراف</h1>
+            <p className="mt-1 text-sm text-[var(--rakiza-muted)]">اختر القسم والموظف والشهر لعرض وتصدير سجلات الحضور والانصراف.</p>
           </div>
         </div>
 
@@ -147,14 +189,15 @@ export default function AttendanceMonthlyPage() {
           <>
             <div className="mt-5 flex flex-wrap items-end gap-3 rounded-2xl border border-[var(--rakiza-border)] bg-white p-4">
               <label className="flex flex-col gap-1 text-sm font-bold text-[var(--rakiza-muted)] sm:text-xs">القسم
-                <select value={unitId} onChange={e => { setUnitId(e.target.value); setProfileId(null); }} className="h-10 min-w-44 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal">
+                <select value={unitId} onChange={e => { setUnitId(e.target.value); setProfileId(null); if (!e.target.value) setShowAll(false); }} className="h-10 min-w-44 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal">
                   <option value="">كل الأقسام</option>
                   {(units.data ?? []).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-sm font-bold text-[var(--rakiza-muted)] sm:text-xs">الموظف
-                <select value={profileId?.toString() ?? ""} onChange={e => setProfileId(e.target.value ? Number(e.target.value) : null)} className="h-10 min-w-52 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal">
+                <select value={showAll ? "all" : profileId?.toString() ?? ""} onChange={e => { const v = e.target.value; if (v === "all") { setShowAll(true); setProfileId(null); } else { setShowAll(false); setProfileId(v ? Number(v) : null); } }} className="h-10 min-w-52 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal">
                   <option value="">اختر موظفاً…</option>
+                  <option value="all">كل الموظفين</option>
                   {peopleInUnit.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
                 </select>
               </label>
@@ -168,40 +211,71 @@ export default function AttendanceMonthlyPage() {
               )}
             </div>
 
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                {([["all", "الكل"], ["remote", "المشمولون بالبصمة عن بُعد"], ["present", "الحاضرون"], ["late", "المتأخرون"], ["no_record", "لم يسجّلوا بصمة"]] as const).map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => setFilter(key)} className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${filter === key ? "bg-[var(--rakiza-olive)] text-white" : "border border-[var(--rakiza-border)] text-[var(--rakiza-muted)] hover:bg-[#eef5ec]"}`}>{label}</button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={exportExcel} className="rounded-xl border border-[var(--rakiza-border)] px-3 py-2 text-xs font-black text-[var(--rakiza-ink)]">⬇️ تحميل Excel</button>
+                <button type="button" onClick={exportPdf} className="rounded-xl bg-[var(--rakiza-olive-strong)] px-3 py-2 text-xs font-black text-white">🖨️ تحميل PDF</button>
+              </div>
+            </div>
+
             <div className="mt-5 overflow-x-auto rounded-2xl border border-[var(--rakiza-border)] bg-white">
               <table className="w-full min-w-[720px] text-sm">
                 <thead className="bg-[#f7fbf7] text-right text-sm font-bold text-[var(--rakiza-muted)] sm:text-xs">
                   <tr>
+                    {showAll && <th className="px-3 py-3">الموظف</th>}
                     <th className="px-3 py-3">التاريخ</th>
                     <th className="px-3 py-3">اليوم</th>
                     <th className="px-3 py-3">الدخول</th>
                     <th className="px-3 py-3">الخروج</th>
                     <th className="px-3 py-3">الحالة</th>
                     <th className="px-3 py-3">النقاط</th>
-                    <th className="px-3 py-3">إجراء</th>
+                    {!showAll && <th className="px-3 py-3">إجراء</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee8de]">
-                  {rows.length === 0 ? (
-                    <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">{profileId == null ? "اختر موظفاً لعرض السجل." : "لا توجد سجلات في هذا الشهر."}</td></tr>
+                  {filter === "no_record" ? (
+                    noRecordEmployees.length === 0 ? (
+                      <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">لا يوجد موظفون لم يسجّلوا بصمة في هذا الشهر.</td></tr>
+                    ) : noRecordEmployees.map(p => (
+                      <tr key={p.id} className="hover:bg-[#fafdf9]">
+                        {showAll && <td className="px-3 py-2.5 font-bold">{p.fullName}</td>}
+                        <td className="px-3 py-2.5">—</td>
+                        <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">—</td>
+                        <td className="px-3 py-2.5">—</td>
+                        <td className="px-3 py-2.5">—</td>
+                        <td className="px-3 py-2.5"><span className="rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs bg-[#f0f0ea] text-[var(--rakiza-muted)]">لم يسجّل</span></td>
+                        <td className="px-3 py-2.5 font-bold" dir="ltr">0</td>
+                        {!showAll && <td className="px-3 py-2.5">—</td>}
+                      </tr>
+                    ))
+                  ) : rows.length === 0 ? (
+                    <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">{showAll ? (unitId ? "لا توجد سجلات في هذا الشهر." : "اختر قسماً لعرض سجلات كل الموظفين.") : profileId == null ? "اختر موظفاً لعرض السجل." : "لا توجد سجلات في هذا الشهر."}</td></tr>
                   ) : rows.map(row => {
                     const a = row.attendance;
                     const dayName = dayNames[new Date(a.recordDate.getTime() + 3 * 60 * 60 * 1000).getUTCDay()];
                     const points = (a.positiveMinutes ?? 0) - (a.negativeMinutes ?? 0);
                     return (
                       <tr key={a.id} className="hover:bg-[#fafdf9]">
+                        {showAll && <td className="px-3 py-2.5 font-bold">{row.profileName}</td>}
                         <td className="px-3 py-2.5">{fmtDate(a.recordDate)}</td>
                         <td className="px-3 py-2.5 text-[var(--rakiza-muted)]">{dayName}</td>
                         <td className="px-3 py-2.5">{fmtTime(a.checkInAt)}</td>
                         <td className="px-3 py-2.5">{fmtTime(a.checkOutAt)}</td>
                         <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs ${a.status === "present" ? "bg-[#e4f0e4] text-[var(--rakiza-olive-strong)]" : a.status === "absent" ? "bg-[#f8e6e1] text-[var(--rakiza-danger)]" : a.status === "late" ? "bg-[#f5edd8] text-[var(--rakiza-gold)]" : "bg-[#e3eef5] text-[#2c5d77]"}`}>{statusLabels[a.status] ?? a.status}</span></td>
                         <td className="px-3 py-2.5 font-bold" dir="ltr">{points > 0 ? `+${points}` : points}</td>
-                        <td className="px-3 py-2.5">
-                          <div className="flex flex-wrap gap-1.5">
-                            <button type="button" onClick={() => setModal({ mode: "edit", recordId: a.id, recordDate: saudiDateKey(a.recordDate), checkInAt: timeOf(a.checkInAt), checkOutAt: timeOf(a.checkOutAt), status: a.status, reason: "" })} className="rounded border border-[var(--rakiza-gold)] px-2 py-1 text-xs font-bold text-[var(--rakiza-gold)] hover:bg-[#f3e5bf]">✏️ تعديل</button>
-                            <button type="button" onClick={() => setModal({ mode: "delete", recordId: a.id, recordDate: saudiDateKey(a.recordDate), checkInAt: "", checkOutAt: "", status: a.status, reason: "" })} className="rounded border border-[#d8b1a4] px-2 py-1 text-xs font-bold text-[var(--rakiza-danger)] hover:bg-[#f8e1dc]">🗑️ حذف</button>
-                          </div>
-                        </td>
+                        {!showAll && (
+                          <td className="px-3 py-2.5">
+                            <div className="flex flex-wrap gap-1.5">
+                              <button type="button" onClick={() => setModal({ mode: "edit", recordId: a.id, recordDate: saudiDateKey(a.recordDate), checkInAt: timeOf(a.checkInAt), checkOutAt: timeOf(a.checkOutAt), status: a.status, reason: "" })} className="rounded border border-[var(--rakiza-gold)] px-2 py-1 text-xs font-bold text-[var(--rakiza-gold)] hover:bg-[#f3e5bf]">✏️ تعديل</button>
+                              <button type="button" onClick={() => setModal({ mode: "delete", recordId: a.id, recordDate: saudiDateKey(a.recordDate), checkInAt: "", checkOutAt: "", status: a.status, reason: "" })} className="rounded border border-[#d8b1a4] px-2 py-1 text-xs font-bold text-[var(--rakiza-danger)] hover:bg-[#f8e1dc]">🗑️ حذف</button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
