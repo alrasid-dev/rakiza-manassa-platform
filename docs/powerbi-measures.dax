@@ -156,3 +156,46 @@ CALCULATE ( COUNTROWS ( 'v_powerbi_attendance' ), 'v_powerbi_attendance'[status]
 // نسبة الحضور (%)
 Attendance Rate =
 DIVIDE ( [Present Days], COUNTROWS ( 'v_powerbi_attendance' ), 0 )
+
+// ---------- 12) متوسط وقت الإنجاز (بالساعات) ----------
+// يُكمّل "Avg Completion Days" — يعطي سرعة الإنجاز بالساعات.
+Avg Completion Hours =
+AVERAGEX (
+    FILTER ( 'v_powerbi_tasks', 'v_powerbi_tasks'[status] = "completed" ),
+    DATEDIFF (
+        'v_powerbi_tasks'[scheduled_for],
+        'v_powerbi_tasks'[completed_at],
+        HOUR
+    )
+)
+
+// ---------- 13) الإجازات ----------
+// الإجازات المعتمدة
+Approved Leaves =
+CALCULATE (
+    COUNTROWS ( 'v_powerbi_leaves' ),
+    'v_powerbi_leaves'[status] = "approved"
+)
+
+// الإجازات المعلّقة (بانتظار الموافقة)
+Pending Leaves =
+CALCULATE (
+    COUNTROWS ( 'v_powerbi_leaves' ),
+    'v_powerbi_leaves'[status] = "pending"
+)
+
+// ---------- 14) المساءلات ----------
+// المساءلات المعلّقة (approval_requests بنوع disciplinary_action)
+// من v_powerbi_kpi (صف ملخّص واحد — MAX/SUM/MIN متكافئة هنا)
+Pending Disciplinary =
+MAX ( 'v_powerbi_kpi'[pending_disciplinary] )
+
+// ---------- 15) معدل الإنجاز (نسخة SUM — على التدفق اليومي) ----------
+// الصيغة الحرفية المطلوبة DIVIDE(SUM(tasks_completed), SUM(tasks_total)).
+// تُطبَّق على v_powerbi_daily_flow حيث tasks_created تمثّل الإجمالي اليومي:
+Completion Rate (Daily Flow) =
+DIVIDE (
+    SUM ( 'v_powerbi_daily_flow'[tasks_completed] ),
+    SUM ( 'v_powerbi_daily_flow'[tasks_created] ),
+    0
+)
