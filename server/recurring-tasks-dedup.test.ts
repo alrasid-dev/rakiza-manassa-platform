@@ -40,12 +40,21 @@ describe("منع تكرار توليد المهام المتكررة (مفتاح
   it("التوليد خامل (تشغيله مرتين بنفس اليوم = مهمة واحدة فقط)", async () => {
     const db = makeDb([dailyTemplate], [{ id: 10 }]);
     mocks.getDb.mockResolvedValue(db);
-    const now = new Date("2026-08-16T02:00:00Z"); // 05:00 الرياض (قبل السابعة)
+    const now = new Date("2026-08-16T05:00:00Z"); // 08:00 الرياض (ضمن نافذة التوليد 07:00-23:00)
     const first = await createRecurringTasksAndNotifications(now);
     expect(first.createdTasks).toBe(1);
     const second = await createRecurringTasksAndNotifications(now);
     expect(second.createdTasks).toBe(0);
     expect(db.state.taskInserts.length).toBe(1);
+  });
+
+  it("خارج نافذة التوليد (قبل 07:00) لا يُنشئ شيئاً", async () => {
+    const db = makeDb([dailyTemplate], [{ id: 10 }]);
+    mocks.getDb.mockResolvedValue(db);
+    const res = await createRecurringTasksAndNotifications(new Date("2026-08-16T02:00:00Z")); // 05:00 الرياض
+    expect(res.createdTasks).toBe(0);
+    expect((res as unknown as { reason?: string }).reason).toBe("outside_generation_window");
+    expect(db.state.taskInserts.length).toBe(0);
   });
 
   it("بعد السابعة صباحاً تُجدول المهمة لنفس اليوم ولا تُعاد في التشغيل التالي", async () => {

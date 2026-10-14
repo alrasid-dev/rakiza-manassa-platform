@@ -111,7 +111,7 @@ import { CONFIRMATION_WINDOW_MINUTES } from "./confirmation-cadence";
 import { PERMISSION_POLICY } from "./permission-policy";
 import { sendPushForNotification } from "./push-service";
 import { safeWaitUntil } from "./_core/wait-until";
-import { accumulateWorkMinutes, appliesNewPolicy, dateRangeForSaudiDay, EARLY_OPEN_HOURS, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, NEW_POLICY_CUTOFF, nextSaudiWorkStart, NOTIFY_WORK_MINUTES, parseSpecificDays, saudiScheduledTime, taskLifecycleStage, workMinutesDeadlineAt } from "./task-automation";
+import { accumulateWorkMinutes, appliesNewPolicy, dateRangeForSaudiDay, EARLY_OPEN_HOURS, getRiyadhHour, isSaudiWorkday, isTemplateDue, isWithinSaudiWorkHours, NEW_POLICY_CUTOFF, nextSaudiWorkStart, NOTIFY_WORK_MINUTES, parseSpecificDays, saudiScheduledTime, taskLifecycleStage, workMinutesDeadlineAt } from "./task-automation";
 import { isOfficialHoliday, officialHolidayName, workHoursFor } from "./holidays";
 import { detectExcelChangeCandidates } from "./excel-change-detector";
 import { completedTaskTransition, taskAssignmentNotifications } from "./task-response-policy";
@@ -6773,6 +6773,8 @@ function dateKeyOf(value: Date | string | null | undefined): string | null {
 
 export async function createRecurringTasksAndNotifications(now = new Date()) {
   if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return { createdTasks: 0, createdNotifications: 0, emailNotifications: 0, skipped: 0 };
+  const riyadhHour = getRiyadhHour(now);
+  if (riyadhHour < 7 || riyadhHour >= 23) return { createdTasks: 0, createdNotifications: 0, emailNotifications: 0, skipped: 0, reason: "outside_generation_window" };
   const db = await getDb();
   if (!db) return { createdTasks: 0, createdNotifications: 0, skipped: 0 };
   await activateScheduledLeaveStatuses(now);

@@ -139,6 +139,12 @@ function riyadhParts(now: Date) {
   return { year: field("year"), month: field("month"), day: field("day") };
 }
 
+/** الساعة الحالية بتوقيت الرياض (0-23). */
+export function getRiyadhHour(now: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Riyadh", hour: "2-digit", hour12: false }).formatToParts(now);
+  return Number(parts.find(p => p.type === "hour")?.value || "0");
+}
+
 export function isSaudiWorkday(now: Date) {
   const { year, month, day } = riyadhParts(now);
   const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
