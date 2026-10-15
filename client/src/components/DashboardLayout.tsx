@@ -359,6 +359,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   const activityProcedure = trpc.court.notifications.activity;
   const recordActivity = activityProcedure?.useMutation ? activityProcedure.useMutation({ onSuccess: () => utils.court.people.self.invalidate() }) : { mutate: (_input: { activityState: "active" | "chatting" | "inactive" }) => undefined };
   const [localActivityState, setLocalActivityState] = useState<"active" | "chatting" | "inactive" | null>(null);
+  const lastThrottledAtRef = useRef<number>(0);
   useEffect(() => {
     if (!user || IS_PREVIEW_MODE) return;
     const currentActivity = () => location.startsWith("/messages") ? "chatting" as const : "active" as const;
@@ -366,7 +367,14 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
     sendActivity(currentActivity());
     const interval = window.setInterval(() => sendActivity(document.hidden ? "inactive" : currentActivity()), 30_000);
     const onVisibilityChange = () => sendActivity(document.hidden ? "inactive" : currentActivity());
-    const onUserInteraction = () => { if (!document.hidden) sendActivity(currentActivity()); };
+    const onUserInteraction = () => {
+      if (document.hidden) return;
+      const now = Date.now();
+      const THROTTLE_MS = 60_000;
+      if (now - lastThrottledAtRef.current < THROTTLE_MS) return;
+      lastThrottledAtRef.current = now;
+      sendActivity(currentActivity());
+    };
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pointerdown", onUserInteraction, { passive: true });
     window.addEventListener("keydown", onUserInteraction, { passive: true });
