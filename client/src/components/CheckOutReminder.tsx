@@ -19,7 +19,7 @@ export default function CheckOutReminder() {
   const todayData = today.data as { checkInAt?: Date | string | null; checkOutAt?: Date | string | null } | null | undefined;
   const needsCheckout = Boolean(isRemoteOrMixed && todayData?.checkInAt && !todayData?.checkOutAt);
 
-  const dateStr = new Date().toLocaleDateString("en-CA");
+  const dateStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Riyadh" }).format(new Date());
   const userId = user?.id ?? "anon";
   const remindKey = `rakiza:checkout-reminder:${dateStr}:${userId}`;
 
@@ -28,8 +28,23 @@ export default function CheckOutReminder() {
       if (!needsCheckout) { setOpen(false); return; }
       if (typeof window !== "undefined" && localStorage.getItem(remindKey) === "true") return;
       const now = new Date();
-      const riyadh = new Date(now.getTime() + 3 * 3600 * 1000);
-      const total = riyadh.getUTCHours() * 60 + riyadh.getUTCMinutes();
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Riyadh",
+        hour: "2-digit", minute: "2-digit", hour12: false
+      }).formatToParts(now);
+      const total = Number(parts.find(p => p.type === "hour")?.value ?? 0) * 60
+                  + Number(parts.find(p => p.type === "minute")?.value ?? 0);
+      const toastKey = `rakiza:checkout-toast-2pm:${dateStr}:${userId}`;
+
+      // إشعار 2م
+      if (total >= 14 * 60 && total < 14 * 60 + 1) {
+        if (localStorage.getItem(toastKey) !== "true") {
+          toast.info("اقترب موعد الخروج، لا تنس تسجيل خروجك");
+          localStorage.setItem(toastKey, "true");
+        }
+      }
+
+      // النافذة (14:49–14:59) — كما هي
       if (total >= 14 * 60 + 49 && total < 14 * 60 + 59) setOpen(true);
       else setOpen(false);
     };
