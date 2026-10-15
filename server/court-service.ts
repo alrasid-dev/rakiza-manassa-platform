@@ -197,6 +197,7 @@ export async function requestOtpCode(input: { officialEmail: string; requestIp?:
     if (!user) throw new Error("تعذر تهيئة حساب البريد الموثق.");
     if (grant) await db.update(accessGrants).set({ userId: user.id, updatedAt: new Date() }).where(eq(accessGrants.id, grant.id));
     await db.update(personProfiles).set({ userId: user.id, updatedAt: new Date() }).where(and(eq(personProfiles.email, email), isNull(personProfiles.userId)));
+    invalidateIdentityCaches();
   }
   const recent = await db.select({ createdAt: otpChallenges.createdAt }).from(otpChallenges).where(and(eq(otpChallenges.email, email), isNull(otpChallenges.consumedAt), gt(otpChallenges.createdAt, new Date(Date.now() - OTP_RESEND_COOLDOWN_MS)))).orderBy(desc(otpChallenges.createdAt)).limit(1);
   if (recent[0]) throw new Error("انتظر دقيقة قبل طلب رمز جديد.");
@@ -560,6 +561,16 @@ async function createTasksFromPerformanceReport(input: { documentId: number; uni
 }
 
 const ROLES_CACHE_TTL_MS = 60_000;
+const PROFILE_CACHE_TTL_MS = 30_000;
+const DEPT_IDENTITY_CACHE_TTL_MS = 60_000;
+const ACTOR_CONTEXT_CACHE_TTL_MS = 60_000;
+
+/** إبطال كاشات الهوية (الملف، سياق الفاعل، هوية القسم) عند أي كتابة على الشخصيات أو هويات الأقسام. */
+function invalidateIdentityCaches() {
+  cacheInvalidate("profile:");
+  cacheInvalidate("actorContext:");
+  cacheInvalidate("deptIdentity:");
+}
 
 export async function getEffectiveRoles(
   userId: number,
@@ -692,6 +703,7 @@ export async function revokeCourtRole(assignmentId: number, actorUserId: number)
   await notifyPlatformOwnerSecurityAlert({ actorUserId, action: "court_role.revoked", entityType: "court_role_assignment", entityId: assignmentId });
   if (assignment && (assignment.role === "department_manager" || assignment.role === "trainee_affairs_manager") && assignment.unitId != null) {
     await db.update(personProfiles).set({ directManagerProfileId: null, updatedAt: new Date() }).where(eq(personProfiles.unitId, assignment.unitId));
+    invalidateIdentityCaches();
     await syncDirectManagers();
   }
 }
@@ -723,8 +735,9 @@ export async function listDepartmentManagerAssignments() {
 export async function syncDirectManagers() {
   const db = await getDb();
   if (!db) return { syncedUnits: 0, syncedProfiles: 0 };
-  const assignments = await db.select({ userId: courtRoleAssignments.userId, unitId: courtRoleAssignments.unitId })
+  const assignments = await db.select({ unitId: courtRoleAssignments.unitId, managerProfileId: personProfiles.id })
     .from(courtRoleAssignments)
+    .leftJoin(personProfiles, eq(personProfiles.userId, courtRoleAssignments.userId))
     .where(and(
       eq(courtRoleAssignments.isActive, true),
       inArray(courtRoleAssignments.role, ["department_manager", "trainee_affairs_manager"]),
@@ -733,15 +746,14 @@ export async function syncDirectManagers() {
   let syncedUnits = 0;
   let syncedProfiles = 0;
   for (const assignment of assignments) {
-    if (assignment.unitId == null) continue;
-    const manager = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, assignment.userId)).limit(1))[0];
-    if (!manager) continue;
+    if (assignment.unitId == null || assignment.managerProfileId == null) continue;
     const result = await db.update(personProfiles)
-      .set({ directManagerProfileId: manager.id, updatedAt: new Date() })
-      .where(and(eq(personProfiles.unitId, assignment.unitId), ne(personProfiles.id, manager.id)));
+      .set({ directManagerProfileId: assignment.managerProfileId, updatedAt: new Date() })
+      .where(and(eq(personProfiles.unitId, assignment.unitId), ne(personProfiles.id, assignment.managerProfileId)));
     syncedUnits += 1;
     syncedProfiles += Number(result[0].affectedRows);
   }
+  invalidateIdentityCaches();
   return { syncedUnits, syncedProfiles };
 }
 
@@ -1417,6 +1429,7 @@ export async function createProfile(input: { unitId?: number; personType: "admin
     sourceReference: input.sourceReference ?? "manual",
   });
   const id = Number(result[0].insertId);
+  invalidateIdentityCaches();
   await logAudit({ actorUserId: input.actorUserId, action: "profile.created", entityType: "person_profile", entityId: id, metadata: { reason: input.reason ?? null, personType: input.personType } });
   return id;
 }
@@ -1445,6 +1458,7 @@ export async function createJudgeWithAccount(input: { fullName: string; email: s
     userId,
   });
   const profileId = Number(profileResult[0].insertId);
+  invalidateIdentityCaches();
   await db.insert(accessGrants).values({
     userId,
     fullName: input.fullName,
@@ -1481,6 +1495,7 @@ export async function createTraineeWithAccount(input: { fullName: string; email:
     userId,
   });
   const profileId = Number(profileResult[0].insertId);
+  invalidateIdentityCaches();
   await db.insert(accessGrants).values({
     userId,
     fullName: input.fullName,
@@ -1520,6 +1535,7 @@ export async function deactivateProfile(profileId: number, actorUserId: number, 
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   await db.update(personProfiles).set({ status: "inactive" }).where(eq(personProfiles.id, profileId));
+  invalidateIdentityCaches();
   await logAudit({ actorUserId, action: "profile.deactivated", entityType: "person_profile", entityId: profileId, metadata: { reason: reason ?? null } });
 }
 
@@ -1528,6 +1544,7 @@ export async function archiveProfile(profileId: number, actorUserId: number, rea
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   await db.update(personProfiles).set({ status: "archived", archivedAt: new Date(), archivedReason: reason ?? null, archivedByUserId: actorUserId }).where(eq(personProfiles.id, profileId));
+  invalidateIdentityCaches();
   await logAudit({ actorUserId, action: "profile.archived", entityType: "person_profile", entityId: profileId, metadata: { reason: reason ?? null } });
 }
 
@@ -1545,6 +1562,7 @@ export async function updateJudgeProfile(input: { judgeId: number; fullName: str
     attendanceMode: input.attendanceMode ?? null,
     status: input.status,
   }).where(eq(personProfiles.id, input.judgeId));
+  invalidateIdentityCaches();
   await logAudit({ actorUserId: input.actorUserId, action: "judge.updated", entityType: "person_profile", entityId: input.judgeId });
 }
 
@@ -1569,6 +1587,7 @@ export async function updateOperationalProfile(input: { profileId: number; unitI
     attendanceMode: input.attendanceMode ?? null,
     status: input.status,
   }).where(eq(personProfiles.id, input.profileId));
+  invalidateIdentityCaches();
   if (input.status === "on_leave") {
     try {
       await pauseOpenTasksForProfile({ profileId: input.profileId, actorUserId: input.actorUserId, reason: "تغيير الحالة إلى إجازة", type: "temporary" });
@@ -1595,6 +1614,7 @@ export async function setStatusByManager(input: { profileId: number; newStatus: 
   if (!profile) throw new TRPCError({ code: "NOT_FOUND", message: "ملف الموظف غير موجود." });
   const from = profile.status;
   await db.update(personProfiles).set({ status: input.newStatus }).where(eq(personProfiles.id, input.profileId));
+  invalidateIdentityCaches();
   if (input.newStatus === "on_leave") {
     try {
       await pauseOpenTasksForProfile({ profileId: input.profileId, actorUserId: input.actorUserId, reason: input.reason, expiresAt: input.endDate, type: "temporary" });
@@ -1627,6 +1647,7 @@ export async function cutLeave(input: { profileId: number; reason: string; newEn
   ));
   // 2) تفعيل حساب الموظف.
   await db.update(personProfiles).set({ status: "active" }).where(eq(personProfiles.id, input.profileId));
+  invalidateIdentityCaches();
   // 3) إعادة تفعيل المهام الموقوفة مؤقتاً إلى حالة جديدة.
   const resumed = await db.update(tasks).set({ status: "new", pausedAt: null, pausedReason: null, pauseExpiresAt: null, pauseType: null, updatedAt: now }).where(and(
     eq(tasks.assigneeProfileId, input.profileId),
@@ -2865,25 +2886,48 @@ export async function listAvailableDepartmentIdentities(userId: number, at = new
 }
 
 export async function getActiveDepartmentIdentityForUser(userId: number, at = new Date()) {
+  const cacheKey = `deptIdentity:${userId}`;
+  const cached = cacheGet<Awaited<ReturnType<typeof listAvailableDepartmentIdentities>>[number] | null>(cacheKey);
+  if (cached !== undefined) return cached;
   const db = await getDb();
   if (!db) return null;
   const [user] = await db.select({ activeDepartmentAccountId: users.activeDepartmentAccountId }).from(users).where(eq(users.id, userId)).limit(1);
-  if (!user?.activeDepartmentAccountId) return null;
+  if (!user?.activeDepartmentAccountId) { cacheSet(cacheKey, null, DEPT_IDENTITY_CACHE_TTL_MS); return null; }
   const active = (await listAvailableDepartmentIdentities(userId, at)).find(item => item.account.id === user.activeDepartmentAccountId) ?? null;
-  if (!active) await db.update(users).set({ activeDepartmentAccountId: null, updatedAt: new Date() }).where(eq(users.id, userId));
+  if (!active) {
+    await db.update(users).set({ activeDepartmentAccountId: null, updatedAt: new Date() }).where(eq(users.id, userId));
+    invalidateIdentityCaches();
+  }
+  cacheSet(cacheKey, active, DEPT_IDENTITY_CACHE_TTL_MS);
   return active;
 }
 
+type EffectiveActorContext = {
+  actorProfile: typeof personProfiles.$inferSelect | null;
+  effectiveProfile: typeof personProfiles.$inferSelect | null;
+  departmentAccount: typeof departmentAccounts.$inferSelect | null;
+  departmentDelegation: typeof departmentAccountDelegations.$inferSelect | null;
+};
+
 export async function getEffectiveActorContext(userId: number, at = new Date()) {
+  const cacheKey = `actorContext:${userId}`;
+  const cached = cacheGet<EffectiveActorContext>(cacheKey);
+  if (cached !== undefined) return cached;
   const db = await getDb();
   if (!db || typeof (db as { select?: unknown }).select !== "function") return null;
   const [actorProfile] = await db.select().from(personProfiles).where(eq(personProfiles.userId, userId)).limit(1);
   const activeIdentity = await getActiveDepartmentIdentityForUser(userId, at);
+  let result: EffectiveActorContext;
   if (activeIdentity?.account.profileId) {
     const [accountProfile] = await db.select().from(personProfiles).where(eq(personProfiles.id, activeIdentity.account.profileId)).limit(1);
-    if (accountProfile) return { actorProfile: actorProfile ?? null, effectiveProfile: accountProfile, departmentAccount: activeIdentity.account, departmentDelegation: activeIdentity.delegation };
+    result = accountProfile
+      ? { actorProfile: actorProfile ?? null, effectiveProfile: accountProfile, departmentAccount: activeIdentity.account, departmentDelegation: activeIdentity.delegation }
+      : { actorProfile: actorProfile ?? null, effectiveProfile: actorProfile ?? null, departmentAccount: null, departmentDelegation: null };
+  } else {
+    result = { actorProfile: actorProfile ?? null, effectiveProfile: actorProfile ?? null, departmentAccount: null, departmentDelegation: null };
   }
-  return { actorProfile: actorProfile ?? null, effectiveProfile: actorProfile ?? null, departmentAccount: null, departmentDelegation: null };
+  cacheSet(cacheKey, result, ACTOR_CONTEXT_CACHE_TTL_MS);
+  return result;
 }
 
 export async function switchActiveDepartmentIdentity(input: { userId: number; departmentAccountId: number | null }) {
@@ -2892,6 +2936,7 @@ export async function switchActiveDepartmentIdentity(input: { userId: number; de
   const selected = input.departmentAccountId == null ? null : (await listAvailableDepartmentIdentities(input.userId)).find(item => item.account.id === input.departmentAccountId) ?? null;
   if (input.departmentAccountId != null && !selected) throw new Error("لا توجد لك صلاحية تكليف نشطة للعمل بهوية هذا القسم.");
   await db.update(users).set({ activeDepartmentAccountId: input.departmentAccountId, updatedAt: new Date() }).where(eq(users.id, input.userId));
+  invalidateIdentityCaches();
   await logAudit({ actorUserId: input.userId, action: "department_identity.switched", entityType: "department_account", entityId: input.departmentAccountId ?? undefined, metadata: { selectedIdentity: selected ? "department_account" : "personal", delegationId: selected?.delegation.id ?? null } });
   return { selectedIdentity: selected ? "department_account" as const : "personal" as const, account: selected?.account ?? null, delegation: selected?.delegation ?? null };
 }
@@ -2908,6 +2953,7 @@ export async function createDepartmentAccountDelegation(input: { departmentAccou
   if (overlapping[0]) throw new Error("يوجد تكليف متداخل لحساب القسم في هذه المدة. أنهِ التكليف السابق أو عدّل المواعيد.");
   const inserted = await db.insert(departmentAccountDelegations).values({ departmentAccountId: input.departmentAccountId, delegateUserId: input.delegateUserId, delegateProfileId: delegateProfile.id, startsAt: input.startsAt, endsAt: input.endsAt ?? null, status: input.startsAt > new Date() ? "planned" : "active", notes: input.notes?.trim() || null, createdByUserId: input.createdByUserId });
   const id = Number(inserted[0].insertId);
+  invalidateIdentityCaches();
   await logAudit({ actorUserId: input.createdByUserId, action: "department_delegation.created", entityType: "department_account_delegation", entityId: id, metadata: { departmentAccountId: input.departmentAccountId, delegateUserId: input.delegateUserId, delegateProfileId: delegateProfile.id, startsAt: input.startsAt, endsAt: input.endsAt ?? null } });
   return id;
 }
@@ -2926,18 +2972,27 @@ export async function endDepartmentAccountDelegation(input: { delegationId: numb
   const endedAt = new Date();
   await db.update(departmentAccountDelegations).set({ status: "ended", endsAt: delegation.endsAt && delegation.endsAt < endedAt ? delegation.endsAt : endedAt, updatedAt: endedAt }).where(eq(departmentAccountDelegations.id, delegation.id));
   await db.update(users).set({ activeDepartmentAccountId: null, updatedAt: endedAt }).where(and(eq(users.id, delegation.delegateUserId), eq(users.activeDepartmentAccountId, delegation.departmentAccountId)));
+  invalidateIdentityCaches();
   await logAudit({ actorUserId: input.actorUserId, action: "department_delegation.ended", entityType: "department_account_delegation", entityId: delegation.id, metadata: { departmentAccountId: delegation.departmentAccountId, delegateUserId: delegation.delegateUserId, endedAt } });
   return { success: true as const };
 }
 
 export async function getProfileForUser(userId: number) {
+  const cacheKey = `profile:${userId}`;
+  const cached = cacheGet<typeof personProfiles.$inferSelect>(cacheKey);
+  if (cached !== undefined) return cached;
   const db = await getDb();
   if (!db) return undefined;
   const context = await getEffectiveActorContext(userId);
-  if (context?.effectiveProfile) return context.effectiveProfile;
+  if (context?.effectiveProfile) {
+    cacheSet(cacheKey, context.effectiveProfile, PROFILE_CACHE_TTL_MS);
+    return context.effectiveProfile;
+  }
   const account = (await db.select({ profileId: departmentAccounts.profileId }).from(departmentAccounts).where(and(eq(departmentAccounts.userId, userId), eq(departmentAccounts.isActive, true))).limit(1))[0];
   if (!account?.profileId) return undefined;
-  return (await db.select().from(personProfiles).where(eq(personProfiles.id, account.profileId)).limit(1))[0];
+  const profile = (await db.select().from(personProfiles).where(eq(personProfiles.id, account.profileId)).limit(1))[0];
+  cacheSet(cacheKey, profile, PROFILE_CACHE_TTL_MS);
+  return profile;
 }
 
 export async function getProfileById(profileId: number) {
@@ -3560,6 +3615,7 @@ export async function createTask(input: { title: string; unitId?: number; assign
   // تفعيل الملف عند إسناد أول مهمة بعد حالة السكون (dormant).
   if (input.assigneeProfileId && assigneeStatus === "dormant") {
     await db.update(personProfiles).set({ status: "active", updatedAt: new Date() }).where(eq(personProfiles.id, input.assigneeProfileId));
+    invalidateIdentityCaches();
     await logAudit({ actorUserId: input.assignedByUserId, action: "status.reactivated_dormant", entityType: "person_profile", entityId: input.assigneeProfileId, metadata: { from: "dormant", to: "active", reason: "task_assigned" } });
   }
   try {
@@ -5479,6 +5535,7 @@ export async function recordAttendance(input: { profileId: number; recordDate: D
   // تفعيل الملف عند أول بصمة دخول فعلية بعد حالة السكون (dormant).
   if (input.checkInAt && attendanceProfile?.status === "dormant") {
     await db.update(personProfiles).set({ status: "active", updatedAt: new Date() }).where(eq(personProfiles.id, input.profileId));
+    invalidateIdentityCaches();
     await logAudit({ actorUserId: input.actorUserId, action: "status.reactivated_dormant", entityType: "person_profile", entityId: input.profileId, metadata: { from: "dormant", to: "active" } });
   }
   await logAudit({ actorUserId: input.actorUserId, action: "attendance.recorded", entityType: "attendance", entityId: input.profileId, metadata: { status } });
@@ -6539,6 +6596,7 @@ export async function activateScheduledLeaveStatuses(now = new Date()) {
     // إعادة المهام غير المنجزة المُحالة للبديل إلى الموظف الأصلي (المنجزة تبقى للبديل).
     await db.update(tasks).set({ assigneeProfileId: leave.profileId, reassignedFromProfileId: null, reassignmentReason: null, updatedAt: new Date() }).where(and(eq(tasks.reassignedFromProfileId, leave.profileId), notInArray(tasks.status, ["completed", "cancelled"])));
   }
+  if (toActivate.length || toComplete.length) invalidateIdentityCaches();
   return { activated: toActivate.length, completed: toComplete.length };
 }
 
@@ -6694,6 +6752,7 @@ export async function reviewRegistrationRequest(input: { requestId: number; deci
     if (!profileId) {
       const profileResult = await db.insert(personProfiles).values({ userId, fullName: request.fullName, email, personType: "administrative", status: "active", activityState: "active", sourceReference: `registration:${request.id}` });
       profileId = Number(profileResult[0].insertId);
+      invalidateIdentityCaches();
     }
 
     await db.insert(accessGrants).values({
@@ -6763,6 +6822,7 @@ export async function updateTraineeAssignmentRecord(input: {
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   if (input.judicialFormation !== undefined) {
     await db.update(personProfiles).set({ judicialFormation: input.judicialFormation || null }).where(eq(personProfiles.id, input.profileId));
+    invalidateIdentityCaches();
   }
   const assignmentSet = {
     ...(input.supervisingJudgeProfileId !== undefined ? { supervisingJudgeProfileId: input.supervisingJudgeProfileId } : {}),
