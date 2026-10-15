@@ -2679,6 +2679,8 @@ export const courtRouter = router({
     list: protectedProcedure.input(z.object({ date: z.date().optional() }).optional()).query(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "view");
       if (await hasLeadershipPlatformScope(ctx.user, permission)) return listAttendance(input?.date);
+      const roles = await rolesForUser(ctx.user);
+      if (roles.includes("human_resources_manager")) return listAttendance(input?.date);
       const managedUnitIds = await managedUnitIdsForUser(ctx.user);
       if (managedUnitIds.length) return listAttendanceForUnits(managedUnitIds, input?.date);
       const { profile } = await requireSelfAttendanceProfile(ctx.user);
@@ -2737,7 +2739,7 @@ export const courtRouter = router({
       const permission = await requirePermission(ctx.user, "view");
       if (await hasLeadershipPlatformScope(ctx.user, permission)) return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : undefined, searchQuery: input?.searchQuery });
       const roles = await rolesForUser(ctx.user);
-      if (roles.includes("court_president") || roles.includes("assistant_president") || roles.includes("court_secretary")) return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : undefined, searchQuery: input?.searchQuery });
+      if (roles.includes("court_president") || roles.includes("assistant_president") || roles.includes("court_secretary") || roles.includes("human_resources_manager")) return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : undefined, searchQuery: input?.searchQuery });
       const managedUnitIds = await managedUnitIdsForUser(ctx.user);
       if (!managedUnitIds.length || (input?.unitId && !managedUnitIds.includes(input.unitId))) throw new TRPCError({ code: "FORBIDDEN", message: "تقرير حضور العاملين عن بعد متاح لمدير الوحدة أو المفوض منه داخل نطاقه فقط." });
       return listRemoteAttendanceReport({ startAt: input?.startAt, endAt: input?.endAt, unitIds: input?.unitId ? [input.unitId] : managedUnitIds, searchQuery: input?.searchQuery });
