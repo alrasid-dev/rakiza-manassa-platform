@@ -360,7 +360,11 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   const recordActivity = activityProcedure?.useMutation ? activityProcedure.useMutation({ onSuccess: () => utils.court.people.self.invalidate() }) : { mutate: (_input: { activityState: "active" | "chatting" | "inactive" }) => undefined };
   const [localActivityState, setLocalActivityState] = useState<"active" | "chatting" | "inactive" | null>(null);
   const lastThrottledAtRef = useRef<number>(0);
+  const presenceDisabled = import.meta.env.VITE_PRESENCE_DISABLED === "true";
   useEffect(() => {
+    // ⚠️ إيقاف مؤقت (2026-10-15) — نبض الحضور يستهلك ~90% من استعلامات DB
+    // للتفعيل: اضبط VITE_PRESENCE_DISABLED=false في .env أو Vercel
+    if (presenceDisabled) return;
     if (!user || IS_PREVIEW_MODE) return;
     const currentActivity = () => location.startsWith("/messages") ? "chatting" as const : "active" as const;
     const sendActivity = (activityState: "active" | "chatting" | "inactive") => { setLocalActivityState(activityState); recordActivity.mutate({ activityState }); };
@@ -379,7 +383,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
     window.addEventListener("pointerdown", onUserInteraction, { passive: true });
     window.addEventListener("keydown", onUserInteraction, { passive: true });
     return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisibilityChange); window.removeEventListener("pointerdown", onUserInteraction); window.removeEventListener("keydown", onUserInteraction); };
-  }, [user?.id, location]);
+  }, [user?.id, location, presenceDisabled]);
   const markNotificationRead = trpc.court.notifications.markRead.useMutation({ onSuccess: () => utils.court.notifications.listMine.invalidate() });
   const hasLeadershipScope = roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary") ?? false;
   const canSwitchDepartment = permission.data === "full_control" || hasLeadershipScope;
