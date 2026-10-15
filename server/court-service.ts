@@ -6825,7 +6825,10 @@ function dateKeyOf(value: Date | string | null | undefined): string | null {
 export async function createRecurringTasksAndNotifications(now = new Date()) {
   if (!isSaudiWorkday(now) || isOfficialHoliday(now)) return { createdTasks: 0, createdNotifications: 0, emailNotifications: 0, skipped: 0 };
   const riyadhHour = getRiyadhHour(now);
-  if (riyadhHour < 7 || riyadhHour >= 23) return { createdTasks: 0, createdNotifications: 0, emailNotifications: 0, skipped: 0, reason: "outside_generation_window" };
+  // نافذة التوليد: 01:00 - 03:00 الرياض
+  // السبب: GitHub Actions يتأخر أحياناً
+  // الفائدة: المهام جاهزة قبل بداية الدوام (07:00)
+  if (riyadhHour < 1 || riyadhHour >= 3) return { createdTasks: 0, createdNotifications: 0, emailNotifications: 0, skipped: 0, reason: "outside_generation_window" };
   const db = await getDb();
   if (!db) return { createdTasks: 0, createdNotifications: 0, skipped: 0 };
   await activateScheduledLeaveStatuses(now);
