@@ -5,9 +5,10 @@ import { Check, CheckCheck, FileText, Forward, MessageCircle, Paperclip, Pin, Pl
 import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 
 const EMOJIS = ["👍", "✅", "👀", "🙏", "⚠️"];
-const MAX_BYTES = 8 * 1024 * 1024;
+const MAX_BYTES = MAX_UPLOAD_SIZE;
 type Pending = { originalName: string; mimeType: string; contentBase64: string };
 type Reference = { id: number; senderName: string; body: string };
 type CreateMode = "direct" | "group";
@@ -30,7 +31,7 @@ const clock = (date?: Date | string) => date ? new Date(date).toLocaleTimeString
 const parseFiles = (value: unknown): any[] => { try { return Array.isArray(value) ? value : JSON.parse(String(value)); } catch { return []; } };
 
 async function pending(file: File): Promise<Pending> {
-  if (file.size > MAX_BYTES) throw new Error("حجم كل مرفق يجب ألا يتجاوز 8 م.ب.");
+  if (file.size > MAX_BYTES) throw new Error(`حجم كل مرفق يجب ألا يتجاوز ${MAX_UPLOAD_SIZE_LABEL}.`);
   const contentBase64 = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(",")[1] || "");

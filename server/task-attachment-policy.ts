@@ -1,9 +1,10 @@
 import { Buffer } from "buffer";
 import { TRPCError } from "@trpc/server";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 
 export type TaskAttachmentInput = { originalName: string; mimeType: string; contentBase64: string };
 
-const MAX_TASK_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const MAX_TASK_ATTACHMENT_BYTES = MAX_UPLOAD_SIZE;
 const allowedMimeTypes = new Set([
   "application/pdf",
   "image/png",
@@ -37,7 +38,7 @@ export function validateTaskAttachment(input: TaskAttachmentInput) {
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(input.contentBase64) || input.contentBase64.length % 4 !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "صيغة المرفق غير صالحة." });
   const bytes = Buffer.from(input.contentBase64, "base64");
   if (!bytes.byteLength) throw new TRPCError({ code: "BAD_REQUEST", message: "الملف فارغ." });
-  if (bytes.byteLength > MAX_TASK_ATTACHMENT_BYTES) throw new TRPCError({ code: "BAD_REQUEST", message: "حجم الملف كبير جداً. الحد الأقصى 8 ميجابايت." });
+  if (bytes.byteLength > MAX_TASK_ATTACHMENT_BYTES) throw new TRPCError({ code: "BAD_REQUEST", message: `حجم الملف كبير جداً. الحد الأقصى ${MAX_UPLOAD_SIZE_LABEL}.` });
   const mimeType = input.mimeType === "application/octet-stream" && isPdf(bytes) ? "application/pdf" : input.mimeType;
   if (!allowedMimeTypes.has(mimeType)) throw new TRPCError({ code: "BAD_REQUEST", message: "نوع الملف غير مدعوم. المسموح: PDF وWord وExcel والصور PNG/JPEG." });
   const lowerCaseName = originalName.toLowerCase();

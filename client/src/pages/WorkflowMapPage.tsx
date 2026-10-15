@@ -5,6 +5,7 @@ import { autoAssignWorkflowSteps, canDistributeWorkflowPlan, workflowAssignmentS
 import { CheckCircle2, CirclePlus, FileSpreadsheet, GitBranch, Layers, Loader2, Sparkles, UploadCloud } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 
 type WorkflowDiagramNode = { order: number; title: string; x: number; y: number; width: number; height: number; centerX: number; centerY: number };
 type WorkflowAnalysis = {
@@ -79,7 +80,7 @@ export default function WorkflowMapPage() {
 
   const runAnalysis = async () => {
     if (!file) { toast.error("اختر ملف إجراءات بصيغة Word أو Excel أو PDF أو CSV أو صورة."); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error("الحد الأقصى لحجم ملف المخطط 10 ميجابايت."); return; }
+    if (file.size > MAX_UPLOAD_SIZE) { toast.error(`الحد الأقصى لحجم ملف المخطط ${MAX_UPLOAD_SIZE_LABEL}.`); return; }
     analyze.mutate({ originalName: file.name, mimeType: file.type || "", contentBase64: await fileAsBase64(file) });
   };
 
@@ -107,7 +108,7 @@ export default function WorkflowMapPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-black text-[#1f4a36]">١. مستند الإجراءات</h2>
-          <p className="mt-1 text-xs text-[#66766e]">Word وExcel وCSV وTXT تُقرأ محلياً، أما PDF والصور فتُقرأ بالذكاء الاصطناعي (OCR). الحد الأقصى 10 ميجابايت.</p>
+          <p className="mt-1 text-xs text-[#66766e]">Word وExcel وCSV وTXT تُقرأ محلياً، أما PDF والصور فتُقرأ بالذكاء الاصطناعي (OCR). الحد الأقصى {MAX_UPLOAD_SIZE_LABEL}.</p>
         </div>
         <span className="inline-flex items-center gap-2 rounded-full bg-[#e6efe4] px-3 py-1.5 text-[11px] font-bold text-[var(--rakiza-olive)]"><Sparkles className="h-3.5 w-3.5" />قراءة ذكية بمراجعة بشرية</span>
       </div>

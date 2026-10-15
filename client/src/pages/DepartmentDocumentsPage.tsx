@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Download, FileUp, FolderOpen, ListChecks, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 
 const statusLabel: Record<string, string> = {
   new: "جديدة", in_progress: "قيد التنفيذ", under_review: "قيد المراجعة", completed: "مكتملة", overdue: "متأخرة", cancelled: "ملغاة",
@@ -59,6 +60,7 @@ export default function DepartmentDocumentsPage() {
 
   const submitUpload = async () => {
     if (!uploadForm.unitId || !file) { toast.error("اختر القسم وملف المستند."); return; }
+    if (file.size > MAX_UPLOAD_SIZE) { toast.error(`يتجاوز المستند الحد المسموح وهو ${MAX_UPLOAD_SIZE_LABEL}.`); return; }
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");

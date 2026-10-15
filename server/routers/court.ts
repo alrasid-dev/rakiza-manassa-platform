@@ -313,7 +313,7 @@ import { evaluateAutoApproval } from "../assistant-auto-approval";
 import { normalizeAutoApprovalSettings } from "../approval-automation";
 import { notifyOwner } from "../_core/notification";
 import { ENV } from "../_core/env";
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { COOKIE_NAME, MAX_UPLOAD_BASE64_LENGTH, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { sdk } from "../_core/sdk";
 import { assignCourtAsset, canClearProfile, countOpenCustodies, createCourtAsset, listCourtAssets, returnCourtAsset } from "../assets-service";
@@ -1035,7 +1035,7 @@ export const courtRouter = router({
       const dueAt = input.dueAt ?? workMinutesDeadlineAt(new Date(), NOTIFY_WORK_MINUTES);
       return { id: await createTask({ title: input.title, unitId: input.unitId, assigneeProfileId: input.assigneeProfileId, priority: "normal", scheduledFor, dueAt, assignedByUserId: ctx.user.id }) };
     }),
-    uploadDocument: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), title: z.string().trim().min(2).max(240), originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(120), contentBase64: z.string().min(1).max(12_000_000) })).mutation(async ({ ctx, input }) => {
+    uploadDocument: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), title: z.string().trim().min(2).max(240), originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(120), contentBase64: z.string().min(1).max(MAX_UPLOAD_BASE64_LENGTH) })).mutation(async ({ ctx, input }) => {
       const unitIds = await manageableTemplateUnitIds(ctx.user);
       if (!unitIds.includes(input.unitId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك رفع مستند خارج نطاق قسمك." });
       const profile = await getProfileForUser(ctx.user.id);
@@ -1124,7 +1124,7 @@ export const courtRouter = router({
   workflowMap: router({
     /** تحليل مستند الإجراءات (Word/Excel/PDF/صورة) وإرجاع خطوات المخطط ومخططه المرئي. */
     analyze: protectedProcedure
-      .input(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(160).optional(), contentBase64: z.string().min(4).max(14_000_000) }))
+      .input(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(160).optional(), contentBase64: z.string().min(4).max(MAX_UPLOAD_BASE64_LENGTH) }))
       .mutation(async ({ ctx, input }) => {
         await requireOperationsManager(ctx.user);
         return analyzeWorkflowDocument({ userId: ctx.user.id, originalName: input.originalName, mimeType: input.mimeType ?? "", contentBase64: input.contentBase64 });
@@ -1700,7 +1700,7 @@ export const courtRouter = router({
       if (!profile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف موظف لإنشاء مهمة ذاتية." });
       return createSelfTask({ ...input, profileId: profile.id, actorUserId: ctx.user.id });
     }),
-    create: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), traineeCopyProfileId: z.number().int().positive().optional(), watcherProfileId: z.number().int().positive().optional(), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), scheduledFor: z.date(), dueAt: z.date(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "quarterly", "yearly", "custom", "specific_days"]).default("none"), recurrenceInterval: z.number().int().min(1).max(365).optional(), recurrenceEndAt: z.date().optional(), specificDays: z.array(z.number().int().min(0).max(6)).optional(), isConfidential: z.boolean().default(false), confidentialityExpiresAt: z.date().optional(), taskNotes: z.string().trim().max(4000).optional(), isOpen: z.boolean().default(false), startDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), endDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(12_000_000) })).max(5).optional() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
+    create: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(2000), unitId: z.number().int().positive().optional(), assigneeProfileId: z.number().int().positive().optional(), traineeCopyProfileId: z.number().int().positive().optional(), watcherProfileId: z.number().int().positive().optional(), priority: z.enum(["normal", "high", "critical"]), taskType: z.enum(["permanent", "urgent"]).default("permanent"), scheduledFor: z.date(), dueAt: z.date(), recurrence: z.enum(["none", "daily", "weekly", "monthly", "quarterly", "yearly", "custom", "specific_days"]).default("none"), recurrenceInterval: z.number().int().min(1).max(365).optional(), recurrenceEndAt: z.date().optional(), specificDays: z.array(z.number().int().min(0).max(6)).optional(), isConfidential: z.boolean().default(false), confidentialityExpiresAt: z.date().optional(), taskNotes: z.string().trim().max(4000).optional(), isOpen: z.boolean().default(false), startDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), endDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(MAX_UPLOAD_BASE64_LENGTH) })).max(5).optional() }).refine(input => input.dueAt >= input.scheduledFor, { message: "موعد الاستحقاق يجب أن يأتي بعد موعد الجدولة." })).mutation(async ({ ctx, input }) => {
       try {
         const { attachments, ...taskPayload } = input;
         const roles = await requireOperationsManager(ctx.user);
@@ -1982,7 +1982,7 @@ export const courtRouter = router({
     addProgressNote: protectedProcedure.input(z.object({
       taskId: z.number().int().positive(),
       note: z.string().trim().min(2).max(4000),
-      attachment: z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(12_000_000) }).optional(),
+      attachment: z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(MAX_UPLOAD_BASE64_LENGTH) }).optional(),
       mentionedProfileIds: z.array(z.number().int().positive()).max(10).optional(),
     })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");
@@ -2013,7 +2013,7 @@ export const courtRouter = router({
       }),
       upload: protectedProcedure.input(z.object({
         taskId: z.number().int().positive(),
-        attachment: z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(12_000_000) }),
+        attachment: z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().min(4).max(MAX_UPLOAD_BASE64_LENGTH) }),
       })).mutation(async ({ ctx, input }) => {
         await requirePermission(ctx.user, "edit");
         const task = await getTaskById(input.taskId);
@@ -2314,7 +2314,7 @@ export const courtRouter = router({
       if (!hasLeadershipScope && !isPerformanceMonitor && (!evaluation.document.unitId || !managedUnitIds.includes(evaluation.document.unitId))) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك اعتماد تقرير خارج وحدتك المفوضة." });
       return reviewPerformanceReportEvaluation({ ...input, reviewerUserId: ctx.user.id });
     }),
-    upload: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), originalName: z.string().trim().min(5).max(255), mimeType: z.enum(["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/zip"]), contentBase64: z.string().min(20).max(11_200_000), reportPeriod: z.enum(["daily", "weekly", "monthly"]).default("monthly"), unitId: z.number().int().positive().optional(), profileId: z.number().int().positive().optional(), linkedTaskId: z.number().int().positive().optional(), createTasksForTargetUnit: z.boolean().optional() })).mutation(async ({ ctx, input }) => {
+    upload: protectedProcedure.input(z.object({ title: z.string().trim().min(3).max(255), originalName: z.string().trim().min(5).max(255), mimeType: z.enum(["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/zip"]), contentBase64: z.string().min(20).max(MAX_UPLOAD_BASE64_LENGTH), reportPeriod: z.enum(["daily", "weekly", "monthly"]).default("monthly"), unitId: z.number().int().positive().optional(), profileId: z.number().int().positive().optional(), linkedTaskId: z.number().int().positive().optional(), createTasksForTargetUnit: z.boolean().optional() })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
       const ownProfile = await getProfileForUser(ctx.user.id);
       if (!ownProfile) throw new TRPCError({ code: "FORBIDDEN", message: "يلزم ربط الحساب بملف شخصي لرفع تقرير إنجاز." });
@@ -2404,7 +2404,7 @@ export const courtRouter = router({
       const { profile } = await requirePersonalWorkspace(ctx.user);
       return listCorrespondencesForProfile(profile.id);
     }),
-    create: protectedProcedure.input(z.object({ correspondenceType: z.enum(["request", "letter"]), senderProfileId: z.number().int().positive(), unitId: z.number().int().positive(), departmentManagerProfileId: z.number().int().positive(), traineeCopyProfileId: z.number().int().positive().optional(), copyProfileIds: z.array(z.number().int().positive()).max(100).optional(), recipientProfileId: z.number().int().positive(), managerProfileIds: z.array(z.number().int().positive()).min(1).max(12), subject: z.string().trim().min(3).max(255), body: z.string().trim().min(3).max(10_000), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(120), contentBase64: z.string().min(1).max(12_000_000) })).max(5).optional() })).mutation(async ({ ctx, input }) => {
+    create: protectedProcedure.input(z.object({ correspondenceType: z.enum(["request", "letter"]), senderProfileId: z.number().int().positive(), unitId: z.number().int().positive(), departmentManagerProfileId: z.number().int().positive(), traineeCopyProfileId: z.number().int().positive().optional(), copyProfileIds: z.array(z.number().int().positive()).max(100).optional(), recipientProfileId: z.number().int().positive(), managerProfileIds: z.array(z.number().int().positive()).min(1).max(12), subject: z.string().trim().min(3).max(255), body: z.string().trim().min(3).max(10_000), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(120), contentBase64: z.string().min(1).max(MAX_UPLOAD_BASE64_LENGTH) })).max(5).optional() })).mutation(async ({ ctx, input }) => {
       await requirePermission(ctx.user, "edit");
       const ownProfile = await getProfileForUser(ctx.user.id);
       const roles = await rolesForUser(ctx.user);
@@ -2424,7 +2424,7 @@ export const courtRouter = router({
         if (!visible.some(row => row.correspondence.id === input.correspondenceId)) throw new TRPCError({ code: "FORBIDDEN", message: "لا تملك صلاحية عرض مرفقات هذا الطلب." });
         return listCorrespondenceAttachments(input.correspondenceId);
       }),
-      upload: protectedProcedure.input(z.object({ correspondenceId: z.number().int().positive(), attachment: z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(120), contentBase64: z.string().min(1).max(12_000_000) }) })).mutation(async ({ ctx, input }) => {
+      upload: protectedProcedure.input(z.object({ correspondenceId: z.number().int().positive(), attachment: z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(120), contentBase64: z.string().min(1).max(MAX_UPLOAD_BASE64_LENGTH) }) })).mutation(async ({ ctx, input }) => {
         await requirePermission(ctx.user, "edit");
         const { profile } = await requirePersonalWorkspace(ctx.user);
         const correspondence = await getCorrespondenceById(input.correspondenceId);
@@ -2946,7 +2946,7 @@ export const courtRouter = router({
       setPinnedMessage: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), messageId: z.number().int().positive().nullable() })).mutation(({ ctx, input }) => setInternalConversationPinnedMessage({ userId: ctx.user.id, ...input })),
       toggleReaction: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), messageId: z.number().int().positive(), reaction: z.enum(["👍", "✅", "👀", "🙏", "⚠️"]) })).mutation(({ ctx, input }) => toggleInternalConversationMessageReaction({ userId: ctx.user.id, ...input })),
       createCustomGroup: protectedProcedure.input(z.object({ name: z.string().trim().min(2).max(255), participantProfileIds: z.array(z.number().int().positive()).min(1).max(100), body: z.string().trim().max(20_000).optional() })).mutation(({ ctx, input }) => createCustomConversation({ userId: ctx.user.id, ...input })),
-      create: protectedProcedure.input(z.object({ participantProfileIds: z.array(z.number().int().positive()).min(1).max(50), subject: z.string().trim().max(255).optional(), body: z.string().trim().min(1).max(20_000), conversationType: z.enum(["direct", "department", "custom", "general", "task"]).optional(), taskId: z.number().int().positive().optional(), unitId: z.number().int().positive().nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(12_000_000) })).max(5).optional() })).mutation(async ({ ctx, input }) => {
+      create: protectedProcedure.input(z.object({ participantProfileIds: z.array(z.number().int().positive()).min(1).max(50), subject: z.string().trim().max(255).optional(), body: z.string().trim().min(1).max(20_000), conversationType: z.enum(["direct", "department", "custom", "general", "task"]).optional(), taskId: z.number().int().positive().optional(), unitId: z.number().int().positive().nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(MAX_UPLOAD_BASE64_LENGTH) })).max(5).optional() })).mutation(async ({ ctx, input }) => {
         // RBAC الدردشات: الموظف العادي ينشئ محادثات فردية فقط؛ المجموعات ومحادثات القسم للمدراء والقيادة.
         if (input.conversationType && ["custom", "department", "general"].includes(input.conversationType)) {
           const permission = await permissionForUser(ctx.user);
@@ -2957,7 +2957,7 @@ export const courtRouter = router({
         return createInternalConversation({ userId: ctx.user.id, ...input });
       }),
       setTyping: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), isTyping: z.boolean() })).mutation(({ ctx, input }) => setInternalConversationTyping({ userId: ctx.user.id, ...input })),
-      send: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), body: z.string().trim().max(20_000), replyToMessageId: z.number().int().positive().nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(12_000_000) })).max(5).optional(), zipAttachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(12_000_000) })).min(6).max(25).optional() }).refine(input => Boolean(input.body) || Boolean(input.attachments?.length) || Boolean(input.zipAttachments?.length), { message: "اكتب رسالة أو أرفق ملفاً واحداً على الأقل." }).refine(input => !(input.attachments?.length && input.zipAttachments?.length), { message: "اختر مرفقات عادية أو حزمة ZIP تلقائية في الرسالة نفسها، وليس كليهما." })).mutation(({ ctx, input }) => sendInternalMessage({ userId: ctx.user.id, ...input })),
+      send: protectedProcedure.input(z.object({ conversationId: z.number().int().positive(), body: z.string().trim().max(20_000), replyToMessageId: z.number().int().positive().nullable().optional(), attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(MAX_UPLOAD_BASE64_LENGTH) })).max(5).optional(), zipAttachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(MAX_UPLOAD_BASE64_LENGTH) })).min(6).max(25).optional() }).refine(input => Boolean(input.body) || Boolean(input.attachments?.length) || Boolean(input.zipAttachments?.length), { message: "اكتب رسالة أو أرفق ملفاً واحداً على الأقل." }).refine(input => !(input.attachments?.length && input.zipAttachments?.length), { message: "اختر مرفقات عادية أو حزمة ZIP تلقائية في الرسالة نفسها، وليس كليهما." })).mutation(({ ctx, input }) => sendInternalMessage({ userId: ctx.user.id, ...input })),
       forward: protectedProcedure.input(z.object({ sourceMessageId: z.number().int().positive(), targetConversationId: z.number().int().positive(), note: z.string().trim().max(1_000).optional() })).mutation(({ ctx, input }) => forwardInternalConversationMessage({ userId: ctx.user.id, ...input })),
     }),
     exports: router({
@@ -2991,7 +2991,7 @@ export const courtRouter = router({
       toProfileIds: z.array(z.number().int().positive()).max(100).default([]),
       ccProfileIds: z.array(z.number().int().positive()).max(100).default([]),
       bccProfileIds: z.array(z.number().int().positive()).max(100).default([]),
-      attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(12_000_000) })).max(5).optional(),
+      attachments: z.array(z.object({ originalName: z.string().trim().min(1).max(255), mimeType: z.string().trim().max(120), contentBase64: z.string().max(MAX_UPLOAD_BASE64_LENGTH) })).max(5).optional(),
     })).mutation(({ ctx, input }) => saveInternalMailDraft({ userId: ctx.user.id, messageId: input.messageId, parentMessageId: input.parentMessageId, subject: input.subject, body: input.body, bodyHtml: input.bodyHtml, importance: input.importance, recipients: { toProfileIds: input.toProfileIds, ccProfileIds: input.ccProfileIds, bccProfileIds: input.bccProfileIds }, attachments: input.attachments })),
     send: protectedProcedure.input(z.object({ messageId: z.number().int().positive() })).mutation(({ ctx, input }) => sendInternalMail({ userId: ctx.user.id, ...input })),
     schedule: protectedProcedure.input(z.object({ messageId: z.number().int().positive(), scheduledAt: z.date() })).mutation(async ({ ctx, input }) => {
@@ -3028,7 +3028,7 @@ export const courtRouter = router({
       if (permission === "employee") return listImportBatchesForUser(ctx.user.id);
       throw new TRPCError({ code: "FORBIDDEN", message: "لا تتوفر قائمة المرفقات في مساحة الملازم القضائي." });
     }),
-    analyze: protectedProcedure.input(z.object({ filename: z.string().trim().min(1).max(255).refine(name => name.toLowerCase().endsWith(".xlsx"), "يدعم التحليل الذكي حالياً ملفات XLSX فقط."), contentBase64: z.string().min(20).max(12_000_000) })).mutation(async ({ ctx, input }) => {
+    analyze: protectedProcedure.input(z.object({ filename: z.string().trim().min(1).max(255).refine(name => name.toLowerCase().endsWith(".xlsx"), "يدعم التحليل الذكي حالياً ملفات XLSX فقط."), contentBase64: z.string().min(20).max(MAX_UPLOAD_BASE64_LENGTH) })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
       if (permission !== "full_control" && permission !== "employee") throw new TRPCError({ code: "FORBIDDEN", message: "تحليل المرفقات متاح لصلاحية الموظف الإداري أو التحكم الكامل." });
       const content = Buffer.from(input.contentBase64, "base64");
@@ -3036,7 +3036,7 @@ export const courtRouter = router({
       if (analysis.status === "rejected") throw new TRPCError({ code: "BAD_REQUEST", message: analysis.warnings[0] || "تم رفض الملف لعدم صلاحية بياناته." });
       return { analysis, suggestion: suggestImportAction(analysis) };
     }),
-    confirm: protectedProcedure.input(z.object({ filename: z.string().trim().min(1).max(255).refine(name => name.toLowerCase().endsWith(".xlsx"), "يدعم التحليل الذكي حالياً ملفات XLSX فقط."), contentBase64: z.string().min(20).max(12_000_000), action: z.enum(["schedule", "manual_review"]) })).mutation(async ({ ctx, input }) => {
+    confirm: protectedProcedure.input(z.object({ filename: z.string().trim().min(1).max(255).refine(name => name.toLowerCase().endsWith(".xlsx"), "يدعم التحليل الذكي حالياً ملفات XLSX فقط."), contentBase64: z.string().min(20).max(MAX_UPLOAD_BASE64_LENGTH), action: z.enum(["schedule", "manual_review"]) })).mutation(async ({ ctx, input }) => {
       const permission = await requirePermission(ctx.user, "edit");
       if (permission !== "full_control" && permission !== "employee") throw new TRPCError({ code: "FORBIDDEN", message: "حفظ المرفقات متاح لصلاحية الموظف الإداري أو التحكم الكامل." });
       const content = Buffer.from(input.contentBase64, "base64");

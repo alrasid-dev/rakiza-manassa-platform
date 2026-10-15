@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 import { buildZipArchiveBuffer, canBootstrapCustomConversationActor, canCreateCustomConversation, canPinConversationMessage, isSupportedInternalMessageReaction, normalizeConversationBody, packageConversationAttachments, validateConversationAttachment } from "./internal-communications-service";
 
 describe("custom conversation actor policy", () => {
@@ -63,9 +64,9 @@ describe("internal communications attachments", () => {
     expect(() => validateConversationAttachment({ mimeType: "application/zip", contentBase64: Buffer.from("x").toString("base64") })).toThrow("نوع المرفق");
   });
 
-  it("rejects attachments over eight megabytes", () => {
-    const contentBase64 = Buffer.alloc(8 * 1024 * 1024 + 1, 1).toString("base64");
-    expect(() => validateConversationAttachment({ mimeType: "text/plain", contentBase64 })).toThrow("8 ميجابايت");
+  it("rejects attachments over the upload size limit", () => {
+    const contentBase64 = Buffer.alloc(MAX_UPLOAD_SIZE + 1, 1).toString("base64");
+    expect(() => validateConversationAttachment({ mimeType: "text/plain", contentBase64 })).toThrow(MAX_UPLOAD_SIZE_LABEL);
   });
 
   it("builds a valid ZIP buffer with the expected entry names", async () => {

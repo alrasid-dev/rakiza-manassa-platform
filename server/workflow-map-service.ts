@@ -10,6 +10,7 @@ import { auditLogs, leaveRequests, notifications, organizationUnits, personProfi
 import { getDb } from "./db";
 import { invokeLLM } from "./_core/llm";
 import { matchStaffByName, normalizeArabicName } from "./platform-completion";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 
 export const WORKFLOW_SOURCE_MIME_TYPES = [
   "application/pdf",
@@ -296,7 +297,7 @@ async function logWorkflowAudit(input: { actorUserId: number; action: string; me
 
 type WorkflowLlmPart = { type: "text"; text: string } | { type: "file_url"; file_url: { url: string; mime_type: "application/pdf" } } | { type: "image_url"; image_url: { url: string; detail: "high" } };
 
-export const MAX_WORKFLOW_SOURCE_BYTES = 10 * 1024 * 1024;
+export const MAX_WORKFLOW_SOURCE_BYTES = MAX_UPLOAD_SIZE;
 
 /**
  * تحليل مستند مخطط سير العمل: قراءة محلية لـ Word وExcel، وقراءة ذكية (OCR) لـ PDF والصور،
@@ -305,7 +306,7 @@ export const MAX_WORKFLOW_SOURCE_BYTES = 10 * 1024 * 1024;
 export async function analyzeWorkflowDocument(input: { userId: number; originalName: string; mimeType: string; contentBase64: string }) {
   const bytes = Buffer.from(String(input.contentBase64 ?? ""), "base64");
   if (!bytes.length) throw new Error("لم يصل أي محتوى من الملف المرفوع.");
-  if (bytes.length > MAX_WORKFLOW_SOURCE_BYTES) throw new Error("الحد الأقصى لحجم ملف المخطط 10 ميجابايت.");
+  if (bytes.length > MAX_WORKFLOW_SOURCE_BYTES) throw new Error(`الحد الأقصى لحجم ملف المخطط ${MAX_UPLOAD_SIZE_LABEL}.`);
   const mimeType = normalizeWorkflowMimeType(input.originalName, input.mimeType);
   if (!(WORKFLOW_SOURCE_MIME_TYPES as readonly string[]).includes(mimeType)) throw new Error("الصيغ المدعومة: Word وExcel وCSV وTXT وPDF وصور PNG/JPEG.");
   const fallbackTitle = input.originalName.replace(/\.[^.]+$/, "").trim().slice(0, 200) || "مخطط سير عمل";

@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, exists, getTableColumns, gt, gte, inArray, isNull, isNotNull, like, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 import { ENV } from "./_core/env";
 import { TRPCError } from "@trpc/server";
 import { cacheGet, cacheSet, cacheInvalidate } from "./_core/cache";
@@ -359,12 +360,12 @@ export async function markDecisionCircularRead(input: { decisionId: number; user
   return { success: true };
 }
 
-const REPORT_MAX_BYTES = 8 * 1024 * 1024;
+const REPORT_MAX_BYTES = MAX_UPLOAD_SIZE;
 
 function decodeReportContent(contentBase64: string) {
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(contentBase64) || contentBase64.length % 4 !== 0) throw new Error("صيغة التقرير المرفوع غير صالحة.");
   const content = Buffer.from(contentBase64, "base64");
-  if (!content.length || content.length > REPORT_MAX_BYTES) throw new Error("يتجاوز التقرير الحد المسموح به وهو 8 ميغابايت.");
+  if (!content.length || content.length > REPORT_MAX_BYTES) throw new Error(`يتجاوز التقرير الحد المسموح به وهو ${MAX_UPLOAD_SIZE_LABEL}.`);
   return content;
 }
 

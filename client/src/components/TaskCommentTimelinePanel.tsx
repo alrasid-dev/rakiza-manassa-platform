@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 
 type MentionCandidate = { id: number; fullName: string; unitId?: number | null };
 
@@ -53,7 +54,7 @@ export function TaskCommentTimelinePanel({ taskId, candidates }: { taskId: numbe
   });
 
   const addAttachment = (file: File) => {
-    if (file.size > 8 * 1024 * 1024) { toast.error("حجم المرفق يتجاوز 8 ميغابايت."); return; }
+    if (file.size > MAX_UPLOAD_SIZE) { toast.error(`حجم المرفق يتجاوز ${MAX_UPLOAD_SIZE_LABEL}.`); return; }
     const reader = new FileReader();
     reader.onload = () => {
       const result = String(reader.result || "");

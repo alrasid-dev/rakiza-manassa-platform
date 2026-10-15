@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { MAX_UPLOAD_SIZE } from "@shared/const";
 
 export type ImportTemplate = "task_catalog" | "delay_register" | "weekly_follow_up" | "people_register" | "unknown";
 export type ImportAnalysis = {
@@ -17,7 +18,7 @@ export type SmartImportSuggestion = {
   requiresConfirmation: boolean;
 };
 
-const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_FILE_BYTES = MAX_UPLOAD_SIZE;
 
 function normalized(value: unknown) {
   return String(value ?? "").trim().replace(/\s+/g, " ");

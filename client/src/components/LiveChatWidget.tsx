@@ -3,10 +3,11 @@ import { trpc } from "@/lib/trpc";
 import { Loader2, MessageCircle, Minus, Paperclip, Send, X } from "lucide-react";
 import { ChangeEvent, useState } from "react";
 import { toast } from "sonner";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 
 const SUPPORT_ROLES = ["technical_support_agent", "technical_support_manager", "court_president", "assistant_president"];
 
-const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = MAX_UPLOAD_SIZE;
 const ALLOWED_ATTACHMENT_MIME = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -71,7 +72,7 @@ export function LiveChatWidget() {
     const files = Array.from(event.target.files ?? []).slice(0, 5 - attachments.length);
     if (!files.length) { event.target.value = ""; return; }
     const oversized = files.find(file => file.size > MAX_ATTACHMENT_BYTES);
-    if (oversized) { toast.error(`«${oversized.name}» يتجاوز الحد الأقصى (8 ميجابايت).`); event.target.value = ""; return; }
+    if (oversized) { toast.error(`«${oversized.name}» يتجاوز الحد الأقصى (${MAX_UPLOAD_SIZE_LABEL}).`); event.target.value = ""; return; }
     const unsupported = files.find(file => file.type && !ALLOWED_ATTACHMENT_MIME.has(file.type));
     if (unsupported) { toast.error(`صيغة «${unsupported.name}» غير مدعومة. المدعوم: PDF، Word، Excel، PNG/JPEG، TXT، ZIP.`); event.target.value = ""; return; }
     const converted = await Promise.all(files.map(async (file): Promise<{ originalName: string; mimeType: string; contentBase64: string } | null> => {

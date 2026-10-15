@@ -28,11 +28,12 @@ import { attachmentUrl } from "./storage";
 import { TRPCError } from "@trpc/server";
 import { createTask, getSupportProfilesByRole, logAudit } from "./court-service";
 import { sendPushForNotification } from "./push-service";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 
 const LEADERSHIP_ROLES = new Set(["court_president", "assistant_president", "court_secretary", "human_resources_manager", "performance_monitor"]);
 const MANAGER_ROLES = new Set(["department_manager", ...Array.from(LEADERSHIP_ROLES)]);
 const MAX_TEMPLATE_COUNT = 10;
-const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = MAX_UPLOAD_SIZE;
 const MAX_ZIP_ATTACHMENT_BYTES = 32 * 1024 * 1024;
 const ZIP_BATCH_MAX_ITEMS = 5;
 const MAX_ZIP_SOURCE_ITEMS = 25;
@@ -252,7 +253,7 @@ export function validateConversationAttachment(attachment: { mimeType: string; c
   if (!ALLOWED_ATTACHMENT_MIME.has(normalizedMime) || (normalizedMime === "application/zip" && !allowGeneratedZip)) throw new TRPCError({ code: "BAD_REQUEST", message: "نوع المرفق غير مسموح به." });
   const maxBytes = normalizedMime === "application/zip" ? MAX_ZIP_ATTACHMENT_BYTES : MAX_ATTACHMENT_BYTES;
   if (!bytes.byteLength) throw new TRPCError({ code: "BAD_REQUEST", message: "الملف فارغ." });
-  if (bytes.byteLength > maxBytes) throw new TRPCError({ code: "BAD_REQUEST", message: normalizedMime === "application/zip" ? "حجم حزمة ZIP يتجاوز 32 ميجابايت." : "حجم المرفق يتجاوز 8 ميجابايت." });
+  if (bytes.byteLength > maxBytes) throw new TRPCError({ code: "BAD_REQUEST", message: normalizedMime === "application/zip" ? "حجم حزمة ZIP يتجاوز 32 ميجابايت." : `حجم المرفق يتجاوز ${MAX_UPLOAD_SIZE_LABEL}.` });
   if (normalizedMime === "application/pdf" && !isPdfBytes(bytes)) throw new TRPCError({ code: "BAD_REQUEST", message: "محتوى ملف PDF غير صالح." });
   return bytes;
 }
