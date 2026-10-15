@@ -44,13 +44,22 @@ export default function PersonnelWorkspaceContent() {
   };
   const permission = trpc.court.registration.myPermission.useQuery();
   const roles = trpc.court.myRoles.useQuery();
+  // تجميد قرار الصلاحيات بعد أول تحميل ناجح — يمنع اختفاء/ظهور الأزرار بسبب حالة الجلب غير المستقرة
+  const [permissionSnapshot, setPermissionSnapshot] = useState<string | null>(null);
+  const [rolesSnapshot, setRolesSnapshot] = useState<string[]>([]);
+  useEffect(() => {
+    if (permission.isSuccess && roles.isSuccess) {
+      setPermissionSnapshot(permission.data ?? null);
+      setRolesSnapshot(roles.data ?? []);
+    }
+  }, [permission.isSuccess, roles.isSuccess, permission.data, roles.data]);
   const { selectedUnitId } = useSelectedUnit();
   const peopleQuery = trpc.court.people.list.useQuery(selectedUnitId ? { unitId: selectedUnitId } : undefined);
   const selfQuery = trpc.court.people?.self?.useQuery?.() ?? { data: undefined as { unitName?: string | null } | undefined };
   const unitsQuery = trpc.court.units?.list?.useQuery?.() ?? { data: [] as Array<{ id: number; name: string }> };
   const judgesQuery = trpc.court.judges?.list?.useQuery?.() ?? { data: [] as Profile[] };
-  const canManage = permission.data === "full_control" || Boolean(roles.data?.includes("human_resources_manager"));
-  const canArchive = permission.data === "full_control" || Boolean(roles.data?.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role)));
+  const canManage = permissionSnapshot === "full_control" || rolesSnapshot.includes("human_resources_manager");
+  const canArchive = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
   const people = (peopleQuery.data as Profile[] | undefined)?.filter(person => person.personType !== "judge") ?? [];
   const managerCandidates = useMemo(() => [...people, ...((judgesQuery.data as Profile[] | undefined) ?? [])].filter((person, index, list) => list.findIndex(item => item.id === person.id) === index), [people, judgesQuery.data]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,15 +91,15 @@ export default function PersonnelWorkspaceContent() {
   const [archiveTarget, setArchiveTarget] = useState<Profile | null>(null);
   const [archiveReason, setArchiveReason] = useState("");
   const archive = trpc.court.people.archive.useMutation({ onSuccess: async () => { await utils.court.people.list.invalidate(); setArchiveTarget(null); setArchiveReason(""); toast.success("تمت أرشفة الملف."); }, onError: (error: { message?: string }) => toast.error(error.message || "تعذر أرشفة الملف.") });
-  const canDelegate = permission.data === "full_control" || Boolean(roles.data?.some(role => ["human_resources_manager", "department_manager", "court_secretary", "court_president"].includes(role)));
+  const canDelegate = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["human_resources_manager", "department_manager", "court_secretary", "court_president"].includes(role));
   const [delegationTarget, setDelegationTarget] = useState<Profile | null>(null);
   const [delegationForm, setDelegationForm] = useState({ title: "", assignmentType: "temporary_duty" as "acting" | "temporary_duty" | "formation_assignment", startsAt: "", endsAt: "", status: "active" as "planned" | "active" | "ended" | "cancelled" });
   const createDelegation = trpc.court.people.createDelegation.useMutation({ onSuccess: async () => { await utils.court.people.delegations.invalidate(); setDelegationTarget(null); setDelegationForm({ title: "", assignmentType: "temporary_duty", startsAt: "", endsAt: "", status: "active" }); toast.success("تم إنشاء التكليف بنجاح."); }, onError: (error: { message?: string }) => toast.error(error.message || "تعذر إنشاء التكليف.") });
   const openDelegation = (profile: Profile) => { setDelegationTarget(profile); setDelegationForm({ title: `تكليف ${profile.fullName}`, assignmentType: "temporary_duty", startsAt: "", endsAt: "", status: "active" }); };
   const submitDelegation = (event: FormEvent) => { event.preventDefault(); if (!delegationTarget || !delegationForm.startsAt) return; createDelegation.mutate({ delegateProfileId: delegationTarget.id, title: delegationForm.title, assignmentType: delegationForm.assignmentType, startsAt: new Date(delegationForm.startsAt), endsAt: delegationForm.endsAt ? new Date(delegationForm.endsAt) : undefined, status: delegationForm.status }); };
 
-  const canPauseTasks = permission.data === "full_control" || Boolean(roles.data?.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "trainee_affairs_manager"].includes(role)));
-  const canPausePermanent = permission.data === "full_control" || Boolean(roles.data?.some(role => ["court_president", "court_secretary"].includes(role)));
+  const canPauseTasks = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "trainee_affairs_manager"].includes(role));
+  const canPausePermanent = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "court_secretary"].includes(role));
   const [pauseTarget, setPauseTarget] = useState<Profile | null>(null);
   const [pauseReason, setPauseReason] = useState("");
   const [pauseType, setPauseType] = useState<"temporary" | "permanent">("temporary");

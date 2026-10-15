@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { hijriMonthKey, hijriMonthRange, recentHijriMonths } from "@/lib/hijri-months";
 import { riyadhDateKey, riyadhLocalToUtc, riyadhTimeKey, toRiyadh } from "@/lib/riyadh-time";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const statusLabels: Record<string, string> = {
@@ -72,6 +72,15 @@ type ModalState = {
 export default function AttendanceMonthlyPage() {
   const permission = trpc.court.registration.myPermission.useQuery();
   const roles = trpc.court.myRoles.useQuery();
+  // تجميد قرار الصلاحيات بعد أول تحميل ناجح — يمنع اختفاء/ظهور الأزرار بسبب حالة الجلب غير المستقرة
+  const [permissionSnapshot, setPermissionSnapshot] = useState<string | null>(null);
+  const [rolesSnapshot, setRolesSnapshot] = useState<string[]>([]);
+  useEffect(() => {
+    if (permission.isSuccess && roles.isSuccess) {
+      setPermissionSnapshot(permission.data ?? null);
+      setRolesSnapshot(roles.data ?? []);
+    }
+  }, [permission.isSuccess, roles.isSuccess, permission.data, roles.data]);
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery();
   const utils = trpc.useUtils();
@@ -83,9 +92,9 @@ export default function AttendanceMonthlyPage() {
   const [month, setMonth] = useState(() => hijriMonthKey(new Date()));
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  const isOwner = permission.data === "full_control";
-  const canView = isOwner || Boolean(roles.data?.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager"].includes(role)));
-  const canEdit = isOwner || Boolean(roles.data?.some(role => role === "court_secretary"));
+  const isOwner = permissionSnapshot === "full_control";
+  const canView = isOwner || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager"].includes(role));
+  const canEdit = isOwner || rolesSnapshot.includes("court_secretary");
   const activeUnitId = unitId ? Number(unitId) : undefined;
   const peopleInUnit = useMemo(
     () => (people.data ?? []).filter(p => !activeUnitId || p.unitId === activeUnitId),

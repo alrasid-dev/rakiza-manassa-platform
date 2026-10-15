@@ -216,7 +216,16 @@ export default function TasksWorkspaceContent() {
   }, [activeTab]);
   const permission = trpc.court.registration.myPermission.useQuery();
   const roles = trpc.court.myRoles.useQuery();
-  const canAssign = permission.data === "full_control" || roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary" || role === "department_manager" || role === "trainee_affairs_manager");
+  // تجميد قرار الصلاحيات بعد أول تحميل ناجح — يمنع اختفاء/ظهور الأزرار بسبب حالة الجلب غير المستقرة
+  const [permissionSnapshot, setPermissionSnapshot] = useState<string | null>(null);
+  const [rolesSnapshot, setRolesSnapshot] = useState<string[]>([]);
+  useEffect(() => {
+    if (permission.isSuccess && roles.isSuccess) {
+      setPermissionSnapshot(permission.data ?? null);
+      setRolesSnapshot(roles.data ?? []);
+    }
+  }, [permission.isSuccess, roles.isSuccess, permission.data, roles.data]);
+  const canAssign = permissionSnapshot === "full_control" || rolesSnapshot.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary" || role === "department_manager" || role === "trainee_affairs_manager");
   const routeTargets = trpc.court.tasks.routeTargets.useQuery(undefined, { enabled: Boolean(canAssign) });
   const people = trpc.court.people.list.useQuery(permission.data === "full_control" ? undefined : { personType: "administrative" });
   const currentProfile = trpc.court.people.self.useQuery();
@@ -224,8 +233,8 @@ export default function TasksWorkspaceContent() {
   const holidayInfo = trpc.court.holidays.today.useQuery();
   const { selectedUnitId } = useSelectedUnit();
   const canManageTask = (task: { assigneeProfileId: number | null }) =>
-    permission.data === "full_control" ||
-    roles.data?.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager"].includes(role)) ||
+    permissionSnapshot === "full_control" ||
+    rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager"].includes(role)) ||
     task.assigneeProfileId === currentProfile.data?.id;
   const [taskView, setTaskView] = useState<"mine" | "scope">("mine");
   const [selectedAssigneeProfileId, setSelectedAssigneeProfileId] = useState<number | null>(null);
@@ -237,10 +246,10 @@ export default function TasksWorkspaceContent() {
   const [futureAssigneeId, setFutureAssigneeId] = useState<number | null>(null);
   const [futureStatus, setFutureStatus] = useState<string>("");
   const [period, setPeriod] = useState<"all" | "daily" | "weekly" | "monthly" | "historical">("all");
-  const platformWide = permission.data === "full_control" || Boolean(roles.data?.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary"));
+  const platformWide = permissionSnapshot === "full_control" || Boolean(rolesSnapshot.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary"));
   const isManager = canAssign && !platformWide;
-  const canDirectEdit = permission.data === "full_control" || Boolean(roles.data?.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager", "technical_support_manager"].includes(role)));
-  const canReviewApprovals = permission.data !== "full_control" || Boolean(roles.data?.some(role => role === "court_secretary" || role === "court_president"));
+  const canDirectEdit = permissionSnapshot === "full_control" || Boolean(rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager", "technical_support_manager"].includes(role)));
+  const canReviewApprovals = permissionSnapshot !== "full_control" || Boolean(rolesSnapshot.some(role => role === "court_secretary" || role === "court_president"));
   useEffect(() => {
     if (platformWide) setTaskView("scope");
   }, [platformWide]);
