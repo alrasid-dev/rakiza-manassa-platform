@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, exists, getTableColumns, gt, gte, inArray, isNull, isNotNull, like, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { ENV } from "./_core/env";
 import { TRPCError } from "@trpc/server";
+import { cacheGet, cacheSet, cacheInvalidate } from "./_core/cache";
 
 export async function sendBrevoTransactionalEmail(input: { to: string; recipientName?: string; subject: string; textContent: string; htmlContent?: string }) {
   if (!ENV.brevoApiKey || !ENV.brevoSenderEmail) throw new Error("إعدادات Brevo غير مكتملة.");
@@ -557,22 +558,42 @@ async function createTasksFromPerformanceReport(input: { documentId: number; uni
   return { candidateCount: input.candidates.length, createdTasks, unassignedTasks: input.candidates.filter(candidate => !assignedCandidateIndexes.has(`${candidate.source}:${candidate.title}`)).length, availableStaffCount: availableStaff.length, excludedOnLeaveCount: unitStaff.length - availableStaff.length };
 }
 
-export async function getEffectiveRoles(userId: number, isPlatformAdmin: boolean): Promise<CourtRole[]> {
+const ROLES_CACHE_TTL_MS = 60_000;
+
+export async function getEffectiveRoles(
+  userId: number,
+  isPlatformAdmin: boolean
+): Promise<CourtRole[]> {
   if (isPlatformAdmin) return ["court_president"];
+  const cacheKey = `roles:${userId}`;
+  const cached = cacheGet<CourtRole[]>(cacheKey);
+  if (cached) return cached;
   const db = await getDb();
   if (!db) return [];
   const now = new Date();
   const assignments = await db.select({ role: courtRoleAssignments.role })
     .from(courtRoleAssignments)
-    .where(and(eq(courtRoleAssignments.userId, userId), eq(courtRoleAssignments.isActive, true), lte(courtRoleAssignments.startsAt, now), or(isNull(courtRoleAssignments.endsAt), gt(courtRoleAssignments.endsAt, now))));
+    .where(and(
+      eq(courtRoleAssignments.userId, userId),
+      eq(courtRoleAssignments.isActive, true),
+      lte(courtRoleAssignments.startsAt, now),
+      or(isNull(courtRoleAssignments.endsAt), gt(courtRoleAssignments.endsAt, now))
+    ));
   const delegated = await db.select({ role: permissionDelegations.role, startsAt: permissionDelegations.startsAt, endsAt: permissionDelegations.endsAt, status: permissionDelegations.status })
     .from(permissionDelegations)
-    .where(and(eq(permissionDelegations.delegateUserId, userId), eq(permissionDelegations.status, "active"), lte(permissionDelegations.startsAt, now), gt(permissionDelegations.endsAt, now)));
-  return [...assignments, ...delegated]
+    .where(and(
+      eq(permissionDelegations.delegateUserId, userId),
+      eq(permissionDelegations.status, "active"),
+      lte(permissionDelegations.startsAt, now),
+      gt(permissionDelegations.endsAt, now)
+    ));
+  const result = [...assignments, ...delegated]
     .filter(item => item.role)
     .map(item => item.role as CourtRole)
     .filter(Boolean)
     .filter((_role, index, roles) => roles.indexOf(_role) === index);
+  cacheSet(cacheKey, result, ROLES_CACHE_TTL_MS);
+  return result;
 }
 
 export async function getActiveCourtRoleAssignments(userId: number, isPlatformAdmin: boolean) {
@@ -651,6 +672,7 @@ export async function assignCourtRole(input: { userId: number; role: CourtRole; 
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const result = await db.insert(courtRoleAssignments).values({ userId: input.userId, role: input.role, unitId: input.unitId ?? null, delegatedByUserId: input.delegatedByUserId, isActive: true, endsAt: input.endsAt ?? null });
   const id = Number(result[0].insertId);
+  cacheInvalidate(`roles:${input.userId}`);
   await logAudit({ actorUserId: input.delegatedByUserId, action: "court_role.assigned", entityType: "court_role_assignment", entityId: id, metadata: { userId: input.userId, role: input.role, unitId: input.unitId ?? null } });
   await notifyPlatformOwnerSecurityAlert({ actorUserId: input.delegatedByUserId, action: "court_role.assigned", entityType: "court_role_assignment", entityId: id, details: { userId: input.userId, role: input.role, unitId: input.unitId ?? null } });
   if (input.role === "department_manager" || input.role === "trainee_affairs_manager") {
@@ -664,6 +686,7 @@ export async function revokeCourtRole(assignmentId: number, actorUserId: number)
   if (!db) throw new Error("قاعدة البيانات غير متاحة");
   const [assignment] = await db.select().from(courtRoleAssignments).where(eq(courtRoleAssignments.id, assignmentId)).limit(1);
   await db.update(courtRoleAssignments).set({ isActive: false, endsAt: new Date() }).where(eq(courtRoleAssignments.id, assignmentId));
+  if (assignment) cacheInvalidate(`roles:${assignment.userId}`);
   await logAudit({ actorUserId, action: "court_role.revoked", entityType: "court_role_assignment", entityId: assignmentId });
   await notifyPlatformOwnerSecurityAlert({ actorUserId, action: "court_role.revoked", entityType: "court_role_assignment", entityId: assignmentId });
   if (assignment && (assignment.role === "department_manager" || assignment.role === "trainee_affairs_manager") && assignment.unitId != null) {

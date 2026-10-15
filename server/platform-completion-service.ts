@@ -19,6 +19,7 @@ import {
   type CourtRole,
 } from "../drizzle/schema";
 import { getDb } from "./db";
+import { cacheInvalidate } from "./_core/cache";
 import { assignCourtRole, getLeadershipWorkloadObservatory, getDepartmentPerformance, listActivityLog, logAudit, requestOtpCode } from "./court-service";
 import {
   administrativeRouteOrder,
@@ -102,6 +103,7 @@ export async function createPermissionDelegation(input: { grantorUserId: number;
   });
   const id = Number(result[0].insertId);
   await assignCourtRole({ userId: input.delegateUserId, role: input.role, unitId: input.unitId, delegatedByUserId: input.grantorUserId, endsAt: input.endsAt });
+  cacheInvalidate(`roles:${input.delegateUserId}`);
   const delegateProfile = (await db.select({ id: personProfiles.id }).from(personProfiles).where(eq(personProfiles.userId, input.delegateUserId)).limit(1))[0];
   if (delegateProfile) {
     await db.insert(notifications).values({
@@ -135,6 +137,7 @@ export async function cancelPermissionDelegation(input: { delegationId: number; 
   if (!row) throw new Error("التفويض غير موجود.");
   await db.update(permissionDelegations).set({ status: "cancelled", updatedAt: new Date() }).where(eq(permissionDelegations.id, input.delegationId));
   await db.update(courtRoleAssignments).set({ isActive: false, endsAt: new Date() }).where(and(eq(courtRoleAssignments.userId, row.delegateUserId), eq(courtRoleAssignments.role, row.role), eq(courtRoleAssignments.delegatedByUserId, row.grantorUserId), eq(courtRoleAssignments.isActive, true)));
+  cacheInvalidate(`roles:${row.delegateUserId}`);
   await logAudit({ actorUserId: input.actorUserId, action: "permission_delegation.cancelled", entityType: "permission_delegation", entityId: input.delegationId });
   return { success: true };
 }
@@ -148,6 +151,7 @@ export async function expirePermissionDelegations(now = new Date()) {
     if (isDelegationActive({ startsAt: row.startsAt, endsAt: row.endsAt, now })) continue;
     await db.update(permissionDelegations).set({ status: "ended", updatedAt: now }).where(eq(permissionDelegations.id, row.id));
     await db.update(courtRoleAssignments).set({ isActive: false, endsAt: now }).where(and(eq(courtRoleAssignments.userId, row.delegateUserId), eq(courtRoleAssignments.role, row.role), eq(courtRoleAssignments.isActive, true), eq(courtRoleAssignments.delegatedByUserId, row.grantorUserId)));
+    cacheInvalidate(`roles:${row.delegateUserId}`);
     expired += 1;
   }
   return { expired };
