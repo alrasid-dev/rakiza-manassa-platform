@@ -9,7 +9,7 @@ export default function CheckOutReminder() {
   const { user } = useAuth({ disabled: false });
   const utils = trpc.useUtils();
   const attendanceApi = (trpc.court as any).attendance;
-  const self = (trpc.court as any).people?.self?.useQuery ? (trpc.court as any).people.self.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 30_000, staleTime: 0 }) : { data: null };
+  const self = (trpc.court as any).people?.self?.useQuery ? (trpc.court as any).people.self.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 120_000, staleTime: 0 }) : { data: null };
   const today = attendanceApi?.today?.useQuery ? attendanceApi.today.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 60_000 }) : { data: null };
   const checkout = attendanceApi?.checkout?.useMutation ? attendanceApi.checkout.useMutation({ onSuccess: () => { void (utils.court as any).attendance?.today.invalidate(); toast.success("تم تسجيل خروجك."); } }) : { mutate: () => undefined, isPending: false };
   const [open, setOpen] = useState(false);

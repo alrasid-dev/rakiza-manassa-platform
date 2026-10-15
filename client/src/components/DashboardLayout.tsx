@@ -317,9 +317,9 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   const units = trpc.court.units.list.useQuery(undefined, { enabled: Boolean(user) || IS_PREVIEW_MODE });
   const { selectedUnitId, setSelectedUnitId } = useSelectedUnit();
   const internalMailProcedure = (trpc.court as any).internalMail?.folderCounts;
-  const internalMailCounts = internalMailProcedure?.useQuery ? internalMailProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE, refetchInterval: 30_000 }) : { data: { unread: 0 } };
+  const internalMailCounts = internalMailProcedure?.useQuery ? internalMailProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE, refetchInterval: 300_000 }) : { data: { unread: 0 } };
   const chatUnreadProcedure = (trpc.court as any).communications?.conversations?.unreadCount;
-  const chatUnread = chatUnreadProcedure?.useQuery ? chatUnreadProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE, refetchInterval: 30_000 }) : { data: 0 };
+  const chatUnread = chatUnreadProcedure?.useQuery ? chatUnreadProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE, refetchInterval: 60_000 }) : { data: 0 };
   const conversationsProcedure = (trpc.court as any).communications?.conversations?.list;
   const conversations = conversationsProcedure?.useQuery ? conversationsProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE }) : { data: [] as Array<{ conversation: { id: number; conversationType: string } }> };
   // حماية صريحة: شكل رد الخادم قد يتغيّر أو يعود بغير مصفوفة، فلا نُسقط لوحة القيادة بسبب ذلك.
@@ -329,16 +329,16 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
   const quickActionOrder = normalizeQuickActionIds(savedDashboardPreferences.data?.quickActionOrder);
   const hiddenQuickActionIds = normalizeQuickActionIds(savedDashboardPreferences.data?.hiddenQuickActionIds);
   const taskListProcedure = (trpc.court as any).tasks?.list;
-  const assignedTasks = taskListProcedure?.useQuery ? taskListProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE, refetchInterval: 60_000 }) : { data: [] as Array<{ id: number; title: string; dueAt?: Date | string | number; status?: string }> };
+  const assignedTasks = taskListProcedure?.useQuery ? taskListProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE, refetchInterval: 120_000 }) : { data: [] as Array<{ id: number; title: string; dueAt?: Date | string | number; status?: string }> };
   const operationsRoles = ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager"];
   const mayManageOperations = permission.data === "full_control" || (roles.data ?? []).some(role => operationsRoles.includes(role));
   const pendingApprovalsProcedure = (trpc.court as any).approvals?.pending;
-  const pendingApprovals = pendingApprovalsProcedure?.useQuery ? pendingApprovalsProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 30_000 }) : { data: [] };
+  const pendingApprovals = pendingApprovalsProcedure?.useQuery ? pendingApprovalsProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 60_000 }) : { data: [] };
   const taskApprovalsProcedure = (trpc.court as any).tasks?.listPendingApprovals;
-  const taskApprovals = taskApprovalsProcedure?.useQuery ? taskApprovalsProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 30_000, retry: false }) : { data: [] };
+  const taskApprovals = taskApprovalsProcedure?.useQuery ? taskApprovalsProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 60_000, retry: false }) : { data: [] };
   const taskApprovalCount = (taskApprovals.data ?? []).length;
   const myDashboardProcedure = (trpc.court as any).requests?.myDashboard;
-  const myDashboard = myDashboardProcedure?.useQuery ? myDashboardProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 30_000 }) : { data: { counts: { total: 0 } } };
+  const myDashboard = myDashboardProcedure?.useQuery ? myDashboardProcedure.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE && mayManageOperations, refetchInterval: 120_000 }) : { data: { counts: { total: 0 } } };
   const myRequestsCount = Number(myDashboard.data?.counts?.total || 0);
   const taskAttentionCount = (assignedTasks.data || []).filter((task: { status?: string }) => ["new", "in_progress", "under_review", "overdue"].includes(task.status || "")).length;
   const overdueTaskCount = (assignedTasks.data || []).filter((task: { status?: string }) => task.status === "overdue").length;

@@ -11,7 +11,7 @@ export default function AttendanceConfirmationModal() {
   const attendanceApi = (trpc.court as any).attendance;
 
   const pending = attendanceApi?.pendingAssignment?.useQuery
-    ? attendanceApi.pendingAssignment.useQuery(undefined, { refetchInterval: 30_000, staleTime: 0 })
+    ? attendanceApi.pendingAssignment.useQuery(undefined, { refetchInterval: 120_000, staleTime: 0 })
     : { data: null as PendingAssignment };
 
   const confirm = attendanceApi?.confirmAttendance?.useMutation

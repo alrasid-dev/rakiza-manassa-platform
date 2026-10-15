@@ -73,7 +73,7 @@ export default function StatusWorkspaceContent() {
   const pendingAssignmentApi = (trpc.court.attendance as any).pendingAssignment;
   // مفتوح دائمًا: في الإنتاج لا ينشئ الباكند assignments لـ full_control،
   // فالنافذة تظهر فقط عند وجود pending فعلي.
-  const pendingAssignment = pendingAssignmentApi?.useQuery ? pendingAssignmentApi.useQuery(undefined, { refetchInterval: 5_000, refetchOnMount: true, refetchOnWindowFocus: true, enabled: true }) : { data: null, refetch: async () => undefined };
+  const pendingAssignment = pendingAssignmentApi?.useQuery ? pendingAssignmentApi.useQuery(undefined, { refetchInterval: 120_000, refetchOnMount: true, refetchOnWindowFocus: true, enabled: true }) : { data: null, refetch: async () => undefined };
   const confirmAttendanceApi = (trpc.court.attendance as any).confirmAttendance;
   const confirmAttendance = confirmAttendanceApi?.useMutation ? confirmAttendanceApi.useMutation({ onSuccess: () => { toast.success("تم تأكيد حضورك."); void (utils.court.attendance as any).pendingAssignment?.invalidate?.(); }, onError: (error: { message?: string }) => { const msg = error?.message || ""; if (/fetch|network/i.test(msg)) { toast.error("تعذر الاتصال بالخادم. تأكد أن الخادم يعمل (npm run dev)."); } else { toast.error(msg || "تعذر التأكيد"); } } }) : { mutate: (_input: unknown) => undefined, isPending: false };
   const confirmationSettingsApi = (trpc.court.attendance as any).confirmationSettings;
