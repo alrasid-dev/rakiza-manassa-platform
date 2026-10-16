@@ -8,7 +8,6 @@ export const COURT_ROLES = [
   "court_president",
   "assistant_president",
   "court_secretary",
-  "assistant_secretary", // منصب معطّل حتى يُفوَّض (ROLE_CAPABILITIES فارغة)
   "human_resources_manager",
   "department_manager",
   "performance_monitor",
@@ -18,6 +17,7 @@ export const COURT_ROLES = [
   "administrative_staff",
   "judicial_trainee",
   "judge",
+  "assistant_secretary", // منصب معطّل حتى يُفوَّض (ROLE_CAPABILITIES فارغة)
 ] as const;
 
 export type CourtRole = (typeof COURT_ROLES)[number];
@@ -83,7 +83,6 @@ export const ROLE_CAPABILITIES: Record<CourtRole, Capability[]> = {
     "delegate",
     "receive_asset_notifications", // يُشعَر بطلبات العهد
   ],
-  assistant_secretary: [], // يعمل فقط عبر تفويض من الأمين
   human_resources_manager: [
     "manage_hr", "view_attendance", "attach_reports",
     "manage_asset_requests", // يقبل/يسند/يعتمد طلبات العهد
@@ -103,6 +102,7 @@ export const ROLE_CAPABILITIES: Record<CourtRole, Capability[]> = {
   administrative_staff: [],
   judicial_trainee: [],
   judge: [],
+  assistant_secretary: [], // يعمل فقط عبر تفويض من الأمين
 };
 
 /** فحص بسيط للقدرة من الأدوار وحدها (بدون تفويض وبدون مالك). */
