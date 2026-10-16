@@ -49,6 +49,10 @@ describe("hasCapability", () => {
     expect(hasCapability("rakizaplatform@gmail.com", [], [], "manage_attendance")).toBe(true);
   });
 
+  it("قدرة عامة (initiate_asset_request) → true لأي مستخدم", () => {
+    expect(hasCapability("x@moj.gov.sa", [], [], "initiate_asset_request")).toBe(true);
+  });
+
   it("دور عنده القدرة → true", () => {
     expect(hasCapability("x@moj.gov.sa", ["court_secretary"], [], "manage_attendance")).toBe(true);
   });

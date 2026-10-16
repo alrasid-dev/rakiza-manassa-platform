@@ -22,7 +22,7 @@ export const COURT_ROLES = [
 
 export type CourtRole = (typeof COURT_ROLES)[number];
 
-/** القدرات (Capability) — 14 قدرة. */
+/** القدرات (Capability) — 17 قدرة. */
 export type Capability =
   | "manage_operations"
   | "manage_tasks"
@@ -37,7 +37,15 @@ export type Capability =
   | "approve"
   | "attach_reports"
   | "view_whole_platform"
-  | "delegate";
+  | "delegate"
+  | "initiate_asset_request"
+  | "manage_asset_requests"
+  | "receive_asset_notifications";
+
+/** قدرات عامة يمتلكها كل مستخدم (بدون اشتراط دور). */
+export const UNIVERSAL_CAPABILITIES: Capability[] = [
+  "initiate_asset_request",
+];
 
 /** المالك (بالبريد، مطابقة تامة مع PLATFORM_OWNER_EMAIL) — ليس دورًا، وكل القدرات دائمًا. */
 export function isOwner(email: string | null | undefined, ownerEmail = PLATFORM_OWNER_EMAIL_DEFAULT): boolean {
@@ -73,10 +81,12 @@ export const ROLE_CAPABILITIES: Record<CourtRole, Capability[]> = {
     "manage_correspondence", "approve",
     "view_whole_platform",
     "delegate",
+    "receive_asset_notifications", // يُشعَر بطلبات العهد
   ],
   assistant_secretary: [], // يعمل فقط عبر تفويض من الأمين
   human_resources_manager: [
     "manage_hr", "view_attendance", "attach_reports",
+    "manage_asset_requests", // يقبل/يسند/يعتمد طلبات العهد
   ],
   department_manager: [
     // ⚠️ manage_operations أُزيلت تطبيقاً لقاعدة: القيادة فقط تدير العمليات.

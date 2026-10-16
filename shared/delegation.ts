@@ -1,6 +1,6 @@
 // shared/delegation.ts
 // نموذج التفويض الموحّد المرن: قدرات (واحدة/عدة/الكل) × نطاق (عام/قسم/موظف) × مدة.
-import { hasRoleCapability, isOwner, type Capability, type CourtRole } from "./role-capabilities";
+import { hasRoleCapability, isOwner, UNIVERSAL_CAPABILITIES, type Capability, type CourtRole } from "./role-capabilities";
 
 export type DelegationScope =
   | { kind: "global" }                             // عام
@@ -45,6 +45,7 @@ export function hasCapability(
   context?: { unitId?: number; targetUserId?: number },
 ): boolean {
   if (isOwner(email)) return true;
+  if (UNIVERSAL_CAPABILITIES.includes(capability)) return true;
   if (hasRoleCapability(roles, capability)) return true;
   return activeDelegations.some(
     (d) =>

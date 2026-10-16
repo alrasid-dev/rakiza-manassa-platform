@@ -33,6 +33,14 @@ describe("role-capabilities", () => {
     expect(ROLE_CAPABILITIES.department_manager).not.toContain("manage_operations");
   });
 
+  it("HR يدير طلبات العهد", () => {
+    expect(hasRoleCapability(["human_resources_manager"], "manage_asset_requests")).toBe(true);
+  });
+
+  it("الأمين يستقبل إشعارات العهد", () => {
+    expect(hasRoleCapability(["court_secretary"], "receive_asset_notifications")).toBe(true);
+  });
+
   it("isOwner يحدد المالك بالبريد", () => {
     expect(isOwner("rakizaplatform@gmail.com")).toBe(true);
     expect(isOwner("other@example.com")).toBe(false);
