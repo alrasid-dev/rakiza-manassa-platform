@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-16T10:24:41.718Z",
+  "generatedAt": "2026-10-16T12:06:19.679Z",
   "totalMatches": 147,
   "affectedFiles": 27,
   "capabilities": {
@@ -1212,7 +1212,7 @@
     },
     {
       "file": "server/platform-completion-service.ts",
-      "line": 302,
+      "line": 306,
       "roles": [
         "department_manager",
         "court_secretary",
