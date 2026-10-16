@@ -1,0 +1,1 @@
+ALTER TABLE `users` MODIFY COLUMN `emailNotificationPreference` enum('work','backup','both','none') NOT NULL DEFAULT 'none';

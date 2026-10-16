@@ -575,6 +575,41 @@
       "when": 1790531973644,
       "tag": "0081_colossal_steel_serpent",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "5",
+      "when": 1790532000000,
+      "tag": "0082_permission_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "5",
+      "when": 1790532100000,
+      "tag": "0083_attendance_exemption",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "5",
+      "when": 1790532200000,
+      "tag": "0084_leave_cancelled_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "5",
+      "when": 1790532300000,
+      "tag": "0085_add_assistant_secretary_and_delegation_capabilities",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "5",
+      "when": 1790532400000,
+      "tag": "0086_fix_email_notification_preference",
+      "breakpoints": true
     }
   ]
 }
