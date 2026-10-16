@@ -5,10 +5,11 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePermissionsSnapshot } from "./usePermissionsSnapshot";
 
-// مقلّد لدوال tRPC الفعلية التي يستدعيها الـ hook: myPermission و myRoles.
-const { mockPermissionUseQuery, mockRolesUseQuery } = vi.hoisted(() => ({
+// مقلّد لدوال tRPC الفعلية التي يستدعيها الـ hook: myPermission و myRoles و myCapabilities.
+const { mockPermissionUseQuery, mockRolesUseQuery, mockCapabilitiesUseQuery } = vi.hoisted(() => ({
   mockPermissionUseQuery: vi.fn(),
   mockRolesUseQuery: vi.fn(),
+  mockCapabilitiesUseQuery: vi.fn(),
 }));
 
 vi.mock("@/lib/trpc", () => ({
@@ -16,6 +17,7 @@ vi.mock("@/lib/trpc", () => ({
     court: {
       registration: { myPermission: { useQuery: mockPermissionUseQuery } },
       myRoles: { useQuery: mockRolesUseQuery },
+      myCapabilities: { useQuery: mockCapabilitiesUseQuery },
     },
   },
 }));
@@ -25,6 +27,7 @@ let queryClient: QueryClient;
 beforeEach(() => {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   vi.clearAllMocks();
+  mockCapabilitiesUseQuery.mockReturnValue({ isSuccess: true, data: [], isLoading: false });
 });
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -72,5 +75,18 @@ describe("usePermissionsSnapshot", () => {
     await waitFor(() => expect(result.current.permission).toBe("employee"));
     expect(result.current.roles).toEqual(["human_resources_manager"]);
     expect(result.current.isReady).toBe(true);
+  });
+
+  it("يعيد capabilities و can() بعد اكتمال التحميل", async () => {
+    const caps = ["support", "attach_reports"];
+    mockPermissionUseQuery.mockReturnValue({ isSuccess: true, data: "employee", isLoading: false });
+    mockRolesUseQuery.mockReturnValue({ isSuccess: true, data: ["technical_support_manager"], isLoading: false });
+    mockCapabilitiesUseQuery.mockReturnValue({ isSuccess: true, data: caps, isLoading: false });
+
+    const { result } = renderHook(() => usePermissionsSnapshot(), { wrapper });
+
+    await waitFor(() => expect(result.current.capabilities).toEqual(caps));
+    expect(result.current.can("support")).toBe(true);
+    expect(result.current.can("manage_attendance")).toBe(false);
   });
 });
