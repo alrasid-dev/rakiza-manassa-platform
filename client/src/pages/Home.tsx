@@ -5,6 +5,7 @@ import { RakizaIconButton } from "@/components/RakizaIconButton";
 import { StatCardCustomizationDialog } from "@/components/StatCardCustomizationDialog";
 import WelcomeCard from "@/components/WelcomeCard";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { readDashboardPreferencesLocal, writeDashboardPreferencesLocal } from "@/lib/dashboard-preferences-storage";
 import { cn } from "@/lib/utils";
 import { STAT_CARD_DEFINITIONS, STAT_CARD_IDS, resolveStatColor, resolveStatIcon, type StatCardId } from "@/lib/stat-cards";
@@ -90,8 +91,7 @@ function DraggableHomeCard({ card, isDragging, isDragOver, onActivate, onDragSta
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
   const dashboard = trpc.court.dashboard.useQuery();
   const dashboardPreferencesProcedure = trpc.court.dashboardPreferences;
   const savedDashboardPreferences = dashboardPreferencesProcedure?.mine?.useQuery ? dashboardPreferencesProcedure.mine.useQuery() : { data: undefined as DashboardPreferenceState | undefined };
@@ -117,8 +117,8 @@ export default function Home() {
   const metrics = (dashboard.data ?? {}) as Metrics;
   const mailUnreadCount = Number((((trpc.court as any).internalMail?.folderCounts?.useQuery ? (trpc.court as any).internalMail.folderCounts.useQuery() : { data: { unread: 0 } }).data?.unread) || 0);
   const chatUnreadCount = Number((((trpc.court as any).communications?.conversations?.unreadCount?.useQuery ? (trpc.court as any).communications.conversations.unreadCount.useQuery() : { data: 0 }).data) || 0);
-  const isLeadership = permission.data === "full_control" || (roles.data ?? []).some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
-  const canManageRotation = permission.data === "full_control" || (roles.data ?? []).some(role => ["court_president", "assistant_president", "court_secretary", "owner"].includes(role));
+  const isLeadership = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+  const canManageRotation = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "owner"].includes(role));
   const unreadNotifications = Number(metrics.unreadNotifications ?? 0);
   const openTasks = Number(metrics.openTasks ?? 0);
   const overdueTasks = Number(metrics.overdueTasks ?? 0);
@@ -127,10 +127,10 @@ export default function Home() {
   const profiles = Number(metrics.profiles ?? 0);
   const templates = Number(metrics.templates ?? 0);
   const dueTasks = Number(metrics.dueTasks ?? 0);
-  const tasksList = trpc.court.tasks.list.useQuery(undefined, { enabled: Boolean(permission.data) });
-  const todayCounts = trpc.court.tasks.todayCounts.useQuery(undefined, { enabled: Boolean(permission.data) });
+  const tasksList = trpc.court.tasks.list.useQuery(undefined, { enabled: Boolean(permissionSnapshot) });
+  const todayCounts = trpc.court.tasks.todayCounts.useQuery(undefined, { enabled: Boolean(permissionSnapshot) });
   const openFlaggedTasks = (tasksList.data ?? []).filter(task => task.isOpen).length;
-  const mayManageTasks = permission.data === "full_control" || (roles.data ?? []).some(role => ["court_president", "assistant_president", "court_secretary", "department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+  const mayManageTasks = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
   const taskApprovalsProcedure = (trpc.court as any).tasks?.listPendingApprovals;
   const pendingTaskApprovals = taskApprovalsProcedure?.useQuery ? taskApprovalsProcedure.useQuery(undefined, { enabled: mayManageTasks, refetchInterval: 30_000, retry: false }) : { data: [] };
   const pendingApprovalCount = (pendingTaskApprovals.data ?? []).length;

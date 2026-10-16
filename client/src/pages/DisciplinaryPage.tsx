@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import TeamBalancesTable from "@/components/TeamBalancesTable";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { useMemo, useState } from "react";
 import RequestRouteTimeline from "@/components/RequestRouteTimeline";
 
@@ -40,12 +41,11 @@ export default function DisciplinaryPage() {
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery();
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
-  const roleList: string[] = roles.data ?? [];
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const roleList: string[] = rolesSnapshot;
   const isManager = roleList.some(role => ["department_manager", "trainee_affairs_manager"].includes(role));
-  const isLeadership = permission.data === "full_control" || roleList.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
-  const isOwner = permission.data === "full_control";
+  const isLeadership = permissionSnapshot === "full_control" || roleList.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+  const isOwner = permissionSnapshot === "full_control";
   const FINAL_STATUSES = ["approved", "rejected", "closed", "returned", "cancelled"];
 
   const canDecideCase = (c: CaseRow) =>

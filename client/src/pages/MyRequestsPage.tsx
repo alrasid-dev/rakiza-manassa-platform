@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import RequestRouteTimeline from "@/components/RequestRouteTimeline";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -95,15 +96,14 @@ export default function MyRequestsPage() {
   const [dialog, setDialog] = useState<{ item: Item; action: DecisionAction; rating?: "excellent" | "good" | "acceptable" } | null>(null);
   const [reason, setReason] = useState("");
   const dash = trpc.court.requests.myDashboard.useQuery(undefined, { refetchInterval: 15000 });
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
 
   const reviewMutation = trpc.court.requests.review.useMutation();
   const escalateMutation = trpc.court.requests.escalate.useMutation();
   const returnMutation = trpc.court.requests.returnForFix.useMutation();
 
-  const roleList: string[] = roles.data ?? [];
-  const isOwner = permission.data === "full_control";
+  const roleList: string[] = rolesSnapshot;
+  const isOwner = permissionSnapshot === "full_control";
   const isLeadership = isOwner || roleList.includes("court_president") || roleList.includes("assistant_president");
   const isSecretary = roleList.includes("court_secretary");
   const isManager = roleList.some(r => ["department_manager", "trainee_affairs_manager", "human_resources_manager"].includes(r));

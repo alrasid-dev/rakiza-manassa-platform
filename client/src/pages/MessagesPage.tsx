@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { Check, CheckCheck, FileText, Forward, MessageCircle, Paperclip, Pin, Plus, Reply, Search, Send, UserRound, UsersRound, X } from "lucide-react";
 import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -45,8 +46,7 @@ export default function MessagesPage() {
   const [location] = useLocation();
   const utils = trpc.useUtils();
   const me = trpc.court.people.self.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
-  const permission = trpc.court.registration.myPermission.useQuery();
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
   const chats = trpc.court.communications.conversations.list.useQuery(undefined, { refetchInterval: 30_000 });
   const units = trpc.court.communications.units.useQuery();
   const [conversationId, setConversationId] = useState<number | null>(null);
@@ -109,8 +109,8 @@ export default function MessagesPage() {
 
   const filteredChats = useMemo(() => (chats.data || []).filter((item: any) => `${item.displayName} ${item.lastMessage?.body || ""}`.includes(chatSearch)), [chats.data, chatSearch]);
   const activeChat = (chats.data || []).find((item: any) => item.conversation.id === conversationId);
-  const canPin = ["department", "custom", "general"].includes(conversation.data?.conversation?.conversationType || "") && (conversation.data?.conversation?.createdByProfileId === me.data?.id || roles.data?.some(role => ["court_president", "assistant_president", "court_secretary", "department_manager"].includes(role)));
-  const canCreateGroup = permission.data === "full_control" || roles.data?.some(role => ["court_president", "assistant_president", "court_secretary", "department_manager"].includes(role));
+  const canPin = ["department", "custom", "general"].includes(conversation.data?.conversation?.conversationType || "") && (conversation.data?.conversation?.createdByProfileId === me.data?.id || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "department_manager"].includes(role)));
+  const canCreateGroup = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "department_manager"].includes(role));
   const people = (peopleSearch.data || []) as DirectoryPerson[];
   const directoryUnits = (units.data || []) as DirectoryUnit[];
 
