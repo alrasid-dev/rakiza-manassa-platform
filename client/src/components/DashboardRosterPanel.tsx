@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { Building2, CircleDashed, UsersRound } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -8,18 +9,17 @@ type Unit = { id: number; name: string; isActive?: boolean };
 /** قائمة منفصلة للموظفين والأقسام؛ البيانات من people.list / units.list وفق صلاحية الخادم. */
 export default function DashboardRosterPanel() {
   const [, setLocation] = useLocation();
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
 
-  const isPrivileged = permission.data === "full_control" || permission.data === "general_view";
+  const isPrivileged = permissionSnapshot === "full_control" || permissionSnapshot === "general_view";
   const leadershipRoles = ["court_president", "assistant_president", "court_secretary"] as const;
   const managerRoles = ["human_resources_manager", "department_manager", "trainee_affairs_manager", "performance_monitor"] as const;
 
   // بطاقة «الموظفون»: للقيادة والموارد البشرية ومديري الأقسام.
-  const canSeeEmployees = isPrivileged || (roles.data ?? []).some(role => [...leadershipRoles, ...managerRoles].includes(role as (typeof leadershipRoles)[number] | (typeof managerRoles)[number]));
+  const canSeeEmployees = isPrivileged || rolesSnapshot.some(role => [...leadershipRoles, ...managerRoles].includes(role as (typeof leadershipRoles)[number] | (typeof managerRoles)[number]));
 
   // بطاقة «الأقسام»: للمسؤولين والمدراء فقط (RBAC صارم — لا تظهر للموظف العادي).
-  const canSeeDepartments = isPrivileged || (roles.data ?? []).some(role => [...leadershipRoles, ...managerRoles].includes(role as (typeof leadershipRoles)[number] | (typeof managerRoles)[number]));
+  const canSeeDepartments = isPrivileged || rolesSnapshot.some(role => [...leadershipRoles, ...managerRoles].includes(role as (typeof leadershipRoles)[number] | (typeof managerRoles)[number]));
 
   const peopleQuery = trpc.court.people.list.useQuery(undefined, { enabled: canSeeEmployees });
   const unitsQuery = trpc.court.units.list.useQuery(undefined, { enabled: canSeeDepartments });

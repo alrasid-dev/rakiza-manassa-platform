@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { UserPlus, UserX } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,9 +16,8 @@ export function canManageDepartmentDelegations(permission: string | null | undef
  */
 export default function DepartmentManagementActions({ variant = "dark" }: { variant?: "dark" | "light" }) {
   const utils = trpc.useUtils();
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
-  const allowed = canManageDepartmentDelegations(permission.data, roles.data);
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const allowed = canManageDepartmentDelegations(permissionSnapshot, rolesSnapshot);
 
   const managers = trpc.court.management.list.useQuery(undefined, { enabled: allowed });
   const people = trpc.court.people.list.useQuery({ personType: "administrative" }, { enabled: allowed });

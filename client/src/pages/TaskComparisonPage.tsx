@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { jsPDF } from "jspdf";
 import { BarChart3, FileSpreadsheet, FileText, UserCog } from "lucide-react";
 import { useState } from "react";
@@ -29,12 +30,11 @@ function formatCompletionTime(r: { avgCompletionMinutes: number | null }) {
 }
 
 export default function TaskComparisonPage() {
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery();
-  const isLeadership = permission.data === "full_control" || (roles.data ?? []).some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
-  const isManager = !isLeadership && (roles.data ?? []).some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
+  const isLeadership = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+  const isManager = !isLeadership && rolesSnapshot.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
   const canPickEmployee = isLeadership || isManager;
 
   const [unitId, setUnitId] = useState("");

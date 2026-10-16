@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { AlertCircle, FileSpreadsheet, FileText, UploadCloud } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -21,10 +22,10 @@ async function fileAsBase64(file: File) {
 
 export function ReportUploadPage() {
   const utils = trpc.useUtils();
-  const roles = trpc.court.myRoles.useQuery();
+  const { roles: rolesSnapshot } = usePermissionsSnapshot();
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery();
-  const isPerformanceMonitor = roles.data?.includes("performance_monitor") ?? false;
+  const isPerformanceMonitor = rolesSnapshot.includes("performance_monitor");
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [unitId, setUnitId] = useState("");

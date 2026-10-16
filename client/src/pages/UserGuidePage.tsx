@@ -1,16 +1,16 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { ICON_GUIDE } from "@/lib/icon-guide";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { BadgeHelp, BellRing, CircleHelp, ClipboardCheck, FileUp, MessageSquareText, ShieldCheck, Wrench } from "lucide-react";
 
 const coreGuidance = [{ icon: BellRing, title: "مركز الإشعارات", text: "رمز الجرس أعلى الصفحة يعرض إسنادات المهام والتصعيدات والمراسلات. اختر «تمت القراءة» بعد الاطلاع." }, { icon: ClipboardCheck, title: "مهامي", text: "استخدم «تمت المعالجة» عند إنهاء العمل لإحالته للمراجعة، أو أضف تعليقاً لشرح العائق بدلاً من ترك المهمة دون تحديث." }, { icon: MessageSquareText, title: "المراسلات والطلبات", text: "اكتب الموضوع والطلب بوضوح. تظهر تفاصيل المسار فقط للأدوار المخولة ولا تكشف لك مراسلات الآخرين." }, { icon: Wrench, title: "الدعم التقني", text: "سجل الإشكال وارفق صورة شاشة عند الحاجة. تتلقى تحديثات التذكرة من صفحة الدعم ومن مركز الإشعارات." }];
 
 export function UserGuidePage() {
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
-  const isLeadership = roles.data?.some(role => ["court_president", "assistant_president", "technical_support_manager"].includes(role));
-  const isSupport = roles.data?.includes("technical_support_agent") || isLeadership;
-  const roleLabel = isLeadership ? "صلاحية قيادية" : isSupport ? "موظف دعم تقني" : permission.data === "trainee" ? "ملازم قضائي" : permission.data === "employee" ? "موظف إداري" : "مستخدم مخول";
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const isLeadership = rolesSnapshot.some(role => ["court_president", "assistant_president", "technical_support_manager"].includes(role));
+  const isSupport = rolesSnapshot.includes("technical_support_agent") || isLeadership;
+  const roleLabel = isLeadership ? "صلاحية قيادية" : isSupport ? "موظف دعم تقني" : permissionSnapshot === "trainee" ? "ملازم قضائي" : permissionSnapshot === "employee" ? "موظف إداري" : "مستخدم مخول";
   return (
     <DashboardLayout>
       <section className="mx-auto max-w-6xl">

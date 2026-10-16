@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { Loader2, MessageCircle, Minus, Paperclip, Send, X } from "lucide-react";
 import { ChangeEvent, useState } from "react";
 import { toast } from "sonner";
@@ -31,7 +32,7 @@ export function LiveChatWidget() {
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [attachments, setAttachments] = useState<Array<{ originalName: string; mimeType: string; contentBase64: string }>>([]);
 
-  const roles = trpc.court.myRoles.useQuery(undefined, { enabled: isAuthenticated });
+  const { roles: rolesSnapshot } = usePermissionsSnapshot(isAuthenticated);
   const me = trpc.court.people.self.useQuery(undefined, { enabled: isAuthenticated });
   const createSupport = trpc.court.communications.conversations.createSupport.useMutation();
 
@@ -52,7 +53,7 @@ export function LiveChatWidget() {
     },
   });
 
-  const isSupport = roles.data?.some(role => SUPPORT_ROLES.includes(role)) ?? false;
+  const isSupport = rolesSnapshot.some(role => SUPPORT_ROLES.includes(role));
   if (!isAuthenticated || isSupport) return null;
   const myId = me.data?.id;
 

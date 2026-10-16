@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { CorrespondenceAttachmentPicker, type CorrespondenceAttachmentDraft } from "@/components/CorrespondenceAttachmentPicker";
 import { correspondenceRoleCapabilities, type CorrespondencePermission } from "@/lib/correspondenceRole";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { AlertCircle, ClipboardCheck, Mail } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { useLocation } from "wouter";
@@ -20,9 +21,8 @@ export default function CorrespondenceWorkspaceContent() {
   const units = trpc.court.units.list.useQuery();
   const levels = trpc.court.hierarchy.list.useQuery();
   const correspondences = trpc.court.correspondence.list.useQuery();
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
-  const capabilities = correspondenceRoleCapabilities(permission.data as CorrespondencePermission, roles.data);
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const capabilities = correspondenceRoleCapabilities(permissionSnapshot as CorrespondencePermission, rolesSnapshot);
   const [copySearch, setCopySearch] = useState("");
   const [attachments, setAttachments] = useState<CorrespondenceAttachmentDraft[]>([]);
   const [form, setForm] = useState({

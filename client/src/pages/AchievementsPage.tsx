@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { Award, Building2, CircleDashed, FileText, Minus, Plus, ShieldCheck, Trophy, UsersRound } from "lucide-react";
 import React, { useState } from "react";
 
@@ -29,9 +30,8 @@ const perfColorTone: Record<string, string> = {
 };
 
 export function AchievementsPage() {
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
-  const isLeadership = permission.data === "full_control" || Boolean(roles.data?.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role)));
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const isLeadership = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
   const [tab, setTab] = useState<"personal" | "departments" | "compare">("personal");
   const achievements = trpc.court.achievements.mine.useQuery();
   const departments = trpc.court.achievements.departments.useQuery(undefined, { enabled: isLeadership });

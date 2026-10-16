@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,14 +27,13 @@ function fmtDate(value: unknown) {
 
 export default function TasksReassignPage() {
   const utils = trpc.useUtils();
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery({ personType: "administrative" });
   const [unitId, setUnitId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
 
-  const canReassign = permission.data === "full_control" || Boolean(roles.data?.some((r) => ["department_manager", "court_president", "assistant_president", "court_secretary", "trainee_affairs_manager", "performance_monitor"].includes(r)));
+  const canReassign = permissionSnapshot === "full_control" || rolesSnapshot.some((r) => ["department_manager", "court_president", "assistant_president", "court_secretary", "trainee_affairs_manager", "performance_monitor"].includes(r));
 
   const tasks = trpc.court.tasks.list.useQuery({ unitId: unitId ?? undefined }, { enabled: Boolean(canReassign) });
 

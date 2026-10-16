@@ -3,6 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { BellRing, CircleDashed, Megaphone, Send } from "lucide-react";
 import React, { FormEvent, useState } from "react";
 import { toast } from "sonner";
@@ -13,10 +14,10 @@ type Announcement = { id: number; title: string; body: string; visibility: Visib
 export function AnnouncementsPage() {
   const utils = trpc.useUtils();
   const { user } = useAuth();
-  const permission = trpc.court.registration.myPermission.useQuery();
+  const { permission: permissionSnapshot } = usePermissionsSnapshot();
   const announcements = trpc.court.announcements.list.useQuery();
-  const units = trpc.court.units.list.useQuery(undefined, { enabled: permission.data === "full_control" });
-  const canPublish = permission.data === "full_control" && user?.role === "admin";
+  const units = trpc.court.units.list.useQuery(undefined, { enabled: permissionSnapshot === "full_control" });
+  const canPublish = permissionSnapshot === "full_control" && user?.role === "admin";
   const [form, setForm] = useState({ title: "", body: "", visibility: "all" as Visibility, unitId: "", expiresAt: "" });
   const [editingId, setEditingId] = useState<number | null>(null);
   const publish = trpc.court.announcements.create.useMutation({ onSuccess: async () => { await utils.court.announcements.list.invalidate(); setForm({ title: "", body: "", visibility: "all", unitId: "", expiresAt: "" }); toast.success("تم نشر الإعلان الداخلي."); } });

@@ -2,6 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { CircleDashed, FilePenLine, Plus, Scale, ShieldCheck } from "lucide-react";
 import React, { FormEvent, useState } from "react";
 
@@ -18,8 +19,8 @@ export function JudgesPage() {
   const utils = trpc.useUtils();
   const judges = trpc.court.judges.list.useQuery();
   const judgesWithoutEmail = trpc.court.judges.withoutEmail.useQuery();
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const canManage = permission.data === "full_control";
+  const { permission: permissionSnapshot } = usePermissionsSnapshot();
+  const canManage = permissionSnapshot === "full_control";
   const [form, setForm] = useState<JudgeForm>(blankJudge);
   const [editingJudgeId, setEditingJudgeId] = useState<number | null>(null);
   const create = trpc.court.judges.create.useMutation({ onSuccess: async () => { await utils.court.judges.list.invalidate(); setForm(blankJudge); } });

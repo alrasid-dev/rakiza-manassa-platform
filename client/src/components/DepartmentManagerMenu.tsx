@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { LayoutDashboard, PlusCircle, UsersRound, Wallet } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -12,10 +13,9 @@ export function canOpenDepartmentMenu(permission: string | null | undefined, rol
 export default function DepartmentManagerMenu({ variant = "dark" }: { variant?: "dark" | "light" }) {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
-  const allowed = canOpenDepartmentMenu(permission.data, roles.data);
-  const isSecretary = permission.data === "full_control" || Boolean(roles.data?.includes("court_secretary"));
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const allowed = canOpenDepartmentMenu(permissionSnapshot, rolesSnapshot);
+  const isSecretary = permissionSnapshot === "full_control" || rolesSnapshot.includes("court_secretary");
   const units = trpc.court.units.list.useQuery(undefined, { enabled: allowed });
   const [form, setForm] = useState({ title: "", taskType: "permanent" as "permanent" | "urgent", priority: "normal" as "normal" | "high" | "critical", unitId: "", assigneeProfileIds: [] as number[], scheduledFor: "", dueAt: "" });
   const people = trpc.court.people.list.useQuery({ personType: "administrative", unitId: form.unitId ? Number(form.unitId) : undefined }, { enabled: allowed && Boolean(form.unitId) });
