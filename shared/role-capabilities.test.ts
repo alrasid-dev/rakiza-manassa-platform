@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COURT_ROLES, ROLE_CAPABILITIES, hasRoleCapability, isOwner } from "./role-capabilities";
+import { ALL_CAPABILITIES, COURT_ROLES, ROLE_CAPABILITIES, hasRoleCapability, isOwner } from "./role-capabilities";
 
 describe("role-capabilities", () => {
   it("يحتوي COURT_ROLES على 13 دوراً", () => {
@@ -44,5 +44,20 @@ describe("role-capabilities", () => {
   it("isOwner يحدد المالك بالبريد", () => {
     expect(isOwner("rakizaplatform@gmail.com")).toBe(true);
     expect(isOwner("other@example.com")).toBe(false);
+  });
+
+  it("الرئيس والأمين وHR يملكون manage_attendance_policy", () => {
+    expect(hasRoleCapability(["court_president"], "manage_attendance_policy")).toBe(true);
+    expect(hasRoleCapability(["court_secretary"], "manage_attendance_policy")).toBe(true);
+    expect(hasRoleCapability(["human_resources_manager"], "manage_attendance_policy")).toBe(true);
+  });
+
+  it("department_manager و assistant_secretary لا يملكون manage_attendance_policy", () => {
+    expect(hasRoleCapability(["department_manager"], "manage_attendance_policy")).toBe(false);
+    expect(hasRoleCapability(["assistant_secretary"], "manage_attendance_policy")).toBe(false);
+  });
+
+  it("ALL_CAPABILITIES يحتوي على 18 قدرة", () => {
+    expect(ALL_CAPABILITIES).toHaveLength(18);
   });
 });

@@ -22,7 +22,7 @@ export const COURT_ROLES = [
 
 export type CourtRole = (typeof COURT_ROLES)[number];
 
-/** القدرات (Capability) — 17 قدرة. */
+/** القدرات (Capability) — 18 قدرة. */
 export type Capability =
   | "manage_operations"
   | "manage_tasks"
@@ -40,7 +40,8 @@ export type Capability =
   | "delegate"
   | "initiate_asset_request"
   | "manage_asset_requests"
-  | "receive_asset_notifications";
+  | "receive_asset_notifications"
+  | "manage_attendance_policy";
 
 /** قدرات عامة يمتلكها كل مستخدم (بدون اشتراط دور). */
 export const UNIVERSAL_CAPABILITIES: Capability[] = [
@@ -67,6 +68,7 @@ export const ROLE_CAPABILITIES: Record<CourtRole, Capability[]> = {
     "support", "manage_correspondence", "approve", "attach_reports",
     "view_whole_platform",
     "delegate",
+    "manage_attendance_policy", // يضبط سياسة تأكيد الحضور والورديات
   ],
   assistant_president: [
     "manage_operations", "manage_tasks", "manage_hr",
@@ -82,10 +84,12 @@ export const ROLE_CAPABILITIES: Record<CourtRole, Capability[]> = {
     "view_whole_platform",
     "delegate",
     "receive_asset_notifications", // يُشعَر بطلبات العهد
+    "manage_attendance_policy", // يضبط سياسة تأكيد الحضور والورديات
   ],
   human_resources_manager: [
     "manage_hr", "view_attendance", "attach_reports",
     "manage_asset_requests", // يقبل/يسند/يعتمد طلبات العهد
+    "manage_attendance_policy", // يضبط سياسة تأكيد الحضور والورديات
   ],
   department_manager: [
     // ⚠️ manage_operations أُزيلت تطبيقاً لقاعدة: القيادة فقط تدير العمليات.
