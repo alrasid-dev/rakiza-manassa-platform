@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL, MAX_TOTAL_UPLOAD_SIZE, MAX_TOTAL_UPLOAD_SIZE_LABEL, base64Bytes } from "@shared/const";
 import { useLocation } from "wouter";
 
 type Folder = "inbox" | "sent" | "drafts" | "starred" | "archive" | "trash";
@@ -516,6 +517,15 @@ export default function RakizaMailPage() {
   };
   const attachFiles = async (files: FileList | null) => {
     try {
+      const selected = files ? Array.from(files) : [];
+      const oversized = selected.find(file => file.size > MAX_UPLOAD_SIZE);
+      if (oversized) { toast.error(`«${oversized.name}» يتجاوز الحد الأقصى (${MAX_UPLOAD_SIZE_LABEL}).`); return; }
+      const existingBytes = compose.attachments.reduce((sum, a) => sum + base64Bytes(a.contentBase64), 0);
+      const incomingBytes = selected.reduce((sum, f) => sum + f.size, 0);
+      if (existingBytes + incomingBytes > MAX_TOTAL_UPLOAD_SIZE) {
+        toast.error(`الحجم الإجمالي للمرفقات يتجاوز ${MAX_TOTAL_UPLOAD_SIZE_LABEL}.`);
+        return;
+      }
       const attachments = await readAttachments(files);
       setCompose(value => ({
         ...value,

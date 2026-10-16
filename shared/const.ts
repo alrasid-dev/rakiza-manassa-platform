@@ -12,6 +12,15 @@ export const MAX_UPLOAD_SIZE_LABEL = "3 م.ب.";
 // الحد الأقصى لطول سلسلة base64 المقابلة لـ MAX_UPLOAD_SIZE (تضخّم 4/3).
 export const MAX_UPLOAD_BASE64_LENGTH = 4 * 1024 * 1024;
 
+// الحد الإجمالي للمرفقات المتعددة (يبقي payload الـ base64 ≈ 4 MB < حد Vercel 4.5 MB).
+export const MAX_TOTAL_UPLOAD_SIZE = 3 * 1024 * 1024;
+export const MAX_TOTAL_UPLOAD_SIZE_LABEL = "3 م.ب. إجمالاً";
+
+/** تقدير حجم سلسلة base64 بالأيتات الأصلية (base64 يضخّم 4/3). */
+export function base64Bytes(b64: string): number {
+  return Math.ceil((b64.length * 3) / 4);
+}
+
 // One-time nonce cookie that binds an OAuth login to the browser that started
 // it. The `__Host-` prefix forces the cookie host-only (Secure, Path=/, no
 // Domain), so a sibling *.manus.space site cannot plant a matching value in a

@@ -1,6 +1,6 @@
 import { Paperclip, X } from "lucide-react";
 import { canAddCorrespondenceAttachments, MAX_CORRESPONDENCE_ATTACHMENT_COUNT } from "@/lib/correspondenceAttachments";
-import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL, MAX_TOTAL_UPLOAD_SIZE, MAX_TOTAL_UPLOAD_SIZE_LABEL, base64Bytes } from "@shared/const";
 
 export type CorrespondenceAttachmentDraft = {
   originalName: string;
@@ -21,6 +21,12 @@ export function CorrespondenceAttachmentPicker({ attachments, onChange, disabled
     const oversized = selected.find(file => file.size > MAX_ATTACHMENT_BYTES);
     if (oversized) {
       window.alert(`يتجاوز الملف «${oversized.name}» الحد المسموح وهو ${MAX_UPLOAD_SIZE_LABEL}.`);
+      return;
+    }
+    const existingBytes = attachments.reduce((sum, a) => sum + base64Bytes(a.contentBase64), 0);
+    const incomingBytes = selected.reduce((sum, f) => sum + f.size, 0);
+    if (existingBytes + incomingBytes > MAX_TOTAL_UPLOAD_SIZE) {
+      window.alert(`الحجم الإجمالي للمرفقات يتجاوز ${MAX_TOTAL_UPLOAD_SIZE_LABEL}.`);
       return;
     }
     Promise.all(selected.map(file => new Promise<CorrespondenceAttachmentDraft>((resolve, reject) => {

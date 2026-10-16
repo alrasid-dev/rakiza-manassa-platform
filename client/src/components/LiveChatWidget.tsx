@@ -4,7 +4,7 @@ import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { Loader2, MessageCircle, Minus, Paperclip, Send, X } from "lucide-react";
 import { ChangeEvent, useState } from "react";
 import { toast } from "sonner";
-import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL, MAX_TOTAL_UPLOAD_SIZE, MAX_TOTAL_UPLOAD_SIZE_LABEL, base64Bytes } from "@shared/const";
 
 const MAX_ATTACHMENT_BYTES = MAX_UPLOAD_SIZE;
 const ALLOWED_ATTACHMENT_MIME = new Set([
@@ -72,6 +72,13 @@ export function LiveChatWidget() {
     if (!files.length) { event.target.value = ""; return; }
     const oversized = files.find(file => file.size > MAX_ATTACHMENT_BYTES);
     if (oversized) { toast.error(`«${oversized.name}» يتجاوز الحد الأقصى (${MAX_UPLOAD_SIZE_LABEL}).`); event.target.value = ""; return; }
+    const existingBytes = attachments.reduce((sum, a) => sum + base64Bytes(a.contentBase64), 0);
+    const incomingBytes = files.reduce((sum, f) => sum + f.size, 0);
+    if (existingBytes + incomingBytes > MAX_TOTAL_UPLOAD_SIZE) {
+      toast.error(`الحجم الإجمالي للمرفقات يتجاوز ${MAX_TOTAL_UPLOAD_SIZE_LABEL}.`);
+      event.target.value = "";
+      return;
+    }
     const unsupported = files.find(file => file.type && !ALLOWED_ATTACHMENT_MIME.has(file.type));
     if (unsupported) { toast.error(`صيغة «${unsupported.name}» غير مدعومة. المدعوم: PDF، Word، Excel، PNG/JPEG، TXT، ZIP.`); event.target.value = ""; return; }
     const converted = await Promise.all(files.map(async (file): Promise<{ originalName: string; mimeType: string; contentBase64: string } | null> => {
