@@ -1,0 +1,2114 @@
+{
+  "generatedAt": "2026-10-16T10:24:41.718Z",
+  "totalMatches": 147,
+  "affectedFiles": 27,
+  "capabilities": {
+    "manage_hr": 48,
+    "generic": 38,
+    "manage_departments": 20,
+    "manage_trainees": 11,
+    "manage_attendance": 5,
+    "view_attendance": 8,
+    "support": 8,
+    "approve": 3,
+    "manage_judiciary": 3,
+    "attach_reports": 3
+  },
+  "duplicatedRoleGroups": [
+    {
+      "group": [
+        "assistant_president",
+        "court_president",
+        "court_secretary"
+      ],
+      "count": 21,
+      "locations": [
+        "client/src/components/DashboardLayout.tsx:301",
+        "client/src/components/DashboardLayout.tsx:388",
+        "client/src/pages/AchievementsPage.tsx:34",
+        "client/src/pages/DisciplinaryPage.tsx:47",
+        "client/src/pages/Home.tsx:120",
+        "client/src/pages/MeetingsPage.tsx:59",
+        "client/src/pages/PersonnelWorkspaceContent.tsx:54",
+        "client/src/pages/StatusWorkspaceContent.tsx:42",
+        "client/src/pages/TaskComparisonPage.tsx:36",
+        "client/src/pages/TasksWorkspaceContent.tsx:242",
+        "server/routers/court.ts:376",
+        "server/routers/court.ts:443",
+        "server/routers/court.ts:482",
+        "server/routers/court.ts:499",
+        "server/routers/court.ts:1342",
+        "server/routers/court.ts:1440",
+        "server/routers/court.ts:1661",
+        "server/routers/court.ts:1671",
+        "server/routers/court.ts:1707",
+        "server/routers/court.ts:1946",
+        "server/routers/court.ts:2909"
+      ]
+    },
+    {
+      "group": [
+        "department_manager"
+      ],
+      "count": 13,
+      "locations": [
+        "client/src/pages/StatusWorkspaceContent.tsx:86",
+        "server/court-service.ts:783",
+        "server/court-service.ts:4647",
+        "server/internal-communications-service.ts:66",
+        "server/internal-communications-service.ts:97",
+        "server/internal-communications-service.ts:107",
+        "server/internal-communications-service.ts:233",
+        "server/internal-communications-service.ts:535",
+        "server/routers/court.ts:1649",
+        "server/routers/court.ts:1653",
+        "server/routers/court.ts:1682",
+        "server/routers/court.ts:1684",
+        "server/routers/court.ts:1746"
+      ]
+    },
+    {
+      "group": [
+        "court_president"
+      ],
+      "count": 12,
+      "locations": [
+        "client/src/pages/DisciplinaryPage.tsx:56",
+        "server/court-workflow.ts:19",
+        "server/court-workflow.ts:30",
+        "server/full-export-route.ts:25",
+        "server/kpi-export-route.ts:25",
+        "server/policies/policy-content.ts:42",
+        "server/routers/court.ts:2778",
+        "server/routers/court.ts:3064",
+        "server/routers/court.ts:3070",
+        "server/routers/court.ts:3076",
+        "server/routers/court.ts:3082",
+        "server/routers/court.ts:3097"
+      ]
+    },
+    {
+      "group": [
+        "department_manager",
+        "human_resources_manager",
+        "performance_monitor",
+        "trainee_affairs_manager"
+      ],
+      "count": 11,
+      "locations": [
+        "client/src/pages/TaskComparisonPage.tsx:37",
+        "server/routers/court.ts:1484",
+        "server/routers/court.ts:1571",
+        "server/routers/court.ts:1588",
+        "server/routers/court.ts:1793",
+        "server/routers/court.ts:1802",
+        "server/routers/court.ts:1818",
+        "server/routers/court.ts:1833",
+        "server/routers/court.ts:1844",
+        "server/routers/court.ts:1852",
+        "server/routers/court.ts:1871"
+      ]
+    },
+    {
+      "group": [
+        "court_president",
+        "court_secretary"
+      ],
+      "count": 10,
+      "locations": [
+        "client/src/components/DepartmentManagementActions.tsx:10",
+        "client/src/pages/MyRequestsPage.tsx:114",
+        "client/src/pages/PersonnelWorkspaceContent.tsx:94",
+        "client/src/pages/StatusWorkspaceContent.tsx:123",
+        "client/src/pages/TasksWorkspaceContent.tsx:245",
+        "server/court-service.ts:2356",
+        "server/routers/court.ts:418",
+        "server/routers/court.ts:426",
+        "server/routers/court.ts:2383",
+        "server/routers/court.ts:2779"
+      ]
+    },
+    {
+      "group": [
+        "human_resources_manager"
+      ],
+      "count": 9,
+      "locations": [
+        "server/routers/court.ts:1338",
+        "server/routers/court.ts:1392",
+        "server/routers/court.ts:1410",
+        "server/routers/court.ts:1426",
+        "server/routers/court.ts:1427",
+        "server/routers/court.ts:1432",
+        "server/routers/court.ts:1448",
+        "server/routers/court.ts:2675",
+        "server/routers/court.ts:2683"
+      ]
+    },
+    {
+      "group": [
+        "performance_monitor"
+      ],
+      "count": 9,
+      "locations": [
+        "server/routers/court.ts:1344",
+        "server/routers/court.ts:2275",
+        "server/routers/court.ts:2288",
+        "server/routers/court.ts:2301",
+        "server/routers/court.ts:2312",
+        "server/routers/court.ts:2322",
+        "server/routers/court.ts:2342",
+        "server/routers/court.ts:2353",
+        "server/routers/court.ts:2368"
+      ]
+    },
+    {
+      "group": [
+        "assistant_president",
+        "court_president",
+        "court_secretary",
+        "department_manager",
+        "human_resources_manager",
+        "performance_monitor",
+        "trainee_affairs_manager"
+      ],
+      "count": 7,
+      "locations": [
+        "client/src/components/DashboardLayout.tsx:271",
+        "client/src/pages/FunctionalPages.tsx:107",
+        "client/src/pages/Home.tsx:133",
+        "client/src/pages/TasksWorkspaceContent.tsx:230",
+        "server/court-workflow.ts:34",
+        "server/routers/court.ts:1658",
+        "server/routers/court.ts:1668"
+      ]
+    },
+    {
+      "group": [
+        "assistant_president",
+        "court_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "count": 5,
+      "locations": [
+        "client/src/pages/AttendanceMonthlyPage.tsx:88",
+        "server/routers/court.ts:367",
+        "server/routers/court.ts:401",
+        "server/routers/court.ts:489",
+        "server/routers/court.ts:2742"
+      ]
+    },
+    {
+      "group": [
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "count": 5,
+      "locations": [
+        "client/src/pages/DisciplinaryPage.tsx:46",
+        "server/court-service.ts:690",
+        "server/court-service.ts:704",
+        "server/court-service.ts:2363",
+        "server/routers/court.ts:983"
+      ]
+    },
+    {
+      "group": [
+        "assistant_president",
+        "court_president",
+        "court_secretary",
+        "department_manager"
+      ],
+      "count": 4,
+      "locations": [
+        "client/src/pages/MessagesPage.tsx:112",
+        "client/src/pages/MessagesPage.tsx:113",
+        "server/internal-communications-service.ts:221",
+        "server/routers/court.ts:2954"
+      ]
+    },
+    {
+      "group": [
+        "court_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "count": 4,
+      "locations": [
+        "client/src/pages/StatusWorkspaceContent.tsx:41",
+        "server/routers/court.ts:384",
+        "server/routers/court.ts:2131",
+        "server/routers/court.ts:2377"
+      ]
+    },
+    {
+      "group": [
+        "trainee_affairs_manager"
+      ],
+      "count": 4,
+      "locations": [
+        "server/routers/court.ts:1709",
+        "server/routers/court.ts:2215",
+        "server/routers/court.ts:2223",
+        "server/routers/court.ts:2245"
+      ]
+    },
+    {
+      "group": [
+        "assistant_president",
+        "court_president",
+        "court_secretary",
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "count": 3,
+      "locations": [
+        "client/src/lib/correspondenceRole.ts:7",
+        "client/src/lib/correspondenceRole.ts:8",
+        "client/src/pages/TasksWorkspaceContent.tsx:221"
+      ]
+    },
+    {
+      "group": [
+        "court_secretary"
+      ],
+      "count": 3,
+      "locations": [
+        "client/src/pages/DisciplinaryPage.tsx:55",
+        "client/src/pages/MyRequestsPage.tsx:108",
+        "server/routers/court.ts:392"
+      ]
+    },
+    {
+      "group": [
+        "assistant_president",
+        "court_president"
+      ],
+      "count": 3,
+      "locations": [
+        "client/src/pages/MyRequestsPage.tsx:107",
+        "client/src/pages/StatusWorkspaceContent.tsx:87",
+        "client/src/pages/StatusWorkspaceContent.tsx:121"
+      ]
+    },
+    {
+      "group": [
+        "assistant_president",
+        "court_president",
+        "technical_support_manager"
+      ],
+      "count": 3,
+      "locations": [
+        "client/src/pages/UserGuidePage.tsx:11",
+        "server/court-service.ts:1003",
+        "server/routers/court.ts:538"
+      ]
+    },
+    {
+      "group": [
+        "judge"
+      ],
+      "count": 3,
+      "locations": [
+        "server/routers/court.ts:1345",
+        "server/routers/court.ts:1539",
+        "server/routers/court.ts:2106"
+      ]
+    },
+    {
+      "group": [
+        "court_president",
+        "court_secretary",
+        "department_manager",
+        "human_resources_manager"
+      ],
+      "count": 2,
+      "locations": [
+        "client/src/components/DepartmentManagerMenu.tsx:10",
+        "client/src/pages/PersonnelWorkspaceContent.tsx:86"
+      ]
+    },
+    {
+      "group": [
+        "assistant_president",
+        "court_president",
+        "department_manager"
+      ],
+      "count": 2,
+      "locations": [
+        "client/src/pages/StatusWorkspaceContent.tsx:85",
+        "client/src/pages/TasksWorkspaceContent.tsx:785"
+      ]
+    },
+    {
+      "group": [
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "count": 2,
+      "locations": [
+        "client/src/pages/StatusWorkspaceContent.tsx:124",
+        "server/routers/court.ts:2780"
+      ]
+    },
+    {
+      "group": [
+        "technical_support_agent"
+      ],
+      "count": 2,
+      "locations": [
+        "server/court-service.ts:1004",
+        "server/routers/court.ts:539"
+      ]
+    }
+  ],
+  "topFiles": [
+    {
+      "file": "server/routers/court.ts",
+      "count": 77
+    },
+    {
+      "file": "client/src/pages/StatusWorkspaceContent.tsx",
+      "count": 8
+    },
+    {
+      "file": "server/court-service.ts",
+      "count": 8
+    },
+    {
+      "file": "client/src/pages/TasksWorkspaceContent.tsx",
+      "count": 6
+    },
+    {
+      "file": "server/internal-communications-service.ts",
+      "count": 6
+    },
+    {
+      "file": "client/src/pages/DisciplinaryPage.tsx",
+      "count": 4
+    },
+    {
+      "file": "client/src/pages/MyRequestsPage.tsx",
+      "count": 4
+    },
+    {
+      "file": "client/src/pages/PersonnelWorkspaceContent.tsx",
+      "count": 4
+    },
+    {
+      "file": "client/src/components/DashboardLayout.tsx",
+      "count": 3
+    },
+    {
+      "file": "client/src/pages/Home.tsx",
+      "count": 3
+    }
+  ],
+  "matches": [
+    {
+      "file": "client/src/components/DashboardLayout.tsx",
+      "line": 271,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager",
+        "department_manager",
+        "performance_monitor",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "NavigationMenu",
+      "snippet": "const permittedItems = sectionAllowed ? section.items.filter(item => (IS_PREVIEW_MODE || item.audiences.includes(permiss"
+    },
+    {
+      "file": "client/src/components/DashboardLayout.tsx",
+      "line": 301,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "NavigationMenu",
+      "snippet": "{section.heading === \"لوحة القيادة\" && (permission === \"full_control\" || leadershipRoles.some(role => [\"court_president\""
+    },
+    {
+      "file": "client/src/components/DashboardLayout.tsx",
+      "line": 388,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "onUserInteraction",
+      "snippet": "const hasLeadershipScope = rolesSnapshot.some(role => role === \"court_president\" || role === \"assistant_president\" || ro"
+    },
+    {
+      "file": "client/src/components/DepartmentManagementActions.tsx",
+      "line": 10,
+      "roles": [
+        "court_president",
+        "court_secretary"
+      ],
+      "capability": "manage_departments",
+      "context": "canManageDepartmentDelegations",
+      "snippet": "return permission === \"full_control\" || (roles ?? []).some(role => role === \"court_president\" || role === \"court_secreta"
+    },
+    {
+      "file": "client/src/components/DepartmentManagerMenu.tsx",
+      "line": 10,
+      "roles": [
+        "department_manager",
+        "court_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "canOpenDepartmentMenu",
+      "snippet": "return permission === \"full_control\" || (roles ?? []).some(role => [\"department_manager\", \"court_president\", \"court_secr"
+    },
+    {
+      "file": "client/src/lib/correspondenceRole.ts",
+      "line": 7,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "correspondenceRoleCapabilities",
+      "snippet": "const canChooseRouting = permission === \"full_control\" || roles?.some(role => role === \"court_president\" || role === \"as"
+    },
+    {
+      "file": "client/src/lib/correspondenceRole.ts",
+      "line": 8,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "correspondenceRoleCapabilities",
+      "snippet": "const canRoute = permission === \"full_control\" || roles?.some(role => role === \"court_president\" || role === \"assistant_"
+    },
+    {
+      "file": "client/src/pages/AchievementsPage.tsx",
+      "line": 34,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "AchievementsPage",
+      "snippet": "const isLeadership = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assistant_"
+    },
+    {
+      "file": "client/src/pages/AttendanceMonthlyPage.tsx",
+      "line": 88,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "manage_attendance",
+      "context": "AttendanceMonthlyPage",
+      "snippet": "const canView = isOwner || rolesSnapshot.some(role => [\"court_president\", \"assistant_president\", \"court_secretary\", \"hum"
+    },
+    {
+      "file": "client/src/pages/DisciplinaryPage.tsx",
+      "line": 46,
+      "roles": [
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "DisciplinaryPage",
+      "snippet": "const isManager = roleList.some(role => [\"department_manager\", \"trainee_affairs_manager\"].includes(role));"
+    },
+    {
+      "file": "client/src/pages/DisciplinaryPage.tsx",
+      "line": 47,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "DisciplinaryPage",
+      "snippet": "const isLeadership = permissionSnapshot === \"full_control\" || roleList.some(role => [\"court_president\", \"assistant_presi"
+    },
+    {
+      "file": "client/src/pages/DisciplinaryPage.tsx",
+      "line": 55,
+      "roles": [
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "canDecideCase",
+      "snippet": "roleList.includes(\"court_secretary\") ||"
+    },
+    {
+      "file": "client/src/pages/DisciplinaryPage.tsx",
+      "line": 56,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "generic",
+      "context": "canDecideCase",
+      "snippet": "roleList.includes(\"court_president\");"
+    },
+    {
+      "file": "client/src/pages/FunctionalPages.tsx",
+      "line": 50,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "TasksContent",
+      "snippet": "const canAssign = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => role === \"court_president\" || role"
+    },
+    {
+      "file": "client/src/pages/FunctionalPages.tsx",
+      "line": 107,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager",
+        "department_manager",
+        "performance_monitor",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "ApprovalsContent",
+      "snippet": "const isManager = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assistant_pre"
+    },
+    {
+      "file": "client/src/pages/Home.tsx",
+      "line": 120,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "metrics",
+      "snippet": "const isLeadership = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assistant_"
+    },
+    {
+      "file": "client/src/pages/Home.tsx",
+      "line": 121,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "owner"
+      ],
+      "capability": "generic",
+      "context": "metrics",
+      "snippet": "const canManageRotation = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assis"
+    },
+    {
+      "file": "client/src/pages/Home.tsx",
+      "line": 133,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "openFlaggedTasks",
+      "snippet": "const mayManageTasks = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assistan"
+    },
+    {
+      "file": "client/src/pages/MeetingsPage.tsx",
+      "line": 59,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "unitsApi",
+      "snippet": "const canManage = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assistant_pre"
+    },
+    {
+      "file": "client/src/pages/MessagesPage.tsx",
+      "line": 112,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "activeChat",
+      "snippet": "const canPin = [\"department\", \"custom\", \"general\"].includes(conversation.data?.conversation?.conversationType || \"\") && "
+    },
+    {
+      "file": "client/src/pages/MessagesPage.tsx",
+      "line": 113,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "activeChat",
+      "snippet": "const canCreateGroup = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assistan"
+    },
+    {
+      "file": "client/src/pages/MyRequestsPage.tsx",
+      "line": 107,
+      "roles": [
+        "court_president",
+        "assistant_president"
+      ],
+      "capability": "generic",
+      "context": "MyRequestsPage",
+      "snippet": "const isLeadership = isOwner || roleList.includes(\"court_president\") || roleList.includes(\"assistant_president\");"
+    },
+    {
+      "file": "client/src/pages/MyRequestsPage.tsx",
+      "line": 108,
+      "roles": [
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "MyRequestsPage",
+      "snippet": "const isSecretary = roleList.includes(\"court_secretary\");"
+    },
+    {
+      "file": "client/src/pages/MyRequestsPage.tsx",
+      "line": 109,
+      "roles": [
+        "department_manager",
+        "trainee_affairs_manager",
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "MyRequestsPage",
+      "snippet": "const isManager = roleList.some(r => [\"department_manager\", \"trainee_affairs_manager\", \"human_resources_manager\"].includ"
+    },
+    {
+      "file": "client/src/pages/MyRequestsPage.tsx",
+      "line": 114,
+      "roles": [
+        "court_secretary",
+        "court_president"
+      ],
+      "capability": "generic",
+      "context": "canActOnItem",
+      "snippet": "const canActOnItem = (item: Item) => !isOwner || item.status === \"escalated\" || roleList.includes(\"court_secretary\") || "
+    },
+    {
+      "file": "client/src/pages/PersonnelWorkspaceContent.tsx",
+      "line": 54,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "view_attendance",
+      "context": "attendanceApi",
+      "snippet": "const canArchive = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assistant_pr"
+    },
+    {
+      "file": "client/src/pages/PersonnelWorkspaceContent.tsx",
+      "line": 86,
+      "roles": [
+        "human_resources_manager",
+        "department_manager",
+        "court_secretary",
+        "court_president"
+      ],
+      "capability": "manage_hr",
+      "context": "people",
+      "snippet": "const canDelegate = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"human_resources_manager\", \"dep"
+    },
+    {
+      "file": "client/src/pages/PersonnelWorkspaceContent.tsx",
+      "line": 93,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager",
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "submitDelegation",
+      "snippet": "const canPauseTasks = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assistant"
+    },
+    {
+      "file": "client/src/pages/PersonnelWorkspaceContent.tsx",
+      "line": 94,
+      "roles": [
+        "court_president",
+        "court_secretary"
+      ],
+      "capability": "manage_departments",
+      "context": "submitDelegation",
+      "snippet": "const canPausePermanent = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"court"
+    },
+    {
+      "file": "client/src/pages/StatusWorkspaceContent.tsx",
+      "line": 41,
+      "roles": [
+        "court_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "view_attendance",
+      "context": "StatusWorkspaceContent",
+      "snippet": "const canManageAttendancePolicy = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => role === \"court_pr"
+    },
+    {
+      "file": "client/src/pages/StatusWorkspaceContent.tsx",
+      "line": 42,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "manage_attendance",
+      "context": "StatusWorkspaceContent",
+      "snippet": "const canOwnerEditAttendance = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => role === \"court_presi"
+    },
+    {
+      "file": "client/src/pages/StatusWorkspaceContent.tsx",
+      "line": 85,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "confirmationTargetCountApi",
+      "snippet": "const canViewRemoteReport = permissionSnapshot === \"full_control\" || permissionSnapshot === \"general_view\" || Boolean(ro"
+    },
+    {
+      "file": "client/src/pages/StatusWorkspaceContent.tsx",
+      "line": 86,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "confirmationTargetCountApi",
+      "snippet": "const isDepartmentManager = Boolean(rolesSnapshot.some(role => role === \"department_manager\"));"
+    },
+    {
+      "file": "client/src/pages/StatusWorkspaceContent.tsx",
+      "line": 87,
+      "roles": [
+        "court_president",
+        "assistant_president"
+      ],
+      "capability": "generic",
+      "context": "confirmationTargetCountApi",
+      "snippet": "const isPlatformLeadershipScope = permissionSnapshot === \"full_control\" || permissionSnapshot === \"general_view\" || Bool"
+    },
+    {
+      "file": "client/src/pages/StatusWorkspaceContent.tsx",
+      "line": 121,
+      "roles": [
+        "court_president",
+        "assistant_president"
+      ],
+      "capability": "generic",
+      "context": "activePeople",
+      "snippet": "const isLeadership = rolesSnapshot.some(role => role === \"court_president\" || role === \"assistant_president\") ?? false;"
+    },
+    {
+      "file": "client/src/pages/StatusWorkspaceContent.tsx",
+      "line": 123,
+      "roles": [
+        "court_president",
+        "court_secretary"
+      ],
+      "capability": "view_attendance",
+      "context": "activePeople",
+      "snippet": "const canManageAttendanceAudience = permissionSnapshot === \"full_control\" || Boolean(rolesSnapshot.some(role => role ==="
+    },
+    {
+      "file": "client/src/pages/StatusWorkspaceContent.tsx",
+      "line": 124,
+      "roles": [
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "activePeople",
+      "snippet": "const canManageShifts = permissionSnapshot === \"full_control\" || Boolean(rolesSnapshot.some(role => role === \"court_secr"
+    },
+    {
+      "file": "client/src/pages/SupportPage.tsx",
+      "line": 24,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "technical_support_manager",
+        "technical_support_agent"
+      ],
+      "capability": "support",
+      "context": "SupportPage",
+      "snippet": "const canActAsSupport = rolesSnapshot.some(role => [\"court_president\", \"assistant_president\", \"technical_support_manager"
+    },
+    {
+      "file": "client/src/pages/TaskComparisonPage.tsx",
+      "line": 36,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "TaskComparisonPage",
+      "snippet": "const isLeadership = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => [\"court_president\", \"assistant_"
+    },
+    {
+      "file": "client/src/pages/TaskComparisonPage.tsx",
+      "line": 37,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "TaskComparisonPage",
+      "snippet": "const isManager = !isLeadership && rolesSnapshot.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee"
+    },
+    {
+      "file": "client/src/pages/TasksReassignPage.tsx",
+      "line": 36,
+      "roles": [
+        "department_manager",
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_trainees",
+      "context": "TasksReassignPage",
+      "snippet": "const canReassign = permissionSnapshot === \"full_control\" || rolesSnapshot.some((r) => [\"department_manager\", \"court_pre"
+    },
+    {
+      "file": "client/src/pages/TasksWorkspaceContent.tsx",
+      "line": 221,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "TasksWorkspaceContent",
+      "snippet": "const canAssign = permissionSnapshot === \"full_control\" || rolesSnapshot.some(role => role === \"court_president\" || role"
+    },
+    {
+      "file": "client/src/pages/TasksWorkspaceContent.tsx",
+      "line": 230,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager",
+        "department_manager",
+        "performance_monitor",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "canManageTask",
+      "snippet": "rolesSnapshot.some(role => [\"court_president\", \"assistant_president\", \"court_secretary\", \"human_resources_manager\", \"dep"
+    },
+    {
+      "file": "client/src/pages/TasksWorkspaceContent.tsx",
+      "line": 242,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "canManageTask",
+      "snippet": "const platformWide = permissionSnapshot === \"full_control\" || Boolean(rolesSnapshot.some(role => role === \"court_preside"
+    },
+    {
+      "file": "client/src/pages/TasksWorkspaceContent.tsx",
+      "line": 244,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager",
+        "department_manager",
+        "performance_monitor",
+        "trainee_affairs_manager",
+        "technical_support_manager"
+      ],
+      "capability": "support",
+      "context": "canManageTask",
+      "snippet": "const canDirectEdit = permissionSnapshot === \"full_control\" || Boolean(rolesSnapshot.some(role => [\"court_president\", \"a"
+    },
+    {
+      "file": "client/src/pages/TasksWorkspaceContent.tsx",
+      "line": 245,
+      "roles": [
+        "court_secretary",
+        "court_president"
+      ],
+      "capability": "approve",
+      "context": "canManageTask",
+      "snippet": "const canReviewApprovals = permissionSnapshot !== \"full_control\" || Boolean(rolesSnapshot.some(role => role === \"court_s"
+    },
+    {
+      "file": "client/src/pages/TasksWorkspaceContent.tsx",
+      "line": 785,
+      "roles": [
+        "department_manager",
+        "court_president",
+        "assistant_president"
+      ],
+      "capability": "manage_departments",
+      "context": "taskActionDialogs",
+      "snippet": "<Dialog open={Boolean(routeDialog)} onOpenChange={open => { if (!open) { setRouteDialog(null); setRouteTargetProfileId(\""
+    },
+    {
+      "file": "client/src/pages/UserGuidePage.tsx",
+      "line": 11,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "technical_support_manager"
+      ],
+      "capability": "support",
+      "context": "UserGuidePage",
+      "snippet": "const isLeadership = rolesSnapshot.some(role => [\"court_president\", \"assistant_president\", \"technical_support_manager\"]."
+    },
+    {
+      "file": "server/court-service.ts",
+      "line": 690,
+      "roles": [
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "assignCourtRole",
+      "snippet": "if (input.role === \"department_manager\" || input.role === \"trainee_affairs_manager\") {"
+    },
+    {
+      "file": "server/court-service.ts",
+      "line": 704,
+      "roles": [
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "revokeCourtRole",
+      "snippet": "if (assignment && (assignment.role === \"department_manager\" || assignment.role === \"trainee_affairs_manager\") && assignm"
+    },
+    {
+      "file": "server/court-service.ts",
+      "line": 783,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "endDepartmentManagerAssignment",
+      "snippet": "if (!assignment || assignment.role !== \"department_manager\") throw new Error(\"التكليف المحدد ليس تكليفاً بإدارة قسم.\");"
+    },
+    {
+      "file": "server/court-service.ts",
+      "line": 1003,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "technical_support_manager"
+      ],
+      "capability": "support",
+      "context": "listSupportTickets",
+      "snippet": "const leadership = input.roles.some(role => role === \"court_president\" || role === \"assistant_president\" || role === \"te"
+    },
+    {
+      "file": "server/court-service.ts",
+      "line": 1004,
+      "roles": [
+        "technical_support_agent"
+      ],
+      "capability": "support",
+      "context": "listSupportTickets",
+      "snippet": "const agent = input.roles.includes(\"technical_support_agent\");"
+    },
+    {
+      "file": "server/court-service.ts",
+      "line": 2356,
+      "roles": [
+        "court_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "canPausePermanentForUser",
+      "snippet": "return roles.some(role => role === \"court_president\" || role === \"court_secretary\");"
+    },
+    {
+      "file": "server/court-service.ts",
+      "line": 2363,
+      "roles": [
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "canPauseTaskForUser",
+      "snippet": "const managedUnitIds = assignments.filter(a => (a.role === \"department_manager\" || a.role === \"trainee_affairs_manager\")"
+    },
+    {
+      "file": "server/court-service.ts",
+      "line": 4647,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "leadership",
+      "snippet": "const leadership = (await listTaskRouteTargets()).filter(target => target.role !== \"department_manager\");"
+    },
+    {
+      "file": "server/court-workflow.ts",
+      "line": 19,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "approve",
+      "context": "canActOnApproval",
+      "snippet": "return role === currentRole || role === \"court_president\";"
+    },
+    {
+      "file": "server/court-workflow.ts",
+      "line": 30,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "approve",
+      "context": "canActOnManagerAssignmentApproval",
+      "snippet": "return role === currentRole || role === \"court_president\";"
+    },
+    {
+      "file": "server/court-workflow.ts",
+      "line": 34,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager",
+        "department_manager",
+        "performance_monitor",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "canManageOperations",
+      "snippet": "return roles.some(role => [\"court_president\", \"assistant_president\", \"court_secretary\", \"human_resources_manager\", \"depa"
+    },
+    {
+      "file": "server/full-export-route.ts",
+      "line": 25,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "generic",
+      "context": "registerFullExportRoute",
+      "snippet": "if (permission !== \"full_control\" && !roles.includes(\"court_president\")) {"
+    },
+    {
+      "file": "server/internal-communications-service.ts",
+      "line": 66,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "departmentAccount",
+      "snippet": "if (departmentAccount && !roles.some(role => role.role === \"department_manager\" && role.unitId === departmentAccount.uni"
+    },
+    {
+      "file": "server/internal-communications-service.ts",
+      "line": 97,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "canManageUnit",
+      "snippet": "return roles.some(role => LEADERSHIP_ROLES.has(role.role) || (role.role === \"department_manager\" && role.unitId === unit"
+    },
+    {
+      "file": "server/internal-communications-service.ts",
+      "line": 107,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "listManagerTemplates",
+      "snippet": "const unitIds = Array.from(new Set(roles.filter(role => role.role === \"department_manager\" && role.unitId).map(role => r"
+    },
+    {
+      "file": "server/internal-communications-service.ts",
+      "line": 221,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "canCreateCustomConversation",
+      "snippet": "return permission === \"full_control\" || roles.some(role => [\"court_president\", \"assistant_president\", \"court_secretary\","
+    },
+    {
+      "file": "server/internal-communications-service.ts",
+      "line": 233,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "createCustomConversation",
+      "snippet": "const managedUnitIds = Array.from(new Set(roles.filter(role => role.role === \"department_manager\" && role.unitId).map(ro"
+    },
+    {
+      "file": "server/internal-communications-service.ts",
+      "line": 535,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "listDataExportJobs",
+      "snippet": "const unitIds = roles.some(role => LEADERSHIP_ROLES.has(role.role)) ? undefined : roles.filter(role => role.role === \"de"
+    },
+    {
+      "file": "server/kpi-export-route.ts",
+      "line": 25,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "generic",
+      "context": "registerKpiExportRoute",
+      "snippet": "if (permission !== \"full_control\" && !roles.includes(\"court_president\")) {"
+    },
+    {
+      "file": "server/platform-completion-service.ts",
+      "line": 302,
+      "roles": [
+        "department_manager",
+        "court_secretary",
+        "assistant_president"
+      ],
+      "capability": "manage_departments",
+      "context": "routeSequenceLabel",
+      "snippet": "label: role === \"department_manager\" ? \"مدير القسم\" : role === \"peer_department_manager\" ? \"مدير قسم آخر\" : role === \"co"
+    },
+    {
+      "file": "server/policies/policy-content.ts",
+      "line": 42,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "generic",
+      "context": "audienceRankFor",
+      "snippet": "if (role === \"court_president\") rank = Math.max(rank, AUDIENCE_RANK.president);"
+    },
+    {
+      "file": "server/policies/policy-content.ts",
+      "line": 43,
+      "roles": [
+        "court_secretary",
+        "assistant_president"
+      ],
+      "capability": "generic",
+      "context": "audienceRankFor",
+      "snippet": "if (role === \"court_secretary\" || role === \"assistant_president\") rank = Math.max(rank, AUDIENCE_RANK.secretary);"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 367,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "requireHumanResourcesOrLeadership",
+      "snippet": "const allowed = canViewWholePlatform(permission) || roles.some(role => [\"court_president\", \"assistant_president\", \"court"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 376,
+      "roles": [
+        "court_secretary",
+        "court_president",
+        "assistant_president"
+      ],
+      "capability": "generic",
+      "context": "requireJudicialLeadershipAccess",
+      "snippet": "const allowed = permission === \"full_control\" || roles.some(role => [\"court_secretary\", \"court_president\", \"assistant_pr"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 384,
+      "roles": [
+        "court_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "view_attendance",
+      "context": "requireAttendancePolicyAccess",
+      "snippet": "const allowed = canViewWholePlatform(permission) || roles.some(role => [\"court_president\", \"court_secretary\", \"human_res"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 392,
+      "roles": [
+        "court_secretary"
+      ],
+      "capability": "manage_attendance",
+      "context": "requireAttendanceOwnerAccess",
+      "snippet": "const allowed = canViewWholePlatform(permission) || roles.some(role => role === \"court_secretary\");"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 401,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "view_attendance",
+      "context": "requireAttendanceViewAccess",
+      "snippet": "const allowed = canViewWholePlatform(permission) || roles.some(role => [\"court_president\", \"assistant_president\", \"court"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 418,
+      "roles": [
+        "court_president",
+        "court_secretary"
+      ],
+      "capability": "manage_departments",
+      "context": "requireManagerDelegationAuthority",
+      "snippet": "const allowed = permission === \"full_control\" || roles.some(role => role === \"court_president\" || role === \"court_secret"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 426,
+      "roles": [
+        "court_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "manageableTemplateUnitIds",
+      "snippet": "const isLeadership = permission === \"full_control\" || roles.some(role => role === \"court_president\" || role === \"court_s"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 443,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "workflowMapUnitIds",
+      "snippet": "const isLeadership = permission === \"full_control\" || roles.some(role => role === \"court_president\" || role === \"assista"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 482,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "hasLeadershipPlatformScope",
+      "snippet": "return roles.some(role => role === \"court_president\" || role === \"assistant_president\" || role === \"court_secretary\");"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 489,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "resolveAnalyticsScope",
+      "snippet": "if (roles.some(role => role === \"court_president\" || role === \"assistant_president\" || role === \"court_secretary\" || rol"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 499,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "manage_hr",
+      "context": "requireLeadershipWorkloadObservatoryAccess",
+      "snippet": "if (!roles.some(role => role === \"court_president\" || role === \"assistant_president\" || role === \"court_secretary\")) thr"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 538,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "technical_support_manager"
+      ],
+      "capability": "support",
+      "context": "requireSupportTicketAccess",
+      "snippet": "const isLeadership = user.role === \"admin\" || roles.some(role => role === \"court_president\" || role === \"assistant_presi"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 539,
+      "roles": [
+        "technical_support_agent"
+      ],
+      "capability": "support",
+      "context": "requireSupportTicketAccess",
+      "snippet": "const isAssignedAgent = roles.includes(\"technical_support_agent\") && detail.ticket.assignedSupportProfileId === profile."
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 983,
+      "roles": [
+        "department_manager",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "unitAllows",
+      "snippet": "if ((input.role === \"department_manager\" || input.role === \"trainee_affairs_manager\") && !input.unitId) throw new TRPCEr"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1338,
+      "roles": [
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "unitAllows",
+      "snippet": "if (roles.includes(\"human_resources_manager\")) {"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1342,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "unitAllows",
+      "snippet": "if (canViewWholePlatform(permission) || roles.some(role => role === \"court_president\" || role === \"assistant_president\" "
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1344,
+      "roles": [
+        "performance_monitor"
+      ],
+      "capability": "generic",
+      "context": "unitAllows",
+      "snippet": "if (roles.includes(\"performance_monitor\")) return listProfiles(input?.personType);"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1345,
+      "roles": [
+        "judge"
+      ],
+      "capability": "manage_judiciary",
+      "context": "unitAllows",
+      "snippet": "if (roles.includes(\"judge\")) {"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1392,
+      "roles": [
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "unitAllows",
+      "snippet": "const isHr = roles.includes(\"human_resources_manager\");"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1410,
+      "roles": [
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isHr = roles.includes(\"human_resources_manager\");"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1426,
+      "roles": [
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"human_resources_manager\") && input.personType !== \"administrative\") throw new TRPCError({ code: \"FOR"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1427,
+      "roles": [
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"human_resources_manager\") && !input.reason) throw new TRPCError({ code: \"BAD_REQUEST\", message: \"يلز"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1432,
+      "roles": [
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"human_resources_manager\") && !input.reason) throw new TRPCError({ code: \"BAD_REQUEST\", message: \"يلز"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1440,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "const allowed = canViewWholePlatform(permission) || roles.some(role => [\"court_president\", \"assistant_president\", \"court"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1448,
+      "roles": [
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"human_resources_manager\") && !input.reason) throw new TRPCError({ code: \"BAD_REQUEST\", message: \"يلز"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1484,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1539,
+      "roles": [
+        "judge"
+      ],
+      "capability": "manage_judiciary",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"judge\")) {"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1571,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1588,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1649,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (!(await hasLeadershipPlatformScope(ctx.user, permission)) && !roles.includes(\"department_manager\")) throw new TRPCEr"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1653,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "parseDate",
+      "snippet": "return leadership ? targets : targets.filter(target => target.role !== \"department_manager\" || (target.unitId !== null &"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1658,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager",
+        "department_manager",
+        "performance_monitor",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (permission !== \"full_control\" && !roles.some(role => [\"court_president\", \"assistant_president\", \"court_secretary\", \""
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1661,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "const isLeadership = permission === \"full_control\" || roles.some(role => [\"court_president\", \"assistant_president\", \"cou"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1668,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager",
+        "department_manager",
+        "performance_monitor",
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (permission !== \"full_control\" && !roles.some(role => [\"court_president\", \"assistant_president\", \"court_secretary\", \""
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1671,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "const isLeadership = permission === \"full_control\" || roles.some(role => [\"court_president\", \"assistant_president\", \"cou"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1682,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (!leadership && (!roles.includes(\"department_manager\") || !task.unitId || !managedUnits.includes(task.unitId))) throw"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1684,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "parseDate",
+      "snippet": "const allowed = leadership ? allowedTargets : allowedTargets.filter(target => target.role !== \"department_manager\" || (t"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1707,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "const isLeadership = roles.some(role => role === \"court_president\" || role === \"assistant_president\" || role === \"court_"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1709,
+      "roles": [
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "parseDate",
+      "snippet": "if (!isLeadership && roles.includes(\"trainee_affairs_manager\")) {"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1746,
+      "roles": [
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "parseDate",
+      "snippet": "const isDepartmentManager = roles.includes(\"department_manager\");"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1780,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor",
+        "technical_support_manager"
+      ],
+      "capability": "support",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1793,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1802,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1818,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1833,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1844,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1852,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1871,
+      "roles": [
+        "department_manager",
+        "human_resources_manager",
+        "trainee_affairs_manager",
+        "performance_monitor"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const isManager = roles.some(role => [\"department_manager\", \"human_resources_manager\", \"trainee_affairs_manager\", \"perfo"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 1946,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "const isLeadership = roles.some(role => role === \"court_president\" || role === \"assistant_president\" || role === \"court_"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2106,
+      "roles": [
+        "judge"
+      ],
+      "capability": "manage_judiciary",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"judge\")) {"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2131,
+      "roles": [
+        "court_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "const firstRole: ManagerAssignmentApprovalRole = roles.includes(\"court_president\") ? \"court_president\" : roles.includes("
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2215,
+      "roles": [
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (permission !== \"full_control\" && !roles.includes(\"trainee_affairs_manager\")) throw new TRPCError({ code: \"FORBIDDEN\""
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2223,
+      "roles": [
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_trainees",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"trainee_affairs_manager\") || managedUnits.includes(1)) return listTaskTemplatesForUnit(1);"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2245,
+      "roles": [
+        "trainee_affairs_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (permission !== \"full_control\" && !roles.includes(\"trainee_affairs_manager\")) throw new TRPCError({ code: \"FORBIDDEN\""
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2275,
+      "roles": [
+        "performance_monitor"
+      ],
+      "capability": "attach_reports",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"performance_monitor\")) return getOperationalReport(input);"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2288,
+      "roles": [
+        "performance_monitor"
+      ],
+      "capability": "attach_reports",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"performance_monitor\")) return getJudicialFormationReport(input);"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2301,
+      "roles": [
+        "performance_monitor"
+      ],
+      "capability": "attach_reports",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"performance_monitor\")) return listPerformanceReportEvaluations();"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2312,
+      "roles": [
+        "performance_monitor"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "const isPerformanceMonitor = roles.includes(\"performance_monitor\");"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2322,
+      "roles": [
+        "performance_monitor"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "const isPerformanceMonitor = roles.includes(\"performance_monitor\");"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2342,
+      "roles": [
+        "performance_monitor"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"performance_monitor\")) return listTaskTitlesForComparison(input?.unitId);"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2353,
+      "roles": [
+        "performance_monitor"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"performance_monitor\")) return compareTaskPerformance(input);"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2368,
+      "roles": [
+        "performance_monitor"
+      ],
+      "capability": "generic",
+      "context": "parseDate",
+      "snippet": "if (roles.includes(\"performance_monitor\")) return allUnits;"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2377,
+      "roles": [
+        "court_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (permission !== \"full_control\" && !roles.some(role => role === \"court_president\" || role === \"court_secretary\" || rol"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2383,
+      "roles": [
+        "court_president",
+        "court_secretary"
+      ],
+      "capability": "manage_hr",
+      "context": "parseDate",
+      "snippet": "if (permission !== \"full_control\" && !roles.some(role => role === \"court_president\" || role === \"court_secretary\")) thro"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2675,
+      "roles": [
+        "human_resources_manager"
+      ],
+      "capability": "manage_attendance",
+      "context": "discItem",
+      "snippet": "update: protectedProcedure.input(z.object({ id: z.number().int().positive(), name: z.string().trim().min(2).max(160), st"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2683,
+      "roles": [
+        "human_resources_manager"
+      ],
+      "capability": "view_attendance",
+      "context": "discItem",
+      "snippet": "if (roles.includes(\"human_resources_manager\")) return listAttendance(input?.date);"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2742,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "view_attendance",
+      "context": "discItem",
+      "snippet": "if (roles.includes(\"court_president\") || roles.includes(\"assistant_president\") || roles.includes(\"court_secretary\") || r"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2778,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "view_attendance",
+      "context": "discItem",
+      "snippet": "if (input.targetProfileId !== undefined && !roles.includes(\"court_president\")) throw new TRPCError({ code: \"FORBIDDEN\", "
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2779,
+      "roles": [
+        "court_president",
+        "court_secretary"
+      ],
+      "capability": "manage_attendance",
+      "context": "discItem",
+      "snippet": "if (input.audience !== undefined && !roles.some(role => role === \"court_president\" || role === \"court_secretary\") && per"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2780,
+      "roles": [
+        "court_secretary",
+        "human_resources_manager"
+      ],
+      "capability": "manage_hr",
+      "context": "discItem",
+      "snippet": "if (input.shiftEnabled !== undefined && !roles.some(role => role === \"court_secretary\" || role === \"human_resources_mana"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2909,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary"
+      ],
+      "capability": "generic",
+      "context": "discItem",
+      "snippet": "const allowed = permission === \"full_control\" || roles.some(role => [\"court_president\", \"assistant_president\", \"court_se"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 2954,
+      "roles": [
+        "court_president",
+        "assistant_president",
+        "court_secretary",
+        "department_manager"
+      ],
+      "capability": "manage_departments",
+      "context": "discItem",
+      "snippet": "const canCreateGroup = permission === \"full_control\" || roles.some(role => [\"court_president\", \"assistant_president\", \"c"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 3064,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "manage_hr",
+      "context": "discItem",
+      "snippet": "if (permission !== \"full_control\" && !roles.includes(\"court_president\")) throw new TRPCError({ code: \"FORBIDDEN\", messag"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 3070,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "manage_hr",
+      "context": "discItem",
+      "snippet": "if (permission !== \"full_control\" && !roles.includes(\"court_president\")) throw new TRPCError({ code: \"FORBIDDEN\", messag"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 3076,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "manage_hr",
+      "context": "discItem",
+      "snippet": "if (permission !== \"full_control\" && !roles.includes(\"court_president\")) throw new TRPCError({ code: \"FORBIDDEN\", messag"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 3082,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "manage_hr",
+      "context": "discItem",
+      "snippet": "if (permission !== \"full_control\" && !roles.includes(\"court_president\")) throw new TRPCError({ code: \"FORBIDDEN\", messag"
+    },
+    {
+      "file": "server/routers/court.ts",
+      "line": 3097,
+      "roles": [
+        "court_president"
+      ],
+      "capability": "manage_hr",
+      "context": "discItem",
+      "snippet": "if (permission !== \"full_control\" && !roles.includes(\"court_president\")) throw new TRPCError({ code: \"FORBIDDEN\", messag"
+    }
+  ]
+}
