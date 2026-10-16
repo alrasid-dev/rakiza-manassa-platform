@@ -19,6 +19,7 @@ import {
   type CourtRole,
 } from "../drizzle/schema";
 import { getDb } from "./db";
+import { type DelegationCapabilities } from "../shared/delegation";
 import { cacheInvalidate } from "./_core/cache";
 import { assignCourtRole, getLeadershipWorkloadObservatory, getDepartmentPerformance, listActivityLog, logAudit, requestOtpCode } from "./court-service";
 import {
@@ -166,6 +167,37 @@ export async function activeDelegatedRolesForUser(userId: number, now = new Date
   if (!db) return [] as CourtRole[];
   const rows = await db.select().from(permissionDelegations).where(and(eq(permissionDelegations.delegateUserId, userId), eq(permissionDelegations.status, "active")));
   return rows.filter(row => isDelegationActive({ startsAt: row.startsAt, endsAt: row.endsAt, now })).map(row => row.role as CourtRole);
+}
+
+/** تفويض نشط بقدراته (capabilities) ونطاقه — للاستعلام الجديد myCapabilities (طبقة موازية). */
+export type CapabilityDelegation = {
+  sourceRole: CourtRole | null;
+  capabilities: DelegationCapabilities | null;
+  unitId: number | null;
+  targetUserId: number | null;
+};
+
+export async function getActiveCapabilityDelegations(userId: number): Promise<CapabilityDelegation[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  const rows = await db.select({
+    role: permissionDelegations.role,
+    capabilities: permissionDelegations.capabilities,
+    unitId: permissionDelegations.unitId,
+    targetUserId: permissionDelegations.targetUserId,
+  }).from(permissionDelegations).where(and(
+    eq(permissionDelegations.delegateUserId, userId),
+    eq(permissionDelegations.status, "active"),
+    lte(permissionDelegations.startsAt, now),
+    gt(permissionDelegations.endsAt, now),
+  ));
+  return rows.map((row) => ({
+    sourceRole: (row.role as CourtRole | null) ?? null,
+    capabilities: (row.capabilities as DelegationCapabilities | null) ?? null,
+    unitId: row.unitId ?? null,
+    targetUserId: row.targetUserId ?? null,
+  }));
 }
 
 export async function setOrganizationUnitActive(input: { unitId: number; isActive: boolean; actorUserId: number }) {

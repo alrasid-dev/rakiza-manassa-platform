@@ -105,6 +105,11 @@ export const ROLE_CAPABILITIES: Record<CourtRole, Capability[]> = {
   assistant_secretary: [], // يعمل فقط عبر تفويض من الأمين
 };
 
+/** كل القدرات (للمالك — يملك كل شيء دائمًا). مشتقة تلقائيًا لتجنّب الانجراف. */
+export const ALL_CAPABILITIES: Capability[] = [
+  ...new Set([...Object.values(ROLE_CAPABILITIES).flat(), ...UNIVERSAL_CAPABILITIES]),
+];
+
 /** فحص بسيط للقدرة من الأدوار وحدها (بدون تفويض وبدون مالك). */
 export function hasRoleCapability(roles: CourtRole[], capability: Capability): boolean {
   return roles.some((role) => ROLE_CAPABILITIES[role]?.includes(capability));
