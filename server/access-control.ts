@@ -28,3 +28,13 @@ export function isSelfWorkspacePermission(permission: AppPermission) {
 export function canManageAttendancePolicy(permission: AppPermission, roles: CourtRole[]): boolean {
   return canViewWholePlatform(permission) || hasRoleCapability(roles, "manage_attendance_policy");
 }
+
+/** عرض سجلات الحضور: المالك (full_control) أو حامل قدرة view_attendance. */
+export function canViewAttendance(permission: AppPermission, roles: CourtRole[]): boolean {
+  return canViewWholePlatform(permission) || hasRoleCapability(roles, "view_attendance");
+}
+
+/** تعديل سجلات الحضور: المالك (full_control) أو حامل قدرة manage_attendance. */
+export function canManageAttendance(permission: AppPermission, roles: CourtRole[]): boolean {
+  return canViewWholePlatform(permission) || hasRoleCapability(roles, "manage_attendance");
+}

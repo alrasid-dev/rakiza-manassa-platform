@@ -301,7 +301,7 @@ import { ensureAttendanceConfirmationHeartbeatJob, ensureCoreHeartbeatJobs } fro
 import { ensureInternalMailDispatchHeartbeatJob } from "../scheduled/internal-mail-setup";
 import { getAnalyticsDailyFlow, getAnalyticsKpis, getAnalyticsLeavesByStatus, getAnalyticsTasksByUnit, type AnalyticsUnitScope } from "../analytics-service";
 import { parse as parseCookie } from "cookie";
-import { canManageAttendancePolicy, canPerform, canViewWholePlatform, isSelfWorkspacePermission, type AppPermission, type ProtectedAction } from "../access-control";
+import { canManageAttendance, canManageAttendancePolicy, canPerform, canViewAttendance, canViewWholePlatform, isSelfWorkspacePermission, type AppPermission, type ProtectedAction } from "../access-control";
 import { canActOnApproval, canActOnManagerAssignmentApproval, canManageOperations, nextApprovalRole, nextManagerAssignmentApprovalRole, type ApprovalRole, type ManagerAssignmentApprovalRole } from "../court-workflow";
 import { analyzeExcelImport, suggestImportAction } from "../import-validator";
 import { calculateWeightedPerformance, evaluatePerformance } from "../performance-evaluation";
@@ -391,7 +391,7 @@ async function requireAttendancePolicyAccess(user: { id: number; role: "user" | 
 async function requireAttendanceOwnerAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
   const permission = await permissionForUser(user);
   const roles = await rolesForUser(user);
-  const allowed = canViewWholePlatform(permission) || roles.some(role => role === "court_secretary");
+  const allowed = canManageAttendance(permission, roles);
   if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "تعديل سجلات الحضور متاح للمالك والأمين فقط." });
   return { permission, roles };
 }
@@ -400,7 +400,7 @@ async function requireAttendanceOwnerAccess(user: { id: number; role: "user" | "
 async function requireAttendanceViewAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
   const permission = await permissionForUser(user);
   const roles = await rolesForUser(user);
-  const allowed = canViewWholePlatform(permission) || roles.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager"].includes(role));
+  const allowed = canViewAttendance(permission, roles);
   if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "عرض سجلات الحضور متاح للمالك والرئيس ومساعد الرئيس والأمين والموارد البشرية فقط." });
   return { permission, roles };
 }
