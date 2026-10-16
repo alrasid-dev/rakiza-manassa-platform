@@ -314,7 +314,7 @@ import { normalizeAutoApprovalSettings } from "../approval-automation";
 import { notifyOwner } from "../_core/notification";
 import { ENV } from "../_core/env";
 import { COOKIE_NAME, MAX_UPLOAD_BASE64_LENGTH, ONE_YEAR_MS } from "@shared/const";
-import { ALL_CAPABILITIES, ROLE_CAPABILITIES, UNIVERSAL_CAPABILITIES, isOwner, type Capability } from "@shared/role-capabilities";
+import { computeCapabilities } from "../capabilities";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { sdk } from "../_core/sdk";
 import { assignCourtAsset, canClearProfile, countOpenCustodies, createCourtAsset, listCourtAssets, returnCourtAsset } from "../assets-service";
@@ -962,25 +962,10 @@ export const courtRouter = router({
   }),
   myRoles: protectedProcedure.query(({ ctx }) => rolesForUser(ctx.user)),
   myCapabilities: protectedProcedure.query(async ({ ctx }) => {
-    if (ctx.user.role === "admin" || isOwner(ctx.user.email, ENV.platformOwnerEmail)) {
-      return ALL_CAPABILITIES;
-    }
+    const permission = await permissionForUser(ctx.user);
     const roles = await rolesForUser(ctx.user);
     const delegations = await getActiveCapabilityDelegations(ctx.user.id);
-    const capabilities = new Set<Capability>();
-    for (const role of roles) {
-      for (const c of ROLE_CAPABILITIES[role] ?? []) capabilities.add(c);
-    }
-    for (const c of UNIVERSAL_CAPABILITIES) capabilities.add(c);
-    for (const d of delegations) {
-      if (d.capabilities?.mode === "all") {
-        const sourceCaps = d.sourceRole ? ROLE_CAPABILITIES[d.sourceRole] ?? [] : [];
-        for (const c of sourceCaps) capabilities.add(c);
-      } else if (d.capabilities?.mode === "specific") {
-        for (const c of d.capabilities.capabilities) capabilities.add(c);
-      }
-    }
-    return Array.from(capabilities);
+    return computeCapabilities(permission, roles, delegations);
   }),
 
   notificationPreferences: router({
