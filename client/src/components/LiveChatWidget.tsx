@@ -6,8 +6,6 @@ import { ChangeEvent, useState } from "react";
 import { toast } from "sonner";
 import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL } from "@shared/const";
 
-const SUPPORT_ROLES = ["technical_support_agent", "technical_support_manager", "court_president", "assistant_president"];
-
 const MAX_ATTACHMENT_BYTES = MAX_UPLOAD_SIZE;
 const ALLOWED_ATTACHMENT_MIME = new Set([
   "application/pdf",
@@ -32,7 +30,7 @@ export function LiveChatWidget() {
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [attachments, setAttachments] = useState<Array<{ originalName: string; mimeType: string; contentBase64: string }>>([]);
 
-  const { roles: rolesSnapshot } = usePermissionsSnapshot(isAuthenticated);
+  const { can } = usePermissionsSnapshot(isAuthenticated);
   const me = trpc.court.people.self.useQuery(undefined, { enabled: isAuthenticated });
   const createSupport = trpc.court.communications.conversations.createSupport.useMutation();
 
@@ -53,7 +51,7 @@ export function LiveChatWidget() {
     },
   });
 
-  const isSupport = rolesSnapshot.some(role => SUPPORT_ROLES.includes(role));
+  const isSupport = can("support");
   if (!isAuthenticated || isSupport) return null;
   const myId = me.data?.id;
 
