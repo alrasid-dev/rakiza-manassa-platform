@@ -12,7 +12,7 @@ type AttachmentDraft = { originalName: string; mimeType: "image/png" | "image/jp
 
 export function SupportPage() {
   const utils = trpc.useUtils();
-  const { roles: rolesSnapshot } = usePermissionsSnapshot();
+  const { can } = usePermissionsSnapshot();
   const tickets = trpc.court.support.list.useQuery();
   const [form, setForm] = useState({ title: "", description: "", priority: "normal" as "normal" | "high" | "critical" });
   const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
@@ -21,7 +21,7 @@ export function SupportPage() {
   const [isInternal, setIsInternal] = useState(false);
   const [resolution, setResolution] = useState("");
   const detail = trpc.court.support.detail.useQuery({ ticketId: selectedTicketId ?? 1 }, { enabled: Boolean(selectedTicketId) });
-  const canActAsSupport = rolesSnapshot.some(role => ["court_president", "assistant_president", "technical_support_manager", "technical_support_agent"].includes(role));
+  const canActAsSupport = can("support");
   const create = trpc.court.support.create.useMutation({ onSuccess: result => { toast.success(result.assignedSupportProfileId ? `تم تسجيل التذكرة #${result.ticketId} وإسنادها تلقائياً.` : `تم تسجيل التذكرة #${result.ticketId} بانتظار موظف دعم.`); setForm({ title: "", description: "", priority: "normal" }); setAttachments([]); utils.court.support.list.invalidate(); } });
   const addComment = trpc.court.support.comment.useMutation({ onSuccess: () => { setComment(""); setIsInternal(false); detail.refetch(); utils.court.support.list.invalidate(); } });
   const resolve = trpc.court.support.resolve.useMutation({ onSuccess: () => { toast.success("تمت معالجة التذكرة وتسجيل الإنجاز."); setResolution(""); detail.refetch(); utils.court.support.list.invalidate(); } });

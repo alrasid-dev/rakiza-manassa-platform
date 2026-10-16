@@ -21,8 +21,8 @@ export default function CorrespondenceWorkspaceContent() {
   const units = trpc.court.units.list.useQuery();
   const levels = trpc.court.hierarchy.list.useQuery();
   const correspondences = trpc.court.correspondence.list.useQuery();
-  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
-  const capabilities = correspondenceRoleCapabilities(permissionSnapshot as CorrespondencePermission, rolesSnapshot);
+  const { permission: permissionSnapshot, capabilities: capabilitiesSnapshot } = usePermissionsSnapshot();
+  const capabilities = correspondenceRoleCapabilities(permissionSnapshot as CorrespondencePermission, capabilitiesSnapshot);
   const [copySearch, setCopySearch] = useState("");
   const [attachments, setAttachments] = useState<CorrespondenceAttachmentDraft[]>([]);
   const [form, setForm] = useState({

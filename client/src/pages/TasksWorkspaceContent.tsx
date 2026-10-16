@@ -217,8 +217,8 @@ export default function TasksWorkspaceContent() {
     }
   }, [activeTab]);
   // تجميد قرار الصلاحيات بعد أول تحميل ناجح — يمنع اختفاء/ظهور الأزرار بسبب حالة الجلب غير المستقرة
-  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
-  const canAssign = permissionSnapshot === "full_control" || rolesSnapshot.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary" || role === "department_manager" || role === "trainee_affairs_manager");
+  const { permission: permissionSnapshot, roles: rolesSnapshot, can } = usePermissionsSnapshot();
+  const canAssign = can("manage_correspondence");
   const routeTargets = trpc.court.tasks.routeTargets.useQuery(undefined, { enabled: Boolean(canAssign) });
   const people = trpc.court.people.list.useQuery(permissionSnapshot === "full_control" ? undefined : { personType: "administrative" });
   const currentProfile = trpc.court.people.self.useQuery();
