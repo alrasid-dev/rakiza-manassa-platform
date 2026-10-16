@@ -301,7 +301,7 @@ import { ensureAttendanceConfirmationHeartbeatJob, ensureCoreHeartbeatJobs } fro
 import { ensureInternalMailDispatchHeartbeatJob } from "../scheduled/internal-mail-setup";
 import { getAnalyticsDailyFlow, getAnalyticsKpis, getAnalyticsLeavesByStatus, getAnalyticsTasksByUnit, type AnalyticsUnitScope } from "../analytics-service";
 import { parse as parseCookie } from "cookie";
-import { canPerform, canViewWholePlatform, isSelfWorkspacePermission, type AppPermission, type ProtectedAction } from "../access-control";
+import { canManageAttendancePolicy, canPerform, canViewWholePlatform, isSelfWorkspacePermission, type AppPermission, type ProtectedAction } from "../access-control";
 import { canActOnApproval, canActOnManagerAssignmentApproval, canManageOperations, nextApprovalRole, nextManagerAssignmentApprovalRole, type ApprovalRole, type ManagerAssignmentApprovalRole } from "../court-workflow";
 import { analyzeExcelImport, suggestImportAction } from "../import-validator";
 import { calculateWeightedPerformance, evaluatePerformance } from "../performance-evaluation";
@@ -383,7 +383,7 @@ async function requireJudicialLeadershipAccess(user: { id: number; role: "user" 
 async function requireAttendancePolicyAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
   const permission = await permissionForUser(user);
   const roles = await rolesForUser(user);
-  const allowed = canViewWholePlatform(permission) || roles.some(role => ["court_president", "court_secretary", "human_resources_manager"].includes(role));
+  const allowed = canManageAttendancePolicy(permission, roles);
   if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "إعداد تأكيد الحضور متاح للرئيس والأمين والموارد البشرية فقط." });
   return { permission, roles };
 }

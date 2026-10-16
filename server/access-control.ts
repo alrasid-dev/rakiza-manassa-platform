@@ -1,3 +1,5 @@
+import { hasRoleCapability, type CourtRole } from "@shared/role-capabilities";
+
 export type AppPermission = "full_control" | "general_view" | "employee" | "trainee" | null;
 export type ProtectedAction = "view" | "edit" | "manage_access";
 
@@ -20,4 +22,9 @@ export function canViewWholePlatform(permission: AppPermission) {
 
 export function isSelfWorkspacePermission(permission: AppPermission) {
   return permission === "employee" || permission === "trainee";
+}
+
+/** سياسة تأكيد الحضور والورديات: المالك (full_control) أو حامل قدرة manage_attendance_policy. */
+export function canManageAttendancePolicy(permission: AppPermission, roles: CourtRole[]): boolean {
+  return canViewWholePlatform(permission) || hasRoleCapability(roles, "manage_attendance_policy");
 }
