@@ -1,5 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
+import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
 import { hijriMonthKey, hijriMonthRange, recentHijriMonths } from "@/lib/hijri-months";
 import { riyadhDateKey, riyadhLocalToUtc, riyadhTimeKey, toRiyadh } from "@/lib/riyadh-time";
 import { useEffect, useMemo, useState } from "react";
@@ -70,17 +71,8 @@ type ModalState = {
 };
 
 export default function AttendanceMonthlyPage() {
-  const permission = trpc.court.registration.myPermission.useQuery();
-  const roles = trpc.court.myRoles.useQuery();
   // تجميد قرار الصلاحيات بعد أول تحميل ناجح — يمنع اختفاء/ظهور الأزرار بسبب حالة الجلب غير المستقرة
-  const [permissionSnapshot, setPermissionSnapshot] = useState<string | null>(null);
-  const [rolesSnapshot, setRolesSnapshot] = useState<string[]>([]);
-  useEffect(() => {
-    if (permission.isSuccess && roles.isSuccess) {
-      setPermissionSnapshot(permission.data ?? null);
-      setRolesSnapshot(roles.data ?? []);
-    }
-  }, [permission.isSuccess, roles.isSuccess, permission.data, roles.data]);
+  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery();
   const utils = trpc.useUtils();
