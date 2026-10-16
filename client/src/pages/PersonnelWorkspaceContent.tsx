@@ -44,14 +44,14 @@ export default function PersonnelWorkspaceContent() {
     await (utils.court as any).people?.self?.invalidate?.().catch(() => undefined);
   };
   // تجميد قرار الصلاحيات بعد أول تحميل ناجح — يمنع اختفاء/ظهور الأزرار بسبب حالة الجلب غير المستقرة
-  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const { permission: permissionSnapshot, roles: rolesSnapshot, can } = usePermissionsSnapshot();
   const { selectedUnitId } = useSelectedUnit();
   const peopleQuery = trpc.court.people.list.useQuery(selectedUnitId ? { unitId: selectedUnitId } : undefined);
   const selfQuery = trpc.court.people?.self?.useQuery?.() ?? { data: undefined as { unitName?: string | null } | undefined };
   const unitsQuery = trpc.court.units?.list?.useQuery?.() ?? { data: [] as Array<{ id: number; name: string }> };
   const judgesQuery = trpc.court.judges?.list?.useQuery?.() ?? { data: [] as Profile[] };
   const canManage = permissionSnapshot === "full_control" || rolesSnapshot.includes("human_resources_manager");
-  const canArchive = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+  const canArchive = can("manage_hr");
   const people = (peopleQuery.data as Profile[] | undefined)?.filter(person => person.personType !== "judge") ?? [];
   const managerCandidates = useMemo(() => [...people, ...((judgesQuery.data as Profile[] | undefined) ?? [])].filter((person, index, list) => list.findIndex(item => item.id === person.id) === index), [people, judgesQuery.data]);
   const [searchTerm, setSearchTerm] = useState("");

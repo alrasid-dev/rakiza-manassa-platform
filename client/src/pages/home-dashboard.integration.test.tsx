@@ -2,12 +2,14 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import React, { type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ALL_CAPABILITIES } from "@shared/role-capabilities";
 
 type DashboardData = { templates?: number; openDelays?: number; overdueDelays?: number; profiles?: number; dueTasks?: number; openTasks?: number; overdueTasks?: number; unreadNotifications?: number };
 
 const state = vi.hoisted(() => ({
   permission: "full_control" as "full_control" | "employee" | "trainee",
   roles: ["court_president"] as string[],
+  capabilities: [] as string[],
   dashboard: { templates: 7, openDelays: 2, overdueDelays: 1, profiles: 16, dueTasks: 4 } as DashboardData,
   taskStatus: "new",
 }));
@@ -19,8 +21,9 @@ vi.mock("@/components/DashboardLayout", async importOriginal => {
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     court: {
-      registration: { myPermission: { useQuery: () => ({ data: state.permission, isLoading: false, error: null }) } },
-      myRoles: { useQuery: () => ({ data: state.roles, isLoading: false, error: null }) },
+      registration: { myPermission: { useQuery: () => ({ data: state.permission, isLoading: false, error: null, isSuccess: true }) } },
+      myRoles: { useQuery: () => ({ data: state.roles, isLoading: false, error: null, isSuccess: true }) },
+      myCapabilities: { useQuery: () => ({ data: state.capabilities, isLoading: false, error: null, isSuccess: true }) },
       dashboard: { useQuery: () => ({ data: state.dashboard, isLoading: false, error: null }) },
       tasks: { list: { useQuery: () => ({ data: [{ id: 17, title: "متابعة خطاب تجريبي", status: state.taskStatus, dueAt: "2027-08-26T11:00:00.000Z", scheduledAt: "2027-08-26T08:00:00.000Z", assigneeProfileId: 17, unitName: "وحدة الاختبار" }], isLoading: false, error: null }) }, todayCounts: { useQuery: () => ({ data: { total: 0, completed: 0, pending: 0, overdue: 0 }, isLoading: false, error: null }) } },
       communications: { conversations: { unreadCount: { useQuery: () => ({ data: 2, isLoading: false, error: null }) } } },
@@ -34,7 +37,7 @@ vi.mock("@/lib/trpc", () => ({
 
 import Home from "./Home";
 
-beforeEach(() => { state.permission = "full_control"; state.roles = ["court_president"]; state.dashboard = { templates: 7, openDelays: 2, overdueDelays: 1, profiles: 16, dueTasks: 4 }; state.taskStatus = "new"; });
+beforeEach(() => { state.permission = "full_control"; state.roles = ["court_president"]; state.capabilities = ALL_CAPABILITIES; state.dashboard = { templates: 7, openDelays: 2, overdueDelays: 1, profiles: 16, dueTasks: 4 }; state.taskStatus = "new"; });
 afterEach(() => cleanup());
 
 describe("لوحة القيادة المدمجة حسب الدور", () => {
@@ -53,6 +56,7 @@ describe("لوحة القيادة المدمجة حسب الدور", () => {
   it("يحجب الشبكة عن الموظف ويعرض مهامه الشخصية وعدّاداتها", () => {
     state.permission = "employee";
     state.roles = [];
+    state.capabilities = [];
     state.dashboard = { openTasks: 3, overdueTasks: 1, openDelays: 2, unreadNotifications: 4 };
     render(<Home />);
     expect(screen.getByText("مهامي اليوم")).toBeTruthy();

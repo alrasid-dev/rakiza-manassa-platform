@@ -30,8 +30,8 @@ const perfColorTone: Record<string, string> = {
 };
 
 export function AchievementsPage() {
-  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
-  const isLeadership = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+  const { can } = usePermissionsSnapshot();
+  const isLeadership = can("view_whole_platform");
   const [tab, setTab] = useState<"personal" | "departments" | "compare">("personal");
   const achievements = trpc.court.achievements.mine.useQuery();
   const departments = trpc.court.achievements.departments.useQuery(undefined, { enabled: isLeadership });

@@ -302,6 +302,7 @@ import { ensureInternalMailDispatchHeartbeatJob } from "../scheduled/internal-ma
 import { getAnalyticsDailyFlow, getAnalyticsKpis, getAnalyticsLeavesByStatus, getAnalyticsTasksByUnit, type AnalyticsUnitScope } from "../analytics-service";
 import { parse as parseCookie } from "cookie";
 import { canManageAttendance, canManageAttendancePolicy, canPerform, canViewAttendance, canViewWholePlatform, isSelfWorkspacePermission, type AppPermission, type ProtectedAction } from "../access-control";
+import { hasRoleCapability } from "@shared/role-capabilities";
 import { canActOnApproval, canActOnManagerAssignmentApproval, canManageOperations, nextApprovalRole, nextManagerAssignmentApprovalRole, type ApprovalRole, type ManagerAssignmentApprovalRole } from "../court-workflow";
 import { analyzeExcelImport, suggestImportAction } from "../import-validator";
 import { calculateWeightedPerformance, evaluatePerformance } from "../performance-evaluation";
@@ -375,7 +376,7 @@ async function requireHumanResourcesOrLeadership(user: { id: number; role: "user
 async function requireJudicialLeadershipAccess(user: { id: number; role: "user" | "admin"; email: string | null }) {
   const permission = await permissionForUser(user);
   const roles = await rolesForUser(user);
-  const allowed = permission === "full_control" || roles.some(role => ["court_secretary", "court_president", "assistant_president"].includes(role));
+  const allowed = permission === "full_control" || hasRoleCapability(roles, "manage_judiciary");
   if (!allowed) throw new TRPCError({ code: "FORBIDDEN", message: "إدارة القضاة متاحة للمالك أو القيادة المخولة (الرئيس/الأمين/مساعد الرئيس) فقط." });
   return { permission, roles };
 }
@@ -481,7 +482,7 @@ async function requirePlatformView(user: { id: number; role: "user" | "admin"; e
 async function hasLeadershipPlatformScope(user: { id: number; role: "user" | "admin" }, permission: AppPermission) {
   if (canViewWholePlatform(permission)) return true;
   const roles = await rolesForUser(user);
-  return roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
+  return hasRoleCapability(roles, "view_whole_platform");
 }
 
 async function resolveAnalyticsScope(user: { id: number; role: "user" | "admin"; email: string | null }): Promise<AnalyticsUnitScope> {

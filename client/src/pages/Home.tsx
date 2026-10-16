@@ -91,7 +91,7 @@ function DraggableHomeCard({ card, isDragging, isDragOver, onActivate, onDragSta
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const { permission: permissionSnapshot, roles: rolesSnapshot, can } = usePermissionsSnapshot();
   const dashboard = trpc.court.dashboard.useQuery();
   const dashboardPreferencesProcedure = trpc.court.dashboardPreferences;
   const savedDashboardPreferences = dashboardPreferencesProcedure?.mine?.useQuery ? dashboardPreferencesProcedure.mine.useQuery() : { data: undefined as DashboardPreferenceState | undefined };
@@ -117,8 +117,8 @@ export default function Home() {
   const metrics = (dashboard.data ?? {}) as Metrics;
   const mailUnreadCount = Number((((trpc.court as any).internalMail?.folderCounts?.useQuery ? (trpc.court as any).internalMail.folderCounts.useQuery() : { data: { unread: 0 } }).data?.unread) || 0);
   const chatUnreadCount = Number((((trpc.court as any).communications?.conversations?.unreadCount?.useQuery ? (trpc.court as any).communications.conversations.unreadCount.useQuery() : { data: 0 }).data) || 0);
-  const isLeadership = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
-  const canManageRotation = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "owner"].includes(role));
+  const isLeadership = can("view_whole_platform");
+  const canManageRotation = permissionSnapshot === "full_control" || can("view_whole_platform");
   const unreadNotifications = Number(metrics.unreadNotifications ?? 0);
   const openTasks = Number(metrics.openTasks ?? 0);
   const overdueTasks = Number(metrics.overdueTasks ?? 0);

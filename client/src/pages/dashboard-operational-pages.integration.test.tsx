@@ -2,8 +2,11 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ALL_CAPABILITIES } from "@shared/role-capabilities";
 
-const query = <T,>(data: T) => ({ data, isLoading: false, error: null });
+const presidentRoles = vi.hoisted(() => ["court_president"] as string[]);
+
+const query = <T,>(data: T) => ({ data, isLoading: false, error: null, isSuccess: true });
 const mutation = { isPending: false, error: null, mutate: vi.fn(), mutateAsync: vi.fn(async () => undefined) };
 const leader = { id: 1, role: "admin" as const, name: "رئيس المحكمة", email: "president@court.example", openId: "president" };
 
@@ -16,7 +19,8 @@ vi.mock("@/lib/trpc", () => ({
     auth: { me: { useQuery: () => query(leader) }, logout: { useMutation: () => mutation } },
     court: {
       registration: { myPermission: { useQuery: () => query("full_control") } },
-      myRoles: { useQuery: () => query(["court_president"]) },
+      myRoles: { useQuery: () => query(presidentRoles) },
+      myCapabilities: { useQuery: () => query(ALL_CAPABILITIES) },
       management: { list: { useQuery: () => query([]) }, assign: { useMutation: () => mutation }, end: { useMutation: () => mutation } },
       dashboard: { useQuery: () => query({ profiles: 12, openTasks: 4, overdueTasks: 1, openDelays: 2, overdueDelays: 0, dueTasks: 1, unreadNotifications: 0 }) },
       tasks: { list: { useQuery: () => query([]) }, todayCounts: { useQuery: () => query({ total: 0, completed: 0, pending: 0, overdue: 0 }) } },

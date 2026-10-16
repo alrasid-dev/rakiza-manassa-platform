@@ -3,14 +3,17 @@ import { cleanup, render, screen } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const mockData = vi.hoisted(() => ({ presidentRoles: ["court_president"] as string[], manageOps: ["manage_operations"] as string[] }));
+
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     useUtils: () => ({ court: { meetings: { list: { invalidate: vi.fn() } } } }),
     court: {
-      registration: { myPermission: { useQuery: () => ({ data: "general_view" }) } },
-      myRoles: { useQuery: () => ({ data: ["court_president"] }) },
+      registration: { myPermission: { useQuery: () => ({ data: "general_view", isLoading: false, error: null, isSuccess: true }) } },
+      myRoles: { useQuery: () => ({ data: mockData.presidentRoles, isLoading: false, error: null, isSuccess: true }) },
+      myCapabilities: { useQuery: () => ({ data: mockData.manageOps, isLoading: false, error: null, isSuccess: true }) },
       people: {
         list: { useQuery: () => ({ data: [{ id: 7, fullName: "موظف تجريبي" }] }) },
         listDepartmentManagers: { useQuery: () => ({ data: [] }) },

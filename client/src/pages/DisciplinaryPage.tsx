@@ -41,10 +41,10 @@ export default function DisciplinaryPage() {
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery();
-  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const { permission: permissionSnapshot, roles: rolesSnapshot, can } = usePermissionsSnapshot();
   const roleList: string[] = rolesSnapshot;
   const isManager = roleList.some(role => ["department_manager", "trainee_affairs_manager"].includes(role));
-  const isLeadership = permissionSnapshot === "full_control" || roleList.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+  const isLeadership = can("view_whole_platform");
   const isOwner = permissionSnapshot === "full_control";
   const FINAL_STATUSES = ["approved", "rejected", "closed", "returned", "cancelled"];
 

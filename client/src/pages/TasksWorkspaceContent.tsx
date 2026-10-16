@@ -239,7 +239,7 @@ export default function TasksWorkspaceContent() {
   const [futureAssigneeId, setFutureAssigneeId] = useState<number | null>(null);
   const [futureStatus, setFutureStatus] = useState<string>("");
   const [period, setPeriod] = useState<"all" | "daily" | "weekly" | "monthly" | "historical">("all");
-  const platformWide = permissionSnapshot === "full_control" || Boolean(rolesSnapshot.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary"));
+  const platformWide = can("view_whole_platform");
   const isManager = canAssign && !platformWide;
   const canDirectEdit = permissionSnapshot === "full_control" || Boolean(rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "performance_monitor", "trainee_affairs_manager", "technical_support_manager"].includes(role)));
   const canReviewApprovals = permissionSnapshot !== "full_control" || Boolean(rolesSnapshot.some(role => role === "court_secretary" || role === "court_president"));

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import React, { type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ permission: "full_control" as "full_control" | "employee", updateCalls: [] as Record<string, unknown>[], listError: null as { message: string } | null }));
+const state = vi.hoisted(() => ({ permission: "full_control" as "full_control" | "employee", capabilities: ["manage_hr"] as string[], emptyRoles: [] as string[], updateCalls: [] as Record<string, unknown>[], listError: null as { message: string } | null }));
 const profileData = [{ id: 11, fullName: "موظف مختبر", email: "staff@court.example", employeeNumber: "A-01", personType: "administrative", jobTitle: "باحث", judicialFormation: null, attendanceMode: "in_person", status: "active" }, { id: 12, fullName: "ملازم مختبر", email: "trainee@court.example", employeeNumber: "T-01", personType: "trainee", jobTitle: "ملازم قضائي", judicialFormation: "الدائرة الأولى", attendanceMode: "mixed", status: "active" }, { id: 13, fullName: "قاضٍ منفصل", email: null, employeeNumber: null, personType: "judge", jobTitle: "قاضٍ", judicialFormation: "الدائرة الثانية", attendanceMode: "in_person", status: "active" }];
 
 vi.mock("@/components/ui/dialog", () => ({
@@ -15,8 +15,9 @@ vi.mock("@/lib/trpc", () => ({
   trpc: {
     useUtils: () => ({ court: { people: { list: { invalidate: vi.fn() }, delegations: { invalidate: vi.fn() }, listAttendanceModePeriods: { invalidate: vi.fn() } } } }),
     court: {
-      registration: { myPermission: { useQuery: () => ({ data: state.permission, isLoading: false, error: null }) } },
-      myRoles: { useQuery: () => ({ data: [] }) },
+      registration: { myPermission: { useQuery: () => ({ data: state.permission, isLoading: false, error: null, isSuccess: true }) } },
+      myRoles: { useQuery: () => ({ data: state.emptyRoles, isLoading: false, error: null, isSuccess: true }) },
+      myCapabilities: { useQuery: () => ({ data: state.capabilities, isLoading: false, error: null, isSuccess: true }) },
       people: {
         list: { useQuery: () => ({ data: profileData, isLoading: false, error: state.listError }) },
         create: { useMutation: () => ({ isPending: false, error: null, mutate: vi.fn() }) },
@@ -44,7 +45,7 @@ vi.mock("@/lib/trpc", () => ({
 
 import PersonnelWorkspaceContent from "./PersonnelWorkspaceContent";
 
-beforeEach(() => { state.permission = "full_control"; state.updateCalls.length = 0; state.listError = null; });
+beforeEach(() => { state.permission = "full_control"; state.capabilities = ["manage_hr"]; state.updateCalls.length = 0; state.listError = null; });
 afterEach(() => cleanup());
 
 describe("إدارة الملفات التشغيلية", () => {
@@ -68,6 +69,7 @@ describe("إدارة الملفات التشغيلية", () => {
 
   it("يحجب الإضافة والتعديل والإيقاف عن صلاحية الموظف", () => {
     state.permission = "employee";
+    state.capabilities = [];
     render(<PersonnelWorkspaceContent />);
     fireEvent.click(screen.getByRole("button", { name: /غير مصنف في قسم/ }));
     expect(screen.getByText("موظف مختبر")).toBeTruthy();

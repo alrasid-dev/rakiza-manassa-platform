@@ -259,7 +259,7 @@ function CourtMark() {
   );
 }
 
-function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, variant = "light", navigationPreferences, mailUnreadCount = 0, chatUnreadCount = 0, taskAttentionCount = 0, pendingApprovalCount = 0, taskApprovalCount = 0, myRequestsCount = 0, leadershipRoles = [], workMode = "manager" }: { onNavigate?: () => void; permission: WorkspacePermission; isOwner: boolean; unitName?: string | null; unitCode?: string | null; variant?: "light" | "dark"; navigationPreferences?: { navigationOrder: string[]; hiddenNavigationLabels: string[] }; mailUnreadCount?: number; chatUnreadCount?: number; taskAttentionCount?: number; pendingApprovalCount?: number; taskApprovalCount?: number; myRequestsCount?: number; leadershipRoles?: string[]; workMode?: "employee" | "manager" }) {
+function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, variant = "light", navigationPreferences, mailUnreadCount = 0, chatUnreadCount = 0, taskAttentionCount = 0, pendingApprovalCount = 0, taskApprovalCount = 0, myRequestsCount = 0, leadershipRoles = [], canViewWholePlatform = false, workMode = "manager" }: { onNavigate?: () => void; permission: WorkspacePermission; isOwner: boolean; unitName?: string | null; unitCode?: string | null; variant?: "light" | "dark"; navigationPreferences?: { navigationOrder: string[]; hiddenNavigationLabels: string[] }; mailUnreadCount?: number; chatUnreadCount?: number; taskAttentionCount?: number; pendingApprovalCount?: number; taskApprovalCount?: number; myRequestsCount?: number; leadershipRoles?: string[]; canViewWholePlatform?: boolean; workMode?: "employee" | "manager" }) {
   const [location, setLocation] = useLocation();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ "لوحة القيادة": true, "العمل والتقارير": true, "الموارد البشرية": true, "تسلسل الأقسام": true });
 
@@ -298,7 +298,7 @@ function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, v
                 </button>
               );
             })}
-            {section.heading === "لوحة القيادة" && (permission === "full_control" || leadershipRoles.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role))) && <CourtStructureMenu variant="tile" />}
+            {section.heading === "لوحة القيادة" && canViewWholePlatform && <CourtStructureMenu variant="tile" />}
           </div>}
         </section>
         );
@@ -310,7 +310,7 @@ function NavigationMenu({ onNavigate, permission, isOwner, unitName, unitCode, v
 export default function DashboardLayout({ children, hideUtilityPrompts = false, dashboardCustomization, navigationPreferences }: { children: React.ReactNode; hideUtilityPrompts?: boolean; dashboardCustomization?: React.ReactNode; navigationPreferences?: { navigationOrder: string[]; hiddenNavigationLabels: string[] } }) {
   const [location, setLocation] = useLocation();
   const { loading, user, logout } = useAuth({ disabled: IS_PREVIEW_MODE });
-  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot(Boolean(user) || IS_PREVIEW_MODE);
+  const { permission: permissionSnapshot, roles: rolesSnapshot, can } = usePermissionsSnapshot(Boolean(user) || IS_PREVIEW_MODE);
   const notifications = trpc.court.notifications.listMine.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE });
   const currentProfile = trpc.court.people.self.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE });
   const todayAttendance = (trpc.court as any).attendance?.today?.useQuery ? (trpc.court as any).attendance.today.useQuery(undefined, { enabled: Boolean(user) && !IS_PREVIEW_MODE }) : { data: null };
@@ -385,7 +385,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
     return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisibilityChange); window.removeEventListener("pointerdown", onUserInteraction); window.removeEventListener("keydown", onUserInteraction); };
   }, [user?.id, location, presenceDisabled]);
   const markNotificationRead = trpc.court.notifications.markRead.useMutation({ onSuccess: () => utils.court.notifications.listMine.invalidate() });
-  const hasLeadershipScope = rolesSnapshot.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary");
+  const hasLeadershipScope = can("view_whole_platform");
   const canSwitchDepartment = permissionSnapshot === "full_control" || hasLeadershipScope;
   const workMode = useWorkMode(hasLeadershipScope);
   const navigationPermission = resolveNavigationPermission(permissionSnapshot as WorkspacePermission, hasLeadershipScope && workMode !== "employee");
@@ -559,7 +559,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
               <div className="flex flex-wrap items-center gap-1.5 text-[#eaf2e6]"><BackButton /></div>
               {departmentIdentity.data?.identities.length ? <label className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2 py-1.5 text-[10px] font-bold text-white/85"><Building className="h-3.5 w-3.5 shrink-0 text-[#a8c98f]" /><span className="sr-only">الهوية الفعالة</span><select aria-label="الهوية الفعالة" disabled={switchDepartmentIdentity.isPending} value={departmentIdentity.data.activeAccountId?.toString() ?? "personal"} onChange={event => switchDepartmentIdentity.mutate({ departmentAccountId: event.target.value === "personal" ? null : Number(event.target.value) })} className="min-w-0 bg-transparent text-[10px] font-bold text-white/90 outline-none"><option className="text-[var(--rakiza-ink)]" value="personal">هويتي الشخصية</option>{departmentIdentity.data.identities.map((identity: { account: { id: number; displayName: string } }) => <option className="text-[var(--rakiza-ink)]" key={identity.account.id} value={identity.account.id}>{identity.account.displayName}</option>)}</select></label> : null}
             </div>
-            <div className="mt-6"><NavigationMenu variant="dark" permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} taskApprovalCount={taskApprovalCount} myRequestsCount={myRequestsCount} leadershipRoles={rolesSnapshot} workMode={workMode} /></div>
+            <div className="mt-6"><NavigationMenu variant="dark" permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} taskApprovalCount={taskApprovalCount} myRequestsCount={myRequestsCount} leadershipRoles={rolesSnapshot} canViewWholePlatform={hasLeadershipScope} workMode={workMode} /></div>
             <DepartmentManagementActions variant="dark" />
             <DepartmentManagerMenu variant="dark" />
             <div className="mt-auto border-t border-white/10 pt-4">
@@ -582,7 +582,7 @@ export default function DashboardLayout({ children, hideUtilityPrompts = false, 
             </div>
             {dashboardCustomization && <div className="mt-7">{dashboardCustomization}</div>}
             <div className="mt-4 flex flex-wrap items-center gap-1.5"><BackButton /></div>
-            <div className="mt-7"><NavigationMenu onNavigate={() => setMobileOpen(false)} permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} taskApprovalCount={taskApprovalCount} myRequestsCount={myRequestsCount} leadershipRoles={rolesSnapshot} workMode={workMode} /></div>
+            <div className="mt-7"><NavigationMenu onNavigate={() => setMobileOpen(false)} permission={navigationPermission} isOwner={(user?.email ?? "").trim().toLowerCase() === "rakizaplatform@gmail.com"} unitName={currentProfile.data?.unitName} unitCode={currentProfile.data?.unitCode} navigationPreferences={navigationPreferences} mailUnreadCount={Number(internalMailCounts.data?.unread || 0)} chatUnreadCount={Number(chatUnread.data || 0)} taskAttentionCount={taskAttentionCount} pendingApprovalCount={Number(pendingApprovals.data?.length || 0)} taskApprovalCount={taskApprovalCount} myRequestsCount={myRequestsCount} leadershipRoles={rolesSnapshot} canViewWholePlatform={hasLeadershipScope} workMode={workMode} /></div>
             <DepartmentManagementActions variant="light" />
             {!IS_PREVIEW_MODE && <button type="button" onClick={logout} className="mt-8 flex w-full items-center gap-2 rounded-xl bg-[#f4ede6] px-3 py-3 text-sm font-bold text-[#784b3f]"><Building2 className="h-4 w-4" /> تسجيل الخروج</button>}
           </aside>

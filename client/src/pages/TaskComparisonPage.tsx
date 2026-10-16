@@ -30,10 +30,10 @@ function formatCompletionTime(r: { avgCompletionMinutes: number | null }) {
 }
 
 export default function TaskComparisonPage() {
-  const { permission: permissionSnapshot, roles: rolesSnapshot } = usePermissionsSnapshot();
+  const { roles: rolesSnapshot, can } = usePermissionsSnapshot();
   const units = trpc.court.units.list.useQuery();
   const people = trpc.court.people.list.useQuery();
-  const isLeadership = permissionSnapshot === "full_control" || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary"].includes(role));
+  const isLeadership = can("view_whole_platform");
   const isManager = !isLeadership && rolesSnapshot.some(role => ["department_manager", "human_resources_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
   const canPickEmployee = isLeadership || isManager;
 

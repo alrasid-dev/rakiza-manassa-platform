@@ -9,6 +9,7 @@
  */
 import { fireEvent, render, type RenderResult } from "@testing-library/react";
 import React from "react";
+import { ALL_CAPABILITIES } from "@shared/role-capabilities";
 
 const NOOP = () => undefined;
 
@@ -67,6 +68,7 @@ export const DEFAULT_TRPC_OVERRIDES: Record<string, unknown> = {
   "auth.me": { id: 1, name: "مالك المنصة", email: "rakizaplatform@gmail.com", role: "admin", openId: "owner" },
   "court.registration.myPermission": "full_control",
   "court.myRoles": ["court_president"],
+  "court.myCapabilities": ALL_CAPABILITIES,
   "court.people.self": { id: 9, fullName: "مالك المنصة", personType: "administrative", status: "active", unitId: 1, unitName: "الأمانة" },
 };
 
