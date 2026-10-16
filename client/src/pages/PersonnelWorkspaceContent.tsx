@@ -52,7 +52,7 @@ export default function PersonnelWorkspaceContent() {
   const judgesQuery = trpc.court.judges?.list?.useQuery?.() ?? { data: [] as Profile[] };
   const canManage = permissionSnapshot === "full_control" || rolesSnapshot.includes("human_resources_manager");
   const canArchive = can("manage_hr");
-  const people = (peopleQuery.data as Profile[] | undefined)?.filter(person => person.personType !== "judge") ?? [];
+  const people = (peopleQuery.data as Profile[] | undefined) ?? [];
   const managerCandidates = useMemo(() => [...people, ...((judgesQuery.data as Profile[] | undefined) ?? [])].filter((person, index, list) => list.findIndex(item => item.id === person.id) === index), [people, judgesQuery.data]);
   const [searchTerm, setSearchTerm] = useState("");
   const filteredPeople = useMemo(() => {

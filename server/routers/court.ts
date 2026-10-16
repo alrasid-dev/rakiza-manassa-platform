@@ -1345,8 +1345,7 @@ export const courtRouter = router({
       const permission = await requirePermission(ctx.user, "view");
       const roles = await rolesForUser(ctx.user);
       if (roles.includes("human_resources_manager")) {
-        if (input?.personType && input.personType !== "administrative") return [];
-        return listProfiles("administrative");
+        return listProfiles(input?.personType);
       }
       if (canViewWholePlatform(permission) || roles.some(role => role === "court_president" || role === "assistant_president" || role === "court_secretary")) { if (input?.unitId) return listProfilesForUnits([input.unitId], input?.personType); return listProfiles(input?.personType); }
 
