@@ -164,6 +164,7 @@ import {
   listRemoteAttendanceReport,
   listAttendanceForProfileRange,
   listAttendanceForUnitRange,
+  listAttendanceForRange,
   listConfirmationReport,
   countOnLeaveProfiles,
   listPlatformUsersForRoleAssignment,
@@ -2815,6 +2816,21 @@ export const courtRouter = router({
     unitMonthlyReport: protectedProcedure.input(z.object({ unitId: z.number().int().positive(), startAt: z.date(), endAt: z.date() })).query(async ({ ctx, input }) => {
       await requireAttendanceViewAccess(ctx.user);
       return listAttendanceForUnitRange([input.unitId], input.startAt, input.endAt);
+    }),
+    report: protectedProcedure.input(z.object({ unitId: z.number().int().positive().nullable().optional(), profileId: z.number().int().positive().nullable().optional(), startAt: z.date(), endAt: z.date(), confirmationStatus: z.enum(["all", "confirmed", "unconfirmed", "not_sent"]).optional() })).query(async ({ ctx, input }) => {
+      const permission = await requirePermission(ctx.user, "view");
+      const isLeadership = await hasLeadershipPlatformScope(ctx.user, permission);
+      const roles = await rolesForUser(ctx.user);
+      const isHr = roles.includes("human_resources_manager");
+      let unitIds: number[] | null;
+      if (isLeadership || isHr) {
+        unitIds = input.unitId ? [input.unitId] : null;
+      } else {
+        const managed = await managedUnitIdsForUser(ctx.user);
+        if (!managed.length) return [];
+        unitIds = input.unitId && managed.includes(input.unitId) ? [input.unitId] : managed;
+      }
+      return listAttendanceForRange({ unitIds, profileId: input.profileId ?? null, startAt: input.startAt, endAt: input.endAt, confirmationStatus: input.confirmationStatus ?? "all" });
     }),
     confirmationReport: protectedProcedure.input(z.object({ startAt: z.date(), endAt: z.date(), unitId: z.number().int().positive().nullable().optional(), profileId: z.number().int().positive().nullable().optional(), status: z.enum(["pending", "done", "missed", "cancelled"]).nullable().optional() })).query(async ({ ctx, input }) => {
       await requireAttendanceViewAccess(ctx.user);

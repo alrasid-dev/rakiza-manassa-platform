@@ -1,10 +1,11 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { usePermissionsSnapshot } from "@/hooks/usePermissionsSnapshot";
-import { hijriMonthKey, hijriMonthRange, recentHijriMonths } from "@/lib/hijri-months";
+import { hijriMonthKey, hijriMonthRange } from "@/lib/hijri-months";
 import { riyadhDateKey, riyadhLocalToUtc, riyadhTimeKey, toRiyadh } from "@/lib/riyadh-time";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 const statusLabels: Record<string, string> = {
   present: "حاضر",
@@ -15,6 +16,33 @@ const statusLabels: Record<string, string> = {
 };
 
 const dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+const confirmationStatusLabel = (c: { status: string } | null | undefined) => {
+  if (!c) return "لم يُرسل";
+  if (c.status === "done") return "مؤكد";
+  return "غير مؤكد";
+};
+
+function cellRef(row: number, col: number): string {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let c = col;
+  let ref = "";
+  while (c >= 0) {
+    ref = letters[c % 26] + ref;
+    c = Math.floor(c / 26) - 1;
+  }
+  return `${ref}${row + 1}`;
+}
+
+function styleCell(ws: XLSX.WorkSheet, row: number, col: number, opts: { fill?: string; color?: string; bold?: boolean; align?: "left" | "center" | "right" }) {
+  const target = (ws as Record<string, unknown>)[cellRef(row, col)] as { s?: Record<string, unknown> } | undefined;
+  if (!target) return;
+  target.s = {
+    font: { name: "Calibri", sz: 11, bold: !!opts.bold, color: opts.color ? { rgb: opts.color } : { rgb: "243D32" } },
+    ...(opts.fill ? { fill: { patternType: "solid", fgColor: { rgb: opts.fill } } } : {}),
+    ...(opts.align ? { alignment: { horizontal: opts.align } } : {}),
+  };
+}
 
 function fmtDate(d: Date | string | number | null | undefined) {
   if (!d) return "—";
@@ -58,6 +86,7 @@ type Row = {
   attendanceMode?: string | null;
   unitId?: number;
   unitName?: string;
+  confirmation?: { status: string; sentAt?: Date | null; confirmedAt?: Date | null } | null;
 };
 
 type ModalState = {
@@ -81,11 +110,19 @@ export default function AttendanceMonthlyPage() {
   const [profileId, setProfileId] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState<"all" | "remote" | "present" | "late" | "no_record">("all");
-  const [month, setMonth] = useState(() => hijriMonthKey(new Date()));
+  const [confirmationStatus, setConfirmationStatus] = useState<"all" | "confirmed" | "unconfirmed" | "not_sent">("all");
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    const r = hijriMonthRange(hijriMonthKey(new Date()));
+    return r ? riyadhDateKey(r.startAt) : riyadhDateKey(new Date());
+  });
+  const [dateTo, setDateTo] = useState<string>(() => {
+    const r = hijriMonthRange(hijriMonthKey(new Date()));
+    return r ? riyadhDateKey(new Date(r.endAt.getTime() - 86400000)) : riyadhDateKey(new Date());
+  });
   const [modal, setModal] = useState<ModalState | null>(null);
 
   const isOwner = permissionSnapshot === "full_control";
-  const canView = isOwner || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager"].includes(role));
+  const canView = isOwner || rolesSnapshot.some(role => ["court_president", "assistant_president", "court_secretary", "human_resources_manager", "department_manager", "trainee_affairs_manager", "performance_monitor"].includes(role));
   const canEdit = isOwner || rolesSnapshot.includes("court_secretary");
   const activeUnitId = unitId ? Number(unitId) : undefined;
   const peopleInUnit = useMemo(
@@ -93,27 +130,31 @@ export default function AttendanceMonthlyPage() {
     [people.data, activeUnitId],
   );
 
-  const range = useMemo(() => hijriMonthRange(month) ?? { startAt: new Date(), endAt: new Date() }, [month]);
+  const range = useMemo(() => {
+    const startAt = dateFrom ? riyadhLocalToUtc(`${dateFrom}T00:00`) : undefined;
+    let endAt: Date | undefined;
+    if (dateTo) {
+      const d = riyadhLocalToUtc(`${dateTo}T00:00`);
+      endAt = new Date(d.getTime() + 86400000);
+    }
+    return { startAt, endAt };
+  }, [dateFrom, dateTo]);
 
   const attendanceApi = trpc.court.attendance as any;
-  const report = attendanceApi?.monthlyReport?.useQuery
-    ? attendanceApi.monthlyReport.useQuery(!showAll && profileId != null ? { profileId, startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: !showAll && profileId != null && canView })
-    : { data: [] as Row[], isLoading: false };
-
-  const unitReport = attendanceApi?.unitMonthlyReport?.useQuery
-    ? attendanceApi.unitMonthlyReport.useQuery(showAll && unitId ? { unitId: Number(unitId), startAt: range.startAt, endAt: range.endAt } : undefined, { enabled: showAll && Boolean(unitId) && canView })
+  const hasSelection = showAll || profileId != null;
+  const report = attendanceApi?.report?.useQuery
+    ? attendanceApi.report.useQuery(
+        hasSelection && range.startAt && range.endAt
+          ? { unitId: unitId ? Number(unitId) : null, profileId: showAll ? null : profileId, startAt: range.startAt, endAt: range.endAt, confirmationStatus }
+          : undefined,
+        { enabled: hasSelection && Boolean(range.startAt && range.endAt) && canView },
+      )
     : { data: [] as Row[], isLoading: false };
 
   const invalidate = () => {
-    if (profileId != null) {
-      utils.court.attendance.monthlyReport.invalidate();
-    }
-    if (showAll && unitId) {
-      (utils.court.attendance as any).unitMonthlyReport?.invalidate?.();
-    }
+    (utils.court.attendance as any).report?.invalidate?.();
     // خط ثانٍ: refetch مباشر لضمان التحديث الفوري.
     (report as { refetch?: () => void } | undefined)?.refetch?.();
-    (unitReport as { refetch?: () => void } | undefined)?.refetch?.();
   };
 
   const updateRecord = attendanceApi?.ownerUpdateAttendance?.useMutation({ onSuccess: () => { invalidate(); toast.success("تم حفظ التعديل."); }, onError: (e: { message?: string }) => toast.error(e?.message || "تعذر الحفظ") }) ?? { mutate: (_i: unknown) => undefined, isPending: false };
@@ -133,7 +174,7 @@ export default function AttendanceMonthlyPage() {
     setModal(null);
   };
 
-  const allRows = (showAll ? (unitReport.data ?? []) : (report.data ?? [])) as Row[];
+  const allRows = (report.data ?? []) as Row[];
 
   const recordedProfileIds = useMemo(() => new Set(allRows.map(r => r.profileId)), [allRows]);
   const noRecordEmployees = useMemo(() => peopleInUnit.filter(p => !recordedProfileIds.has(p.id)), [peopleInUnit, recordedProfileIds]);
@@ -145,19 +186,51 @@ export default function AttendanceMonthlyPage() {
     return allRows;
   }, [allRows, filter]);
 
-  const exportRows = () => {
-    if (filter === "no_record") return noRecordEmployees.map(p => ({ date: "—", employee: p.fullName, checkIn: "—", checkOut: "—", status: "لم يسجّل بصمة", points: 0 }));
-    return rows.map(r => ({ date: fmtDate(r.attendance.recordDate), employee: r.profileName, checkIn: fmtTime(r.attendance.checkInAt), checkOut: fmtTime(r.attendance.checkOutAt), status: statusLabels[r.attendance.status] ?? r.attendance.status, points: (r.attendance.positiveMinutes ?? 0) - (r.attendance.negativeMinutes ?? 0) }));
-  };
+  const pointsOf = (r: Row) => (r.attendance.positiveMinutes ?? 0) - (r.attendance.negativeMinutes ?? 0);
 
   const exportExcel = () => {
-    const data = exportRows();
     const withEmp = showAll || filter === "no_record";
-    const empHeader = withEmp ? "<th>الموظف</th>" : "";
-    const html = `<table dir="rtl"><tr><th>التاريخ</th>${empHeader}<th>الدخول</th><th>الخروج</th><th>الحالة</th><th>النقاط</th></tr>${data.map(r => `<tr><td>${r.date}</td>${withEmp ? `<td>${r.employee}</td>` : ""}<td>${r.checkIn}</td><td>${r.checkOut}</td><td>${r.status}</td><td>${r.points}</td></tr>`).join("")}</table>`;
+    const header = [
+      ...(withEmp ? ["الموظف"] : []),
+      "التاريخ", "اليوم", "الدخول", "الخروج", "الحالة", "النقاط",
+      "حالة التأكيد", "وقت الإرسال", "وقت التأكيد",
+    ];
+    const data: (string | number)[][] = [];
+    if (filter === "no_record") {
+      for (const p of noRecordEmployees) {
+        data.push([
+          ...(withEmp ? [p.fullName] : []),
+          "—", "—", "—", "—", "لم يسجّل بصمة", 0,
+          "لم يُرسل", "—", "—",
+        ]);
+      }
+    } else {
+      for (const r of rows) {
+        data.push([
+          ...(withEmp ? [r.profileName] : []),
+          fmtDate(r.attendance.recordDate),
+          dayNames[toRiyadh(new Date(r.attendance.recordDate)).getUTCDay()],
+          fmtTime(r.attendance.checkInAt),
+          fmtTime(r.attendance.checkOutAt),
+          statusLabels[r.attendance.status] ?? r.attendance.status,
+          pointsOf(r),
+          confirmationStatusLabel(r.confirmation),
+          fmtTime(r.confirmation?.sentAt),
+          fmtTime(r.confirmation?.confirmedAt),
+        ]);
+      }
+    }
+    const aoa: (string | number)[][] = [header, ...data];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = header.map(() => ({ wch: 16 }));
+    for (let c = 0; c < header.length; c++) styleCell(ws, 0, c, { fill: "3F7354", color: "FFFFFF", bold: true, align: "right" });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الحضور");
+    const out = XLSX.write(wb, { type: "array", bookType: "xlsx", cellStyles: true }) as number[];
+    const blob = new Blob([new Uint8Array(out)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([`\uFEFF<html><meta charset="utf-8">${html}</html>`], { type: "application/vnd.ms-excel" }));
-    link.download = "تقارير-الحضور-والانصراف.xls";
+    link.href = URL.createObjectURL(blob);
+    link.download = "تقارير-الحضور-والانصراف.xlsx";
     link.click();
     URL.revokeObjectURL(link.href);
   };
@@ -171,7 +244,7 @@ export default function AttendanceMonthlyPage() {
           <div>
             <p className="text-xs font-bold tracking-[0.14em] text-[var(--rakiza-gold)]">إدارة الحضور</p>
             <h1 className="mt-2 text-2xl font-bold text-[var(--rakiza-ink)]">تقارير الحضور والانصراف</h1>
-            <p className="mt-1 text-sm text-[var(--rakiza-muted)]">اختر القسم والموظف والشهر لعرض وتصدير سجلات الحضور والانصراف.</p>
+            <p className="mt-1 text-sm text-[var(--rakiza-muted)]">اختر القسم والموظف والنطاق الزمني لعرض وتصدير سجلات الحضور والانصراف.</p>
           </div>
         </div>
 
@@ -193,13 +266,22 @@ export default function AttendanceMonthlyPage() {
                   {peopleInUnit.map(p => <option key={p.id} value={p.id}>{p.fullName}</option>)}
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-sm font-bold text-[var(--rakiza-muted)] sm:text-xs">الشهر
-                <select value={month} onChange={e => setMonth(e.target.value)} className="h-10 min-w-40 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal">
-                  {recentHijriMonths(14).map(k => <option key={k} value={k}>{k}</option>)}
+              <label className="flex flex-col gap-1 text-sm font-bold text-[var(--rakiza-muted)] sm:text-xs">من تاريخ
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-10 min-w-40 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal" />
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-bold text-[var(--rakiza-muted)] sm:text-xs">إلى تاريخ
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-10 min-w-40 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal" />
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-bold text-[var(--rakiza-muted)] sm:text-xs">حالة التأكيد
+                <select value={confirmationStatus} onChange={e => setConfirmationStatus(e.target.value as "all" | "confirmed" | "unconfirmed" | "not_sent")} className="h-10 min-w-40 rounded-lg border border-[var(--rakiza-border)] bg-white px-3 text-sm font-normal">
+                  <option value="all">الكل</option>
+                  <option value="confirmed">مؤكد</option>
+                  <option value="unconfirmed">غير مؤكد</option>
+                  <option value="not_sent">لم يُرسل</option>
                 </select>
               </label>
-              {profileId != null && (
-                <button type="button" onClick={() => setModal({ mode: "create", recordDate: range.startAt.toISOString().slice(0, 10), checkInAt: "", checkOutAt: "", status: "present", reason: "" })} className="h-10 rounded-lg bg-[var(--rakiza-olive-strong)] px-4 text-sm font-bold text-white hover:bg-[var(--rakiza-olive-strong)]">➕ إضافة سجل</button>
+              {profileId != null && canEdit && (
+                <button type="button" onClick={() => setModal({ mode: "create", recordDate: dateFrom, checkInAt: "", checkOutAt: "", status: "present", reason: "" })} className="h-10 rounded-lg bg-[var(--rakiza-olive-strong)] px-4 text-sm font-bold text-white hover:bg-[var(--rakiza-olive-strong)]">➕ إضافة سجل</button>
               )}
             </div>
 
@@ -226,13 +308,16 @@ export default function AttendanceMonthlyPage() {
                     <th className="px-3 py-3">الخروج</th>
                     <th className="px-3 py-3">الحالة</th>
                     <th className="px-3 py-3">النقاط</th>
+                    <th className="px-3 py-3">حالة التأكيد</th>
+                    <th className="px-3 py-3">وقت الإرسال</th>
+                    <th className="px-3 py-3">وقت التأكيد</th>
                     {!showAll && canEdit && <th className="px-3 py-3">إجراء</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee8de]">
                   {filter === "no_record" ? (
                     noRecordEmployees.length === 0 ? (
-                      <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">لا يوجد موظفون لم يسجّلوا بصمة في هذا الشهر.</td></tr>
+                      <tr><td colSpan={10} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">لا يوجد موظفون لم يسجّلوا بصمة في هذا النطاق.</td></tr>
                     ) : noRecordEmployees.map(p => (
                       <tr key={p.id} className="hover:bg-[#fafdf9]">
                         {showAll && <td className="px-3 py-2.5 font-bold">{p.fullName}</td>}
@@ -242,11 +327,14 @@ export default function AttendanceMonthlyPage() {
                         <td className="px-3 py-2.5">—</td>
                         <td className="px-3 py-2.5"><span className="rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs bg-[#f0f0ea] text-[var(--rakiza-muted)]">لم يسجّل</span></td>
                         <td className="px-3 py-2.5 font-bold" dir="ltr">0</td>
+                        <td className="px-3 py-2.5"><span className="rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs bg-[#f0f0ea] text-[var(--rakiza-muted)]">لم يُرسل</span></td>
+                        <td className="px-3 py-2.5">—</td>
+                        <td className="px-3 py-2.5">—</td>
                         {!showAll && canEdit && <td className="px-3 py-2.5">—</td>}
                       </tr>
                     ))
                   ) : rows.length === 0 ? (
-                    <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">{showAll ? (unitId ? "لا توجد سجلات في هذا الشهر." : "اختر قسماً لعرض سجلات كل الموظفين.") : profileId == null ? "اختر موظفاً لعرض السجل." : "لا توجد سجلات في هذا الشهر."}</td></tr>
+                    <tr><td colSpan={10} className="px-3 py-10 text-center text-sm text-[var(--rakiza-muted)]">{profileId == null && !showAll ? "اختر موظفاً لعرض السجل." : "لا توجد سجلات في هذا النطاق."}</td></tr>
                   ) : rows.map(row => {
                     const a = row.attendance;
                     const dayName = dayNames[toRiyadh(new Date(a.recordDate)).getUTCDay()];
@@ -260,6 +348,9 @@ export default function AttendanceMonthlyPage() {
                         <td className="px-3 py-2.5">{fmtTime(a.checkOutAt)}</td>
                         <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs ${a.status === "present" ? "bg-[#e4f0e4] text-[var(--rakiza-olive-strong)]" : a.status === "absent" ? "bg-[#f8e6e1] text-[var(--rakiza-danger)]" : a.status === "late" ? "bg-[#f5edd8] text-[var(--rakiza-gold)]" : "bg-[#e3eef5] text-[#2c5d77]"}`}>{statusLabels[a.status] ?? a.status}</span></td>
                         <td className="px-3 py-2.5 font-bold" dir="ltr">{points > 0 ? `+${points}` : points}</td>
+                        <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-0.5 text-sm font-bold sm:text-xs ${row.confirmation?.status === "done" ? "bg-[#e4f0e4] text-[var(--rakiza-olive-strong)]" : row.confirmation ? "bg-[#f5edd8] text-[var(--rakiza-gold)]" : "bg-[#f0f0ea] text-[var(--rakiza-muted)]"}`}>{confirmationStatusLabel(row.confirmation)}</span></td>
+                        <td className="px-3 py-2.5">{fmtTime(row.confirmation?.sentAt)}</td>
+                        <td className="px-3 py-2.5">{fmtTime(row.confirmation?.confirmedAt)}</td>
                         {!showAll && canEdit && (
                           <td className="px-3 py-2.5">
                             <div className="flex flex-wrap gap-1.5">

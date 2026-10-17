@@ -6014,6 +6014,79 @@ export async function listAttendanceForUnitRange(unitIds: number[], startAt: Dat
     .limit(1000);
 }
 
+/** نوع فلتر حالة التأكيد في تقرير الحضور. */
+export type AttendanceConfirmationFilter = "all" | "confirmed" | "unconfirmed" | "not_sent";
+
+/**
+ * سجل حضور موحّد ضمن نطاق زمني (وحدات اختيارية = كل الأقسام، موظف اختياري = كل الموظفين)،
+ * مع دمج حالة/وقت تأكيد الحضور من جدول confirmationAssignments حسب (profileId + اليوم السعودي).
+ */
+export async function listAttendanceForRange(input: {
+  unitIds: number[] | null;
+  profileId?: number | null;
+  startAt: Date;
+  endAt: Date;
+  confirmationStatus?: AttendanceConfirmationFilter;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [
+    gte(attendanceRecords.recordDate, input.startAt),
+    lt(attendanceRecords.recordDate, input.endAt),
+  ];
+  if (input.unitIds && input.unitIds.length) conditions.push(inArray(personProfiles.unitId, input.unitIds));
+  if (input.profileId) conditions.push(eq(attendanceRecords.profileId, input.profileId));
+
+  const rows = await db.select({
+    attendance: attendanceRecords,
+    profileId: personProfiles.id,
+    profileName: personProfiles.fullName,
+    personType: personProfiles.personType,
+    attendanceMode: personProfiles.attendanceMode,
+    unitId: personProfiles.unitId,
+    unitName: organizationUnits.name,
+  }).from(attendanceRecords)
+    .innerJoin(personProfiles, eq(personProfiles.id, attendanceRecords.profileId))
+    .leftJoin(organizationUnits, eq(organizationUnits.id, personProfiles.unitId))
+    .where(and(...conditions))
+    .orderBy(asc(attendanceRecords.recordDate))
+    .limit(1000);
+
+  // دمج تكليفات تأكيد الحضور (جدول منفصل) حسب profileId + بداية اليوم السعودي،
+  // مع توسيع نطاق الجلب بيوم لتفادي اختلاف حدود الأيام بتوقيت الرياض (UTC+3).
+  const profileIds = [...new Set(rows.map(r => r.profileId))];
+  const confirmationByProfileDay = new Map<string, { status: string; sentAt: Date; confirmedAt: Date | null }>();
+  if (profileIds.length) {
+    const assignments = await db.select({
+      profileId: confirmationAssignments.profileId,
+      scheduledAt: confirmationAssignments.scheduledAt,
+      confirmedAt: confirmationAssignments.confirmedAt,
+      status: confirmationAssignments.status,
+    }).from(confirmationAssignments)
+      .where(and(
+        inArray(confirmationAssignments.profileId, profileIds),
+        gte(confirmationAssignments.scheduledAt, new Date(input.startAt.getTime() - 86400000)),
+        lt(confirmationAssignments.scheduledAt, new Date(input.endAt.getTime() + 86400000)),
+      ));
+    for (const a of assignments) {
+      const dayStart = dateRangeForSaudiDay(a.scheduledAt).start.getTime();
+      confirmationByProfileDay.set(`${a.profileId}|${dayStart}`, { status: a.status, sentAt: a.scheduledAt, confirmedAt: a.confirmedAt });
+    }
+  }
+
+  const enriched = rows.map(r => {
+    const dayStart = dateRangeForSaudiDay(r.attendance.recordDate).start.getTime();
+    const confirmation = confirmationByProfileDay.get(`${r.profileId}|${dayStart}`) ?? null;
+    return { ...r, confirmation };
+  });
+
+  const filter = input.confirmationStatus ?? "all";
+  if (filter === "confirmed") return enriched.filter(r => r.confirmation?.status === "done");
+  if (filter === "unconfirmed") return enriched.filter(r => r.confirmation != null && r.confirmation.status !== "done" && r.confirmation.status !== "cancelled");
+  if (filter === "not_sent") return enriched.filter(r => r.confirmation == null);
+  return enriched;
+}
+
 export async function getTodayAttendanceForProfile(profileId: number) {
   const db = await getDb();
   if (!db) return null;
